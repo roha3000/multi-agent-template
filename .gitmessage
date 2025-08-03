@@ -1,0 +1,13 @@
+[AGENT] [PHASE]: Brief description
+
+Agent: [Research Analyst|Strategic Planner|System Architect|Test Engineer|Senior Developer|etc.]
+Phase: [Research|Planning|Design|Testing|Implementation|Validation|Iteration]
+Model: [claude-opus-4|claude-sonnet-4-20250514|gpt-4o|o1-preview]
+
+Detailed description:
+- What was accomplished
+- Key decisions made
+- Next steps required
+
+Quality Score: __/100
+Reviewed by: [Agent names]
