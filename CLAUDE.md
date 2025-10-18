@@ -3,6 +3,29 @@
 ## Project Overview
 Multi-agent development system that combines specialized AI agent personas with strategic model selection for optimal development workflows.
 
+## Session Initialization (Read This First!)
+
+**At the start of every session**, automatically load project context by reading:
+
+```
+PROJECT_SUMMARY.md
+```
+
+This file contains:
+- Current phase and progress
+- Recent artifacts and decisions
+- Quality scores
+- Active blockers
+- Recommended next actions
+
+**Token cost**: ~200 tokens (cached via prompt caching = ~20 tokens effective)
+
+**When you need fresh context or phase inference**:
+- User can run `/session-init [task description]` to regenerate context with intelligent phase detection
+- This is optional - PROJECT_SUMMARY.md provides sufficient context for most work
+
+**Important**: If PROJECT_SUMMARY.md doesn't exist, the project is new. Proceed with research phase.
+
 ## Multi-Agent Multi-Model Strategy
 
 ### Core Philosophy
@@ -14,7 +37,7 @@ Multi-agent development system that combines specialized AI agent personas with 
 ## Agent Personas & Model Assignments
 
 ### 🔍 Research Phase
-**Primary Agent**: Research Analyst (Claude Opus 4)
+**Primary Agent**: Research Analyst (Claude Sonnet 4.5)
 - **Role**: Deep technology research, competitive analysis, requirement gathering
 - **Strengths**: Comprehensive analysis, nuanced understanding
 - **Secondary Agent**: Trend Analyst (GPT-4o)
@@ -22,7 +45,7 @@ Multi-agent development system that combines specialized AI agent personas with 
 - **Handoff**: Research Analyst provides foundation, Trend Analyst adds current context
 
 ### 📊 Planning Phase  
-**Primary Agent**: Strategic Planner (Claude Opus 4)
+**Primary Agent**: Strategic Planner (Claude Sonnet 4.5)
 - **Role**: Project roadmap, resource allocation, timeline estimation
 - **Strengths**: Strategic thinking, complex project coordination
 - **Validation Agent**: Logic Reviewer (o1-preview)
@@ -30,7 +53,7 @@ Multi-agent development system that combines specialized AI agent personas with 
 - **Handoff**: Planner creates strategy, Logic Reviewer validates feasibility
 
 ### 🏗️ Design Phase
-**Architecture Agent**: System Architect (Claude Opus 4)
+**Architecture Agent**: System Architect (Claude Sonnet 4.5)
 - **Role**: High-level system design, technology selection, scalability planning
 - **Strengths**: Architectural vision, technology assessment
 - **Implementation Agent**: Technical Designer (Claude Sonnet 4)
@@ -54,14 +77,14 @@ Multi-agent development system that combines specialized AI agent personas with 
 - **Handoff**: Developer handles core logic, Assistant supports with scaffolding
 
 ### ✅ Validation Phase
-**Quality Gate Coordinator**: Review Orchestrator (Claude Opus 4)
+**Quality Gate Coordinator**: Review Orchestrator (Claude Sonnet 4.5)
 - **Role**: Cross-agent validation, quality gate enforcement
 - **Review Agents**: All previous agents in specialized review capacity
 - **Process**: Each agent validates their domain expertise
 - **Standards**: Minimum 85/100 quality score to proceed
 
 ### 🔄 Iteration Phase
-**Strategy Agent**: Innovation Lead (Claude Opus 4)
+**Strategy Agent**: Innovation Lead (Claude Sonnet 4.5)
 - **Role**: Strategic improvements, architectural changes
 - **Execution Agent**: Implementation Specialist (Claude Sonnet 4)
 - **Role**: Code improvements, bug fixes, optimizations
@@ -73,7 +96,7 @@ Multi-agent development system that combines specialized AI agent personas with 
 ```bash
 # Research & Strategic Planning
 if [task_complexity == "high" && analysis_depth == "deep"]; then
-    model = "claude-opus-4"
+    model = "claude-sonnet-4.5"
 fi
 
 # Code Implementation & Testing  
@@ -151,14 +174,14 @@ When agents disagree:
 ### Model Environment Variables
 ```bash
 # Primary Models
-RESEARCH_MODEL=claude-opus-4
-PLANNING_MODEL=claude-opus-4  
-DESIGN_ARCHITECTURE_MODEL=claude-opus-4
+RESEARCH_MODEL=claude-sonnet-4.5
+PLANNING_MODEL=claude-sonnet-4.5  
+DESIGN_ARCHITECTURE_MODEL=claude-sonnet-4.5
 DESIGN_IMPLEMENTATION_MODEL=claude-sonnet-4-20250514
 TESTING_MODEL=claude-sonnet-4-20250514
 IMPLEMENTATION_MODEL=claude-sonnet-4-20250514
-VALIDATION_MODEL=claude-opus-4
-ITERATION_STRATEGY_MODEL=claude-opus-4
+VALIDATION_MODEL=claude-sonnet-4.5
+ITERATION_STRATEGY_MODEL=claude-sonnet-4.5
 ITERATION_EXECUTION_MODEL=claude-sonnet-4-20250514
 
 # Secondary Models  

@@ -1,0 +1,53 @@
+{
+  "patterns": [
+    {
+      "phase": "research",
+      "keywords": ["research", "analyze", "investigate", "compare", "evaluate", "options", "technologies", "approaches", "feasibility", "study", "explore", "assess", "survey"],
+      "negativeKeywords": ["implement", "code", "test", "write code"],
+      "contextHints": ["new project", "initial", "exploration", "discovery"],
+      "weight": 1.0
+    },
+    {
+      "phase": "planning",
+      "keywords": ["plan", "timeline", "roadmap", "milestones", "resources", "estimate", "schedule", "dependencies", "prioritize", "strategy", "allocate", "organize"],
+      "negativeKeywords": ["code", "test", "design", "implement"],
+      "contextHints": ["after research", "strategy", "project plan"],
+      "weight": 1.0
+    },
+    {
+      "phase": "design",
+      "keywords": ["design", "architecture", "schema", "api", "interface", "structure", "components", "models", "patterns", "diagram", "blueprint", "specify"],
+      "negativeKeywords": ["implement", "test", "code"],
+      "contextHints": ["technical spec", "diagram", "architecture"],
+      "weight": 1.0
+    },
+    {
+      "phase": "implementation",
+      "keywords": ["implement", "code", "build", "develop", "create function", "add feature", "write", "program", "develop", "coding", "create", "make"],
+      "negativeKeywords": ["test", "plan", "research", "only test"],
+      "contextHints": ["after design", "coding", "development"],
+      "weight": 1.0
+    },
+    {
+      "phase": "testing",
+      "keywords": ["test", "verify", "validate", "qa", "quality", "coverage", "unit test", "integration test", "debugging", "check tests", "write tests"],
+      "negativeKeywords": ["design", "plan", "only implement"],
+      "contextHints": ["after implementation", "quality assurance", "testing"],
+      "weight": 1.0
+    },
+    {
+      "phase": "validation",
+      "keywords": ["review", "validate", "quality gate", "approve", "check", "assess", "audit", "compliance", "final review", "sign off"],
+      "negativeKeywords": ["implement", "code", "initial"],
+      "contextHints": ["quality check", "gate", "final validation"],
+      "weight": 1.0
+    },
+    {
+      "phase": "iteration",
+      "keywords": ["improve", "refactor", "optimize", "enhance", "fix bug", "update", "modify", "iterate", "revision", "refine", "polish"],
+      "negativeKeywords": ["initial", "new", "first time"],
+      "contextHints": ["after validation", "improvement", "refinement"],
+      "weight": 1.0
+    }
+  ]
+}

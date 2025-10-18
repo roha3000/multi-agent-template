@@ -3,7 +3,7 @@
 PHASE=$1
 case $PHASE in
   "research"|"planning"|"design"|"validation"|"iteration")
-    export CLAUDE_MODEL="claude-opus-4"
+    export CLAUDE_MODEL="claude-sonnet-4.5"
     echo "Switched to Claude Opus for $PHASE phase"
     ;;
   "testing"|"implementation"|"debug")

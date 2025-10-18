@@ -1,0 +1,67 @@
+{
+  "gates": {
+    "research": {
+      "threshold": 80,
+      "criteria": [
+        {"name": "Technology analysis complete", "weight": 0.25},
+        {"name": "Risk assessment complete", "weight": 0.25},
+        {"name": "Resource requirements identified", "weight": 0.25},
+        {"name": "Alternatives evaluated", "weight": 0.25}
+      ]
+    },
+    "planning": {
+      "threshold": 85,
+      "criteria": [
+        {"name": "Timeline and milestones defined", "weight": 0.3},
+        {"name": "Dependencies mapped", "weight": 0.25},
+        {"name": "Logic validation passed", "weight": 0.2},
+        {"name": "Resource allocation confirmed", "weight": 0.25}
+      ]
+    },
+    "design": {
+      "threshold": 85,
+      "criteria": [
+        {"name": "Architecture approved", "weight": 0.3},
+        {"name": "Implementation details validated", "weight": 0.25},
+        {"name": "Security considerations addressed", "weight": 0.25},
+        {"name": "Testability confirmed", "weight": 0.2}
+      ]
+    },
+    "implementation": {
+      "threshold": 90,
+      "criteria": [
+        {"name": "All tests passing", "weight": 0.3},
+        {"name": "Code quality standards met", "weight": 0.25},
+        {"name": "Security review completed", "weight": 0.25},
+        {"name": "Documentation updated", "weight": 0.2}
+      ]
+    },
+    "testing": {
+      "threshold": 85,
+      "criteria": [
+        {"name": "Test coverage >80%", "weight": 0.3},
+        {"name": "Edge cases covered", "weight": 0.25},
+        {"name": "Automation complete", "weight": 0.25},
+        {"name": "Performance validated", "weight": 0.2}
+      ]
+    },
+    "validation": {
+      "threshold": 90,
+      "criteria": [
+        {"name": "Code quality validated", "weight": 0.25},
+        {"name": "Test coverage validated", "weight": 0.25},
+        {"name": "Security validated", "weight": 0.25},
+        {"name": "Performance validated", "weight": 0.25}
+      ]
+    },
+    "iteration": {
+      "threshold": 85,
+      "criteria": [
+        {"name": "Improvements validated", "weight": 0.3},
+        {"name": "No regressions introduced", "weight": 0.3},
+        {"name": "Tests updated", "weight": 0.2},
+        {"name": "Documentation updated", "weight": 0.2}
+      ]
+    }
+  }
+}

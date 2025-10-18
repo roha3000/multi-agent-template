@@ -1,0 +1,24 @@
+{
+  "name": "@multi-agent/core",
+  "version": "1.0.0",
+  "description": "Intelligent Phase Management System - Core Components",
+  "main": "session-init.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "multi-agent",
+    "phase-management",
+    "development-workflow",
+    "state-management"
+  ],
+  "author": "Multi-Agent Development Team",
+  "license": "MIT",
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

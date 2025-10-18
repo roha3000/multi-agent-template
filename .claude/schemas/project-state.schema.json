@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["currentPhase", "phaseProgress", "qualityScore", "lastUpdated"],
+  "properties": {
+    "projectId": {
+      "type": "string",
+      "description": "Unique project identifier (UUID)"
+    },
+    "currentPhase": {
+      "type": "string",
+      "enum": ["research", "planning", "design", "implementation", "testing", "validation", "iteration"]
+    },
+    "phaseProgress": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Progress within current phase"
+    },
+    "qualityScore": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Current phase quality score"
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "phase", "type", "path", "created"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string",
+            "enum": ["research", "planning", "design", "implementation", "testing", "validation", "iteration"]
+          },
+          "type": {
+            "type": "string",
+            "enum": ["research", "design", "code", "test", "doc"]
+          },
+          "path": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastModified": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "qualityScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "nextActions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 5
+    },
+    "phaseHistory": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fromPhase", "toPhase", "timestamp", "reason"],
+        "properties": {
+          "fromPhase": {
+            "type": "string"
+          },
+          "toPhase": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "triggeredBy": {
+            "type": "string",
+            "enum": ["user", "quality-gate", "auto-inference"],
+            "default": "user"
+          }
+        }
+      }
+    }
+  }
+}
