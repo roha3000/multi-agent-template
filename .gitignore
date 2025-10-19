@@ -78,6 +78,7 @@ temp/
 # Claude Code specific (if any)
 .claude/cache/
 .claude/logs/
+*.log
 
 # Project specific
 actual-projects/

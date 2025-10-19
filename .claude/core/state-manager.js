@@ -14,6 +14,10 @@ const fs = require('fs');
 const path = require('path');
 const Ajv = require('ajv');
 const addFormats = require('ajv-formats');
+const { createComponentLogger } = require('./logger');
+
+// Create logger instance for StateManager
+const logger = createComponentLogger('StateManager');
 
 // JSON Schema for project state validation
 const STATE_SCHEMA = {
@@ -158,7 +162,7 @@ class StateManager {
     try {
       // Check if state file exists
       if (!fs.existsSync(this.statePath)) {
-        console.log('[StateManager] No state file found, creating default state');
+        logger.info('No state file found, creating default state');
         return this._createDefaultState();
       }
 
@@ -169,15 +173,15 @@ class StateManager {
       // Validate state against schema
       const valid = this.validate(state);
       if (!valid) {
-        console.error('[StateManager] State validation failed:', this.validate.errors);
+        logger.error('State validation failed', { errors: this.validate.errors });
         return this._attemptRecovery();
       }
 
-      console.log(`[StateManager] State loaded successfully. Current phase: ${state.current_phase}`);
+      logger.info('State loaded successfully', { currentPhase: state.current_phase });
       return state;
 
     } catch (error) {
-      console.error('[StateManager] Error loading state:', error.message);
+      logger.error('Error loading state', { error: error.message, stack: error.stack });
       return this._attemptRecovery();
     }
   }
@@ -208,11 +212,11 @@ class StateManager {
       fs.writeFileSync(tempPath, JSON.stringify(state, null, 2), 'utf8');
       fs.renameSync(tempPath, this.statePath);
 
-      console.log(`[StateManager] State saved successfully at ${new Date().toISOString()}`);
+      logger.info('State saved successfully');
       return true;
 
     } catch (error) {
-      console.error('[StateManager] Error saving state:', error.message);
+      logger.error('Error saving state', { error: error.message, stack: error.stack });
       return false;
     }
   }
@@ -227,13 +231,13 @@ class StateManager {
       const backupPath = path.join(this.backupDir, `state-backup-${timestamp}.json`);
 
       fs.copyFileSync(this.statePath, backupPath);
-      console.log(`[StateManager] Backup created: ${backupPath}`);
+      logger.debug('Backup created', { backupPath });
 
       // Clean old backups (keep last 10)
       this._cleanOldBackups(10);
 
     } catch (error) {
-      console.error('[StateManager] Error creating backup:', error.message);
+      logger.warn('Error creating backup', { error: error.message });
     }
   }
 
@@ -256,11 +260,11 @@ class StateManager {
       // Delete backups beyond keepCount
       backups.slice(keepCount).forEach(backup => {
         fs.unlinkSync(backup.path);
-        console.log(`[StateManager] Deleted old backup: ${backup.name}`);
+        logger.debug('Deleted old backup', { backupName: backup.name });
       });
 
     } catch (error) {
-      console.error('[StateManager] Error cleaning backups:', error.message);
+      logger.warn('Error cleaning backups', { error: error.message });
     }
   }
 
@@ -270,7 +274,7 @@ class StateManager {
    * @private
    */
   _attemptRecovery() {
-    console.log('[StateManager] Attempting state recovery from backups...');
+    logger.warn('Attempting state recovery from backups');
 
     try {
       // Get all backup files sorted by modification time (newest first)
@@ -291,23 +295,23 @@ class StateManager {
 
           const valid = this.validate(state);
           if (valid) {
-            console.log(`[StateManager] Successfully recovered from backup: ${backup.name}`);
+            logger.info('Successfully recovered from backup', { backupName: backup.name });
 
             // Save recovered state as current
             fs.copyFileSync(backup.path, this.statePath);
             return state;
           }
         } catch (error) {
-          console.log(`[StateManager] Backup ${backup.name} is invalid, trying next...`);
+          logger.debug('Backup invalid, trying next', { backupName: backup.name, error: error.message });
           continue;
         }
       }
 
-      console.log('[StateManager] No valid backups found, creating default state');
+      logger.warn('No valid backups found, creating default state');
       return this._createDefaultState();
 
     } catch (error) {
-      console.error('[StateManager] Recovery failed:', error.message);
+      logger.error('Recovery failed', { error: error.message, stack: error.stack });
       return this._createDefaultState();
     }
   }
@@ -357,7 +361,7 @@ class StateManager {
     state.current_phase = newPhase;
 
     this.save(state);
-    console.log(`[StateManager] Phase transition: ${newPhase} (agent: ${agent})`);
+    logger.info('Phase transition', { newPhase, agent });
 
     return state;
   }
@@ -378,7 +382,7 @@ class StateManager {
     if (!state.artifacts[phase].includes(artifactPath)) {
       state.artifacts[phase].push(artifactPath);
       this.save(state);
-      console.log(`[StateManager] Added artifact to ${phase}: ${artifactPath}`);
+      logger.info('Added artifact', { phase, artifactPath });
     }
 
     return state;
@@ -404,7 +408,7 @@ class StateManager {
     });
 
     this.save(state);
-    console.log(`[StateManager] Decision recorded for ${phase}`);
+    logger.info('Decision recorded', { phase, decision });
 
     return state;
   }
@@ -428,7 +432,7 @@ class StateManager {
     });
 
     this.save(state);
-    console.log(`[StateManager] Blocker added (${severity}): ${blocker}`);
+    logger.warn('Blocker added', { severity, blocker, phase });
 
     return state;
   }
@@ -448,7 +452,7 @@ class StateManager {
       state.blockers[blockerIndex].resolved_at = new Date().toISOString();
 
       this.save(state);
-      console.log(`[StateManager] Blocker resolved: ${state.blockers[blockerIndex].blocker}`);
+      logger.info('Blocker resolved', { blocker: state.blockers[blockerIndex].blocker, resolution });
     }
 
     return state;
@@ -510,7 +514,7 @@ class StateManager {
       return this.save(state);
 
     } catch (error) {
-      console.error('[StateManager] Import failed:', error.message);
+      logger.error('Import failed', { error: error.message, stack: error.stack });
       return false;
     }
   }
@@ -520,7 +524,7 @@ class StateManager {
    * @returns {Object} Default state
    */
   reset() {
-    console.log('[StateManager] Resetting state to default');
+    logger.warn('Resetting state to default');
     return this._createDefaultState();
   }
 
@@ -626,7 +630,7 @@ class StateManager {
     }
 
     this.save(state);
-    console.log(`[StateManager] Prompt recorded: ${promptEntry.id}`);
+    logger.debug('Prompt recorded', { promptId: promptEntry.id, phase: promptEntry.phase });
 
     return promptEntry;
   }
