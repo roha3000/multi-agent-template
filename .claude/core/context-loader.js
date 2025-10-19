@@ -12,6 +12,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const { countTokens, estimateCharsForTokens } = require('./token-counter');
+const { createComponentLogger } = require('./logger');
+
+// Create logger instance for ContextLoader
+const logger = createComponentLogger('ContextLoader');
 
 /**
  * Token budget allocation for different context components
@@ -30,11 +35,6 @@ const TOKEN_BUDGETS = {
  * Total token budget
  */
 const TOTAL_TOKEN_BUDGET = 7500;
-
-/**
- * Approximate tokens per character (rough estimate)
- */
-const CHARS_PER_TOKEN = 4;
 
 class ContextLoader {
   /**
@@ -108,15 +108,15 @@ class ContextLoader {
 
       // Verify we're within budget
       if (context.totalTokens > TOTAL_TOKEN_BUDGET) {
-        console.warn(`[ContextLoader] Token budget exceeded: ${context.totalTokens}/${TOTAL_TOKEN_BUDGET}`);
+        logger.warn('Token budget exceeded', { current: context.totalTokens, budget: TOTAL_TOKEN_BUDGET });
         context = this._trimContext(context, TOTAL_TOKEN_BUDGET);
       }
 
-      console.log(`[ContextLoader] Context loaded: ${context.totalTokens} tokens`);
+      logger.info('Context loaded', { totalTokens: context.totalTokens, budget: TOTAL_TOKEN_BUDGET });
       return context;
 
     } catch (error) {
-      console.error('[ContextLoader] Error loading context:', error.message);
+      logger.error('Error loading context', { error: error.message, stack: error.stack });
       return this._getMinimalContext(targetPhase);
     }
   }
@@ -130,7 +130,7 @@ class ContextLoader {
     const bootstrapPath = path.join(this.claudeDir, 'bootstrap.md');
 
     if (!fs.existsSync(bootstrapPath)) {
-      console.warn('[ContextLoader] bootstrap.md not found');
+      logger.warn('bootstrap.md not found');
       return '# Multi-Agent System Bootstrap\n\nBootstrap file not found.';
     }
 
@@ -148,7 +148,7 @@ class ContextLoader {
     const promptPath = path.join(this.commandsDir, `${phase}-phase.md`);
 
     if (!fs.existsSync(promptPath)) {
-      console.warn(`[ContextLoader] Phase prompt not found: ${phase}-phase.md`);
+      logger.warn('Phase prompt not found', { file: `${phase}-phase.md` });
       return null;
     }
 
@@ -192,7 +192,7 @@ class ContextLoader {
       }
     }
 
-    return summary.join('\n').slice(0, TOKEN_BUDGETS.adjacentPhase * CHARS_PER_TOKEN);
+    return summary.join('\n').slice(0, estimateCharsForTokens(TOKEN_BUDGETS.adjacentPhase));
   }
 
   /**
@@ -299,7 +299,7 @@ class ContextLoader {
       const fullPath = path.join(this.projectRoot, artifactPath);
 
       if (!fs.existsSync(fullPath)) {
-        console.warn(`[ContextLoader] Artifact not found: ${artifactPath}`);
+        logger.warn('Artifact not found', { artifactPath });
         return null;
       }
 
@@ -312,7 +312,7 @@ class ContextLoader {
       let wasTruncated = false;
 
       if (tokens > maxTokens) {
-        const maxChars = maxTokens * CHARS_PER_TOKEN;
+        const maxChars = estimateCharsForTokens(maxTokens);
         finalContent = content.slice(0, maxChars) + '\n\n[... truncated ...]';
         wasTruncated = true;
       }
@@ -327,7 +327,7 @@ class ContextLoader {
       };
 
     } catch (error) {
-      console.error(`[ContextLoader] Error loading artifact ${artifactPath}:`, error.message);
+      logger.error('Error loading artifact', { artifactPath, error: error.message });
       return null;
     }
   }
@@ -352,7 +352,7 @@ class ContextLoader {
       return `Summary of ${path.basename(artifactPath)}:\n${lines.join('\n')}`;
 
     } catch (error) {
-      console.error(`[ContextLoader] Error loading summary for ${artifactPath}:`, error.message);
+      logger.error('Error loading summary', { artifactPath, error: error.message });
       return null;
     }
   }
@@ -366,7 +366,7 @@ class ContextLoader {
     const summaryPath = path.join(this.claudeDir, 'PROJECT_SUMMARY.md');
 
     if (!fs.existsSync(summaryPath)) {
-      console.log('[ContextLoader] PROJECT_SUMMARY.md not found (this is OK for new projects)');
+      logger.debug('PROJECT_SUMMARY.md not found (this is OK for new projects)');
       return null;
     }
 
@@ -376,14 +376,14 @@ class ContextLoader {
 
       // Truncate if too large
       if (tokens > TOKEN_BUDGETS.projectSummary) {
-        const maxChars = TOKEN_BUDGETS.projectSummary * CHARS_PER_TOKEN;
+        const maxChars = estimateCharsForTokens(TOKEN_BUDGETS.projectSummary);
         return content.slice(0, maxChars) + '\n\n[... truncated ...]';
       }
 
       return content;
 
     } catch (error) {
-      console.error('[ContextLoader] Error loading PROJECT_SUMMARY.md:', error.message);
+      logger.error('Error loading PROJECT_SUMMARY.md', { error: error.message });
       return null;
     }
   }
@@ -453,8 +453,8 @@ class ContextLoader {
    * @private
    */
   _estimateTokens(text) {
-    if (!text) return 0;
-    return Math.ceil(text.length / CHARS_PER_TOKEN);
+    // Use accurate token counting via tiktoken
+    return countTokens(text);
   }
 
   /**
@@ -465,7 +465,7 @@ class ContextLoader {
    * @private
    */
   _trimContext(context, budget) {
-    console.log('[ContextLoader] Trimming context to fit budget');
+    logger.info('Trimming context to fit budget');
 
     // Priority order for trimming:
     // 1. Trim artifacts (least critical)
@@ -502,7 +502,7 @@ class ContextLoader {
     // Recalculate total
     context.totalTokens = Object.values(context.tokenCounts).reduce((sum, count) => sum + count, 0);
 
-    console.log(`[ContextLoader] Context trimmed to ${context.totalTokens} tokens`);
+    logger.info('Context trimmed', { totalTokens: context.totalTokens });
     return context;
   }
 
