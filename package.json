@@ -9,7 +9,8 @@
     "test:coverage": "jest --coverage",
     "validate": "node scripts/validate-system.js",
     "traceability": "node scripts/traceability-query.js",
-    "cli": "node scripts/cli.js"
+    "cli": "node scripts/cli.js",
+    "demo": "node examples/orchestration-demo.js"
   },
   "keywords": [
     "multi-agent",
