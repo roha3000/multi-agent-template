@@ -167,9 +167,14 @@ class SessionInitializer {
    * Records an artifact
    * @param {string} artifactPath - Relative path to artifact
    * @param {string} phase - Phase that generated the artifact
+   * @param {Object} promptInfo - Optional prompt tracking information
+   * @param {string} promptInfo.prompt - The prompt that created this artifact
+   * @param {string} promptInfo.agent - Agent that created the artifact
+   * @param {string} promptInfo.changeType - Type of change (created|modified|refactored|enhanced|bug-fix)
+   * @param {string} promptInfo.changeSummary - Summary of changes
    * @returns {Object} Result
    */
-  recordArtifact(artifactPath, phase = null) {
+  recordArtifact(artifactPath, phase = null, promptInfo = null) {
     try {
       const state = this.stateManager.load();
       const targetPhase = phase || state.current_phase;
@@ -178,6 +183,19 @@ class SessionInitializer {
 
       // Generate summary for the artifact
       this.artifactSummarizer.summarize(artifactPath);
+
+      // Track prompt if provided
+      if (promptInfo && promptInfo.prompt) {
+        const agent = promptInfo.agent || this._getAgentForPhase(targetPhase);
+        this.stateManager.recordPrompt(promptInfo.prompt, {
+          artifactPath: artifactPath,
+          phase: targetPhase,
+          agent: agent,
+          artifactsCreated: [artifactPath],
+          changeType: promptInfo.changeType || 'created',
+          changeSummary: promptInfo.changeSummary
+        });
+      }
 
       console.log(`[SessionInit] Recorded artifact: ${artifactPath} (${targetPhase})`);
 
@@ -677,6 +695,181 @@ class SessionInitializer {
         success: false,
         error: error.message
       };
+    }
+  }
+
+  // ============================================================================
+  // PROMPT TRACEABILITY METHODS
+  // ============================================================================
+
+  /**
+   * Gets the appropriate agent for a phase
+   * @param {string} phase - Phase name
+   * @returns {string} Agent name
+   * @private
+   */
+  _getAgentForPhase(phase) {
+    const agentMap = {
+      'research': 'Research Analyst',
+      'planning': 'Strategic Planner',
+      'design': 'System Architect',
+      'test-first': 'Test Engineer',
+      'implementation': 'Senior Developer',
+      'validation': 'Quality Analyst',
+      'iteration': 'Innovation Lead'
+    };
+    return agentMap[phase] || 'Unknown Agent';
+  }
+
+  /**
+   * Records a prompt for session tracking
+   * @param {string} prompt - The user prompt or task
+   * @param {Object} options - Tracking options
+   * @param {string} options.phase - Phase when prompt was given
+   * @param {string} options.agent - Agent processing the prompt
+   * @param {Array<string>} options.artifactsCreated - Artifacts created
+   * @param {Array<string>} options.artifactsModified - Artifacts modified
+   * @param {number} options.qualityImpact - Impact on quality (+/-)
+   * @returns {Object} Result with prompt entry
+   */
+  recordPrompt(prompt, options = {}) {
+    try {
+      const state = this.stateManager.load();
+
+      const promptOptions = {
+        phase: options.phase || state.current_phase,
+        agent: options.agent || this._getAgentForPhase(options.phase || state.current_phase),
+        artifactsCreated: options.artifactsCreated || [],
+        artifactsModified: options.artifactsModified || [],
+        qualityImpact: options.qualityImpact
+      };
+
+      const promptEntry = this.stateManager.recordPrompt(prompt, promptOptions);
+
+      console.log(`[SessionInit] Recorded prompt: ${promptEntry.id}`);
+
+      return {
+        success: true,
+        promptEntry: promptEntry
+      };
+
+    } catch (error) {
+      console.error('[SessionInit] Failed to record prompt:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Records an artifact modification with prompt tracking
+   * @param {string} artifactPath - Path to artifact
+   * @param {string} prompt - Prompt that caused modification
+   * @param {Object} options - Additional options
+   * @param {string} options.changeType - Type of change
+   * @param {string} options.changeSummary - Summary of changes
+   * @param {string} options.agent - Agent making changes
+   * @returns {Object} Result
+   */
+  recordArtifactModification(artifactPath, prompt, options = {}) {
+    try {
+      const state = this.stateManager.load();
+      const phase = options.phase || state.current_phase;
+      const agent = options.agent || this._getAgentForPhase(phase);
+
+      // Record the prompt with artifact modification info
+      this.stateManager.recordPrompt(prompt, {
+        artifactPath: artifactPath,
+        phase: phase,
+        agent: agent,
+        artifactsModified: [artifactPath],
+        changeType: options.changeType || 'modified',
+        changeSummary: options.changeSummary
+      });
+
+      console.log(`[SessionInit] Recorded artifact modification: ${artifactPath}`);
+
+      return {
+        success: true,
+        artifact: artifactPath,
+        phase: phase
+      };
+
+    } catch (error) {
+      console.error('[SessionInit] Failed to record modification:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Gets the complete history of an artifact
+   * @param {string} artifactPath - Path to artifact
+   * @returns {Object|null} Artifact history or null
+   */
+  getArtifactHistory(artifactPath) {
+    try {
+      return this.stateManager.getArtifactHistory(artifactPath);
+    } catch (error) {
+      console.error('[SessionInit] Failed to get artifact history:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Gets all prompts for current session
+   * @returns {Array} Array of prompt entries
+   */
+  getSessionPrompts() {
+    try {
+      return this.stateManager.getSessionPrompts();
+    } catch (error) {
+      console.error('[SessionInit] Failed to get session prompts:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Gets prompts by phase
+   * @param {string} phase - Phase name
+   * @returns {Array} Array of prompt entries
+   */
+  getPromptsByPhase(phase) {
+    try {
+      return this.stateManager.getPromptsByPhase(phase);
+    } catch (error) {
+      console.error('[SessionInit] Failed to get prompts by phase:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Gets prompt statistics
+   * @returns {Object} Statistics object
+   */
+  getPromptStatistics() {
+    try {
+      return this.stateManager.getPromptStatistics();
+    } catch (error) {
+      console.error('[SessionInit] Failed to get prompt statistics:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Searches prompts by keyword
+   * @param {string} keyword - Search keyword
+   * @returns {Array} Matching prompts
+   */
+  searchPrompts(keyword) {
+    try {
+      return this.stateManager.searchPrompts(keyword);
+    } catch (error) {
+      console.error('[SessionInit] Failed to search prompts:', error.message);
+      return [];
     }
   }
 }

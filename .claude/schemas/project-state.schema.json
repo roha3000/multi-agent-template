@@ -106,6 +106,161 @@
           }
         }
       }
+    },
+    "promptHistory": {
+      "type": "array",
+      "description": "Complete history of prompts that created or modified artifacts",
+      "items": {
+        "type": "object",
+        "required": ["timestamp", "prompt", "phase", "agent"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique prompt entry ID"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "The user prompt or task description"
+          },
+          "artifactId": {
+            "type": "string",
+            "description": "ID of artifact created/modified (if applicable)"
+          },
+          "artifactPath": {
+            "type": "string",
+            "description": "File path of artifact (if applicable)"
+          },
+          "phase": {
+            "type": "string",
+            "enum": ["research", "planning", "design", "implementation", "testing", "validation", "iteration"]
+          },
+          "agent": {
+            "type": "string",
+            "description": "Agent that processed this prompt"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Session identifier for grouping prompts"
+          },
+          "stateChangesBefore": {
+            "type": "object",
+            "description": "Project state snapshot before prompt execution"
+          },
+          "stateChangesAfter": {
+            "type": "object",
+            "description": "Project state snapshot after prompt execution"
+          },
+          "artifactsCreated": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of artifact paths created by this prompt"
+          },
+          "artifactsModified": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of artifact paths modified by this prompt"
+          },
+          "qualityImpact": {
+            "type": "number",
+            "description": "Change in quality score (+/-)"
+          }
+        }
+      }
+    },
+    "artifactLineage": {
+      "type": "object",
+      "description": "Lineage tracking for each artifact showing evolution over time",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["artifactId", "created", "currentVersion"],
+        "properties": {
+          "artifactId": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "object",
+            "properties": {
+              "promptId": {
+                "type": "string"
+              },
+              "agent": {
+                "type": "string"
+              },
+              "phase": {
+                "type": "string"
+              }
+            }
+          },
+          "currentVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "versions": {
+            "type": "array",
+            "description": "Complete version history of this artifact",
+            "items": {
+              "type": "object",
+              "required": ["version", "timestamp", "promptId"],
+              "properties": {
+                "version": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "timestamp": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "promptId": {
+                  "type": "string",
+                  "description": "Reference to prompt that created this version"
+                },
+                "prompt": {
+                  "type": "string",
+                  "description": "Copy of prompt for quick reference"
+                },
+                "agent": {
+                  "type": "string"
+                },
+                "phase": {
+                  "type": "string"
+                },
+                "changeType": {
+                  "type": "string",
+                  "enum": ["created", "modified", "refactored", "enhanced", "bug-fix"],
+                  "default": "modified"
+                },
+                "changeSummary": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              }
+            }
+          },
+          "relatedPrompts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "All prompt IDs that influenced this artifact"
+          },
+          "totalModifications": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
     }
   }
 }

@@ -523,6 +523,335 @@ class StateManager {
     console.log('[StateManager] Resetting state to default');
     return this._createDefaultState();
   }
+
+  // ============================================================================
+  // PROMPT TRACEABILITY METHODS
+  // ============================================================================
+
+  /**
+   * Generates a unique ID for a prompt entry
+   * @private
+   * @returns {string} Unique ID
+   */
+  _generatePromptId() {
+    return `prompt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Generates a unique artifact ID from file path
+   * @private
+   * @param {string} artifactPath - Path to artifact
+   * @returns {string} Artifact ID
+   */
+  _generateArtifactId(artifactPath) {
+    return artifactPath.replace(/[/\\]/g, '-').replace(/\.[^.]+$/, '');
+  }
+
+  /**
+   * Gets or creates a session ID for grouping prompts
+   * @private
+   * @returns {string} Session ID
+   */
+  _getSessionId() {
+    if (!this._currentSessionId) {
+      this._currentSessionId = `session-${Date.now()}`;
+    }
+    return this._currentSessionId;
+  }
+
+  /**
+   * Records a prompt that created or modified artifacts
+   * @param {string} prompt - The user prompt or task description
+   * @param {Object} options - Optional parameters
+   * @param {string} options.artifactPath - Path to artifact created/modified
+   * @param {string} options.phase - Current phase
+   * @param {string} options.agent - Agent processing the prompt
+   * @param {Array<string>} options.artifactsCreated - List of created artifact paths
+   * @param {Array<string>} options.artifactsModified - List of modified artifact paths
+   * @param {string} options.changeType - Type of change (created|modified|refactored|enhanced|bug-fix)
+   * @param {string} options.changeSummary - Brief summary of changes
+   * @param {number} options.qualityImpact - Impact on quality score (+/-)
+   * @returns {Object} Prompt entry object
+   */
+  recordPrompt(prompt, options = {}) {
+    const state = this.load();
+
+    // Initialize prompt history if not exists
+    if (!state.promptHistory) {
+      state.promptHistory = [];
+    }
+
+    // Capture state before changes
+    const stateSnapshot = {
+      phase: state.current_phase,
+      qualityScore: state.quality_scores[state.current_phase] || 0,
+      artifactCount: Object.values(state.artifacts).flat().length
+    };
+
+    // Create prompt entry
+    const promptEntry = {
+      id: this._generatePromptId(),
+      timestamp: new Date().toISOString(),
+      prompt: prompt,
+      phase: options.phase || state.current_phase,
+      agent: options.agent || 'Unknown Agent',
+      sessionId: this._getSessionId(),
+      stateChangesBefore: stateSnapshot
+    };
+
+    // Add artifact information if provided
+    if (options.artifactPath) {
+      promptEntry.artifactId = this._generateArtifactId(options.artifactPath);
+      promptEntry.artifactPath = options.artifactPath;
+    }
+
+    if (options.artifactsCreated && options.artifactsCreated.length > 0) {
+      promptEntry.artifactsCreated = options.artifactsCreated;
+    }
+
+    if (options.artifactsModified && options.artifactsModified.length > 0) {
+      promptEntry.artifactsModified = options.artifactsModified;
+    }
+
+    if (options.qualityImpact !== undefined) {
+      promptEntry.qualityImpact = options.qualityImpact;
+    }
+
+    // Add to prompt history
+    state.promptHistory.push(promptEntry);
+
+    // Update artifact lineage if artifact path is provided
+    if (options.artifactPath) {
+      this._updateArtifactLineage(state, promptEntry, options);
+    }
+
+    this.save(state);
+    console.log(`[StateManager] Prompt recorded: ${promptEntry.id}`);
+
+    return promptEntry;
+  }
+
+  /**
+   * Updates artifact lineage tracking
+   * @private
+   * @param {Object} state - Current state
+   * @param {Object} promptEntry - Prompt entry
+   * @param {Object} options - Options with change details
+   */
+  _updateArtifactLineage(state, promptEntry, options) {
+    // Initialize artifact lineage if not exists
+    if (!state.artifactLineage) {
+      state.artifactLineage = {};
+    }
+
+    const artifactPath = options.artifactPath;
+    const artifactId = promptEntry.artifactId;
+
+    // Create new lineage entry if this is a new artifact
+    if (!state.artifactLineage[artifactPath]) {
+      state.artifactLineage[artifactPath] = {
+        artifactId: artifactId,
+        created: promptEntry.timestamp,
+        createdBy: {
+          promptId: promptEntry.id,
+          agent: promptEntry.agent,
+          phase: promptEntry.phase
+        },
+        currentVersion: 1,
+        versions: [],
+        relatedPrompts: [],
+        totalModifications: 0
+      };
+    }
+
+    const lineage = state.artifactLineage[artifactPath];
+
+    // Increment version if this is a modification
+    const isNewArtifact = lineage.versions.length === 0;
+    if (!isNewArtifact) {
+      lineage.currentVersion += 1;
+    }
+
+    // Add version entry
+    const versionEntry = {
+      version: lineage.currentVersion,
+      timestamp: promptEntry.timestamp,
+      promptId: promptEntry.id,
+      prompt: promptEntry.prompt,
+      agent: promptEntry.agent,
+      phase: promptEntry.phase,
+      changeType: options.changeType || (isNewArtifact ? 'created' : 'modified')
+    };
+
+    if (options.changeSummary) {
+      versionEntry.changeSummary = options.changeSummary;
+    }
+
+    lineage.versions.push(versionEntry);
+    lineage.relatedPrompts.push(promptEntry.id);
+    lineage.totalModifications = lineage.versions.length - 1; // Exclude initial creation
+  }
+
+  /**
+   * Gets complete history of an artifact
+   * @param {string} artifactPath - Path to artifact
+   * @returns {Object|null} Artifact history with lineage and related prompts
+   */
+  getArtifactHistory(artifactPath) {
+    const state = this.load();
+
+    if (!state.artifactLineage || !state.artifactLineage[artifactPath]) {
+      return null;
+    }
+
+    const lineage = state.artifactLineage[artifactPath];
+
+    // Get all related prompts
+    const relatedPrompts = (state.promptHistory || []).filter(p =>
+      lineage.relatedPrompts.includes(p.id)
+    );
+
+    return {
+      lineage: lineage,
+      prompts: relatedPrompts,
+      summary: {
+        artifactId: lineage.artifactId,
+        created: lineage.created,
+        currentVersion: lineage.currentVersion,
+        totalVersions: lineage.versions.length,
+        totalModifications: lineage.totalModifications,
+        createdBy: lineage.createdBy.agent,
+        lastModified: lineage.versions[lineage.versions.length - 1]?.timestamp || lineage.created
+      }
+    };
+  }
+
+  /**
+   * Gets all prompts for the current session
+   * @returns {Array} Array of prompt entries
+   */
+  getSessionPrompts() {
+    const state = this.load();
+    const sessionId = this._getSessionId();
+
+    if (!state.promptHistory) {
+      return [];
+    }
+
+    return state.promptHistory.filter(p => p.sessionId === sessionId);
+  }
+
+  /**
+   * Gets prompts by phase
+   * @param {string} phase - Phase name
+   * @returns {Array} Array of prompt entries
+   */
+  getPromptsByPhase(phase) {
+    const state = this.load();
+
+    if (!state.promptHistory) {
+      return [];
+    }
+
+    return state.promptHistory.filter(p => p.phase === phase);
+  }
+
+  /**
+   * Gets prompts by agent
+   * @param {string} agent - Agent name
+   * @returns {Array} Array of prompt entries
+   */
+  getPromptsByAgent(agent) {
+    const state = this.load();
+
+    if (!state.promptHistory) {
+      return [];
+    }
+
+    return state.promptHistory.filter(p => p.agent === agent);
+  }
+
+  /**
+   * Gets all artifacts with their lineage
+   * @returns {Object} Map of artifact paths to lineage objects
+   */
+  getAllArtifactLineages() {
+    const state = this.load();
+    return state.artifactLineage || {};
+  }
+
+  /**
+   * Searches prompts by keyword
+   * @param {string} keyword - Search keyword
+   * @returns {Array} Array of matching prompt entries
+   */
+  searchPrompts(keyword) {
+    const state = this.load();
+
+    if (!state.promptHistory) {
+      return [];
+    }
+
+    const lowerKeyword = keyword.toLowerCase();
+    return state.promptHistory.filter(p =>
+      p.prompt.toLowerCase().includes(lowerKeyword) ||
+      (p.changeSummary && p.changeSummary.toLowerCase().includes(lowerKeyword))
+    );
+  }
+
+  /**
+   * Gets prompt statistics
+   * @returns {Object} Statistics object
+   */
+  getPromptStatistics() {
+    const state = this.load();
+
+    if (!state.promptHistory || state.promptHistory.length === 0) {
+      return {
+        totalPrompts: 0,
+        byPhase: {},
+        byAgent: {},
+        totalArtifacts: 0,
+        totalModifications: 0
+      };
+    }
+
+    const stats = {
+      totalPrompts: state.promptHistory.length,
+      byPhase: {},
+      byAgent: {},
+      totalArtifacts: Object.keys(state.artifactLineage || {}).length,
+      totalModifications: 0,
+      avgPromptsPerSession: 0,
+      sessions: new Set()
+    };
+
+    // Calculate statistics
+    state.promptHistory.forEach(p => {
+      // By phase
+      stats.byPhase[p.phase] = (stats.byPhase[p.phase] || 0) + 1;
+
+      // By agent
+      stats.byAgent[p.agent] = (stats.byAgent[p.agent] || 0) + 1;
+
+      // Sessions
+      stats.sessions.add(p.sessionId);
+    });
+
+    // Total modifications
+    Object.values(state.artifactLineage || {}).forEach(lineage => {
+      stats.totalModifications += lineage.totalModifications;
+    });
+
+    // Average prompts per session
+    stats.avgPromptsPerSession = Math.round(
+      stats.totalPrompts / stats.sessions.size
+    );
+    stats.totalSessions = stats.sessions.size;
+    delete stats.sessions; // Remove Set object
+
+    return stats;
+  }
 }
 
 module.exports = StateManager;
