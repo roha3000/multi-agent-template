@@ -58,14 +58,14 @@ ANTHROPIC_API_KEY=your_anthropic_key_here
 OPENAI_API_KEY=your_openai_key_here
 
 # Model Configurations
-RESEARCH_MODEL=claude-opus-4
-PLANNING_MODEL=claude-opus-4
-DESIGN_ARCHITECTURE_MODEL=claude-opus-4
+RESEARCH_MODEL=claude-sonnet-4.5
+PLANNING_MODEL=claude-sonnet-4.5
+DESIGN_ARCHITECTURE_MODEL=claude-sonnet-4.5
 DESIGN_IMPLEMENTATION_MODEL=claude-sonnet-4-20250514
 TESTING_MODEL=claude-sonnet-4-20250514
 IMPLEMENTATION_MODEL=claude-sonnet-4-20250514
-VALIDATION_MODEL=claude-opus-4
-ITERATION_STRATEGY_MODEL=claude-opus-4
+VALIDATION_MODEL=claude-sonnet-4.5
+ITERATION_STRATEGY_MODEL=claude-sonnet-4.5
 ITERATION_EXECUTION_MODEL=claude-sonnet-4-20250514
 
 # Secondary Models
@@ -98,12 +98,12 @@ cat > switch-model.sh << 'EOF'
 PHASE=$1
 case $PHASE in
   "research"|"planning"|"design"|"validation"|"iteration")
-    export CLAUDE_MODEL="claude-opus-4"
-    echo "Switched to Claude Opus for $PHASE phase"
+    export CLAUDE_MODEL="claude-sonnet-4.5"
+    echo "Switched to Claude Sonnet 4.5 for $PHASE phase"
     ;;
   "testing"|"implementation"|"debug")
     export CLAUDE_MODEL="claude-sonnet-4-20250514"
-    echo "Switched to Claude Sonnet for $PHASE phase"
+    echo "Switched to Claude Sonnet 4 for $PHASE phase"
     ;;
   *)
     echo "Usage: $0 {research|planning|design|testing|implementation|debug|validation|iteration}"
@@ -141,8 +141,8 @@ cat > .vscode/settings.json << 'EOF'
 {
   "claude.enableMultiModel": true,
   "claude.defaultModel": "claude-sonnet-4-20250514",
-  "claude.researchModel": "claude-opus-4",
-  "claude.planningModel": "claude-opus-4",
+  "claude.researchModel": "claude-sonnet-4.5",
+  "claude.planningModel": "claude-sonnet-4.5",
   "terminal.integrated.defaultProfile.osx": "bash",
   "files.associations": {
     "CLAUDE.md": "markdown",
@@ -169,7 +169,7 @@ cat > .gitmessage << 'EOF'
 
 Agent: [Research Analyst|Strategic Planner|System Architect|Test Engineer|Senior Developer|etc.]
 Phase: [Research|Planning|Design|Testing|Implementation|Validation|Iteration]
-Model: [claude-opus-4|claude-sonnet-4-20250514|gpt-4o|o1-preview]
+Model: [claude-sonnet-4.5|claude-sonnet-4-20250514|gpt-4o|o1-preview]
 
 Detailed description:
 - What was accomplished
@@ -318,7 +318,7 @@ echo $CLAUDE_MODEL
 echo $ANTHROPIC_API_KEY
 
 # Test manual model selection
-claude --model claude-opus-4
+claude --model claude-sonnet-4.5
 claude --model claude-sonnet-4-20250514
 ```
 
@@ -328,7 +328,7 @@ claude --model claude-sonnet-4-20250514
 ```bash
 # Use /clear command frequently
 # Set conservative token limits in .env
-# Use Sonnet for most tasks, Opus only for complex analysis
+# Use Sonnet 4 for most tasks, Sonnet 4.5 only for complex analysis
 
 # Monitor usage
 claude usage --daily

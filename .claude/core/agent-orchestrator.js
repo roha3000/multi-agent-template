@@ -12,17 +12,85 @@
  */
 
 const { createComponentLogger } = require('./logger');
+const LifecycleHooks = require('./lifecycle-hooks');
+const MemoryStore = require('./memory-store');
+const MemoryIntegration = require('./memory-integration');
 
 const logger = createComponentLogger('AgentOrchestrator');
 
 class AgentOrchestrator {
   /**
-   * Create an orchestrator
+   * Create an orchestrator with optional memory support
+   *
    * @param {MessageBus} messageBus - Message bus instance
+   * @param {Object} options - Configuration options
+   * @param {boolean} [options.enableMemory=true] - Enable memory persistence
+   * @param {string} [options.dbPath='.claude/memory/orchestrations.db'] - Database path
+   * @param {boolean} [options.enableAI=false] - Enable AI categorization
+   * @param {string} [options.aiApiKey] - Anthropic API key for AI features
+   * @param {Object} [options.vectorConfig] - Vector store configuration
    */
-  constructor(messageBus) {
+  constructor(messageBus, options = {}) {
     this.messageBus = messageBus;
     this.agents = new Map();
+    this.options = {
+      enableMemory: options.enableMemory !== false, // Opt-out, not opt-in
+      dbPath: options.dbPath || '.claude/memory/orchestrations.db',
+      enableAI: options.enableAI || false,
+      aiApiKey: options.aiApiKey || null,
+      vectorConfig: options.vectorConfig || {},
+      ...options
+    };
+
+    // Initialize lifecycle hooks (always available, even without memory)
+    this.lifecycleHooks = new LifecycleHooks();
+
+    // Initialize memory system if enabled
+    if (this.options.enableMemory) {
+      this._initializeMemory();
+    }
+
+    logger.info('AgentOrchestrator initialized', {
+      memoryEnabled: this.options.enableMemory,
+      aiEnabled: this.options.enableAI
+    });
+  }
+
+  /**
+   * Initialize memory system
+   * @private
+   */
+  _initializeMemory() {
+    try {
+      this.memoryStore = new MemoryStore(this.options.dbPath);
+
+      this.memoryIntegration = new MemoryIntegration(
+        this.messageBus,
+        this.memoryStore,
+        {
+          enableAI: this.options.enableAI,
+          aiApiKey: this.options.aiApiKey
+        }
+      );
+
+      // Set up lifecycle hooks for memory operations
+      this.memoryIntegration.setupLifecycleHooks(this.lifecycleHooks);
+
+      logger.info('Memory system initialized', {
+        dbPath: this.options.dbPath,
+        aiEnabled: this.options.enableAI
+      });
+
+    } catch (error) {
+      logger.error('Failed to initialize memory system', {
+        error: error.message
+      });
+
+      // Graceful degradation: continue without memory
+      this.options.enableMemory = false;
+      this.memoryStore = null;
+      this.memoryIntegration = null;
+    }
   }
 
   /**
@@ -58,26 +126,49 @@ class AgentOrchestrator {
 
   /**
    * Execute task with multiple agents in parallel
+   *
+   * HYBRID ARCHITECTURE:
+   * - HOOKS: Load context (before) and save results (after)
+   * - EVENTS: Notify subscribers via MessageBus
+   *
    * @param {Array<string>} agentIds - Agent IDs to execute
    * @param {Object} task - Task to execute
    * @param {Object} options - Execution options
+   * @param {boolean} [options.useMemory=true] - Load historical context
    * @returns {Promise<Object>} Combined results
    */
   async executeParallel(agentIds, task, options = {}) {
     const {
       timeout = 60000,
       retries = 3,
-      synthesizer = this._defaultSynthesizer
+      synthesizer = this._defaultSynthesizer,
+      useMemory = true
     } = options;
 
     logger.info('Starting parallel execution', {
       agentCount: agentIds.length,
-      agentIds
+      agentIds,
+      useMemory
     });
 
     const startTime = Date.now();
 
     try {
+      // HOOK: Before execution (guaranteed, synchronous)
+      // Loads relevant historical context
+      let context = await this.lifecycleHooks.executeHook('beforeExecution', {
+        pattern: 'parallel',
+        agentIds,
+        task,
+        options
+      });
+
+      if (context.memoryContext?.loaded) {
+        logger.info('Historical context loaded', {
+          orchestrations: context.memoryContext.orchestrations?.length || 0
+        });
+      }
+
       // Execute all agents in parallel
       const promises = agentIds.map(agentId => {
         const agent = this.getAgent(agentId);
@@ -85,7 +176,12 @@ class AgentOrchestrator {
           return Promise.reject(new Error(`Agent not found: ${agentId}`));
         }
 
-        return this._executeWithRetry(agent, task, { timeout, retries });
+        // Pass memory context to agent if available
+        const enrichedTask = context.memoryContext
+          ? { ...task, memoryContext: context.memoryContext }
+          : task;
+
+        return this._executeWithRetry(agent, enrichedTask, { timeout, retries });
       });
 
       const results = await Promise.allSettled(promises);
@@ -119,16 +215,47 @@ class AgentOrchestrator {
       // Synthesize results
       const synthesized = await synthesizer(successful.map(s => s.result), task);
 
-      return {
+      const result = {
         success: successful.length > 0,
         synthesized,
         results: successful,
         failures: failed,
-        duration
+        duration,
+        metadata: {
+          pattern: 'parallel',
+          agentIds,
+          contextLoaded: context.memoryContext?.loaded || false
+        }
       };
+
+      // HOOK: After execution (guaranteed, synchronous)
+      // Ensures critical operations complete
+      await this.lifecycleHooks.executeHook('afterExecution', result);
+
+      // EVENT: Notify subscribers (optional, asynchronous, fault-isolated)
+      // MessageBus ensures failures here don't affect orchestration
+      this.messageBus.publish('orchestrator:execution:complete', {
+        pattern: 'parallel',
+        agentIds,
+        task,
+        result,
+        duration
+      }, 'orchestrator');
+
+      return result;
 
     } catch (error) {
       logger.error('Parallel execution failed', { error: error.message });
+
+      // HOOK: On error (guaranteed, synchronous)
+      await this.lifecycleHooks.executeHook('onError', {
+        pattern: 'parallel',
+        agentIds,
+        task,
+        error,
+        context: { task, agentIds }
+      });
+
       throw error;
     }
   }

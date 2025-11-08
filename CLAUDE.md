@@ -111,10 +111,10 @@ fi
 ```
 
 ### Cost Optimization Strategy
-- **Primary Models**: Claude Opus (research/strategy), Claude Sonnet (implementation)
+- **Primary Models**: Claude Sonnet 4.5 (research/strategy), Claude Sonnet 4 (implementation)
 - **Secondary Models**: GPT-4o (validation), o1-preview (reasoning)
 - **Token Limits**: Phase-specific limits to control costs
-- **Fallback Strategy**: Sonnet as fallback for Opus, GPT-4o for supplementary analysis
+- **Fallback Strategy**: Sonnet 4 as fallback for Sonnet 4.5, GPT-4o for supplementary analysis
 
 ## Agent Collaboration Protocols
 
@@ -135,8 +135,8 @@ Before proceeding to next phase:
 
 ### 3. Conflict Resolution
 When agents disagree:
-- Lead Architect (Opus) makes final architectural decisions
-- Senior Developer (Sonnet) makes implementation decisions
+- Lead Architect (Sonnet 4.5) makes final architectural decisions
+- Senior Developer (Sonnet 4) makes implementation decisions
 - Project Manager (human) resolves resource/timeline conflicts
 
 ## Quality Gates & Standards
@@ -229,12 +229,12 @@ MAX_TOKENS_TESTING=2000
 ## Emergency Protocols
 
 ### Model Unavailability
-1. **Opus Unavailable**: Fall back to Sonnet for research, extend analysis phase
-2. **Sonnet Unavailable**: Use GPT-4o for implementation, increase review cycles  
+1. **Sonnet 4.5 Unavailable**: Fall back to Sonnet 4 for research, extend analysis phase
+2. **Sonnet 4 Unavailable**: Use GPT-4o for implementation, increase review cycles
 3. **External Models Unavailable**: Continue with Claude models only, document limitations
 
 ### Agent Conflicts
-1. **Technical Conflicts**: Lead Architect (Opus) makes binding decisions
+1. **Technical Conflicts**: Lead Architect (Sonnet 4.5) makes binding decisions
 2. **Timeline Conflicts**: Prioritize critical path, defer non-essential features
 3. **Quality Conflicts**: Never compromise below minimum quality gates
 

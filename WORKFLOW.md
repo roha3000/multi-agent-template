@@ -8,7 +8,7 @@ This workflow combines the power of specialized AI agents with optimal model sel
 
 ### Phase 1: 🔍 Research & Discovery
 **Duration**: 30-60 minutes  
-**Primary Agent**: Research Analyst (Claude Opus 4)  
+**Primary Agent**: Research Analyst (Claude Sonnet 4.5)  
 **Secondary Agent**: Trend Analyst (GPT-4o)  
 **Quality Gate**: 80/100 minimum score
 
@@ -27,7 +27,7 @@ claude
 
 #### Agent Collaboration Pattern
 ```
-Research Analyst (Claude Opus) → Comprehensive Foundation Research
+Research Analyst (Claude Sonnet 4.5) → Comprehensive Foundation Research
     ↓
 Trend Analyst (GPT-4o) → Recent Developments & Alternative Perspectives  
     ↓

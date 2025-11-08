@@ -1,0 +1,1455 @@
+{
+  "current_phase": "research",
+  "phase_history": [],
+  "quality_scores": {},
+  "artifacts": {
+    "implementation": [
+      "test-component.tsx"
+    ]
+  },
+  "decisions": [],
+  "blockers": [],
+  "last_updated": "2025-10-19T00:22:23.014Z",
+  "metadata": {
+    "project_name": "Unknown Project",
+    "created_at": "2025-10-18T18:15:47.798Z",
+    "version": "1.0.0"
+  },
+  "promptHistory": [
+    {
+      "id": "prompt-1760833342601-x597y84m8",
+      "timestamp": "2025-10-19T00:22:22.601Z",
+      "prompt": "Test prompt for validation",
+      "phase": "implementation",
+      "agent": "Test Agent",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 0
+      },
+      "artifactId": "test-file",
+      "artifactPath": "test-file.js",
+      "artifactsCreated": [
+        "test-file.js"
+      ]
+    },
+    {
+      "id": "prompt-1760833342605-lzm0c35e9",
+      "timestamp": "2025-10-19T00:22:22.605Z",
+      "prompt": "Modify test file",
+      "phase": "implementation",
+      "agent": "Test Agent",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 0
+      },
+      "artifactId": "test-file",
+      "artifactPath": "test-file.js",
+      "artifactsModified": [
+        "test-file.js"
+      ]
+    },
+    {
+      "id": "prompt-1760833342636-00ituwa57",
+      "timestamp": "2025-10-19T00:22:22.636Z",
+      "prompt": "Create test component",
+      "phase": "implementation",
+      "agent": "Senior Developer",
+      "sessionId": "session-1760833342636",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      },
+      "artifactId": "test-component",
+      "artifactPath": "test-component.tsx",
+      "artifactsCreated": [
+        "test-component.tsx"
+      ]
+    },
+    {
+      "id": "prompt-1760833342639-nqk3rucoy",
+      "timestamp": "2025-10-19T00:22:22.639Z",
+      "prompt": "Add props interface",
+      "phase": "research",
+      "agent": "Research Analyst",
+      "sessionId": "session-1760833342636",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      },
+      "artifactId": "test-component",
+      "artifactPath": "test-component.tsx",
+      "artifactsModified": [
+        "test-component.tsx"
+      ]
+    },
+    {
+      "id": "prompt-1760833342689-vz5jj7ije",
+      "timestamp": "2025-10-19T00:22:22.689Z",
+      "prompt": "Performance test prompt 0",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342692-kilblb17y",
+      "timestamp": "2025-10-19T00:22:22.692Z",
+      "prompt": "Performance test prompt 1",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342695-9rupr8ttg",
+      "timestamp": "2025-10-19T00:22:22.695Z",
+      "prompt": "Performance test prompt 2",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342698-wiqiqlr26",
+      "timestamp": "2025-10-19T00:22:22.698Z",
+      "prompt": "Performance test prompt 3",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342702-v7uwob9iz",
+      "timestamp": "2025-10-19T00:22:22.702Z",
+      "prompt": "Performance test prompt 4",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342706-gdgx3u531",
+      "timestamp": "2025-10-19T00:22:22.706Z",
+      "prompt": "Performance test prompt 5",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342710-kipofx6gd",
+      "timestamp": "2025-10-19T00:22:22.710Z",
+      "prompt": "Performance test prompt 6",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342714-9yl3a6f2r",
+      "timestamp": "2025-10-19T00:22:22.714Z",
+      "prompt": "Performance test prompt 7",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342718-qi117q8kk",
+      "timestamp": "2025-10-19T00:22:22.718Z",
+      "prompt": "Performance test prompt 8",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342722-6hsubij9v",
+      "timestamp": "2025-10-19T00:22:22.722Z",
+      "prompt": "Performance test prompt 9",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342726-5yxa3s643",
+      "timestamp": "2025-10-19T00:22:22.726Z",
+      "prompt": "Performance test prompt 10",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342729-wsjh7rryb",
+      "timestamp": "2025-10-19T00:22:22.729Z",
+      "prompt": "Performance test prompt 11",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342732-o8nuhd06x",
+      "timestamp": "2025-10-19T00:22:22.732Z",
+      "prompt": "Performance test prompt 12",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342736-972xjyk9z",
+      "timestamp": "2025-10-19T00:22:22.736Z",
+      "prompt": "Performance test prompt 13",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342739-v0cundlu0",
+      "timestamp": "2025-10-19T00:22:22.739Z",
+      "prompt": "Performance test prompt 14",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342742-j7mrsn9rl",
+      "timestamp": "2025-10-19T00:22:22.742Z",
+      "prompt": "Performance test prompt 15",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342745-394lgly4m",
+      "timestamp": "2025-10-19T00:22:22.745Z",
+      "prompt": "Performance test prompt 16",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342748-lx6lrwsh6",
+      "timestamp": "2025-10-19T00:22:22.748Z",
+      "prompt": "Performance test prompt 17",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342751-mc8bkxuky",
+      "timestamp": "2025-10-19T00:22:22.751Z",
+      "prompt": "Performance test prompt 18",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342754-ksy7a23c9",
+      "timestamp": "2025-10-19T00:22:22.754Z",
+      "prompt": "Performance test prompt 19",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342758-afmp4if7j",
+      "timestamp": "2025-10-19T00:22:22.758Z",
+      "prompt": "Performance test prompt 20",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342761-qjrgce6qk",
+      "timestamp": "2025-10-19T00:22:22.761Z",
+      "prompt": "Performance test prompt 21",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342764-954mu9cth",
+      "timestamp": "2025-10-19T00:22:22.764Z",
+      "prompt": "Performance test prompt 22",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342768-3snzckvyu",
+      "timestamp": "2025-10-19T00:22:22.768Z",
+      "prompt": "Performance test prompt 23",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342771-0pnmkrfa3",
+      "timestamp": "2025-10-19T00:22:22.771Z",
+      "prompt": "Performance test prompt 24",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342774-fcrtw6ejj",
+      "timestamp": "2025-10-19T00:22:22.774Z",
+      "prompt": "Performance test prompt 25",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342777-ty7ge5xpc",
+      "timestamp": "2025-10-19T00:22:22.777Z",
+      "prompt": "Performance test prompt 26",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342780-jxdzv9o4n",
+      "timestamp": "2025-10-19T00:22:22.780Z",
+      "prompt": "Performance test prompt 27",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342783-p733wahad",
+      "timestamp": "2025-10-19T00:22:22.783Z",
+      "prompt": "Performance test prompt 28",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342786-co4tmeqtw",
+      "timestamp": "2025-10-19T00:22:22.786Z",
+      "prompt": "Performance test prompt 29",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342790-w6s28c9y3",
+      "timestamp": "2025-10-19T00:22:22.790Z",
+      "prompt": "Performance test prompt 30",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342793-s3bp6dkyw",
+      "timestamp": "2025-10-19T00:22:22.793Z",
+      "prompt": "Performance test prompt 31",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342796-mswgfoz43",
+      "timestamp": "2025-10-19T00:22:22.796Z",
+      "prompt": "Performance test prompt 32",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342799-3abw212ld",
+      "timestamp": "2025-10-19T00:22:22.799Z",
+      "prompt": "Performance test prompt 33",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342802-evp37rody",
+      "timestamp": "2025-10-19T00:22:22.802Z",
+      "prompt": "Performance test prompt 34",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342806-tjecqge8e",
+      "timestamp": "2025-10-19T00:22:22.806Z",
+      "prompt": "Performance test prompt 35",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342809-vglvn5rq4",
+      "timestamp": "2025-10-19T00:22:22.809Z",
+      "prompt": "Performance test prompt 36",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342812-x0rxujrlv",
+      "timestamp": "2025-10-19T00:22:22.812Z",
+      "prompt": "Performance test prompt 37",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342816-v5rqwmfmk",
+      "timestamp": "2025-10-19T00:22:22.816Z",
+      "prompt": "Performance test prompt 38",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342820-pmyqtpgi8",
+      "timestamp": "2025-10-19T00:22:22.820Z",
+      "prompt": "Performance test prompt 39",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342823-jbiou4zp5",
+      "timestamp": "2025-10-19T00:22:22.823Z",
+      "prompt": "Performance test prompt 40",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342825-86cm9irf3",
+      "timestamp": "2025-10-19T00:22:22.825Z",
+      "prompt": "Performance test prompt 41",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342828-1cwn18g8w",
+      "timestamp": "2025-10-19T00:22:22.828Z",
+      "prompt": "Performance test prompt 42",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342832-i9p84agg3",
+      "timestamp": "2025-10-19T00:22:22.832Z",
+      "prompt": "Performance test prompt 43",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342835-9afp7ntc5",
+      "timestamp": "2025-10-19T00:22:22.835Z",
+      "prompt": "Performance test prompt 44",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342839-kiied78wt",
+      "timestamp": "2025-10-19T00:22:22.839Z",
+      "prompt": "Performance test prompt 45",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342842-m94qhwt4c",
+      "timestamp": "2025-10-19T00:22:22.842Z",
+      "prompt": "Performance test prompt 46",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342845-adz6b2o9c",
+      "timestamp": "2025-10-19T00:22:22.845Z",
+      "prompt": "Performance test prompt 47",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342849-tpgm9ksdb",
+      "timestamp": "2025-10-19T00:22:22.849Z",
+      "prompt": "Performance test prompt 48",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342852-0rmmb5t9v",
+      "timestamp": "2025-10-19T00:22:22.852Z",
+      "prompt": "Performance test prompt 49",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342855-9pqqjkqtm",
+      "timestamp": "2025-10-19T00:22:22.855Z",
+      "prompt": "Performance test prompt 50",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342858-qspdc2rsx",
+      "timestamp": "2025-10-19T00:22:22.858Z",
+      "prompt": "Performance test prompt 51",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342861-bn7npgurk",
+      "timestamp": "2025-10-19T00:22:22.861Z",
+      "prompt": "Performance test prompt 52",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342865-9wdto3q52",
+      "timestamp": "2025-10-19T00:22:22.865Z",
+      "prompt": "Performance test prompt 53",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342868-t69n6ewdy",
+      "timestamp": "2025-10-19T00:22:22.868Z",
+      "prompt": "Performance test prompt 54",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342871-rv1emrsls",
+      "timestamp": "2025-10-19T00:22:22.871Z",
+      "prompt": "Performance test prompt 55",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342874-b27949rqj",
+      "timestamp": "2025-10-19T00:22:22.874Z",
+      "prompt": "Performance test prompt 56",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342877-wfpokddc8",
+      "timestamp": "2025-10-19T00:22:22.877Z",
+      "prompt": "Performance test prompt 57",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342880-1gcl1psxs",
+      "timestamp": "2025-10-19T00:22:22.880Z",
+      "prompt": "Performance test prompt 58",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342884-5ep55k5x4",
+      "timestamp": "2025-10-19T00:22:22.884Z",
+      "prompt": "Performance test prompt 59",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342887-c85pgt81j",
+      "timestamp": "2025-10-19T00:22:22.887Z",
+      "prompt": "Performance test prompt 60",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342890-wde8huls0",
+      "timestamp": "2025-10-19T00:22:22.890Z",
+      "prompt": "Performance test prompt 61",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342893-n80x24w9y",
+      "timestamp": "2025-10-19T00:22:22.893Z",
+      "prompt": "Performance test prompt 62",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342896-71gvzor9y",
+      "timestamp": "2025-10-19T00:22:22.896Z",
+      "prompt": "Performance test prompt 63",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342900-hz1kl101q",
+      "timestamp": "2025-10-19T00:22:22.900Z",
+      "prompt": "Performance test prompt 64",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342903-1ehhg6onr",
+      "timestamp": "2025-10-19T00:22:22.903Z",
+      "prompt": "Performance test prompt 65",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342906-y1w20sl59",
+      "timestamp": "2025-10-19T00:22:22.906Z",
+      "prompt": "Performance test prompt 66",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342909-zg38i3svf",
+      "timestamp": "2025-10-19T00:22:22.909Z",
+      "prompt": "Performance test prompt 67",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342912-z7z0tmads",
+      "timestamp": "2025-10-19T00:22:22.913Z",
+      "prompt": "Performance test prompt 68",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342916-fjtme2msv",
+      "timestamp": "2025-10-19T00:22:22.916Z",
+      "prompt": "Performance test prompt 69",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342919-oi2czi8je",
+      "timestamp": "2025-10-19T00:22:22.919Z",
+      "prompt": "Performance test prompt 70",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342922-1f9z40e5h",
+      "timestamp": "2025-10-19T00:22:22.922Z",
+      "prompt": "Performance test prompt 71",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342926-g3c3ssjve",
+      "timestamp": "2025-10-19T00:22:22.926Z",
+      "prompt": "Performance test prompt 72",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342929-pvlzwunlz",
+      "timestamp": "2025-10-19T00:22:22.929Z",
+      "prompt": "Performance test prompt 73",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342933-im5kg0t98",
+      "timestamp": "2025-10-19T00:22:22.933Z",
+      "prompt": "Performance test prompt 74",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342936-a7erqu3e4",
+      "timestamp": "2025-10-19T00:22:22.936Z",
+      "prompt": "Performance test prompt 75",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342940-i92xxo8ea",
+      "timestamp": "2025-10-19T00:22:22.940Z",
+      "prompt": "Performance test prompt 76",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342943-2wmvpzzdn",
+      "timestamp": "2025-10-19T00:22:22.943Z",
+      "prompt": "Performance test prompt 77",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342946-3acdhkeop",
+      "timestamp": "2025-10-19T00:22:22.946Z",
+      "prompt": "Performance test prompt 78",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342949-w5wapmpn6",
+      "timestamp": "2025-10-19T00:22:22.949Z",
+      "prompt": "Performance test prompt 79",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342952-d8ra0xzid",
+      "timestamp": "2025-10-19T00:22:22.952Z",
+      "prompt": "Performance test prompt 80",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342956-3fa5j5jti",
+      "timestamp": "2025-10-19T00:22:22.956Z",
+      "prompt": "Performance test prompt 81",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342959-0ctizrnyv",
+      "timestamp": "2025-10-19T00:22:22.959Z",
+      "prompt": "Performance test prompt 82",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342963-t1hxeee5y",
+      "timestamp": "2025-10-19T00:22:22.963Z",
+      "prompt": "Performance test prompt 83",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342967-q4l2z0nyi",
+      "timestamp": "2025-10-19T00:22:22.967Z",
+      "prompt": "Performance test prompt 84",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342970-6wcj9t67b",
+      "timestamp": "2025-10-19T00:22:22.970Z",
+      "prompt": "Performance test prompt 85",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342974-9ucdwy049",
+      "timestamp": "2025-10-19T00:22:22.974Z",
+      "prompt": "Performance test prompt 86",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342977-63ujmsz45",
+      "timestamp": "2025-10-19T00:22:22.977Z",
+      "prompt": "Performance test prompt 87",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342980-v2gq13xd3",
+      "timestamp": "2025-10-19T00:22:22.980Z",
+      "prompt": "Performance test prompt 88",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342984-d0lvwsxf2",
+      "timestamp": "2025-10-19T00:22:22.984Z",
+      "prompt": "Performance test prompt 89",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342987-oyuux9na0",
+      "timestamp": "2025-10-19T00:22:22.987Z",
+      "prompt": "Performance test prompt 90",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342990-fqy1mf8pu",
+      "timestamp": "2025-10-19T00:22:22.990Z",
+      "prompt": "Performance test prompt 91",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342994-5bc09vjmv",
+      "timestamp": "2025-10-19T00:22:22.994Z",
+      "prompt": "Performance test prompt 92",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833342997-fjkyzie1c",
+      "timestamp": "2025-10-19T00:22:22.997Z",
+      "prompt": "Performance test prompt 93",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833343000-fba698bb4",
+      "timestamp": "2025-10-19T00:22:23.000Z",
+      "prompt": "Performance test prompt 94",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833343004-dch1e6aj1",
+      "timestamp": "2025-10-19T00:22:23.004Z",
+      "prompt": "Performance test prompt 95",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833343007-n1uwqpfit",
+      "timestamp": "2025-10-19T00:22:23.007Z",
+      "prompt": "Performance test prompt 96",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833343011-l69mb7y2r",
+      "timestamp": "2025-10-19T00:22:23.011Z",
+      "prompt": "Performance test prompt 97",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833343014-tfv60i9z9",
+      "timestamp": "2025-10-19T00:22:23.014Z",
+      "prompt": "Performance test prompt 98",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    }
+  ],
+  "artifactLineage": {
+    "test-file.js": {
+      "artifactId": "test-file",
+      "created": "2025-10-19T00:22:22.601Z",
+      "createdBy": {
+        "promptId": "prompt-1760833342601-x597y84m8",
+        "agent": "Test Agent",
+        "phase": "implementation"
+      },
+      "currentVersion": 2,
+      "versions": [
+        {
+          "version": 1,
+          "timestamp": "2025-10-19T00:22:22.601Z",
+          "promptId": "prompt-1760833342601-x597y84m8",
+          "prompt": "Test prompt for validation",
+          "agent": "Test Agent",
+          "phase": "implementation",
+          "changeType": "created",
+          "changeSummary": "Test file for validation"
+        },
+        {
+          "version": 2,
+          "timestamp": "2025-10-19T00:22:22.605Z",
+          "promptId": "prompt-1760833342605-lzm0c35e9",
+          "prompt": "Modify test file",
+          "agent": "Test Agent",
+          "phase": "implementation",
+          "changeType": "modified",
+          "changeSummary": "Added new function"
+        }
+      ],
+      "relatedPrompts": [
+        "prompt-1760833342601-x597y84m8",
+        "prompt-1760833342605-lzm0c35e9"
+      ],
+      "totalModifications": 1
+    },
+    "test-component.tsx": {
+      "artifactId": "test-component",
+      "created": "2025-10-19T00:22:22.636Z",
+      "createdBy": {
+        "promptId": "prompt-1760833342636-00ituwa57",
+        "agent": "Senior Developer",
+        "phase": "implementation"
+      },
+      "currentVersion": 2,
+      "versions": [
+        {
+          "version": 1,
+          "timestamp": "2025-10-19T00:22:22.636Z",
+          "promptId": "prompt-1760833342636-00ituwa57",
+          "prompt": "Create test component",
+          "agent": "Senior Developer",
+          "phase": "implementation",
+          "changeType": "created",
+          "changeSummary": "React component for testing"
+        },
+        {
+          "version": 2,
+          "timestamp": "2025-10-19T00:22:22.639Z",
+          "promptId": "prompt-1760833342639-nqk3rucoy",
+          "prompt": "Add props interface",
+          "agent": "Research Analyst",
+          "phase": "research",
+          "changeType": "enhanced",
+          "changeSummary": "Added TypeScript props interface"
+        }
+      ],
+      "relatedPrompts": [
+        "prompt-1760833342636-00ituwa57",
+        "prompt-1760833342639-nqk3rucoy"
+      ],
+      "totalModifications": 1
+    }
+  }
+}
