@@ -31,9 +31,9 @@ The **Multi-Agent Framework** is a production-grade system for coordinating mult
 7. [Agent System](#agent-system)
 8. [Usage Analytics](#usage-analytics)
 9. [Design Philosophy](#design-philosophy)
-10. [Getting Started](#getting-started)
-11. [Use Cases](#use-cases)
-12. [Performance & Scalability](#performance--scalability)
+14. [Getting Started](#getting-started)
+14. [Use Cases](#use-cases)
+14. [Performance & Scalability](#performance--scalability)
 13. [Further Reading](#further-reading)
 
 ---
@@ -674,6 +674,186 @@ loader.getBestAgentForTask({
 - **Development** (6 agents): Implementation, debugging, optimization
 - **Testing** (4 agents): Unit, integration, E2E, performance
 - **Validation** (3 agents): Code review, quality assurance, security
+
+## Skills Framework
+
+### What is the Skills Framework?
+
+The Skills Framework provides **reusable knowledge modules** that can be automatically activated when relevant to a task. Skills are markdown documents containing domain-specific best practices, code examples, and guidelines that enhance agent capabilities.
+
+**Key Concepts**:
+- **Skills**: Markdown documents with specialized knowledge (API testing, TypeScript, Docker, etc.)
+- **Auto-Activation** (Planned): Skills automatically activate based on task relevance
+- **Context Enhancement**: Loaded skills provide agents with domain expertise
+- **Extensible**: Easy to add new skills for any domain
+
+### Skills Architecture
+
+```
+.claude/skills/
+├── testing/
+│   └── api-testing.md           # REST/GraphQL testing patterns
+├── development/
+│   └── typescript-guide.md      # TypeScript best practices
+└── deployment/
+    └── docker-deployment.md     # Docker containerization
+```
+
+### Current Skills Library
+
+**1. API Testing** (`.claude/skills/testing/api-testing.md`)
+- REST API testing patterns (GET, POST, PUT, PATCH, DELETE)
+- GraphQL testing with queries and mutations
+- Authentication methods (Bearer tokens, API keys, OAuth2)
+- Error handling and validation
+- Testing best practices and common patterns
+
+**2. TypeScript Guide** (`.claude/skills/development/typescript-guide.md`)
+- Basic and advanced types
+- Interfaces, classes, and generics
+- Utility types (Partial, Required, Pick, Omit, etc.)
+- Type guards and narrowing
+- TypeScript best practices
+- Common patterns and anti-patterns
+
+**3. Docker Deployment** (`.claude/skills/deployment/docker-deployment.md`)
+- Dockerfile creation and optimization
+- Multi-stage builds
+- Docker Compose for multi-container apps
+- Environment configuration
+- Security best practices
+- Production deployment strategies
+
+### How Skills Work
+
+**Planned Auto-Activation**:
+When a user prompt mentions relevant keywords, the system will automatically load corresponding skills:
+
+```
+User: "Help me test my REST API endpoints"
+→ Auto-loads: .claude/skills/testing/api-testing.md
+
+User: "Write TypeScript interfaces for my data models"
+→ Auto-loads: .claude/skills/development/typescript-guide.md
+
+User: "Containerize this application with Docker"
+→ Auto-loads: .claude/skills/deployment/docker-deployment.md
+```
+
+**Manual Activation**:
+Skills can be manually referenced in agent configurations:
+
+```yaml
+---
+name: api-tester
+display_name: API Testing Specialist
+capabilities:
+  - api-testing
+skills:
+  - testing/api-testing.md    # Load this skill automatically
+---
+```
+
+### Skills vs Agents
+
+| Aspect | Skills | Agents |
+|--------|--------|--------|
+| **Nature** | Knowledge modules | Task executors |
+| **Activity** | Passive (loaded as context) | Active (perform work) |
+| **Reusability** | Used across multiple agents | Single role/responsibility |
+| **Content** | Best practices, examples, patterns | Instructions, orchestration logic |
+
+### Creating Custom Skills
+
+**Skill Format**:
+````markdown
+# Skill Name
+
+Brief description of what this skill provides.
+
+## Core Concepts
+
+Explanation of key concepts...
+
+## Best Practices
+
+### Practice 1
+- Description
+- When to use
+```javascript
+// Code example
+```
+
+## Common Patterns
+
+### Pattern 1
+```javascript
+// Implementation example
+```
+
+## Anti-Patterns
+
+What NOT to do and why...
+
+## References
+
+Links to documentation, articles, etc.
+````
+
+**Adding New Skills**:
+1. Create markdown file in appropriate category (`.claude/skills/category/`)
+2. Follow skill format template
+3. Include code examples and best practices
+4. Skills are automatically discovered (when auto-activation implemented)
+
+**Skill Categories**:
+- `testing/` - Testing strategies and patterns
+- `development/` - Programming languages and frameworks
+- `deployment/` - Infrastructure and DevOps
+- `security/` - Security best practices (planned)
+- `architecture/` - Design patterns (planned)
+- `data/` - Data modeling and databases (planned)
+
+### Future Skills Roadmap
+
+**Planned Skills**:
+- **Security Auditing** (`security/security-audit.md`)
+- **Performance Optimization** (`development/performance-optimization.md`)
+- **Database Design** (`data/database-design.md`)
+- **React Patterns** (`development/react-patterns.md`)
+- **Kubernetes Deployment** (`deployment/kubernetes.md`)
+- **CI/CD Pipelines** (`deployment/cicd-pipelines.md`)
+- **AWS Best Practices** (`deployment/aws-deployment.md`)
+- **Code Review Guidelines** (`development/code-review.md`)
+
+### Benefits of Skills Framework
+
+**1. Knowledge Reuse**:
+- Write once, use across all agents
+- Consistent best practices
+- Easier to maintain and update
+
+**2. Enhanced Agent Capabilities**:
+- Agents gain domain expertise instantly
+- No need to retrain or reconfigure
+- Modular knowledge composition
+
+**3. Extensibility**:
+- Easy to add new domains
+- Community can contribute skills
+- Supports any markdown content
+
+**4. Context Efficiency**:
+- Load only relevant skills
+- Skills cached and reused
+- Token-efficient knowledge transfer
+
+**5. Developer Experience**:
+- Familiar markdown format
+- Easy to read and update
+- Version controlled with code
+
+---
 
 ---
 
