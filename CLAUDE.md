@@ -5,26 +5,28 @@ Multi-agent development system that combines specialized AI agent personas with 
 
 ## Session Initialization (Read This First!)
 
-**At the start of every session**, automatically load project context by reading:
+**At the start of every session**, automatically load project context by reading these 3 files:
 
 ```
-PROJECT_SUMMARY.md
+1. PROJECT_SUMMARY.md      # High-level project state and context
+2. .claude/dev-docs/plan.md     # Current task breakdown and implementation plan
+3. .claude/dev-docs/tasks.md    # Active todo list with progress tracking
 ```
 
-This file contains:
-- Current phase and progress
-- Recent artifacts and decisions
-- Quality scores
-- Active blockers
-- Recommended next actions
+**Why 3 files?** This is the **Dev-Docs 3-File Pattern** that prevents context drift on long tasks:
+- `PROJECT_SUMMARY.md` - What we've built (project history, architecture, quality scores)
+- `plan.md` - What we're building (current task breakdown, implementation steps)
+- `tasks.md` - What's left to do (todo list, blockers, next actions)
 
-**Token cost**: ~200 tokens (cached via prompt caching = ~20 tokens effective)
+**Token cost**: ~400 tokens total (cached via prompt caching = ~40 tokens effective)
 
 **When you need fresh context or phase inference**:
 - User can run `/session-init [task description]` to regenerate context with intelligent phase detection
-- This is optional - PROJECT_SUMMARY.md provides sufficient context for most work
+- This is optional - The 3 dev-docs files provide sufficient context for most work
 
-**Important**: If PROJECT_SUMMARY.md doesn't exist, the project is new. Proceed with research phase.
+**Important**:
+- If PROJECT_SUMMARY.md doesn't exist, the project is new. Proceed with research phase.
+- If dev-docs files don't exist, create them from current task state.
 
 ## Multi-Agent Multi-Model Strategy
 
