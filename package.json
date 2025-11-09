@@ -11,7 +11,8 @@
     "traceability": "node scripts/traceability-query.js",
     "cli": "node scripts/cli.js",
     "demo": "node examples/orchestration-demo.js",
-    "usage": "node scripts/usage-report.js"
+    "usage": "node scripts/usage-report.js",
+    "monitor": "node scripts/usage-monitor.js"
   },
   "keywords": [
     "multi-agent",
