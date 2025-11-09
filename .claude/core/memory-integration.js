@@ -107,6 +107,39 @@ class MemoryIntegration {
       });
       this.patternRecommender = null;
     }
+
+    // 6. Initialize UsageTracker (cost analytics)
+    if (this.options.enableUsageTracking !== false) {
+      try {
+        const UsageTracker = require('./usage-tracker');
+        this.usageTracker = new UsageTracker(this.memoryStore, {
+          enableBudgetAlerts: this.options.enableBudgetAlerts || false,
+          dailyBudgetUSD: this.options.dailyBudgetUSD,
+          monthlyBudgetUSD: this.options.monthlyBudgetUSD,
+          customPricing: this.options.customModelPricing
+        });
+        this.logger.info('UsageTracker initialized');
+      } catch (error) {
+        this.logger.warn('UsageTracker not available', {
+          error: error.message
+        });
+        this.usageTracker = null;
+      }
+    }
+
+    // 7. Initialize UsageReporter (reporting)
+    if (this.usageTracker) {
+      try {
+        const UsageReporter = require('./usage-reporter');
+        this.usageReporter = new UsageReporter(this.memoryStore, this.usageTracker);
+        this.logger.info('UsageReporter initialized');
+      } catch (error) {
+        this.logger.warn('UsageReporter not available', {
+          error: error.message
+        });
+        this.usageReporter = null;
+      }
+    }
   }
 
   /**
@@ -470,8 +503,25 @@ class MemoryIntegration {
         success: result?.success !== false
       });
 
-      // Could add synchronous save here if needed
-      // For now, rely on MessageBus event handler
+      // Track usage if available and usage data present
+      if (this.usageTracker && result?.usage) {
+        await this.usageTracker.recordUsage({
+          orchestrationId: result.orchestrationId || result.id,
+          model: result.model || result.metadata?.model || 'claude-sonnet-4.5',
+          inputTokens: result.usage.inputTokens || result.usage.input_tokens || 0,
+          outputTokens: result.usage.outputTokens || result.usage.output_tokens || 0,
+          cacheCreationTokens: result.usage.cacheCreationTokens || result.usage.cache_creation_input_tokens || 0,
+          cacheReadTokens: result.usage.cacheReadTokens || result.usage.cache_read_input_tokens || 0,
+          pattern: result.pattern || result.metadata?.pattern,
+          workSessionId: result.workSessionId || result.metadata?.workSessionId,
+          metadata: result.metadata || {}
+        }).catch(err => {
+          // Non-critical: usage tracking failures shouldn't block orchestration
+          this.logger.warn('Failed to record usage', {
+            error: err.message
+          });
+        });
+      }
 
       return result;
 

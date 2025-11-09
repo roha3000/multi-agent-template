@@ -232,3 +232,187 @@ SELECT
   datetime(last_used, 'unixepoch') as last_used_date
 FROM pattern_stats
 ORDER BY success_rate DESC, total_executions DESC;
+
+-- ============================================================================
+-- Usage Analytics Tables
+-- ============================================================================
+
+-- Token Usage: Detailed token consumption per orchestration
+CREATE TABLE IF NOT EXISTS token_usage (
+  id TEXT PRIMARY KEY,
+  orchestration_id TEXT NOT NULL,
+  agent_id TEXT,                      -- NULL for orchestration-level tracking
+  timestamp INTEGER NOT NULL,
+  model TEXT NOT NULL,                -- claude-sonnet-4.5, gpt-4o, etc.
+
+  -- Token counts
+  input_tokens INTEGER DEFAULT 0,
+  output_tokens INTEGER DEFAULT 0,
+  cache_creation_tokens INTEGER DEFAULT 0,
+  cache_read_tokens INTEGER DEFAULT 0,
+  total_tokens INTEGER DEFAULT 0,
+
+  -- Cost breakdown (USD)
+  input_cost REAL DEFAULT 0.0,
+  output_cost REAL DEFAULT 0.0,
+  cache_creation_cost REAL DEFAULT 0.0,
+  cache_read_cost REAL DEFAULT 0.0,
+  total_cost REAL DEFAULT 0.0,
+
+  -- Savings analysis
+  cache_savings REAL DEFAULT 0.0,
+  cache_savings_percent REAL DEFAULT 0.0,
+
+  -- Context
+  pattern TEXT,                       -- Denormalized for easier queries
+  work_session_id TEXT,
+
+  created_at INTEGER DEFAULT (strftime('%s', 'now'))
+  -- Note: No foreign key constraint to allow flexible usage tracking
+  -- FOREIGN KEY (orchestration_id) REFERENCES orchestrations(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_orchestration ON token_usage(orchestration_id);
+CREATE INDEX IF NOT EXISTS idx_usage_agent ON token_usage(agent_id);
+CREATE INDEX IF NOT EXISTS idx_usage_model ON token_usage(model);
+CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON token_usage(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_usage_pattern ON token_usage(pattern);
+CREATE INDEX IF NOT EXISTS idx_usage_session ON token_usage(work_session_id);
+
+-- Budget Alerts: Track when budget thresholds are exceeded
+CREATE TABLE IF NOT EXISTS budget_alerts (
+  id TEXT PRIMARY KEY,
+  alert_type TEXT NOT NULL,           -- 'daily_warning', 'daily_exceeded', 'monthly_warning', 'monthly_exceeded'
+  period_start INTEGER NOT NULL,      -- Start of day/month
+  threshold_usd REAL NOT NULL,        -- Budget limit
+  actual_usd REAL NOT NULL,           -- Actual spending
+  percent_used REAL NOT NULL,         -- Percentage of budget used
+  triggered_at INTEGER NOT NULL,
+  acknowledged INTEGER DEFAULT 0,     -- 0 = unacknowledged, 1 = acknowledged
+  acknowledged_at INTEGER,
+  metadata TEXT                       -- JSON: additional context
+);
+
+CREATE INDEX IF NOT EXISTS idx_alerts_type ON budget_alerts(alert_type);
+CREATE INDEX IF NOT EXISTS idx_alerts_triggered ON budget_alerts(triggered_at DESC);
+CREATE INDEX IF NOT EXISTS idx_alerts_acknowledged ON budget_alerts(acknowledged);
+
+-- Usage Cache: Pre-computed aggregations for faster reporting
+CREATE TABLE IF NOT EXISTS usage_cache (
+  cache_key TEXT PRIMARY KEY,
+  period_type TEXT NOT NULL,          -- 'hour', 'day', 'week', 'month'
+  period_start INTEGER NOT NULL,
+  period_end INTEGER NOT NULL,
+
+  -- Aggregated metrics
+  total_orchestrations INTEGER DEFAULT 0,
+  total_tokens INTEGER DEFAULT 0,
+  total_cost REAL DEFAULT 0.0,
+
+  -- Model breakdown (JSON)
+  model_breakdown TEXT,
+
+  -- Pattern breakdown (JSON)
+  pattern_breakdown TEXT,
+
+  -- Agent breakdown (JSON)
+  agent_breakdown TEXT,
+
+  computed_at INTEGER DEFAULT (strftime('%s', 'now')),
+  expires_at INTEGER                  -- TTL for cache invalidation
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_cache_period ON usage_cache(period_type, period_start);
+CREATE INDEX IF NOT EXISTS idx_usage_cache_expires ON usage_cache(expires_at);
+
+-- ============================================================================
+-- Usage Analytics Views
+-- ============================================================================
+
+-- Daily Usage Summary
+CREATE VIEW IF NOT EXISTS v_daily_usage AS
+SELECT
+  date(timestamp, 'unixepoch') as date,
+  COUNT(DISTINCT orchestration_id) as orchestrations,
+  SUM(total_tokens) as total_tokens,
+  SUM(total_cost) as total_cost,
+  SUM(cache_savings) as cache_savings,
+  ROUND(AVG(cache_savings_percent), 2) as avg_cache_savings_pct,
+  GROUP_CONCAT(DISTINCT model) as models_used
+FROM token_usage
+GROUP BY date
+ORDER BY date DESC;
+
+-- Model Cost Summary
+CREATE VIEW IF NOT EXISTS v_model_costs AS
+SELECT
+  model,
+  COUNT(DISTINCT orchestration_id) as orchestrations,
+  SUM(input_tokens) as total_input_tokens,
+  SUM(output_tokens) as total_output_tokens,
+  SUM(cache_creation_tokens) as total_cache_creation,
+  SUM(cache_read_tokens) as total_cache_reads,
+  SUM(total_tokens) as total_tokens,
+  SUM(total_cost) as total_cost,
+  ROUND(AVG(total_cost), 4) as avg_cost_per_orchestration,
+  SUM(cache_savings) as total_cache_savings
+FROM token_usage
+GROUP BY model
+ORDER BY total_cost DESC;
+
+-- Pattern Cost Efficiency
+CREATE VIEW IF NOT EXISTS v_pattern_efficiency AS
+SELECT
+  tu.pattern,
+  COUNT(DISTINCT tu.orchestration_id) as total_orchestrations,
+  SUM(CASE WHEN o.success = 1 THEN 1 ELSE 0 END) as successful_orchestrations,
+  ROUND(SUM(CASE WHEN o.success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as success_rate,
+  SUM(tu.total_cost) as total_cost,
+  ROUND(AVG(tu.total_cost), 4) as avg_cost_per_orchestration,
+  ROUND(SUM(tu.total_cost) / NULLIF(SUM(CASE WHEN o.success = 1 THEN 1 ELSE 0 END), 0), 4) as cost_per_success
+FROM token_usage tu
+LEFT JOIN orchestrations o ON tu.orchestration_id = o.id
+WHERE tu.pattern IS NOT NULL
+GROUP BY tu.pattern
+ORDER BY cost_per_success ASC;
+
+-- Agent Cost Analysis
+CREATE VIEW IF NOT EXISTS v_agent_costs AS
+SELECT
+  agent_id,
+  COUNT(*) as executions,
+  SUM(total_tokens) as total_tokens,
+  SUM(total_cost) as total_cost,
+  ROUND(AVG(total_cost), 4) as avg_cost_per_execution,
+  SUM(cache_savings) as total_savings,
+  ROUND(AVG(cache_savings_percent), 2) as avg_savings_pct
+FROM token_usage
+WHERE agent_id IS NOT NULL
+GROUP BY agent_id
+ORDER BY total_cost DESC;
+
+-- Billing Window (5-hour periods)
+CREATE VIEW IF NOT EXISTS v_billing_windows AS
+SELECT
+  datetime((timestamp / 18000) * 18000, 'unixepoch') as window_start,
+  datetime(((timestamp / 18000) * 18000) + 18000, 'unixepoch') as window_end,
+  COUNT(DISTINCT orchestration_id) as orchestrations,
+  SUM(total_tokens) as total_tokens,
+  SUM(total_cost) as total_cost,
+  SUM(cache_savings) as cache_savings
+FROM token_usage
+GROUP BY (timestamp / 18000)  -- 18000 seconds = 5 hours
+ORDER BY window_start DESC;
+
+-- Monthly Budget Status
+CREATE VIEW IF NOT EXISTS v_monthly_budget AS
+SELECT
+  strftime('%Y-%m', timestamp, 'unixepoch') as month,
+  COUNT(DISTINCT orchestration_id) as orchestrations,
+  SUM(total_cost) as total_cost,
+  MIN(date(timestamp, 'unixepoch')) as first_day,
+  MAX(date(timestamp, 'unixepoch')) as last_day,
+  (julianday(MAX(date(timestamp, 'unixepoch'))) - julianday(MIN(date(timestamp, 'unixepoch'))) + 1) as days_elapsed
+FROM token_usage
+GROUP BY month
+ORDER BY month DESC;

@@ -10,7 +10,8 @@
     "validate": "node scripts/validate-system.js",
     "traceability": "node scripts/traceability-query.js",
     "cli": "node scripts/cli.js",
-    "demo": "node examples/orchestration-demo.js"
+    "demo": "node examples/orchestration-demo.js",
+    "usage": "node scripts/usage-report.js"
   },
   "keywords": [
     "multi-agent",
