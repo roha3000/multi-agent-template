@@ -15,6 +15,7 @@ const { createComponentLogger } = require('./logger');
 const LifecycleHooks = require('./lifecycle-hooks');
 const MemoryStore = require('./memory-store');
 const MemoryIntegration = require('./memory-integration');
+const AgentLoader = require('./agent-loader');
 
 const logger = createComponentLogger('AgentOrchestrator');
 
@@ -29,6 +30,8 @@ class AgentOrchestrator {
    * @param {boolean} [options.enableAI=false] - Enable AI categorization
    * @param {string} [options.aiApiKey] - Anthropic API key for AI features
    * @param {Object} [options.vectorConfig] - Vector store configuration
+   * @param {string} [options.agentsDir='.claude/agents'] - Directory for agent definitions
+   * @param {boolean} [options.autoLoadAgents=true] - Auto-load agents from directory
    */
   constructor(messageBus, options = {}) {
     this.messageBus = messageBus;
@@ -39,11 +42,16 @@ class AgentOrchestrator {
       enableAI: options.enableAI || false,
       aiApiKey: options.aiApiKey || null,
       vectorConfig: options.vectorConfig || {},
+      agentsDir: options.agentsDir || '.claude/agents',
+      autoLoadAgents: options.autoLoadAgents !== false,
       ...options
     };
 
     // Initialize lifecycle hooks (always available, even without memory)
     this.lifecycleHooks = new LifecycleHooks();
+
+    // Initialize agent loader
+    this.agentLoader = new AgentLoader(this.options.agentsDir);
 
     // Initialize memory system if enabled
     if (this.options.enableMemory) {
@@ -52,7 +60,8 @@ class AgentOrchestrator {
 
     logger.info('AgentOrchestrator initialized', {
       memoryEnabled: this.options.enableMemory,
-      aiEnabled: this.options.enableAI
+      aiEnabled: this.options.enableAI,
+      agentsDir: this.options.agentsDir
     });
   }
 
@@ -94,6 +103,37 @@ class AgentOrchestrator {
   }
 
   /**
+   * Initialize agent loader and auto-load agents from directory
+   * Call this async method after construction
+   * @returns {Promise<void>}
+   */
+  async initialize() {
+    if (this.options.autoLoadAgents) {
+      try {
+        logger.info('Auto-loading agents from directory...', {
+          agentsDir: this.options.agentsDir
+        });
+
+        await this.agentLoader.loadAll();
+
+        const stats = this.agentLoader.getStatistics();
+        logger.info('Agent auto-loading complete', {
+          totalAgents: stats.totalAgents,
+          categories: stats.categories,
+          phases: Object.keys(stats.byPhase)
+        });
+
+      } catch (error) {
+        logger.warn('Failed to auto-load agents, continuing with manual registration', {
+          error: error.message
+        });
+        // Graceful degradation: continue without auto-loaded agents
+        // Users can still manually register agents via registerAgent()
+      }
+    }
+  }
+
+  /**
    * Register an agent with the orchestrator
    * @param {Agent} agent - Agent instance
    */
@@ -116,12 +156,74 @@ class AgentOrchestrator {
   }
 
   /**
-   * Get agent by ID
-   * @param {string} agentId - Agent ID
-   * @returns {Agent|null} Agent instance
+   * Get agent by ID or name
+   * First checks registered agents, then falls back to agent loader
+   * @param {string} agentIdOrName - Agent ID or name
+   * @returns {Agent|Object|null} Agent instance or configuration
    */
-  getAgent(agentId) {
-    return this.agents.get(agentId) || null;
+  getAgent(agentIdOrName) {
+    // First check manually registered agents
+    const registeredAgent = this.agents.get(agentIdOrName);
+    if (registeredAgent) {
+      return registeredAgent;
+    }
+
+    // Fall back to agent loader
+    return this.agentLoader.getAgent(agentIdOrName) || null;
+  }
+
+  /**
+   * Find best agent for task based on criteria
+   * Delegates to agent loader
+   * @param {Object} criteria - Search criteria
+   * @param {string} criteria.phase - Preferred phase
+   * @param {string[]} criteria.capabilities - Required capabilities
+   * @param {string[]} criteria.tags - Preferred tags
+   * @param {string} criteria.category - Preferred category
+   * @returns {Object|null} Best matching agent configuration or null
+   */
+  findAgentForTask(criteria) {
+    return this.agentLoader.findAgentForTask(criteria);
+  }
+
+  /**
+   * Get all agents for a specific phase
+   * Delegates to agent loader
+   * @param {string} phase - Phase name (research, planning, design, etc.)
+   * @returns {Object[]} Array of matching agent configurations
+   */
+  getAgentsByPhase(phase) {
+    return this.agentLoader.getAgentsByPhase(phase);
+  }
+
+  /**
+   * Get all agents with a specific capability
+   * Delegates to agent loader
+   * @param {string} capability - Capability name
+   * @returns {Object[]} Array of matching agent configurations
+   */
+  getAgentsByCapability(capability) {
+    return this.agentLoader.getAgentsByCapability(capability);
+  }
+
+  /**
+   * Get all agents in a specific category
+   * Delegates to agent loader
+   * @param {string} category - Category name
+   * @returns {Object[]} Array of matching agent configurations
+   */
+  getAgentsByCategory(category) {
+    return this.agentLoader.getAgentsByCategory(category);
+  }
+
+  /**
+   * Get all agents with a specific tag
+   * Delegates to agent loader
+   * @param {string} tag - Tag name
+   * @returns {Object[]} Array of matching agent configurations
+   */
+  getAgentsByTag(tag) {
+    return this.agentLoader.getAgentsByTag(tag);
   }
 
   /**
