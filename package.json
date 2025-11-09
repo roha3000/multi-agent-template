@@ -12,7 +12,8 @@
     "cli": "node scripts/cli.js",
     "demo": "node examples/orchestration-demo.js",
     "usage": "node scripts/usage-report.js",
-    "monitor": "node scripts/usage-monitor.js"
+    "monitor": "node scripts/usage-monitor.js",
+    "monitor:bg": "node scripts/start-monitor-background.js"
   },
   "keywords": [
     "multi-agent",
