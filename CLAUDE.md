@@ -39,7 +39,7 @@ Multi-agent development system that combines specialized AI agent personas with 
 ## Agent Personas & Model Assignments
 
 ### 🔍 Research Phase
-**Primary Agent**: Research Analyst (Claude Sonnet 4.5)
+**Primary Agent**: Research Analyst (Claude Opus 4.5)
 - **Role**: Deep technology research, competitive analysis, requirement gathering
 - **Strengths**: Comprehensive analysis, nuanced understanding
 - **Secondary Agent**: Trend Analyst (GPT-4o)
@@ -47,7 +47,7 @@ Multi-agent development system that combines specialized AI agent personas with 
 - **Handoff**: Research Analyst provides foundation, Trend Analyst adds current context
 
 ### 📊 Planning Phase  
-**Primary Agent**: Strategic Planner (Claude Sonnet 4.5)
+**Primary Agent**: Strategic Planner (Claude Opus 4.5)
 - **Role**: Project roadmap, resource allocation, timeline estimation
 - **Strengths**: Strategic thinking, complex project coordination
 - **Validation Agent**: Logic Reviewer (o1-preview)
@@ -55,7 +55,7 @@ Multi-agent development system that combines specialized AI agent personas with 
 - **Handoff**: Planner creates strategy, Logic Reviewer validates feasibility
 
 ### 🏗️ Design Phase
-**Architecture Agent**: System Architect (Claude Sonnet 4.5)
+**Architecture Agent**: System Architect (Claude Opus 4.5)
 - **Role**: High-level system design, technology selection, scalability planning
 - **Strengths**: Architectural vision, technology assessment
 - **Implementation Agent**: Technical Designer (Claude Sonnet 4)
@@ -79,14 +79,14 @@ Multi-agent development system that combines specialized AI agent personas with 
 - **Handoff**: Developer handles core logic, Assistant supports with scaffolding
 
 ### ✅ Validation Phase
-**Quality Gate Coordinator**: Review Orchestrator (Claude Sonnet 4.5)
+**Quality Gate Coordinator**: Review Orchestrator (Claude Opus 4.5)
 - **Role**: Cross-agent validation, quality gate enforcement
 - **Review Agents**: All previous agents in specialized review capacity
 - **Process**: Each agent validates their domain expertise
 - **Standards**: Minimum 85/100 quality score to proceed
 
 ### 🔄 Iteration Phase
-**Strategy Agent**: Innovation Lead (Claude Sonnet 4.5)
+**Strategy Agent**: Innovation Lead (Claude Opus 4.5)
 - **Role**: Strategic improvements, architectural changes
 - **Execution Agent**: Implementation Specialist (Claude Sonnet 4)
 - **Role**: Code improvements, bug fixes, optimizations
@@ -96,9 +96,9 @@ Multi-agent development system that combines specialized AI agent personas with 
 
 ### Automatic Model Selection
 ```bash
-# Research & Strategic Planning
+# Research & Strategic Planning - Use Opus 4.5
 if [task_complexity == "high" && analysis_depth == "deep"]; then
-    model = "claude-sonnet-4.5"
+    model = "claude-opus-4.5"
 fi
 
 # Code Implementation & Testing  
@@ -113,7 +113,7 @@ fi
 ```
 
 ### Cost Optimization Strategy
-- **Primary Models**: Claude Sonnet 4.5 (research/strategy), Claude Sonnet 4 (implementation)
+- **Primary Models**: Claude Opus 4.5 (research/strategy), Claude Sonnet 4 (implementation)
 - **Secondary Models**: GPT-4o (validation), o1-preview (reasoning)
 - **Token Limits**: Phase-specific limits to control costs
 - **Fallback Strategy**: Sonnet 4 as fallback for Sonnet 4.5, GPT-4o for supplementary analysis
@@ -137,7 +137,7 @@ Before proceeding to next phase:
 
 ### 3. Conflict Resolution
 When agents disagree:
-- Lead Architect (Sonnet 4.5) makes final architectural decisions
+- Lead Architect (Opus 4.5) makes final architectural decisions
 - Senior Developer (Sonnet 4) makes implementation decisions
 - Project Manager (human) resolves resource/timeline conflicts
 
@@ -176,14 +176,14 @@ When agents disagree:
 ### Model Environment Variables
 ```bash
 # Primary Models
-RESEARCH_MODEL=claude-sonnet-4.5
-PLANNING_MODEL=claude-sonnet-4.5  
-DESIGN_ARCHITECTURE_MODEL=claude-sonnet-4.5
+RESEARCH_MODEL=claude-opus-4.5
+PLANNING_MODEL=claude-opus-4.5  
+DESIGN_ARCHITECTURE_MODEL=claude-opus-4.5
 DESIGN_IMPLEMENTATION_MODEL=claude-sonnet-4-20250514
 TESTING_MODEL=claude-sonnet-4-20250514
 IMPLEMENTATION_MODEL=claude-sonnet-4-20250514
-VALIDATION_MODEL=claude-sonnet-4.5
-ITERATION_STRATEGY_MODEL=claude-sonnet-4.5
+VALIDATION_MODEL=claude-opus-4.5
+ITERATION_STRATEGY_MODEL=claude-opus-4.5
 ITERATION_EXECUTION_MODEL=claude-sonnet-4-20250514
 
 # Secondary Models  
@@ -231,12 +231,12 @@ MAX_TOKENS_TESTING=2000
 ## Emergency Protocols
 
 ### Model Unavailability
-1. **Sonnet 4.5 Unavailable**: Fall back to Sonnet 4 for research, extend analysis phase
+1. **Opus 4.5 Unavailable**: Fall back to Sonnet 4 for research, extend analysis phase
 2. **Sonnet 4 Unavailable**: Use GPT-4o for implementation, increase review cycles
 3. **External Models Unavailable**: Continue with Claude models only, document limitations
 
 ### Agent Conflicts
-1. **Technical Conflicts**: Lead Architect (Sonnet 4.5) makes binding decisions
+1. **Technical Conflicts**: Lead Architect (Opus 4.5) makes binding decisions
 2. **Timeline Conflicts**: Prioritize critical path, defer non-essential features
 3. **Quality Conflicts**: Never compromise below minimum quality gates
 
