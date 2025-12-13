@@ -1,0 +1,329 @@
+{
+  "continuousLoop": {
+    // ========================================
+    // Master Control
+    // ========================================
+    "enabled": true,                          // Toggle entire continuous loop system on/off
+
+    // ========================================
+    // Context Window Monitoring
+    // ========================================
+    "contextMonitoring": {
+      "enabled": true,                        // Monitor context window usage
+      "contextWindowSize": 200000,            // Maximum context window (Claude Opus/Sonnet 4)
+      "checkpointThreshold": 0.75,            // Initial checkpoint at 75% (adaptive)
+      "bufferTokens": 10000,                  // Safety buffer before hitting limit
+      "compactionDetectionDrop": 50000,       // Token drop indicating compaction
+      "adaptiveLearning": true                // Learn optimal checkpoint timing
+    },
+
+    // ========================================
+    // API Rate Limit Tracking
+    // ========================================
+    "apiLimitTracking": {
+      "enabled": true,                        // Track Claude API rate limits
+      "plan": "Pro",                          // "Free", "Pro", or "Team"
+
+      // Plan limits (adjust based on your actual Claude plan)
+      "limits": {
+        "Free": {
+          "requestsPerMinute": 5,
+          "requestsPerHour": 50,
+          "requestsPerDay": 50,
+          "tokensPerDay": 150000
+        },
+        "Pro": {
+          "requestsPerMinute": 5,
+          "requestsPerHour": 500,
+          "requestsPerDay": 1000,
+          "tokensPerDay": 2500000
+        },
+        "Team": {
+          "requestsPerMinute": 10,
+          "requestsPerHour": 5000,
+          "requestsPerDay": 10000,
+          "tokensPerDay": 5000000
+        }
+      },
+
+      // Safety thresholds
+      "thresholds": {
+        "warning": 0.80,                      // Warn at 80% utilization
+        "critical": 0.90,                     // Critical at 90%
+        "emergency": 0.95                     // Emergency stop at 95%
+      },
+
+      "wrapUpBufferMinutes": 5                // Minutes before limit to wrap up
+    },
+
+    // ========================================
+    // Cost Budget Management
+    // ========================================
+    "costBudgets": {
+      "enabled": true,                        // Monitor costs against budgets
+
+      "budgets": {
+        "session": 5.00,                      // Max cost per session ($)
+        "daily": 25.00,                       // Max cost per day ($)
+        "weekly": 100.00,                     // Max cost per week ($)
+        "monthly": 300.00                     // Max cost per month ($)
+      },
+
+      "thresholds": {
+        "warning": 0.75,                      // Warn at 75% of budget
+        "critical": 0.90,                     // Critical at 90%
+        "emergency": 0.95                     // Emergency stop at 95%
+      },
+
+      "wrapUpBuffer": 0.10                    // 10% buffer for wrap-up tasks
+    },
+
+    // ========================================
+    // Checkpoint Optimizer (Learning System)
+    // ========================================
+    "checkpointOptimizer": {
+      "enabled": true,                        // Enable adaptive checkpoint learning
+
+      // Initial thresholds (will adapt over time)
+      "initialThreshold": 0.75,               // Start at 75% context
+      "minThreshold": 0.50,                   // Never go below 50%
+      "maxThreshold": 0.90,                   // Never go above 90%
+      "bufferTokens": 10000,                  // Minimum safety buffer
+      "maxBuffer": 30000,                     // Maximum safety buffer
+
+      // Learning parameters
+      "learningRate": 0.05,                   // How fast to adapt (0.01-0.20)
+      "minSessionsForLearning": 5,            // Need 5+ checkpoints before adapting
+      "targetSuccessRate": 0.95,              // Target 95% success rate
+
+      // Compaction detection
+      "compactionTokenDrop": 50000,           // 50K+ drop = compaction detected
+      "compactionAggressiveAdapt": true,      // Aggressively adapt on compaction
+
+      // Task pattern learning
+      "learnTaskPatterns": true,              // Learn token usage per task type
+      "minSamplesForPattern": 3               // Need 3+ samples per pattern
+    },
+
+    // ========================================
+    // Human-In-Loop Guardrails (AI Safety)
+    // ========================================
+    "humanInLoop": {
+      "enabled": true,                        // Enable intelligent stopping for human review
+
+      // Detection parameters
+      "confidenceThreshold": 0.70,            // Trigger at 70%+ confidence
+      "minPatternMatches": 2,                 // Need 2+ keyword matches
+
+      // Learning parameters
+      "learningEnabled": true,                // Learn from feedback
+      "learningRate": 0.10,                   // Adaptation speed
+      "adaptiveThresholds": true,             // Auto-adjust thresholds based on accuracy
+      "minDetectionsForAdapt": 10,            // Need 10+ detections before adapting
+
+      // Built-in patterns (can be customized)
+      "patterns": {
+        "highRisk": {
+          "enabled": true,
+          "keywords": [
+            "deploy", "production", "delete database", "drop table",
+            "api key", "credentials", "password", "secret",
+            "rm -rf", "force push", "master branch", "main branch"
+          ],
+          "confidence": 0.95,
+          "reason": "High-risk operation detected"
+        },
+
+        "design": {
+          "enabled": true,
+          "keywords": [
+            "architecture decision", "which approach", "trade-off",
+            "should we use", "or should we", "decide between",
+            "design choice", "implementation strategy"
+          ],
+          "confidence": 0.85,
+          "reason": "Design/architecture decision requires review"
+        },
+
+        "manualTest": {
+          "enabled": true,
+          "keywords": [
+            "manual test", "manually verify", "visual inspection",
+            "click through", "test in browser", "verify UI",
+            "check visually", "human verification"
+          ],
+          "confidence": 0.90,
+          "reason": "Manual testing required"
+        },
+
+        "strategic": {
+          "enabled": true,
+          "keywords": [
+            "business decision", "roadmap", "priority",
+            "timeline", "deadline", "milestone",
+            "stakeholder", "customer impact"
+          ],
+          "confidence": 0.90,
+          "reason": "Strategic business decision"
+        },
+
+        "legal": {
+          "enabled": true,
+          "keywords": [
+            "legal", "compliance", "GDPR", "privacy policy",
+            "terms of service", "license", "copyright",
+            "regulatory", "audit"
+          ],
+          "confidence": 0.95,
+          "reason": "Legal/compliance consideration"
+        },
+
+        "qualityGate": {
+          "enabled": true,
+          "keywords": [
+            "code review", "peer review", "approve merge",
+            "approve PR", "sign off", "quality gate",
+            "release approval"
+          ],
+          "confidence": 0.85,
+          "reason": "Quality gate requires human approval"
+        },
+
+        "userExperience": {
+          "enabled": true,
+          "keywords": [
+            "user experience", "UX decision", "accessibility",
+            "UI design", "user flow", "usability",
+            "visual design"
+          ],
+          "confidence": 0.80,
+          "reason": "UX/design decision needs review"
+        }
+      },
+
+      // Behavior
+      "requireApproval": true,                // Require explicit approval to continue
+      "autoResumeOnLowConfidence": false,     // Don't auto-resume even at low confidence
+      "timeoutMinutes": 30                    // Auto-reject after 30 min if no response
+    },
+
+    // ========================================
+    // Dashboard Configuration
+    // ========================================
+    "dashboard": {
+      "enabled": true,                        // Enable real-time monitoring dashboard
+      "port": 3030,                           // Dashboard web server port
+      "host": "localhost",                    // Host to bind to
+      "updateIntervalMs": 2000,               // SSE update frequency (2 seconds)
+
+      // Features
+      "features": {
+        "taskTracking": true,                 // Show task lists and progress
+        "artifactViewer": true,               // View session artifacts
+        "configToggles": true,                // Interactive config editing
+        "humanReviewQueue": true,             // Show pending human reviews
+        "metricsDisplay": true,               // Show real-time metrics
+        "costTracking": true,                 // Display cost information
+        "learningStats": true                 // Show learning statistics
+      },
+
+      // Security
+      "allowFileViewing": true,               // Allow viewing files from dashboard
+      "restrictToProjectDir": true,           // Only allow viewing project files
+
+      // Auto-launch
+      "autoLaunch": false,                    // Auto-open browser on start
+      "launchDelay": 2000                     // Wait 2s before launching
+    },
+
+    // ========================================
+    // Checkpoint Management
+    // ========================================
+    "checkpoints": {
+      "enabled": true,                        // Enable checkpoint creation
+      "autoCheckpoint": true,                 // Auto-checkpoint when thresholds hit
+      "checkpointDir": ".claude/state/checkpoints",  // Where to save checkpoints
+      "maxCheckpoints": 20,                   // Keep last 20 checkpoints
+      "compressionEnabled": true,             // Compress checkpoint files
+
+      // What to include in checkpoints
+      "includeTaskState": true,               // Save current tasks
+      "includeMemory": true,                  // Save memory state
+      "includeConfig": true,                  // Save current config
+      "includeMetrics": true,                 // Save metrics snapshot
+      "includeLearningData": true             // Save learning progress
+    },
+
+    // ========================================
+    // Session Management
+    // ========================================
+    "sessionManagement": {
+      "enabled": true,                        // Enable session lifecycle management
+      "autoInit": false,                      // Auto-run session-init on start
+      "autoClear": false,                     // Auto-clear context on checkpoint
+      "autoResume": false,                    // Auto-resume from last checkpoint
+
+      // Session limits
+      "maxSessionDuration": 7200,             // 2 hours max per session (seconds)
+      "maxSessionCost": 5.00,                 // $5 max per session
+      "maxSessionTokens": 150000,             // 150K tokens max per session
+
+      // Wrap-up behavior
+      "wrapUpEnabled": true,                  // Enable graceful wrap-up
+      "wrapUpBufferTokens": 5000,             // Reserve 5K tokens for wrap-up
+      "wrapUpTimeMinutes": 5,                 // Reserve 5 min for wrap-up
+      "createSummaryOnWrapUp": true,          // Generate session summary
+      "saveStateOnWrapUp": true,              // Save state before ending
+      "notifyOnWrapUp": true                  // Show notification before wrap-up
+    },
+
+    // ========================================
+    // Logging & Debugging
+    // ========================================
+    "logging": {
+      "enabled": true,                        // Enable continuous loop logging
+      "level": "info",                        // "debug", "info", "warn", "error"
+      "logFile": ".claude/logs/continuous-loop.log",  // Log file path
+      "maxLogSize": 10485760,                 // 10MB max log size
+      "logRotation": true,                    // Rotate logs when full
+
+      // What to log
+      "logCheckpoints": true,                 // Log checkpoint events
+      "logSafetyChecks": true,                // Log all safety checks
+      "logLearning": true,                    // Log learning events
+      "logHumanReviews": true,                // Log human review events
+      "logAPIUsage": true,                    // Log API calls
+      "logCosts": true                        // Log cost calculations
+    },
+
+    // ========================================
+    // Advanced Options
+    // ========================================
+    "advanced": {
+      // Parallel safety checks
+      "parallelSafetyChecks": true,           // Run safety checks in parallel
+
+      // Predictive analysis
+      "predictiveMode": true,                 // Predict when limits will be hit
+      "lookaheadOperations": 3,               // Look ahead 3 operations
+
+      // Emergency protocols
+      "emergencyStopEnabled": true,           // Enable emergency stop
+      "emergencyContactEmail": null,          // Email to notify on emergency (optional)
+
+      // Integration hooks
+      "beforeCheckpointHook": null,           // Custom function before checkpoint
+      "afterCheckpointHook": null,            // Custom function after checkpoint
+      "beforeWrapUpHook": null,               // Custom function before wrap-up
+      "afterWrapUpHook": null,                // Custom function after wrap-up
+
+      // Database
+      "databasePath": ".claude/memory/memory-store.db",  // SQLite database
+      "vacuumOnStartup": false,               // Vacuum database on startup
+
+      // Performance
+      "cacheMetrics": true,                   // Cache metrics for performance
+      "cacheInvalidationMs": 1000             // Invalidate cache every 1s
+    }
+  }
+}

@@ -609,10 +609,11 @@ class SessionInitializer {
         currentPhase: state.current_phase,
         phaseHistory: state.phase_history.length,
         qualityScores: state.quality_scores,
+        artifacts: state.artifacts,
         totalArtifacts: Object.values(state.artifacts).reduce((sum, arr) => sum + arr.length, 0),
         unresolvedBlockers: unresolvedBlockers.length,
         criticalBlockers: unresolvedBlockers.filter(b => b.severity === 'critical').length,
-        decisions: state.decisions.length,
+        decisions: state.decisions,
         cacheStats: cacheStats,
         lastUpdated: state.last_updated
       };
@@ -627,11 +628,30 @@ class SessionInitializer {
 
   /**
    * Exports project state and summary
-   * @param {string} outputDir - Directory to export to
+   * @param {string} outputDir - Optional directory to export to. If not provided, returns data without writing files.
    * @returns {Object} Export result
    */
-  export(outputDir) {
+  export(outputDir = null) {
     try {
+      // Get state and summary
+      const state = this.stateManager.load();
+      const summaryPath = path.join(this.projectRoot, '.claude', 'PROJECT_SUMMARY.md');
+      let summary = null;
+
+      if (fs.existsSync(summaryPath)) {
+        summary = fs.readFileSync(summaryPath, 'utf8');
+      }
+
+      // If no outputDir, return data without writing files
+      if (!outputDir) {
+        return {
+          success: true,
+          state: state,
+          summary: summary
+        };
+      }
+
+      // Write to files
       if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
       }
@@ -642,17 +662,17 @@ class SessionInitializer {
       fs.writeFileSync(statePath, stateJson, 'utf8');
 
       // Copy PROJECT_SUMMARY.md
-      const summaryPath = path.join(this.projectRoot, '.claude', 'PROJECT_SUMMARY.md');
-      if (fs.existsSync(summaryPath)) {
-        const summaryContent = fs.readFileSync(summaryPath, 'utf8');
+      if (summary) {
         const exportSummaryPath = path.join(outputDir, 'PROJECT_SUMMARY.md');
-        fs.writeFileSync(exportSummaryPath, summaryContent, 'utf8');
+        fs.writeFileSync(exportSummaryPath, summary, 'utf8');
       }
 
       console.log(`[SessionInit] Exported to ${outputDir}`);
 
       return {
         success: true,
+        state: state,
+        summary: summary,
         files: [statePath, path.join(outputDir, 'PROJECT_SUMMARY.md')]
       };
 

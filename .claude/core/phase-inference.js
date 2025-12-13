@@ -52,7 +52,7 @@ const PHASE_PATTERNS = {
       'coordinate', 'prioritize', 'dependencies', 'sequence', 'workflow'
     ],
     patterns: [
-      /create\s+a\s+(plan|roadmap|timeline)/i,
+      /create\s+(\w+\s+)?(plan|roadmap|timeline)/i,
       /how\s+(long|much time)\s+will\s+it\s+take/i,
       /what\s+(are\s+)?the\s+steps/i,
       /plan\s+(out|for)\s+\w+/i,
