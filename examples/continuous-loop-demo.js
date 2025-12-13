@@ -16,7 +16,7 @@ const fs = require('fs');
 // Import all continuous loop components
 const ContinuousLoopOrchestrator = require('../.claude/core/continuous-loop-orchestrator');
 const MemoryStore = require('../.claude/core/memory-store');
-const TokenCounter = require('../.claude/core/token-counter');
+const tokenCounter = require('../.claude/core/token-counter');  // Module with functions
 const UsageTracker = require('../.claude/core/usage-tracker');
 
 // Configuration
@@ -139,22 +139,17 @@ class ContinuousLoopDemo {
 
     // Initialize memory store
     console.log('📦 Initializing memory store...');
-    this.memoryStore = new MemoryStore({
-      dbPath: path.join(__dirname, '../.claude/memory/demo-memory-store.db')
-    });
-    await this.memoryStore.initialize();
+    this.memoryStore = new MemoryStore(
+      path.join(__dirname, '../.claude/memory/demo-memory-store.db')
+    );
 
-    // Initialize token counter
-    console.log('🔢 Initializing token counter...');
-    this.tokenCounter = new TokenCounter({
-      model: 'claude-sonnet-4-20250514',
-      memoryStore: this.memoryStore
-    });
+    // tokenCounter is a module with functions, not a class
+    console.log('🔢 Token counter module loaded...');
+    this.tokenCounter = tokenCounter;
 
     // Initialize usage tracker
     console.log('📊 Initializing usage tracker...');
-    this.usageTracker = new UsageTracker({
-      memoryStore: this.memoryStore,
+    this.usageTracker = new UsageTracker(this.memoryStore, {
       sessionId: `demo-${Date.now()}`
     });
 
@@ -165,8 +160,6 @@ class ContinuousLoopDemo {
       tokenCounter: this.tokenCounter,
       usageTracker: this.usageTracker
     }, CONFIG.continuousLoop);
-
-    await this.orchestrator.initialize();
 
     console.log('\n✅ All components initialized successfully!\n');
   }

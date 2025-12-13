@@ -1,0 +1,61 @@
+{
+  "continuousLoop": {
+    "enabled": true,
+
+    "contextMonitoring": {
+      "enabled": true,
+      "contextWindowSize": 200000,
+      "checkpointThreshold": 0.75,
+      "bufferTokens": 10000,
+      "adaptiveLearning": true
+    },
+
+    "apiLimitTracking": {
+      "enabled": true,
+      "plan": "Pro",
+      "thresholds": {
+        "warning": 0.80,
+        "critical": 0.90,
+        "emergency": 0.95
+      }
+    },
+
+    "costBudgets": {
+      "enabled": true,
+      "budgets": {
+        "session": 5.00,
+        "daily": 25.00,
+        "weekly": 100.00,
+        "monthly": 300.00
+      },
+      "thresholds": {
+        "warning": 0.75,
+        "critical": 0.90,
+        "emergency": 0.95
+      }
+    },
+
+    "humanInLoop": {
+      "enabled": true,
+      "confidenceThreshold": 0.70,
+      "learningEnabled": true,
+      "adaptiveThresholds": true
+    },
+
+    "dashboard": {
+      "enabled": true,
+      "port": 3030,
+      "updateIntervalMs": 2000,
+      "autoLaunch": false,
+      "features": {
+        "taskTracking": true,
+        "artifactViewer": true,
+        "configToggles": true,
+        "humanReviewQueue": true,
+        "metricsDisplay": true,
+        "costTracking": true,
+        "learningStats": true
+      }
+    }
+  }
+}
