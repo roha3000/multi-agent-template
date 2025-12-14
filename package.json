@@ -13,7 +13,10 @@
     "demo": "node examples/orchestration-demo.js",
     "usage": "node scripts/usage-report.js",
     "monitor": "node scripts/usage-monitor.js",
-    "monitor:bg": "node scripts/start-monitor-background.js"
+    "monitor:bg": "node scripts/start-monitor-background.js",
+    "otlp:start": "node scripts/start-otlp-receiver.js",
+    "otlp:test": "node scripts/test-otlp-metrics.js",
+    "otlp:test:continuous": "node scripts/test-otlp-metrics.js --continuous"
   },
   "keywords": [
     "multi-agent",
@@ -28,8 +31,14 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.208.0",
+    "@opentelemetry/resources": "^2.2.0",
+    "@opentelemetry/sdk-metrics": "^2.2.0",
+    "@opentelemetry/semantic-conventions": "^1.38.0",
     "ajv": "^8.12.0",
     "ajv-formats": "^2.1.1",
+    "axios": "^1.13.2",
     "better-sqlite3": "^12.4.1",
     "chalk": "^4.1.2",
     "chromadb": "^3.1.1",
