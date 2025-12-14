@@ -107,6 +107,100 @@
 
 ## Implementation Phases
 
+### Phase 0: Dashboard Testing (PREREQUISITE) (6-12 hours)
+
+**Goal**: Establish test coverage for dashboard functionality before multi-project implementation
+
+**Status**: ✅ Phase 1 Complete, Phases 2-4 Stubbed
+**Priority**: 🔴 HIGH - Must complete before multi-project work
+
+#### 0.1 Phase 1: DashboardManager Core Tests (4 hours) ✅ COMPLETE
+- [x] Create `__tests__/core/dashboard-manager.test.js`
+- [x] Test initialization and state structure
+- [x] Test `updateExecutionPlan()` method
+- [x] Test `updateExecution()` method
+- [x] Test `addArtifact()` method
+- [x] Test metrics updates from UsageTracker
+- [x] Test context window calculations
+- [x] Test `getState()` serialization
+- [x] Test event tracking and timeline
+- [x] Test lifecycle (start/stop)
+- [x] Test message bus integration
+
+**Files Created**:
+- `__tests__/core/dashboard-manager.test.js` (550+ lines, comprehensive coverage)
+
+**Test Coverage Achieved**: ~90% of DashboardManager core functionality
+
+#### 0.2 Phase 2: SSE Integration Tests (3 hours) ⏳ STUBBED
+- [ ] Create `__tests__/integration/dashboard-sse.test.js`
+- [ ] Test SSE connection establishment
+- [ ] Test event broadcasting (metrics, plan, execution, artifacts)
+- [ ] Test real-time updates (<2s latency)
+- [ ] Test multiple concurrent connections (10+)
+- [ ] Test connection cleanup on disconnect
+- [ ] Test backpressure handling
+
+**Files Created**:
+- `__tests__/integration/dashboard-sse.test.js` (stub with TODOs)
+
+**Dependencies**:
+- `eventsource` package for Node.js SSE testing
+- Phase 1 tests passing
+- Web dashboard enabled in tests
+
+#### 0.3 Phase 3: Orchestrator Integration Tests (3 hours) ⏳ STUBBED
+- [ ] Create `__tests__/integration/orchestrator-dashboard.test.js`
+- [ ] Test usage tracking flow (UsageTracker → Dashboard)
+- [ ] Test execution plan updates
+- [ ] Test checkpoint event propagation
+- [ ] Test human review queue management
+- [ ] Test context window tracking accuracy
+- [ ] Test event propagation integrity
+
+**Files Created**:
+- `__tests__/integration/orchestrator-dashboard.test.js` (stub with TODOs)
+
+**Dependencies**:
+- Phases 1-2 passing
+- ContinuousLoopOrchestrator tests passing
+
+#### 0.4 Phase 4: Web Endpoint Tests (2 hours) ⏳ STUBBED
+- [ ] Create `__tests__/integration/dashboard-web.test.js`
+- [ ] Test all HTTP endpoints (GET /, /api/state, /api/metrics, etc.)
+- [ ] Test error handling (404, 500)
+- [ ] Test security (directory traversal, XSS prevention)
+- [ ] Test CORS headers
+
+**Files Created**:
+- `__tests__/integration/dashboard-web.test.js` (stub with TODOs)
+
+**Dependencies**:
+- `supertest` package for HTTP testing
+- Phases 1-3 passing
+- Can be deferred until after multi-project implementation
+
+**Why This is a Prerequisite**:
+1. 🔴 **Zero current test coverage** for dashboard functionality
+2. 🔴 **Multi-project dashboard is 10x more complex** - needs solid foundation
+3. 🔴 **Risk of silent failures** in production without tests
+4. 🔴 **Data integrity** - token counts, costs, progress tracking must be verified
+5. 🟡 **Debugging** - Without tests, issues in multi-project will be very hard to diagnose
+
+**Acceptance Criteria**:
+- [x] Phase 1 complete (core tests passing)
+- [ ] Phase 2 complete (SSE tests passing) - **recommended before multi-project**
+- [ ] Phase 3 complete (integration tests passing) - **recommended before multi-project**
+- [ ] Phase 4 complete (web tests passing) - can be done later
+- [ ] All tests passing with ≥85% coverage
+- [ ] No flaky tests
+- [ ] Test execution time <10 seconds
+
+**Reference Documentation**:
+- See `.claude/dev-docs/dashboard-testing-gaps.md` for detailed gap analysis
+
+---
+
 ### Phase 1: Core Infrastructure (8-10 hours)
 
 **Goal**: Create foundational multi-project components
@@ -1970,6 +2064,16 @@ node start-continuous-loop.js
 
 ## Implementation Timeline
 
+### Phase 0 (PREREQUISITE): Dashboard Testing (6-12 hours)
+- [x] Phase 0.1 (4 hours): DashboardManager core tests ✅ **COMPLETE**
+- [ ] Phase 0.2 (3 hours): SSE integration tests
+- [ ] Phase 0.3 (3 hours): Orchestrator integration tests
+- [ ] Phase 0.4 (2 hours): Web endpoint tests (optional, can be deferred)
+
+**Status**: Phase 0.1 complete. Recommend completing 0.2-0.3 before starting Phase 1.
+
+---
+
 ### Week 1: Foundation (8-10 hours)
 - [ ] Day 1-2: ProjectRegistry, PortAllocator, ID generation
 - [ ] Day 3-4: MultiProjectOrchestrator core
@@ -1991,31 +2095,40 @@ node start-continuous-loop.js
 - [ ] Day 4: Documentation
 - [ ] Day 5: Final testing, bug fixes
 
-**Total**: 26-34 hours (~4 weeks @ 6-8 hours/week)
+**Total**: 32-46 hours (Phase 0 + Phases 1-4) (~5-6 weeks @ 6-8 hours/week)
 
 ---
 
 ## Next Steps
 
-1. **Review and Approve Plan**
+1. **Complete Phase 0 Testing (PREREQUISITE)**
+   - [x] Phase 0.1: DashboardManager core tests ✅
+   - [ ] Phase 0.2: SSE integration tests (recommended)
+   - [ ] Phase 0.3: Orchestrator integration tests (recommended)
+   - [ ] Verify all tests passing
+   - [ ] Achieve ≥85% dashboard test coverage
+
+2. **Review and Approve Multi-Project Plan**
    - Review this implementation plan
    - Identify any concerns or gaps
    - Prioritize features (MVP vs nice-to-have)
 
-2. **Create Development Branch**
+3. **Create Development Branch**
    ```bash
    git checkout -b feature/multi-project-support
    ```
 
-3. **Start Phase 1: Core Infrastructure**
+4. **Start Phase 1: Core Infrastructure**
    - Begin with ProjectRegistry
    - Then PortAllocator
    - Then MultiProjectOrchestrator
 
-4. **Iterative Development**
+5. **Iterative Development**
    - Implement phase-by-phase
    - Test thoroughly after each phase
    - Update this plan as needed
+
+**IMPORTANT**: Do not start multi-project implementation until Phase 0.1-0.3 tests are complete and passing. The multi-project dashboard will be significantly more complex, and without proper test coverage of the single-project dashboard, debugging issues will be extremely difficult.
 
 ---
 
