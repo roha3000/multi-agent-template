@@ -215,6 +215,14 @@ describe('DashboardManager', () => {
       });
 
       setTimeout(() => {
+        // Update execution again to recalculate duration
+        dashboard.updateExecution({
+          phase: 'testing',
+          agent: 'test-engineer',
+          task: 'Write unit tests',
+          startTime
+        });
+
         expect(dashboard.state.execution.duration).toBeGreaterThan(0);
         done();
       }, 50);
@@ -404,15 +412,17 @@ describe('DashboardManager', () => {
       expect(dashboard.state.context.status).toBe('emergency');
     });
 
-    test('should emit metrics:updated event', async (done) => {
+    test('should emit metrics:updated event', (done) => {
       dashboard.on('metrics:updated', (metrics) => {
         expect(metrics.context).toBeDefined();
         expect(metrics.usage).toBeDefined();
         done();
       });
 
-      await dashboard.start();
-      await new Promise(resolve => setTimeout(resolve, 150));
+      dashboard.start().then(() => {
+        // Wait for update interval to trigger
+        setTimeout(() => {}, 150);
+      });
     });
   });
 
