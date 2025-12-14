@@ -33,6 +33,7 @@
     "better-sqlite3": "^12.4.1",
     "chalk": "^4.1.2",
     "chromadb": "^3.1.1",
+    "express": "^5.2.1",
     "inquirer": "^8.2.7",
     "js-yaml": "^4.1.0",
     "ora": "^5.4.1",

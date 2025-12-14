@@ -17,7 +17,10 @@
       "Bash(node -e \"console.log(''Chalk version:'', require(''chalk'').Chalk ? ''v5+'' : ''v4''); console.log(''Has default export:'', typeof require(''chalk'').default);\")",
       "Bash(npm install chalk@^4.1.2 inquirer@^8.2.5 ora@^5.4.1 --save)",
       "Read(//c/Users/roha3/Claude Projects/**)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run:*)",
+      "Bash(npm install)"
     ],
     "deny": [],
     "ask": []

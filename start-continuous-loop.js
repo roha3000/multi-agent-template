@@ -44,17 +44,21 @@ async function main() {
   console.log('🚀 Continuous Loop System');
   console.log('========================================\n');
 
+  const pidFile = path.join(__dirname, '.claude', 'continuous-loop.pid');
+  let orchestrator = null;
+  let memoryStore = null;
+
   try {
     // Initialize components
     console.log('📦 Initializing components...');
 
-    const memoryStore = new MemoryStore('.claude/memory/memory-store.db');
+    memoryStore = new MemoryStore('.claude/memory/memory-store.db');
 
     const usageTracker = new UsageTracker(memoryStore, {
       sessionId: `session-${Date.now()}`
     });
 
-    const orchestrator = new ContinuousLoopOrchestrator(
+    orchestrator = new ContinuousLoopOrchestrator(
       {
         memoryStore,
         tokenCounter,  // Pass the tokenCounter module (functions)
@@ -63,7 +67,26 @@ async function main() {
       config.continuousLoop
     );
 
+    // Start the orchestrator and dashboard
+    await orchestrator.start();
+
     console.log('✅ Components initialized\n');
+
+    // Write PID file for process management
+    if (!process.env.CONTINUOUS_LOOP_BACKGROUND) {
+      // Only write PID if NOT running in background mode (started by manager)
+      // The manager writes its own PID file
+    } else {
+      // Write PID file when running as background process
+      const port = config.continuousLoop.dashboard?.port || 3030;
+      const pidData = {
+        pid: process.pid,
+        port,
+        startedAt: new Date().toISOString(),
+        startedBy: 'direct'
+      };
+      fs.writeFileSync(pidFile, JSON.stringify(pidData, null, 2));
+    }
 
     // Display configuration status
     console.log('📋 Configuration Status:');
@@ -122,9 +145,9 @@ async function main() {
 
     console.log('Press Ctrl+C to stop\n');
 
-    // Keep running
-    process.on('SIGINT', async () => {
-      console.log('\n\n🛑 Shutting down...');
+    // Graceful shutdown function
+    const shutdown = async (signal) => {
+      console.log(`\n\n🛑 Shutting down (${signal})...`);
 
       if (orchestrator) {
         const summary = await orchestrator.wrapUp({ reason: 'user-shutdown' });
@@ -144,9 +167,18 @@ async function main() {
         memoryStore.close();
       }
 
+      // Clean up PID file
+      if (fs.existsSync(pidFile)) {
+        fs.unlinkSync(pidFile);
+      }
+
       console.log('\n✅ Cleanup complete\n');
       process.exit(0);
-    });
+    };
+
+    // Keep running - handle both SIGINT (Ctrl+C) and SIGTERM (kill command)
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
 
     // Return orchestrator for programmatic use
     return orchestrator;

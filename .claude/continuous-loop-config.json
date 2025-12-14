@@ -1,6 +1,8 @@
 {
   "continuousLoop": {
     "enabled": true,
+    "autoStart": true,
+    "autoStartDelay": 2000,
 
     "contextMonitoring": {
       "enabled": true,

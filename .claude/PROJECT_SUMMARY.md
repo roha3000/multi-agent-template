@@ -1,6 +1,6 @@
 # Project Summary
 
-**Last Updated**: 2025-11-19T04:53:23.387Z
+**Last Updated**: 2025-12-14T01:42:36.434Z
 **Current Phase**: Planning
 **Overall Progress**: 30%
 
@@ -70,6 +70,14 @@
 ## Key Decisions
 
 ### 1. Use PostgreSQL
+
+**Phase**: Planning  
+**Agent**: System Architect  
+**When**: 11/18/2025, 8:53:23 PM
+
+**Rationale**: Better for relational data
+
+### 2. Use PostgreSQL
 
 **Phase**: Planning  
 **Agent**: System Architect  

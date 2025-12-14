@@ -2,7 +2,34 @@
 
 ## 🚀 Launch the System
 
-### Option 1: Quick Start Script (Recommended)
+### Option 1: Auto-Start with Session Init (Easiest)
+
+The continuous loop can automatically start when you run `/session-init`:
+
+```bash
+/session-init [your task description]
+```
+
+**When auto-start is enabled** (default):
+- System checks if continuous loop is already running
+- If not running, automatically starts it in the background
+- Dashboard launches on http://localhost:3030
+- No manual intervention needed!
+
+**To enable/disable auto-start:**
+
+Edit `.claude/continuous-loop-config.json`:
+```json
+{
+  "continuousLoop": {
+    "enabled": true,
+    "autoStart": true,        // ← Set to false to disable auto-start
+    "autoStartDelay": 2000    // ← Wait 2s after start before continuing
+  }
+}
+```
+
+### Option 2: Manual Start Script
 
 ```bash
 node start-continuous-loop.js
@@ -14,7 +41,23 @@ This will:
 - ✅ Display system status and configuration
 - ✅ Keep running until you press Ctrl+C
 
-### Option 2: Run the Demo
+**Managing the Process:**
+
+Check if running:
+```bash
+# The PID file tells you if it's running
+cat .claude/continuous-loop.pid
+```
+
+Stop the process:
+```bash
+# Get PID from file
+kill $(cat .claude/continuous-loop.pid | grep -o '"pid":[0-9]*' | grep -o '[0-9]*')
+
+# Or use Ctrl+C if running in foreground
+```
+
+### Option 3: Run the Demo
 
 ```bash
 node examples/continuous-loop-demo.js
@@ -123,7 +166,9 @@ Edit `.claude/continuous-loop-config.json`:
 ```json
 {
   "continuousLoop": {
-    "enabled": true,  // Master toggle
+    "enabled": true,         // Master toggle
+    "autoStart": true,       // Auto-start with /session-init
+    "autoStartDelay": 2000,  // Wait 2s after start
 
     "contextMonitoring": {
       "enabled": true,

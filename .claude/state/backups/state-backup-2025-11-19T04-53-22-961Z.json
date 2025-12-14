@@ -1,15 +1,66 @@
 {
-  "current_phase": "research",
-  "phase_history": [],
-  "quality_scores": {},
+  "current_phase": "planning",
+  "phase_history": [
+    {
+      "phase": "planning",
+      "timestamp": "2025-11-19T04:45:07.384Z",
+      "agent": "Test Agent",
+      "trigger": "Validation test"
+    },
+    {
+      "phase": "research",
+      "timestamp": "2025-11-19T04:45:07.410Z",
+      "agent": "Test Agent",
+      "trigger": "Restore original"
+    },
+    {
+      "phase": "planning",
+      "timestamp": "2025-11-19T04:51:41.057Z",
+      "agent": "Test Agent",
+      "trigger": "Validation test"
+    },
+    {
+      "phase": "research",
+      "timestamp": "2025-11-19T04:51:41.073Z",
+      "agent": "Test Agent",
+      "trigger": "Restore original"
+    },
+    {
+      "phase": "planning",
+      "timestamp": "2025-11-19T04:51:41.372Z",
+      "agent": "Strategic Planner",
+      "trigger": "User requested",
+      "score": 85
+    },
+    {
+      "phase": "planning",
+      "timestamp": "2025-11-19T04:53:22.939Z",
+      "agent": "Test Agent",
+      "trigger": "Validation test"
+    }
+  ],
+  "quality_scores": {
+    "research": 85
+  },
   "artifacts": {
     "implementation": [
       "test-component.tsx"
+    ],
+    "research": [
+      "docs/db-research.md"
     ]
   },
-  "decisions": [],
+  "decisions": [
+    {
+      "decision": "Use PostgreSQL",
+      "rationale": "Better for relational data",
+      "timestamp": "2025-11-19T04:51:41.393Z",
+      "phase": "planning",
+      "agent": "System Architect"
+    }
+  ],
   "blockers": [],
-  "last_updated": "2025-10-19T00:22:23.011Z",
+  "last_updated": "2025-11-19T04:53:22.940Z",
   "metadata": {
     "project_name": "Unknown Project",
     "created_at": "2025-10-18T18:15:47.798Z",
@@ -1353,6 +1404,32 @@
       "id": "prompt-1760833343011-l69mb7y2r",
       "timestamp": "2025-10-19T00:22:23.011Z",
       "prompt": "Performance test prompt 97",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833343014-tfv60i9z9",
+      "timestamp": "2025-10-19T00:22:23.014Z",
+      "prompt": "Performance test prompt 98",
+      "phase": "implementation",
+      "agent": "Performance Tester",
+      "sessionId": "session-1760833342601",
+      "stateChangesBefore": {
+        "phase": "research",
+        "qualityScore": 0,
+        "artifactCount": 1
+      }
+    },
+    {
+      "id": "prompt-1760833343018-k2trqeycb",
+      "timestamp": "2025-10-19T00:22:23.018Z",
+      "prompt": "Performance test prompt 99",
       "phase": "implementation",
       "agent": "Performance Tester",
       "sessionId": "session-1760833342601",

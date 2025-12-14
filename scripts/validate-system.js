@@ -80,7 +80,7 @@ async function main() {
     // Test research detection
     const researchResult = inference.infer('Research authentication libraries', 'research');
     assert(researchResult.phase === 'research', 'Detected research phase');
-    assert(researchResult.confidence > 50, 'Confidence > 50%');
+    assert(researchResult.confidence > 0.5, 'Confidence > 50%');
 
     // Test implementation detection
     const implResult = inference.infer('Implement user login', 'design');
