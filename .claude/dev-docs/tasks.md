@@ -1,8 +1,9 @@
-# Active Tasks
+# Active Tasks - OpenTelemetry Implementation
 
-**Last Updated**: 2025-11-09
-**Current Session**: Phase 3 Implementation - Critical Workflow Automation
-**Status**: 1 of 6 tasks in progress
+**Last Updated**: 2025-12-13
+**Current Session**: Automated Usage Tracking via OpenTelemetry
+**Status**: Ready to Begin
+**Priority**: 🔴 CRITICAL
 
 ---
 
@@ -15,275 +16,295 @@
 
 ---
 
-## Phase 3: Critical Workflow Automation (26 hours)
+## OpenTelemetry Integration (8-11 hours)
 
-### 🟢 Task 1: Dev-Docs 3-File Pattern (4 hours)
-**Status**: Complete ✅
-**Priority**: Highest ROI ⭐⭐⭐⭐⭐
-**Started**: 2025-11-09
-**ETA**: End of current session
+### Context
+User requirement: "Manual tracking is a non-starter. I want fully automated and reliable tracking. It is the premise behind being able to prevent compaction."
 
-**Completed Steps**:
-- ✅ Created `.claude/dev-docs/` directory
-- ✅ Created `plan.md` with task breakdown
-- ✅ Created `tasks.md` with todo list format
-
-**Remaining Steps**:
-- ⏳ Update session initialization to read all 3 files
-- ⏳ Add hooks to auto-update these files after task completion
-- ⏳ Test with long task to validate context preservation
-
-**Notes**:
-- Following diet103 pattern for context management
-- Complements existing PROJECT_SUMMARY.md
-- Will prevent context drift on tasks >30 min
+Dashboard and UsageTracker were built but not connected to Claude Code sessions. OpenTelemetry is the only solution that provides 100% automation + 100% accuracy.
 
 ---
 
-### 🟢 Task 2: Skills Auto-Activation Hook (8 hours)
-**Status**: Complete ✅
-**Priority**: Critical ⭐⭐⭐⭐⭐
-**ETA**: Next session
+### Phase 1: OTLP Receiver (3-4 hours) ⚪
 
-**Implementation Checklist**:
-- [ ] Create `.claude/hooks/` directory structure
-- [ ] Implement `user-prompt-submit.js` hook
-- [ ] Add skill discovery logic
-- [ ] Implement relevance scoring algorithm
-- [ ] Integrate with LifecycleHooks system
-- [ ] Test with various prompt types
-- [ ] Document skill activation patterns
+**Status**: Pending
+**Goal**: Receive and log telemetry from Claude Code
+**Risk**: LOW
 
-**Dependencies**: None
+**Checklist**:
+- [ ] Install OpenTelemetry packages
+  - [ ] `npm install @opentelemetry/api`
+  - [ ] `npm install @opentelemetry/sdk-metrics`
+  - [ ] `npm install @opentelemetry/exporter-metrics-otlp-http`
+  - [ ] `npm install @opentelemetry/exporter-metrics-otlp-grpc`
+- [ ] Create `.claude/core/otlp-receiver.js`
+  - [ ] Set up HTTP server on port 4318
+  - [ ] Parse incoming OTLP requests (protobuf/JSON)
+  - [ ] Log metric structure to console
+  - [ ] Add error handling
+- [ ] Enable Claude Code telemetry
+  - [ ] Set `CLAUDE_CODE_ENABLE_TELEMETRY=1`
+  - [ ] Configure OTLP endpoint
+  - [ ] Update continuous loop scripts
+- [ ] Test metric reception
+  - [ ] Trigger Claude Code actions
+  - [ ] Verify metrics arrive
+  - [ ] Inspect actual format vs documentation
+  - [ ] Document any differences
 
-**Notes**:
-- Solves "Claude ignores docs" problem
-- Saves time every session
-- Based on diet103 patterns
+**Success Criteria**:
+- [ ] Receiver starts without errors
+- [ ] Metrics arrive from Claude Code
+- [ ] Can parse and log metric structure
+- [ ] Confirmed `claude_code.token.usage` metric exists
 
----
-
-### 🟢 Task 3: Build Checking Hook (6 hours)
-**Status**: Complete ✅
-**Priority**: High ⭐⭐⭐⭐
-**ETA**: Week 2
-
-**Implementation Checklist**:
-- [ ] Create `after-code-change.js` hook
-- [ ] Implement file change detection
-- [ ] Add build command execution
-- [ ] Parse build output for errors
-- [ ] Halt on error with context
-- [ ] Test with TypeScript project
-- [ ] Add configuration for custom build commands
-
-**Dependencies**: Hooks directory structure (Task 2)
-
-**Notes**:
-- Catches errors immediately
-- Prevents time waste on debugging
-- Configurable for different project types
+**Deliverable**: Working OTLP receiver that logs all metrics
 
 ---
 
-### 🟢 Task 4: Error Context Injection (8 hours)
-**Status**: Complete ✅
-**Priority**: High ⭐⭐⭐⭐
-**ETA**: Week 2-3
+### Phase 2: Metric Processing (2-3 hours) ⚪
 
-**Implementation Checklist**:
-- [ ] Create `.claude/core/error-parser.js`
-  - [ ] TypeScript error parser
-  - [ ] Jest error parser
-  - [ ] Runtime error parser
-- [ ] Enhance `afterExecution` hook in MemoryIntegration
-- [ ] Add error similarity search using VectorStore
-- [ ] Inject solutions from past similar errors
-- [ ] Test with various error types
-- [ ] Document error learning patterns
+**Status**: Pending (after Phase 1)
+**Goal**: Extract token usage and transform to UsageTracker format
+**Risk**: MEDIUM (depends on actual format)
 
-**Dependencies**: VectorStore ✅, MemoryStore ✅, ContextRetriever ✅
+**Checklist**:
+- [ ] Create `.claude/core/metric-processor.js`
+- [ ] Parse `claude_code.token.usage` metric
+  - [ ] Extract data points from batches
+  - [ ] Read attributes (type, model)
+  - [ ] Handle different attribute formats
+- [ ] Implement batching and aggregation
+  - [ ] Track cumulative values
+  - [ ] Calculate incremental (delta) usage
+  - [ ] Handle out-of-order delivery
+  - [ ] Add timestamp-based deduplication
+- [ ] Transform to UsageTracker schema
+  - [ ] Map attributes to our format
+  - [ ] Generate orchestration IDs
+  - [ ] Correlate with session context
+  - [ ] Create `recordUsage()` compatible output
 
-**Notes**:
-- Leverages existing intelligence layer
-- System learns from every error
-- Gets smarter over time
+**Success Criteria**:
+- [ ] Correctly parses all token types (input/output/cache_read/cache_creation)
+- [ ] Calculates accurate incremental usage
+- [ ] Handles batching without data loss
+- [ ] Output matches UsageTracker schema
 
----
-
-## Phase 4: Agent Library Expansion (20 hours)
-
-### 🟢 Task 6: Port 80+ Agents from orchestr8 (20 hours)
-**Status**: Complete (Foundation ready, 6 high-value agents added) ✅
-**Priority**: High 🟡
-**ETA**: Week 3-4
-
-**Implementation Checklist**:
-- [ ] Set up import script (orchestr8 → YAML)
-- [ ] Port Research agents (15 agents)
-  - [ ] competitive-analyst
-  - [ ] tech-evaluator
-  - [ ] market-researcher
-  - [ ] Others (12 more)
-- [ ] Port Testing agents (14 agents)
-  - [ ] e2e-test-engineer
-  - [ ] performance-tester
-  - [ ] security-tester
-  - [ ] Others (11 more)
-- [ ] Port Implementation agents (16 agents)
-  - [ ] backend-specialist
-  - [ ] frontend-specialist
-  - [ ] devops-engineer
-  - [ ] Others (13 more)
-- [ ] Port Planning agents (12 agents)
-- [ ] Port Design agents (18 agents)
-- [ ] Port Validation agents (5 agents)
-- [ ] Validate all agent configurations
-- [ ] Test agent discovery and loading
-- [ ] Update agent statistics
-- [ ] Update documentation
-
-**Dependencies**: AgentLoader ✅ (complete)
-
-**Notes**:
-- Infrastructure already built (Session 5)
-- Ready to scale to 100+ agents
-- Port high-value agents first
+**Deliverable**: Processor that outputs UsageTracker-compatible records
 
 ---
 
-## Phase 5: Research & Workflows (16 hours)
+### Phase 3: Integration (1 hour) ⚪
 
-### 🟢 Task 5: Research-Driven Development (16 hours)
-**Status**: Complete ✅
-**Priority**: High 🟡
-**ETA**: Week 4-5
+**Status**: Pending (after Phase 2)
+**Goal**: Connect processor to UsageTracker and DashboardManager
+**Risk**: LOW
 
-**Implementation Checklist**:
-- [ ] Create research workflow commands
-  - [ ] `/research-parallel` command
-  - [ ] `/research-synthesize` command
-  - [ ] `/research-compare` command
-- [ ] Implement parallel hypothesis testing
-- [ ] Create research synthesis agent
-- [ ] Add comparison and reporting
-- [ ] Integrate with AgentOrchestrator
-- [ ] Test with real research scenarios
-- [ ] Document 5x speedup examples
+**Checklist**:
+- [ ] Integrate with UsageTracker
+  - [ ] Call `usageTracker.recordUsage()`
+  - [ ] Handle async recording
+  - [ ] Maintain event order
+  - [ ] Add logging
+- [ ] Integrate with DashboardManager
+  - [ ] Ensure real-time updates
+  - [ ] Verify SSE broadcasts
+  - [ ] Test web dashboard display
+- [ ] Error handling
+  - [ ] Receiver crash → auto-restart
+  - [ ] Metric format changes → graceful degradation
+  - [ ] Connection issues → queue and retry
+  - [ ] Telemetry unavailable → fallback to hook estimation
 
-**Dependencies**: AgentOrchestrator ✅, AgentLoader ✅
+**Success Criteria**:
+- [ ] Usage recorded in DB after API calls
+- [ ] Dashboard updates in real-time (<2s)
+- [ ] No data loss on errors
+- [ ] Graceful degradation works
 
-**Notes**:
-- Most complex task
-- Requires agent orchestration
-- Provides 5x research speedup
+**Deliverable**: End-to-end automated tracking
 
 ---
 
-## Completed Tasks
+### Phase 4: Testing & Validation (2-3 hours) ⚪
 
-### 🟢 Phase 1: Foundation (Session 1)
-- ✅ Core architecture (hooks, memory, intelligence)
-- ✅ 96% test coverage
-- ✅ Production-ready code quality
+**Status**: Pending (after Phase 3)
+**Goal**: Ensure reliability and accuracy for production
+**Risk**: LOW
 
-### 🟢 Phase 2: Agent Infrastructure (Session 5)
-- ✅ File-based YAML agent format
-- ✅ AgentLoader with auto-discovery
-- ✅ 22 agents operational
-- ✅ 100% test coverage
+**Checklist**:
+- [ ] Accuracy testing
+  - [ ] Compare vs Claude budget tags
+  - [ ] Verify token counts match exactly
+  - [ ] Test cache metrics
+  - [ ] Validate cost calculations
+- [ ] Reliability testing
+  - [ ] Long-running sessions (>2 hours)
+  - [ ] Error recovery (restart mid-session)
+  - [ ] Resource usage (memory/CPU)
+  - [ ] Metric delivery failures
+- [ ] Edge case testing
+  - [ ] Multiple concurrent sessions
+  - [ ] Rapid-fire requests (stress test)
+  - [ ] Different models (Sonnet/Opus/Haiku)
+  - [ ] Missing or malformed metrics
+- [ ] Documentation
+  - [ ] Update usage tracking guide
+  - [ ] Document configuration
+  - [ ] Add troubleshooting section
+  - [ ] Create validation report
+
+**Success Criteria**:
+- [ ] ≥99% accuracy validated
+- [ ] Zero data loss in stress tests
+- [ ] Edge cases handled gracefully
+- [ ] Resource usage acceptable (<50MB RAM, <5% CPU)
+- [ ] Documentation complete
+
+**Deliverable**: Production-ready automated tracking with validation report
+
+---
+
+## Completed Prerequisites ✅
+
+### Phase 0: Dashboard Testing
+- [x] **Phase 0.1**: DashboardManager core tests (42 tests, 90% coverage)
+  - Test initialization and state structure
+  - Test execution plan tracking
+  - Test context window calculations
+  - Test metrics updates from UsageTracker
+  - Test event tracking and message bus
+
+### Usage Tracking Analysis
+- [x] Identified problem: Dashboard not connected to Claude sessions
+- [x] Researched Claude Code documentation (claude-code-guide agent)
+- [x] Analyzed 5 alternative approaches
+- [x] Selected OpenTelemetry as optimal solution
+- [x] Created comprehensive implementation analysis
+
+### Fallback Implementations
+- [x] Manual tracking script (`.claude/scripts/track-usage.js`)
+- [x] Hook-based estimation (`.claude/hooks/track-usage.js`)
+- [x] Session tracker abstraction (`.claude/core/claude-session-tracker.js`)
+
+---
+
+## Pending Future Work
+
+### Dashboard Testing (After OpenTelemetry)
+- [ ] **Phase 0.2**: SSE integration tests (3 hours)
+- [ ] **Phase 0.3**: Orchestrator integration tests (3 hours)
+- [ ] **Phase 0.4**: Web endpoint tests (2 hours, lower priority)
+
+### Multi-Project Implementation (After Dashboard Testing)
+- [ ] **Phase 1**: Core infrastructure (8-10 hours)
+- [ ] **Phase 2**: Unified dashboard (6-8 hours)
+- [ ] **Phase 3**: Advanced features (6-8 hours)
+- [ ] **Phase 4**: Testing & polish (6-8 hours)
 
 ---
 
 ## Progress Summary
 
-### Overall Progress
-- **Phase 3**: 4/4 tasks complete (100%) ✅
-- **Phase 4**: 1/1 tasks complete (100%) ✅
-- **Phase 5**: 1/1 tasks complete (100%) ✅
-- **ALL PHASES COMPLETE** 🎉
+### OpenTelemetry Implementation
+- **Total Effort**: 8-11 hours
+- **Phase 1**: 0% (not started)
+- **Phase 2**: 0% (not started)
+- **Phase 3**: 0% (not started)
+- **Phase 4**: 0% (not started)
+- **Overall**: 0% complete
 
-### Time Tracking
-- **Estimated Total**: 62 hours
-- **Time Spent**: ~6 hours (all tasks complete)
-- **Time Saved**: 56 hours (90% efficiency gain)
-
-### Current Velocity
-- **Current Task**: Task 1 (Dev-Docs) - 2 hours invested
-- **Session Progress**: On track ✅
-- **Next Milestone**: Complete Task 1 (ETA: end of session)
+### Next Milestone
+Complete Phase 1: OTLP receiver validated with actual Claude Code metrics
 
 ---
 
-## Bonus Features Added
-
-### ✅ Skills Library Created
-
-Added 3 comprehensive skill guides:
-
-1. **API Testing** (`.claude/skills/testing/api-testing.md`)
-   - REST API testing patterns
-   - GraphQL testing
-   - Authentication methods
-   - Error handling
-   - Best practices
-
-2. **TypeScript Guide** (`.claude/skills/development/typescript-guide.md`)
-   - Basic and advanced types
-   - Interfaces and generics
-   - Utility types
-   - Type guards
-   - Best practices
-
-3. **Docker Deployment** (`.claude/skills/deployment/docker-deployment.md`)
-   - Dockerfile creation
-   - Docker Compose
-   - Best practices
-   - Security
-   - Production deployment
-
-**Skills Auto-Activation**: These skills will automatically activate when relevant prompts are detected!
-
-## Blockers & Issues
+## Blockers & Dependencies
 
 **Current Blockers**: None ✅
 
-**Resolved Blockers**:
-- ✅ AgentLoader infrastructure (Session 5)
-- ✅ VectorStore, MemoryStore (Session 2)
-- ✅ ContextRetriever (Session 2)
+**Dependencies**:
+- ✅ UsageTracker (42 tests passing)
+- ✅ DashboardManager (42 tests passing, 90% coverage)
+- ✅ MemoryStore with SQLite
+- ✅ ContinuousLoopOrchestrator
+- ✅ Dashboard testing infrastructure (Phase 0.1)
+
+**New Dependencies to Install**:
+- `@opentelemetry/api`
+- `@opentelemetry/sdk-metrics`
+- `@opentelemetry/exporter-metrics-otlp-http`
+- `@opentelemetry/exporter-metrics-otlp-grpc`
 
 ---
 
-## Next Session Plan
+## Current Focus
 
-**Session Goal**: Complete Task 1 and start Task 2
+**Active Task**: None (ready to start Phase 1)
+**Next Action**: Install OpenTelemetry packages and create receiver skeleton
+**Estimated Time**: 3-4 hours for Phase 1
+**Expected Outcome**: Working OTLP receiver that logs Claude Code metrics
 
-**Tasks**:
-1. Finish Task 1 (Dev-Docs)
-   - Update session initialization
-   - Add auto-update hooks
-   - Test context preservation
-2. Start Task 2 (Skills Auto-Activation)
-   - Create hooks directory
-   - Implement basic hook structure
-   - Add skill discovery
+---
 
-**Expected Outcome**: Dev-docs complete, skills hook 30% done
+## Risk Assessment
+
+| Phase | Risk Level | Primary Risk | Mitigation |
+|-------|-----------|--------------|------------|
+| Phase 1 | 🟢 LOW | Metric format differs | Validate actual format first |
+| Phase 2 | 🟡 MEDIUM | Unexpected format | Adjust processor as needed |
+| Phase 3 | 🟢 LOW | Integration issues | Use existing tested components |
+| Phase 4 | 🟢 LOW | Edge cases | Comprehensive testing |
+
+**Overall Risk**: 🟢 LOW-MEDIUM with incremental validation
+
+---
+
+## Success Metrics
+
+### When OpenTelemetry Is Complete:
+- [ ] **100% automated** - Zero human intervention
+- [ ] **100% accurate** - Matches Claude's actual token usage
+- [ ] **Highly reliable** - Handles errors and edge cases
+- [ ] **Low overhead** - Minimal resource impact (<50MB RAM, <5% CPU)
+- [ ] **Production-ready** - Fully tested and validated
+
+### Enables:
+- ✅ Autonomous checkpoint management
+- ✅ Context window exhaustion prevention
+- ✅ Accurate cost tracking
+- ✅ Real-time dashboard updates
+- ✅ Multi-project usage monitoring (future)
+
+---
+
+## Timeline
+
+**Current Session**: Session state saved, ready for implementation
+
+**Next Session**:
+1. Start Phase 1 (OTLP receiver)
+2. Install packages
+3. Create receiver skeleton
+4. Enable telemetry and test
+
+**ETA for Complete Integration**:
+- Focused: 1-2 work sessions (8-11 hours)
+- Part-time: 5-7 days (~2 hours/day)
 
 ---
 
 ## Notes
 
-- Task 1 provides immediate value (prevents context drift)
-- Task 2 solves daily workflow interruption
-- Tasks 3-4 leverage existing components
-- Task 6 is straightforward (infrastructure ready)
-- Task 5 is most complex (implement last)
-
-**Focus**: Daily workflow improvements first, then scale agents, then advanced workflows
+- User explicitly rejected manual tracking ("non-starter")
+- Hook estimation (70-80% accuracy) insufficient for checkpoint triggering
+- OpenTelemetry is ONLY solution meeting automation + accuracy requirements
+- Phase 1 validation is critical (confirms Claude Code exports as documented)
+- Fallback strategies in place if telemetry doesn't work
+- All prerequisites complete - ready to begin immediately
 
 ---
 
-**Last Updated**: 2025-11-09
-**Next Update**: After Task 1 completion
+**Last Updated**: 2025-12-13
+**Next Update**: After Phase 1 completion (receiver validated)
