@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTLP Multi-Session Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e1e2e 0%, #151521 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .dashboard-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .dashboard-header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .global-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .metric-label {
+            font-size: 0.9em;
+            color: #a0a0a0;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sessions-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .session-card {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .session-title {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .session-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-ok {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid #4caf50;
+        }
+
+        .status-warning {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border: 1px solid #ffc107;
+        }
+
+        .status-critical {
+            background: rgba(255, 152, 0, 0.2);
+            color: #ff9800;
+            border: 1px solid #ff9800;
+        }
+
+        .status-emergency {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid #f44336;
+        }
+
+        .context-bar {
+            margin: 15px 0;
+        }
+
+        .context-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            color: #a0a0a0;
+            margin-bottom: 5px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.3),
+                transparent
+            );
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .progress-ok { background: linear-gradient(90deg, #4caf50, #8bc34a); }
+        .progress-warning { background: linear-gradient(90deg, #ffc107, #ffeb3b); }
+        .progress-critical { background: linear-gradient(90deg, #ff9800, #ff5722); }
+        .progress-emergency { background: linear-gradient(90deg, #f44336, #e91e63); }
+
+        .session-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .session-metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+        }
+
+        .metric-name {
+            color: #a0a0a0;
+            font-size: 0.9em;
+        }
+
+        .metric-val {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .execution-plan {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .plan-header {
+            font-size: 1em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #a0a0a0;
+        }
+
+        .task-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin: 4px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+
+        .task-status {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7em;
+        }
+
+        .task-pending { background: rgba(158, 158, 158, 0.2); }
+        .task-in-progress {
+            background: rgba(33, 150, 243, 0.2);
+            animation: pulse 2s infinite;
+        }
+        .task-completed { background: rgba(76, 175, 80, 0.2); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .task-content {
+            flex: 1;
+            color: #e0e0e0;
+        }
+
+        .task-progress {
+            width: 60px;
+            text-align: right;
+            color: #a0a0a0;
+            font-size: 0.85em;
+        }
+
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .project-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .project-name {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .session-count {
+            background: rgba(103, 126, 234, 0.2);
+            color: #667eea;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+        }
+
+        .alerts-section {
+            margin-top: 30px;
+        }
+
+        .alert-item {
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .alert-critical {
+            background: rgba(244, 67, 54, 0.1);
+            border-left: 4px solid #f44336;
+        }
+
+        .alert-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border-left: 4px solid #ffc107;
+        }
+
+        .alert-info {
+            background: rgba(33, 150, 243, 0.1);
+            border-left: 4px solid #2196f3;
+        }
+
+        .alert-icon {
+            margin-right: 12px;
+            font-size: 1.2em;
+        }
+
+        .alert-message {
+            flex: 1;
+        }
+
+        .alert-time {
+            color: #a0a0a0;
+            font-size: 0.8em;
+        }
+
+        .velocity-indicator {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 10px;
+            padding: 2px 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+
+        .velocity-arrow {
+            margin-right: 4px;
+        }
+
+        .velocity-up { color: #ff5722; }
+        .velocity-down { color: #4caf50; }
+        .velocity-stable { color: #ffc107; }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .timestamp {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <h1>🚀 OTLP Multi-Session Dashboard</h1>
+        <p>Real-time monitoring of Claude Code sessions and context management</p>
+    </div>
+
+    <!-- Global Metrics -->
+    <div class="global-metrics" id="globalMetrics">
+        <div class="metric-card">
+            <div class="metric-label">Active Sessions</div>
+            <div class="metric-value" id="activeSessions">0</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Total Tokens</div>
+            <div class="metric-value" id="totalTokens">0</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Checkpoints</div>
+            <div class="metric-value" id="checkpoints">0</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Compaction Saves</div>
+            <div class="metric-value" id="compactionSaves">0</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Total Operations</div>
+            <div class="metric-value" id="totalOperations">0</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Active Projects</div>
+            <div class="metric-value" id="activeProjects">0</div>
+        </div>
+    </div>
+
+    <!-- Projects Overview -->
+    <h2 style="margin: 20px 0;">📁 Active Projects</h2>
+    <div class="projects-grid" id="projectsGrid">
+        <div class="no-data">No active projects</div>
+    </div>
+
+    <!-- Sessions -->
+    <h2 style="margin: 20px 0;">📊 Active Sessions</h2>
+    <div class="sessions-container" id="sessionsContainer">
+        <div class="no-data">No active sessions. Start Claude Code to begin tracking.</div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="alerts-section">
+        <h2 style="margin: 20px 0;">⚠️ Recent Alerts</h2>
+        <div id="alertsList">
+            <div class="no-data">No alerts</div>
+        </div>
+    </div>
+
+    <div class="timestamp" id="timestamp">Last updated: Never</div>
+
+    <script>
+        // Dashboard state
+        let dashboardData = {
+            sessions: [],
+            projects: [],
+            globalMetrics: {},
+            alerts: [],
+            events: []
+        };
+
+        // Update dashboard every second
+        function updateDashboard() {
+            fetch('/api/dashboard')
+                .then(res => res.json())
+                .then(data => {
+                    // Update with OTLP data if available
+                    if (data.otlpSessions) {
+                        dashboardData.sessions = data.otlpSessions;
+                    }
+                    if (data.otlpProjects) {
+                        dashboardData.projects = data.otlpProjects;
+                    }
+                    if (data.otlpGlobalMetrics) {
+                        dashboardData.globalMetrics = data.otlpGlobalMetrics;
+                    }
+                    if (data.otlpAlerts) {
+                        dashboardData.alerts = data.otlpAlerts;
+                    }
+
+                    // Also fetch execution plans
+                    if (data.plan) {
+                        dashboardData.globalPlan = data.plan;
+                    }
+
+                    renderDashboard();
+                })
+                .catch(err => console.error('Failed to update dashboard:', err));
+
+            // Also fetch OTLP-specific endpoints
+            Promise.all([
+                fetch('/api/otlp/sessions').then(r => r.json()),
+                fetch('/api/otlp/projects').then(r => r.json()),
+                fetch('/api/otlp/metrics').then(r => r.json()),
+                fetch('/api/otlp/alerts').then(r => r.json())
+            ]).then(([sessions, projects, metrics, alerts]) => {
+                if (sessions.sessions) dashboardData.sessions = sessions.sessions;
+                if (projects.projects) dashboardData.projects = projects.projects;
+                if (metrics) dashboardData.globalMetrics = metrics;
+                if (alerts) dashboardData.alerts = alerts;
+                renderDashboard();
+            }).catch(err => {
+                // OTLP endpoints might not exist yet
+            });
+        }
+
+        // Render dashboard
+        function renderDashboard() {
+            renderGlobalMetrics();
+            renderProjects();
+            renderSessions();
+            renderAlerts();
+
+            document.getElementById('timestamp').textContent =
+                `Last updated: ${new Date().toLocaleTimeString()}`;
+        }
+
+        // Render global metrics
+        function renderGlobalMetrics() {
+            const metrics = dashboardData.globalMetrics;
+
+            document.getElementById('activeSessions').textContent =
+                metrics.activeSessions || 0;
+            document.getElementById('totalTokens').textContent =
+                formatNumber(metrics.totalTokens || 0);
+            document.getElementById('checkpoints').textContent =
+                metrics.checkpointsCreated || 0;
+            document.getElementById('compactionSaves').textContent =
+                metrics.compactionsSaved || 0;
+            document.getElementById('totalOperations').textContent =
+                metrics.totalOperations || 0;
+            document.getElementById('activeProjects').textContent =
+                dashboardData.projects.length || 0;
+        }
+
+        // Render projects
+        function renderProjects() {
+            const container = document.getElementById('projectsGrid');
+
+            if (!dashboardData.projects || dashboardData.projects.length === 0) {
+                container.innerHTML = '<div class="no-data">No active projects</div>';
+                return;
+            }
+
+            container.innerHTML = dashboardData.projects.map(project => `
+                <div class="project-card">
+                    <div class="project-header">
+                        <div class="project-name">${project.id}</div>
+                        <div class="session-count">${project.activeSessions} sessions</div>
+                    </div>
+                    <div class="session-metrics">
+                        <div class="session-metric">
+                            <span class="metric-name">Tokens</span>
+                            <span class="metric-val">${formatNumber(project.totalTokens)}</span>
+                        </div>
+                        <div class="session-metric">
+                            <span class="metric-name">Operations</span>
+                            <span class="metric-val">${project.totalOperations}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render sessions
+        function renderSessions() {
+            const container = document.getElementById('sessionsContainer');
+
+            if (!dashboardData.sessions || dashboardData.sessions.length === 0) {
+                container.innerHTML = '<div class="no-data">No active sessions. Start Claude Code to begin tracking.</div>';
+                return;
+            }
+
+            container.innerHTML = dashboardData.sessions.map(session => {
+                const statusClass = getStatusClass(session.status);
+                const progressClass = getProgressClass(session.status);
+                const utilization = parseFloat(session.contextUtilization) || 0;
+                const velocity = session.contextVelocity || 0;
+                const velocityIndicator = getVelocityIndicator(velocity);
+
+                // Mock execution plan - in production this would come from the session
+                const plan = session.executionPlan || getMockPlan(session.projectId);
+
+                return `
+                    <div class="session-card">
+                        <div class="session-header">
+                            <div class="session-title">
+                                ${session.projectId || 'Unknown Project'}
+                                <br>
+                                <small style="color: #666; font-size: 0.7em;">${session.id}</small>
+                            </div>
+                            <div class="session-status ${statusClass}">${session.status}</div>
+                        </div>
+
+                        <div class="context-bar">
+                            <div class="context-label">
+                                <span>Context Usage</span>
+                                <span>${session.contextUtilization}
+                                    ${velocityIndicator}
+                                </span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill ${progressClass}"
+                                     style="width: ${Math.min(utilization, 100)}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="session-metrics">
+                            <div class="session-metric">
+                                <span class="metric-name">Total Tokens</span>
+                                <span class="metric-val">${formatNumber(session.totalTokens)}</span>
+                            </div>
+                            <div class="session-metric">
+                                <span class="metric-name">Operations</span>
+                                <span class="metric-val">${session.operations}</span>
+                            </div>
+                            <div class="session-metric">
+                                <span class="metric-name">Duration</span>
+                                <span class="metric-val">${formatDuration(session.duration)}</span>
+                            </div>
+                            <div class="session-metric">
+                                <span class="metric-name">Velocity</span>
+                                <span class="metric-val">${velocity.toFixed(0)} tok/s</span>
+                            </div>
+                        </div>
+
+                        ${renderExecutionPlan(plan)}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Render execution plan for a session
+        function renderExecutionPlan(plan) {
+            if (!plan || !plan.tasks || plan.tasks.length === 0) {
+                return '';
+            }
+
+            const completedCount = plan.tasks.filter(t => t.status === 'completed').length;
+            const progressPercent = plan.tasks.length > 0
+                ? Math.round((completedCount / plan.tasks.length) * 100)
+                : 0;
+
+            return `
+                <div class="execution-plan">
+                    <div class="plan-header">
+                        Execution Plan (${completedCount}/${plan.tasks.length} - ${progressPercent}%)
+                    </div>
+                    <div class="task-list">
+                        ${plan.tasks.map(task => `
+                            <div class="task-item">
+                                <div class="task-status task-${task.status}">
+                                    ${getTaskIcon(task.status)}
+                                </div>
+                                <div class="task-content">
+                                    ${task.activeForm || task.content}
+                                </div>
+                                <div class="task-progress">
+                                    ${task.progress || 0}%
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render alerts
+        function renderAlerts() {
+            const container = document.getElementById('alertsList');
+
+            if (!dashboardData.alerts || dashboardData.alerts.length === 0) {
+                container.innerHTML = '<div class="no-data">No alerts</div>';
+                return;
+            }
+
+            container.innerHTML = dashboardData.alerts.slice(0, 5).map(alert => {
+                const alertClass = `alert-${alert.severity}`;
+                const icon = getAlertIcon(alert.severity);
+                const timeAgo = formatTimeAgo(alert.timestamp);
+
+                return `
+                    <div class="alert-item ${alertClass}">
+                        <div class="alert-icon">${icon}</div>
+                        <div class="alert-message">
+                            ${alert.message}
+                            <div class="alert-time">${timeAgo}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Helper functions
+        function getStatusClass(status) {
+            if (!status) return 'status-ok';
+            if (status === 'emergency') return 'status-emergency';
+            if (status === 'critical') return 'status-critical';
+            if (status === 'warning') return 'status-warning';
+            return 'status-ok';
+        }
+
+        function getProgressClass(status) {
+            if (!status) return 'progress-ok';
+            if (status === 'emergency') return 'progress-emergency';
+            if (status === 'critical') return 'progress-critical';
+            if (status === 'warning') return 'progress-warning';
+            return 'progress-ok';
+        }
+
+        function getVelocityIndicator(velocity) {
+            if (!velocity || velocity === 0) return '';
+
+            if (velocity > 500) {
+                return '<span class="velocity-indicator velocity-up"><span class="velocity-arrow">⬆</span>' +
+                       velocity.toFixed(0) + ' tok/s</span>';
+            } else if (velocity > 100) {
+                return '<span class="velocity-indicator velocity-stable"><span class="velocity-arrow">➡</span>' +
+                       velocity.toFixed(0) + ' tok/s</span>';
+            } else {
+                return '<span class="velocity-indicator velocity-down"><span class="velocity-arrow">⬇</span>' +
+                       velocity.toFixed(0) + ' tok/s</span>';
+            }
+        }
+
+        function getTaskIcon(status) {
+            if (status === 'completed') return '✓';
+            if (status === 'in_progress') return '⟳';
+            return '○';
+        }
+
+        function getAlertIcon(severity) {
+            if (severity === 'critical') return '🔴';
+            if (severity === 'warning') return '🟡';
+            return 'ℹ️';
+        }
+
+        function formatNumber(num) {
+            if (!num) return '0';
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function formatDuration(ms) {
+            if (!ms) return '0s';
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+
+            if (hours > 0) {
+                return `${hours}h ${minutes % 60}m`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${seconds % 60}s`;
+            }
+            return `${seconds}s`;
+        }
+
+        function formatTimeAgo(timestamp) {
+            if (!timestamp) return 'Unknown';
+            const seconds = Math.floor((Date.now() - timestamp) / 1000);
+
+            if (seconds < 60) return `${seconds}s ago`;
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}h ago`;
+            return `${Math.floor(hours / 24)}d ago`;
+        }
+
+        // Mock execution plan for demo
+        function getMockPlan(projectId) {
+            const plans = {
+                'web-app-refactor': {
+                    tasks: [
+                        { content: 'Analyze existing codebase', status: 'completed', progress: 100 },
+                        { content: 'Create component hierarchy', status: 'completed', progress: 100 },
+                        { content: 'Refactor authentication module', status: 'in_progress', activeForm: 'Refactoring auth module...', progress: 65 },
+                        { content: 'Update API endpoints', status: 'pending', progress: 0 },
+                        { content: 'Write unit tests', status: 'pending', progress: 0 }
+                    ]
+                },
+                'api-design': {
+                    tasks: [
+                        { content: 'Define API schema', status: 'completed', progress: 100 },
+                        { content: 'Generate OpenAPI spec', status: 'in_progress', activeForm: 'Generating OpenAPI...', progress: 40 },
+                        { content: 'Implement endpoints', status: 'pending', progress: 0 }
+                    ]
+                },
+                'default': {
+                    tasks: [
+                        { content: 'Initialize project', status: 'completed', progress: 100 },
+                        { content: 'Process user request', status: 'in_progress', activeForm: 'Processing...', progress: 50 }
+                    ]
+                }
+            };
+
+            return plans[projectId] || plans['default'];
+        }
+
+        // Start updates
+        updateDashboard();
+        setInterval(updateDashboard, 1000);
+
+        // Listen for SSE updates if available
+        if (typeof EventSource !== 'undefined') {
+            const eventSource = new EventSource('/api/events');
+
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === 'dashboard:update') {
+                    // Merge with existing data
+                    if (data.sessions) dashboardData.sessions = data.sessions;
+                    if (data.projects) dashboardData.projects = data.projects;
+                    if (data.alerts) dashboardData.alerts = data.alerts;
+                    renderDashboard();
+                }
+            };
+
+            eventSource.onerror = function(err) {
+                console.error('SSE error:', err);
+            };
+        }
+    </script>
+</body>
+</html>

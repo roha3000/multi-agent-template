@@ -174,110 +174,104 @@
 
 # Project Summary
 
-**Last Updated**: 2025-12-13T19:10:00.000Z
-**Current Phase**: Implementation
-**Overall Progress**: 75%
+**Last Updated**: 2025-12-13T20:30:00.000Z
+**Current Phase**: Implementation - Usage Tracking & Dashboard Integration
+**Overall Progress**: 45%
 
 ---
 
 ## Project Overview
 
-Multi-agent development framework with continuous loop orchestration, usage tracking, and real-time monitoring. Recently expanded with comprehensive Claude Code session tracking across all projects.
+Multi-agent development framework with continuous loop orchestration, autonomous usage tracking, and real-time monitoring dashboard. Focus on **automated context window management** to prevent compaction through intelligent checkpoint triggering.
 
-### Core Architecture
-
-- **Continuous Loop Orchestrator**: Manages long-running development workflows
-- **Usage Tracking System**: Tracks token usage and costs across multiple AI models
-- **Claude Code Parser**: NEW - Monitors usage across all Claude Code projects
-- **Dashboard Manager**: Real-time web dashboard for monitoring and control
-- **Human-in-Loop Detection**: Identifies when human review is needed
-- **API Limit Tracking**: Monitors Anthropic API rate limits
+### Key Objectives
+- ✅ Build comprehensive dashboard testing infrastructure
+- 🔄 Implement automated usage tracking via OpenTelemetry
+- ⏳ Enable multi-project continuous loop support
+- ✅ Achieve production-ready code quality (85/100 minimum)
 
 ---
 
-## Phase Progress
+## Recent Achievements (Dec 13, 2025)
 
-| Phase | Status | Quality Score | Key Deliverables |
-|-------|--------|---------------|------------------|
-| Research | ✅ Completed | 90/100 | Multi-agent patterns, cost optimization strategies |
-| Planning | ✅ Completed | 88/100 | System architecture, component design |
-| Design | ✅ Completed | 92/100 | Core framework components, dashboard UI |
-| Implementation 👉 | 🔄 In Progress | 95/100 | 6 core modules, Claude Code integration |
-| Testing | 🔄 Partial | 85/100 | Integration tests, parser validation |
-| Validation | ⏳ Pending | N/A | End-to-end testing |
-| Iteration | 🔄 Ongoing | 90/100 | Feature enhancements, bug fixes |
+### Phase 0: Dashboard Testing Foundation ✅
+**Status**: Phase 0.1 Complete, Phases 0.2-0.4 Stubbed
+**Impact**: CRITICAL - Validates dashboard infrastructure before multi-project work
+
+**Completed**:
+- ✅ **Phase 0.1**: DashboardManager core tests (42 tests, 90% coverage)
+  - Test initialization, state management, lifecycle
+  - Test execution plan tracking (TodoWrite integration)
+  - Test context window calculations (ok/warning/critical/emergency)
+  - Test metrics updates from UsageTracker
+  - Test event tracking and message bus integration
+
+**Stubbed for Future Implementation**:
+- ⏳ **Phase 0.2**: SSE integration tests (3 hours estimated)
+- ⏳ **Phase 0.3**: Orchestrator-dashboard integration tests (3 hours estimated)
+- ⏳ **Phase 0.4**: Web endpoint tests (2 hours estimated, lower priority)
+
+**Test Results**:
+- 42/42 tests passing ✅
+- ~10 second execution time
+- Zero flaky tests
+- Comprehensive coverage of core functionality
+
+### Usage Tracking Integration ✅
+**Status**: Analysis Complete, Implementation Ready
+**Impact**: CRITICAL - Required for autonomous checkpoint management
+
+**Problem Identified**:
+Dashboard and UsageTracker were built but **not connected to Claude Code sessions**. The system was monitoring an orchestrator that nothing was using - "like a speedometer not connected to the engine."
+
+**Root Cause**:
+Claude Code hooks do NOT provide access to API response metadata (token usage). Confirmed via official documentation research.
+
+**Solutions Implemented**:
+
+1. **Manual Tracking** (✅ Complete - 131 LOC)
+   - CLI tool: `node .claude/scripts/track-usage.js [input] [output]`
+   - Interactive mode for ease of use
+   - 100% accurate (uses actual token counts)
+   - **Non-starter for autonomous operation** (user confirmed)
+
+2. **Hook-Based Estimation** (✅ Complete - 152 LOC)
+   - Automatic tracking via `.claude/hooks/track-usage.js`
+   - Estimates from tool call I/O (~70-80% accurate)
+   - Zero user intervention
+   - **Insufficient accuracy for checkpoint triggering**
+
+3. **OpenTelemetry Integration** (📋 Analyzed, Ready to Implement)
+   - Consumes `claude_code.token.usage` metrics via OTLP
+   - 100% accurate + fully automatic
+   - 8-11 hours implementation effort (MEDIUM complexity)
+   - **Recommended solution for production use**
+
+**Files Created**:
+- `.claude/core/claude-session-tracker.js` (253 lines)
+- `.claude/core/claude-telemetry-bridge.js` (344 lines, stub)
+- `.claude/hooks/track-usage.js` (152 lines)
+- `.claude/scripts/track-usage.js` (131 lines)
+- `.claude/dev-docs/usage-tracking-integration.md` (419 lines)
+- `.claude/dev-docs/opentelemetry-implementation-analysis.md` (comprehensive analysis)
 
 ---
 
-## Quality Metrics
+## Current Focus: OpenTelemetry Implementation
 
-**Average Score**: 90.0/100
-**Highest Score**: 95/100 (Implementation)
-**Lowest Score**: 85/100 (Testing)
-**Phases Completed**: 4/7
+### Why OpenTelemetry Is The Right Solution
 
-### Component Quality Scores
-| Component | Lines of Code | Test Coverage | Quality |
-|-----------|---------------|---------------|---------|
-| ContinuousLoopOrchestrator | 580 | 75% | 95/100 |
-| UsageTracker | 450 | 80% | 92/100 |
-| ClaudeCodeUsageParser | 422 | 85% | 95/100 |
-| DashboardManager | 680 | 70% | 90/100 |
-| CostCalculator | 280 | 90% | 93/100 |
-| APILimitTracker | 320 | 85% | 91/100 |
+**User Requirement**: "Manual tracking is a non-starter. I want fully automated and reliable tracking. It is the premise behind being able to prevent compaction."
 
----
+**Analysis Results**:
+- **Effort**: 8-11 hours focused development
+- **Complexity**: MEDIUM (standardized protocol, well-documented)
+- **Reliability**: HIGH (once working, fully automatic and accurate)
+- **Automation**: 100% (zero human intervention)
+- **Accuracy**: 100% (uses actual API response data)
 
-## Recent Activity
-
-### 2025-12-13: Claude Code Usage Tracking
-- **Implemented**: ClaudeCodeUsageParser for JSONL file parsing
-- **Added**: Model pricing for Sonnet 4.5, Opus 4.1, Haiku 4.5
-- **Integrated**: Dashboard display for cross-project usage
-- **Result**: Successfully tracking $541.96 usage with $1,605.75 cache savings
-
-### 2025-12-14: Auto-Start Integration
-- **Implemented**: ContinuousLoopManager for process lifecycle
-- **Added**: PID file tracking and graceful shutdown
-- **Integrated**: Session bootstrap auto-start
-- **Result**: Seamless continuous loop startup on session init
-
-### Previous Milestones
-- Continuous loop orchestration with checkpointing
-- Real-time web dashboard (Express + SSE)
-- Multi-model cost tracking (Claude, GPT-4o, o1)
-- Human-in-loop detection with adaptive thresholds
-
----
-
-## Key Decisions
-
-### 1. Use Local JSONL Parsing for Claude Code Tracking
-**Phase**: Implementation
-**Agent**: Senior Developer
-**When**: 2025-12-13
-
-**Rationale**: Personal Claude Max accounts don't have access to Admin API, so we parse local `~/.claude/projects/` JSONL files directly. This provides comprehensive tracking without API dependencies.
-
-**Impact**: Successfully tracking 183 files, 690.5M tokens across 8 projects
-
-### 2. Integrate Parser with Existing UsageTracker
-**Phase**: Implementation
-**Agent**: System Architect
-**When**: 2025-12-13
-
-**Rationale**: Reuse existing cost calculation and storage infrastructure rather than creating duplicate systems. Records Claude Code usage with `pattern: 'claude-code'` for filtering.
-
-**Impact**: Unified tracking system, consistent reporting, shared database
-
-### 3. Real-Time Dashboard vs. Batch Reporting
-**Phase**: Design
-**Agent**: System Architect
-**When**: 2025-11-18
-
-**Rationale**: Real-time SSE updates provide immediate feedback for long-running operations. Critical for continuous loop monitoring.
-
-**Impact**: 2-second update intervals, responsive UI, live metri
+**Decision Matrix**:
+| Solution | Automation | Accurac
 
 [... truncated ...]
 
@@ -489,7 +483,7 @@ Create comprehensive system design using specialized architectural and implement
 ---
 
 
-<!-- Context loaded: 3654 tokens -->
+<!-- Context loaded: 3636 tokens -->
 
 
 # CURRENT PHASE GUIDANCE
