@@ -34,6 +34,12 @@ class CostCalculator {
         cacheCreation: 3.75,  // 25% more than input
         cacheRead: 0.30       // 90% discount
       },
+      'claude-sonnet-4-5-20250929': {  // Sonnet 4.5 with date stamp
+        input: 3.00,
+        output: 15.00,
+        cacheCreation: 3.75,
+        cacheRead: 0.30
+      },
       'claude-sonnet-4-20250514': {
         input: 3.00,
         output: 15.00,
@@ -57,6 +63,18 @@ class CostCalculator {
         output: 75.00,
         cacheCreation: 18.75,
         cacheRead: 1.50
+      },
+      'claude-opus-4-1-20250805': {  // Opus 4.1 with date stamp
+        input: 15.00,
+        output: 75.00,
+        cacheCreation: 18.75,
+        cacheRead: 1.50
+      },
+      'claude-haiku-4-5-20251001': {  // Haiku 4.5 with date stamp
+        input: 0.80,
+        output: 4.00,
+        cacheCreation: 1.00,
+        cacheRead: 0.08
       },
       'gpt-4o': {
         input: 5.00,

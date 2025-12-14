@@ -29,6 +29,7 @@ class DashboardManager extends EventEmitter {
    * @param {StateManager} components.stateManager - State manager
    * @param {SessionInitializer} components.sessionInit - Session initializer
    * @param {MessageBus} components.messageBus - Message bus for events
+   * @param {ClaudeCodeUsageParser} components.claudeCodeParser - Claude Code usage parser
    * @param {Object} options - Configuration
    */
   constructor(components, options = {}) {
@@ -42,6 +43,7 @@ class DashboardManager extends EventEmitter {
     this.stateManager = components.stateManager;
     this.sessionInit = components.sessionInit;
     this.messageBus = components.messageBus;
+    this.claudeCodeParser = components.claudeCodeParser;
 
     // Configuration
     this.options = {
@@ -71,6 +73,7 @@ class DashboardManager extends EventEmitter {
       },
       apiLimits: null,
       usage: null,
+      claudeCodeUsage: null,  // Usage from Claude Code sessions
       execution: {
         phase: null,
         agent: null,
@@ -484,6 +487,11 @@ class DashboardManager extends EventEmitter {
       // Update usage metrics
       if (this.usageTracker) {
         this.state.usage = this.usageTracker.getSessionUsage();
+      }
+
+      // Update Claude Code usage metrics
+      if (this.claudeCodeParser) {
+        this.state.claudeCodeUsage = await this.claudeCodeParser.getClaudeCodeSummary('all');
       }
 
       // Update API limits

@@ -373,6 +373,12 @@ function getDashboardHTML() {
         <div id="tokenUsage"></div>
       </div>
 
+      <!-- Claude Code Usage -->
+      <div class="card">
+        <h2>🔵 Claude Code Usage</h2>
+        <div id="claudeCodeUsage"></div>
+      </div>
+
       <!-- Current Execution -->
       <div class="card">
         <h2>⚙️ Current Execution</h2>
@@ -442,6 +448,9 @@ function getDashboardHTML() {
 
       // Update token usage
       updateTokenUsage(state.usage);
+
+      // Update Claude Code usage
+      updateClaudeCodeUsage(state.claudeCodeUsage);
 
       // Update current execution
       updateCurrentExecution(state.execution);
@@ -534,6 +543,31 @@ function getDashboardHTML() {
             <span class="metric-value">$\${(usage.cacheSavings || 0).toFixed(2)}</span>
           </div>
         \`;
+      }
+    }
+
+    function updateClaudeCodeUsage(usage) {
+      if (usage && usage.totalCost > 0) {
+        document.getElementById('claudeCodeUsage').innerHTML = \`
+          <div class="metric">
+            <span class="metric-label">Total Sessions</span>
+            <span class="metric-value">\${usage.orchestrationCount?.toLocaleString() || 0}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Total Tokens</span>
+            <span class="metric-value">\${usage.totalTokens?.toLocaleString() || 0}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Total Cost</span>
+            <span class="metric-value">$\${(usage.totalCost || 0).toFixed(2)}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Cache Savings</span>
+            <span class="metric-value" style="color: #10b981;">$\${(usage.cacheSavings || 0).toFixed(2)} (\${(usage.cacheSavingsPercent || 0).toFixed(1)}%)</span>
+          </div>
+        \`;
+      } else {
+        document.getElementById('claudeCodeUsage').innerHTML = '<div class="metric"><span class="metric-label">No Claude Code usage tracked yet</span></div>';
       }
     }
 

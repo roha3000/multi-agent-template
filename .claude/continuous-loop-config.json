@@ -44,6 +44,14 @@
       "adaptiveThresholds": true
     },
 
+    "claudeCodeTracking": {
+      "enabled": true,
+      "claudeProjectsPath": null,
+      "watchFiles": true,
+      "scanIntervalMs": 60000,
+      "trackHistorical": true
+    },
+
     "dashboard": {
       "enabled": true,
       "port": 3030,

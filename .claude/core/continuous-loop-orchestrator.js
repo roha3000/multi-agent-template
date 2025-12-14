@@ -70,7 +70,8 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         limitTracker: !!this.limitTracker,
         optimizer: !!this.optimizer,
         hilDetector: !!this.hilDetector,
-        dashboard: !!this.dashboard
+        dashboard: !!this.dashboard,
+        claudeCodeParser: !!this.claudeCodeParser
       }
     });
   }
@@ -130,7 +131,8 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         usageTracker: this.usageTracker,
         limitTracker: this.limitTracker,
         stateManager: this.stateManager,
-        messageBus: this.messageBus
+        messageBus: this.messageBus,
+        claudeCodeParser: this.claudeCodeParser
       }, {
         webPort: this.options.dashboard.webPort,
         enableWebDashboard: this.options.dashboard.enableWeb,
@@ -144,6 +146,19 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         configPath: this.options.configPath
       });
       this.logger.info('DashboardManager initialized');
+    }
+
+    // 5. Claude Code Usage Parser (JSONL tracking)
+    if (this.options.claudeCodeTracking && this.options.claudeCodeTracking.enabled) {
+      const ClaudeCodeUsageParser = require('./claude-code-usage-parser');
+      this.claudeCodeParser = new ClaudeCodeUsageParser({
+        usageTracker: this.usageTracker,
+        claudeProjectsPath: this.options.claudeCodeTracking.claudeProjectsPath,
+        watchFiles: this.options.claudeCodeTracking.watchFiles,
+        scanIntervalMs: this.options.claudeCodeTracking.scanIntervalMs,
+        trackHistorical: this.options.claudeCodeTracking.trackHistorical
+      });
+      this.logger.info('ClaudeCodeUsageParser initialized');
     }
   }
 
@@ -166,6 +181,11 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       await this.dashboard.start();
     }
 
+    // Start Claude Code usage parser
+    if (this.claudeCodeParser) {
+      await this.claudeCodeParser.start();
+    }
+
     // Emit started event
     this.emit('started', { sessionId: this.state.sessionId });
 
@@ -181,6 +201,11 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     this.logger.info('Stopping continuous loop system');
 
     this.state.status = 'stopped';
+
+    // Stop Claude Code usage parser
+    if (this.claudeCodeParser) {
+      await this.claudeCodeParser.stop();
+    }
 
     // Stop dashboard
     if (this.dashboard) {
