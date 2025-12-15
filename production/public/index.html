@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Session Monitor - Production Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h1>
+                    <div class="logo-icon">C</div>
+                    Claude Monitor
+                </h1>
+            </div>
+
+            <nav class="nav">
+                <div class="nav-item active" data-view="overview">
+                    <span class="nav-icon">📊</span>
+                    <span>Overview</span>
+                </div>
+                <div class="nav-item" data-view="projects">
+                    <span class="nav-icon">📁</span>
+                    <span>Projects & Sessions</span>
+                </div>
+                <div class="nav-item" data-view="alerts">
+                    <span class="nav-icon">🔔</span>
+                    <span>Alerts</span>
+                    <span class="badge" id="alertBadge" style="display:none;"></span>
+                </div>
+                <div class="nav-item" data-view="analytics">
+                    <span class="nav-icon">📈</span>
+                    <span>Analytics</span>
+                </div>
+            </nav>
+
+            <div class="connection-status">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="statusText">Connected</span>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h2 id="viewTitle">Overview</h2>
+                <div class="header-actions">
+                    <button class="btn" onclick="dashboard.refreshData()">
+                        <span>🔄</span>
+                        <span>Refresh</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="dashboard.showNewSessionModal()">
+                        <span>➕</span>
+                        <span>New Session</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content">
+                <!-- Overview View -->
+                <div class="view active" id="overview-view">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Active Sessions</span>
+                                <div class="stat-icon" style="background: rgba(88, 166, 255, 0.15); color: var(--info);">
+                                    🔄
+                                </div>
+                            </div>
+                            <div class="stat-value" id="statActiveSessions">0</div>
+                            <div class="stat-change">
+                                <span class="text-muted">Total: </span>
+                                <span id="statTotalSessions">0</span>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Total Tokens</span>
+                                <div class="stat-icon" style="background: rgba(63, 185, 80, 0.15); color: var(--success);">
+                                    📝
+                                </div>
+                            </div>
+                            <div class="stat-value" id="statTotalTokens">0</div>
+                            <div class="stat-change">
+                                <span class="text-muted">Avg context: </span>
+                                <span id="statAvgContext">0%</span>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Total Cost</span>
+                                <div class="stat-icon" style="background: rgba(210, 153, 34, 0.15); color: var(--warning);">
+                                    💰
+                                </div>
+                            </div>
+                            <div class="stat-value" id="statTotalCost">$0.00</div>
+                            <div class="stat-change">
+                                <span class="text-muted">Last 24h</span>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Alerts</span>
+                                <div class="stat-icon" style="background: rgba(248, 81, 73, 0.15); color: var(--danger);">
+                                    🔔
+                                </div>
+                            </div>
+                            <div class="stat-value" id="statAlerts">0</div>
+                            <div class="stat-change">
+                                <span class="text-muted">Unacknowledged</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Token Usage Trends</h3>
+                            <div class="chart-controls">
+                                <button class="chart-control active" data-period="1h">1H</button>
+                                <button class="chart-control" data-period="24h">24H</button>
+                                <button class="chart-control" data-period="7d">7D</button>
+                                <button class="chart-control" data-period="30d">30D</button>
+                            </div>
+                        </div>
+                        <div class="chart">
+                            <canvas id="tokenChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Context Controls -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Context Management</h3>
+                            <button class="btn" onclick="dashboard.loadContextStatus()">
+                                <span>🔄</span>
+                                <span>Refresh</span>
+                            </button>
+                        </div>
+                        <div id="contextControlsList" style="padding: 20px;">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">💾</div>
+                                <div class="empty-state-message">Loading context status...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Sessions -->
+                    <div class="session-list">
+                        <div class="session-header">
+                            <h3>Recent Sessions</h3>
+                            <button class="btn" onclick="dashboard.switchView('sessions')">View All</button>
+                        </div>
+                        <div id="recentSessionsList">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📭</div>
+                                <div class="empty-state-message">No active sessions</div>
+                                <div class="empty-state-hint">Start a new session to begin tracking</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Projects View -->
+                <div class="view" id="projects-view">
+                    <div class="session-list">
+                        <div class="session-header">
+                            <h3>Projects & Sessions</h3>
+                            <button class="btn" onclick="dashboard.refreshProjects()">
+                                <span>🔄</span>
+                                <span>Refresh</span>
+                            </button>
+                        </div>
+                        <div id="projectsList">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📁</div>
+                                <div class="empty-state-message">No projects found</div>
+                                <div class="empty-state-hint">Projects are created automatically when sessions are started</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerts View -->
+                <div class="view" id="alerts-view">
+                    <div class="alert-list" id="alertsList">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🔔</div>
+                            <div class="empty-state-message">No active alerts</div>
+                            <div class="empty-state-hint">All systems operating normally</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics View -->
+                <div class="view" id="analytics-view">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Context Usage Distribution</h3>
+                        </div>
+                        <div class="chart">
+                            <canvas id="contextChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Cost by Model</h3>
+                        </div>
+                        <div class="chart">
+                            <canvas id="costChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- New Session Modal -->
+    <div class="modal-overlay" id="newSessionModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Start New Session</h3>
+                <button class="modal-close" onclick="dashboard.closeModal('newSessionModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="newSessionForm">
+                    <div class="form-group">
+                        <label class="form-label">Session ID</label>
+                        <input type="text" class="form-input" id="sessionId" value="session-demo-1" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Project ID</label>
+                        <input type="text" class="form-input" id="projectId" value="multi-agent-project">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Agent Persona</label>
+                        <select class="form-select" id="agentPersona">
+                            <option value="">Select persona...</option>
+                            <option value="research-analyst">Research Analyst</option>
+                            <option value="strategic-planner">Strategic Planner</option>
+                            <option value="system-architect">System Architect</option>
+                            <option value="technical-designer">Technical Designer</option>
+                            <option value="test-engineer">Test Engineer</option>
+                            <option value="senior-developer" selected>Senior Developer</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Model</label>
+                        <select class="form-select" id="modelName" required>
+                            <option value="claude-opus-4.5">Claude Opus 4.5</option>
+                            <option value="claude-sonnet-4-20250514" selected>Claude Sonnet 4</option>
+                            <option value="gpt-4o">GPT-4o</option>
+                            <option value="o1-preview">o1-preview</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="dashboard.closeModal('newSessionModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="dashboard.startNewSession()">Start Session</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Details Modal -->
+    <div class="modal-overlay" id="sessionDetailsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Session Details</h3>
+                <button class="modal-close" onclick="dashboard.closeModal('sessionDetailsModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="sessionDetailsContent"></div>
+            <div class="modal-footer">
+                <button class="btn" onclick="dashboard.exportCurrentSession()">Export</button>
+                <button class="btn btn-danger" onclick="dashboard.endCurrentSession()">End Session</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>

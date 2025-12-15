@@ -43,7 +43,7 @@ function createSampleMetrics() {
                             dataPoints: [
                                 {
                                     attributes: [
-                                        { key: 'model', value: { stringValue: 'claude-3-opus-20240229' } },
+                                        { key: 'model', value: { stringValue: 'claude-opus-4-5-20251101' } },
                                         { key: 'type', value: { stringValue: 'input' } }
                                     ],
                                     startTimeUnixNano: now - 5000000000, // 5 seconds ago
@@ -52,7 +52,7 @@ function createSampleMetrics() {
                                 },
                                 {
                                     attributes: [
-                                        { key: 'model', value: { stringValue: 'claude-3-opus-20240229' } },
+                                        { key: 'model', value: { stringValue: 'claude-opus-4-5-20251101' } },
                                         { key: 'type', value: { stringValue: 'output' } }
                                     ],
                                     startTimeUnixNano: now - 5000000000,
@@ -61,7 +61,7 @@ function createSampleMetrics() {
                                 },
                                 {
                                     attributes: [
-                                        { key: 'model', value: { stringValue: 'claude-3-opus-20240229' } },
+                                        { key: 'model', value: { stringValue: 'claude-opus-4-5-20251101' } },
                                         { key: 'type', value: { stringValue: 'cache_read' } }
                                     ],
                                     startTimeUnixNano: now - 5000000000,

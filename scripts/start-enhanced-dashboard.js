@@ -28,6 +28,7 @@ const MemoryStore = require('../.claude/core/memory-store');
 const UsageTracker = require('../.claude/core/usage-tracker');
 const MessageBus = require('../.claude/core/message-bus');
 const tokenCounter = require('../.claude/core/token-counter');
+const ContextTrackingBridge = require('../.claude/core/context-tracking-bridge');
 const { createComponentLogger } = require('../.claude/core/logger');
 
 async function main() {
@@ -55,8 +56,7 @@ async function main() {
     const messageBus = new MessageBus();
 
     const stateManager = new StateManager(
-      { memoryStore },
-      { persistInterval: 30000 }
+      path.join(__dirname, '..')
     );
 
     const usageTracker = new UsageTracker(
@@ -158,6 +158,16 @@ async function main() {
       }
     );
 
+    // Initialize REAL CONTEXT TRACKER
+    const contextBridge = new ContextTrackingBridge({
+      dashboardManager,
+      checkpointOptimizer,
+      sessionProcessor,
+      otlpReceiver,
+      maxContextWindow: 200000,
+      checkpointThresholds: [70, 85, 95]
+    });
+
     // Initialize enhanced dashboard server
     const dashboardServer = new EnhancedDashboardServer(
       {
@@ -185,6 +195,9 @@ async function main() {
     otlpBridge.start();
     console.log(chalk.green('✓ OTLP-Checkpoint Bridge started'));
 
+    contextBridge.start();
+    console.log(chalk.green('✓ Real Context Tracker started'));
+
     await dashboardManager.start();
     console.log(chalk.green('✓ Dashboard Manager started'));
 
@@ -198,11 +211,11 @@ async function main() {
     console.log(chalk.cyan('  http://localhost:3030\n'));
 
     console.log(chalk.bold('🔍 Features:'));
+    console.log('  • ' + chalk.yellow('REAL context tracking') + ' (not simulated!)');
     console.log('  • Multiple Claude Code sessions tracked in parallel');
     console.log('  • Per-project metric aggregation');
     console.log('  • Execution plans displayed per session');
-    console.log('  • Real-time context utilization monitoring');
-    console.log('  • Automatic checkpoint recommendations');
+    console.log('  • ' + chalk.yellow('Automatic checkpoints at 70%, 85%, 95%'));
     console.log('  • Emergency compaction prevention');
     console.log('  • Session lifecycle tracking\n');
 

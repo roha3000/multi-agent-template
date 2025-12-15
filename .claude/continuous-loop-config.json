@@ -7,9 +7,11 @@
     "contextMonitoring": {
       "enabled": true,
       "contextWindowSize": 200000,
-      "checkpointThreshold": 0.75,
+      "checkpointThreshold": 0.70,
+      "warningThreshold": 0.60,
       "bufferTokens": 10000,
-      "adaptiveLearning": true
+      "adaptiveLearning": true,
+      "useDevDocsPattern": true
     },
 
     "apiLimitTracking": {

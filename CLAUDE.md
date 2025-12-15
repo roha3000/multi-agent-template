@@ -96,27 +96,26 @@ Multi-agent development system that combines specialized AI agent personas with 
 
 ### Automatic Model Selection
 ```bash
-# Research & Strategic Planning - Use Opus 4.5
-if [task_complexity == "high" && analysis_depth == "deep"]; then
-    model = "claude-opus-4.5"
+# ALL Tasks - Use Opus 4.5 for Everything
+if [task_type == "any"]; then
+    model = "claude-opus-4-5-20251101"
 fi
 
-# Code Implementation & Testing  
-if [task_type == "coding" || task_type == "debugging"]; then
-    model = "claude-sonnet-4-20250514"
+# Fallback only if Opus 4.5 unavailable
+if [opus_unavailable == true]; then
+    model = "claude-opus-4-5-20251101"  # Try anyway, it's the best
 fi
 
-# Validation & Alternative Perspectives
-if [task_type == "validation" || perspective == "alternative"]; then
-    model = "gpt-4o" || "o1-preview"
-fi
+# No other models needed - Opus 4.5 handles everything
+# Previous: Used different models for different tasks
+# Now: Opus 4.5 for all scenarios
 ```
 
 ### Cost Optimization Strategy
-- **Primary Models**: Claude Opus 4.5 (research/strategy), Claude Sonnet 4 (implementation)
-- **Secondary Models**: GPT-4o (validation), o1-preview (reasoning)
-- **Token Limits**: Phase-specific limits to control costs
-- **Fallback Strategy**: Sonnet 4 as fallback for Sonnet 4.5, GPT-4o for supplementary analysis
+- **Only Model**: Claude Opus 4.5 for everything (best performance, worth the cost)
+- **No Secondary Models**: Opus 4.5 handles all tasks
+- **Token Limits**: Generous limits since we're using the best model
+- **No Fallback Needed**: Opus 4.5 is always the answer
 
 ## Agent Collaboration Protocols
 
@@ -138,8 +137,8 @@ Before proceeding to next phase:
 ### 3. Conflict Resolution
 When agents disagree:
 - Lead Architect (Opus 4.5) makes final architectural decisions
-- Senior Developer (Sonnet 4) makes implementation decisions
-- Project Manager (human) resolves resource/timeline conflicts
+- Senior Developer (Opus 4.5) makes implementation decisions
+- All Agents (Opus 4.5) reach consensus through superior reasoning
 
 ## Quality Gates & Standards
 
@@ -175,21 +174,21 @@ When agents disagree:
 
 ### Model Environment Variables
 ```bash
-# Primary Models
-RESEARCH_MODEL=claude-opus-4.5
-PLANNING_MODEL=claude-opus-4.5  
-DESIGN_ARCHITECTURE_MODEL=claude-opus-4.5
-DESIGN_IMPLEMENTATION_MODEL=claude-sonnet-4-20250514
-TESTING_MODEL=claude-sonnet-4-20250514
-IMPLEMENTATION_MODEL=claude-sonnet-4-20250514
-VALIDATION_MODEL=claude-opus-4.5
-ITERATION_STRATEGY_MODEL=claude-opus-4.5
-ITERATION_EXECUTION_MODEL=claude-sonnet-4-20250514
+# ALL Models - Use Opus 4.5 for Everything
+RESEARCH_MODEL=claude-opus-4-5-20251101
+PLANNING_MODEL=claude-opus-4-5-20251101
+DESIGN_ARCHITECTURE_MODEL=claude-opus-4-5-20251101
+DESIGN_IMPLEMENTATION_MODEL=claude-opus-4-5-20251101
+TESTING_MODEL=claude-opus-4-5-20251101
+IMPLEMENTATION_MODEL=claude-opus-4-5-20251101
+VALIDATION_MODEL=claude-opus-4-5-20251101
+ITERATION_STRATEGY_MODEL=claude-opus-4-5-20251101
+ITERATION_EXECUTION_MODEL=claude-opus-4-5-20251101
 
-# Secondary Models  
-RESEARCH_SECONDARY_MODEL=gpt-4o
-PLANNING_VALIDATION_MODEL=o1-preview
-TESTING_EDGE_CASE_MODEL=gpt-4o
+# Secondary Models - Also Opus 4.5
+RESEARCH_SECONDARY_MODEL=claude-opus-4-5-20251101
+PLANNING_VALIDATION_MODEL=claude-opus-4-5-20251101
+TESTING_EDGE_CASE_MODEL=claude-opus-4-5-20251101
 
 # Token Limits
 MAX_TOKENS_RESEARCH=8000

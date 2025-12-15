@@ -10,7 +10,7 @@
  */
 
 const OTLPReceiver = require('../../.claude/core/otlp-receiver');
-const MetricProcessor = require('../../.claude/core/metric-processor');
+const MetricProcessor = require('../../.claude/core/session-aware-metric-processor');
 const OTLPCheckpointBridge = require('../../.claude/core/otlp-checkpoint-bridge');
 const ContinuousLoopOrchestrator = require('../../.claude/core/continuous-loop-orchestrator');
 const CheckpointOptimizer = require('../../.claude/core/checkpoint-optimizer');

@@ -41,13 +41,19 @@
     "axios": "^1.13.2",
     "better-sqlite3": "^12.4.1",
     "chalk": "^4.1.2",
+    "chokidar": "^5.0.0",
     "chromadb": "^3.1.1",
+    "cors": "^2.8.5",
     "express": "^5.2.1",
     "inquirer": "^8.2.7",
     "js-yaml": "^4.1.0",
     "ora": "^5.4.1",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
     "tiktoken": "^1.0.22",
-    "winston": "^3.18.3"
+    "uuid": "^13.0.0",
+    "winston": "^3.18.3",
+    "ws": "^8.18.3"
   },
   "jest": {
     "testEnvironment": "node",

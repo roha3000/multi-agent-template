@@ -101,8 +101,8 @@ class OTLPCheckpointBridge extends EventEmitter {
   start() {
     this.logger.info('Starting OTLP metric monitoring');
 
-    // Subscribe to OTLP metrics
-    if (this.otlpReceiver) {
+    // Subscribe to OTLP metrics if receiver supports events
+    if (this.otlpReceiver && this.otlpReceiver.on) {
       this.otlpReceiver.on('metrics:processed', this._handleOTLPMetrics.bind(this));
       this.otlpReceiver.on('metrics:batch', this._handleMetricsBatch.bind(this));
     }

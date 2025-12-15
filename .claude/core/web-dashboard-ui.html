@@ -483,7 +483,7 @@
 
         // Update dashboard every second
         function updateDashboard() {
-            fetch('/api/dashboard')
+            fetch('http://localhost:3032/api/sessions')
                 .then(res => res.json())
                 .then(data => {
                     // Update with OTLP data if available
@@ -511,13 +511,14 @@
 
             // Also fetch OTLP-specific endpoints
             Promise.all([
-                fetch('/api/otlp/sessions').then(r => r.json()),
-                fetch('/api/otlp/projects').then(r => r.json()),
-                fetch('/api/otlp/metrics').then(r => r.json()),
-                fetch('/api/otlp/alerts').then(r => r.json())
+                fetch('http://localhost:3032/api/sessions').then(r => r.json()),
+                fetch('http://localhost:3032/api/projects').then(r => r.json()),
+                fetch('http://localhost:3032/api/metrics').then(r => r.json()),
+                Promise.resolve([])
             ]).then(([sessions, projects, metrics, alerts]) => {
-                if (sessions.sessions) dashboardData.sessions = sessions.sessions;
-                if (projects.projects) dashboardData.projects = projects.projects;
+                // Handle direct arrays from our API
+                dashboardData.sessions = Array.isArray(sessions) ? sessions : (sessions.sessions || []);
+                dashboardData.projects = Array.isArray(projects) ? projects : (projects.projects || []);
                 if (metrics) dashboardData.globalMetrics = metrics;
                 if (alerts) dashboardData.alerts = alerts;
                 renderDashboard();
@@ -826,7 +827,7 @@
 
         // Listen for SSE updates if available
         if (typeof EventSource !== 'undefined') {
-            const eventSource = new EventSource('/api/events');
+            const eventSource = new EventSource('http://localhost:3032/api/events');
 
             eventSource.onmessage = function(event) {
                 const data = JSON.parse(event.data);

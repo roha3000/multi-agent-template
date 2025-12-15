@@ -1,0 +1,71 @@
+{
+  "telemetry": {
+    "port": 9464,
+    "host": "localhost",
+    "metricsPath": "/metrics",
+    "healthPath": "/health"
+  },
+  "dashboard": {
+    "port": 3000,
+    "host": "localhost",
+    "wsPort": 3001
+  },
+  "database": {
+    "path": "./production/database/sessions.db",
+    "backupPath": "./production/database/backups"
+  },
+  "thresholds": {
+    "contextWarning": 0.70,
+    "contextAlert": 0.80,
+    "contextCritical": 0.90,
+    "tokenBudgetWarning": 0.75,
+    "tokenBudgetAlert": 0.90
+  },
+  "checkpoints": {
+    "autoTrigger": true,
+    "contextThreshold": 0.85,
+    "tokenThreshold": 150000,
+    "timeIntervalMinutes": 30
+  },
+  "tokenCosts": {
+    "claude-opus-4.5": {
+      "input": 0.015,
+      "output": 0.075,
+      "cacheCreation": 0.01875,
+      "cacheRead": 0.0015
+    },
+    "claude-sonnet-4-20250514": {
+      "input": 0.003,
+      "output": 0.015,
+      "cacheCreation": 0.00375,
+      "cacheRead": 0.0003
+    },
+    "gpt-4o": {
+      "input": 0.0025,
+      "output": 0.01,
+      "cacheCreation": 0,
+      "cacheRead": 0
+    },
+    "o1-preview": {
+      "input": 0.015,
+      "output": 0.06,
+      "cacheCreation": 0,
+      "cacheRead": 0
+    }
+  },
+  "alerts": {
+    "email": {
+      "enabled": false,
+      "recipients": []
+    },
+    "webhook": {
+      "enabled": false,
+      "url": ""
+    }
+  },
+  "retention": {
+    "sessionHistoryDays": 90,
+    "metricsAggregationDays": 30,
+    "backupFrequencyHours": 24
+  }
+}

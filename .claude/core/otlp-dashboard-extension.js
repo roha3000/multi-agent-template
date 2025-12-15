@@ -128,16 +128,22 @@ class OTLPDashboardExtension extends EventEmitter {
   _extendDashboard() {
     if (!this.dashboardManager) return;
 
-    // Override the update method
-    const originalUpdate = this.dashboardManager._updateDashboardState.bind(this.dashboardManager);
+    // Check if the method exists before trying to bind
+    if (this.dashboardManager._updateDashboardState) {
+      // Override the update method
+      const originalUpdate = this.dashboardManager._updateDashboardState.bind(this.dashboardManager);
 
-    this.dashboardManager._updateDashboardState = () => {
-      // Call original update
-      originalUpdate();
+      this.dashboardManager._updateDashboardState = () => {
+        // Call original update
+        originalUpdate();
 
-      // Add OTLP data
-      this._injectOTLPData();
-    };
+        // Add OTLP data
+        this._injectOTLPData();
+      };
+    } else {
+      // If method doesn't exist, just log a warning
+      this.logger.warn('Dashboard update method not found, OTLP extension limited');
+    }
 
     // Extend web dashboard routes
     if (this.dashboardManager.webServer) {

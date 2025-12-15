@@ -1,0 +1,35 @@
+{
+  "timestamp": "2025-12-14T21:57:26.469Z",
+  "contextUsage": 0.92,
+  "reason": "manual-emergency",
+  "sessionState": {
+    "activeTasks": [
+      "Production telemetry system running",
+      "Dashboard at http://localhost:3000",
+      "Todo/plan tracking implemented",
+      "Combined project-session view complete"
+    ],
+    "runningProcesses": [
+      "production/start.js (telemetry)",
+      "track-current-session.js",
+      "continuous-loop at port 3030"
+    ],
+    "criticalIssue": "Continuous loop not detecting context properly"
+  },
+  "files": {
+    "modified": [
+      "production/telemetry-server.js",
+      "production/public/dashboard.js",
+      "production/public/dashboard.css",
+      "track-current-session.js",
+      "EMERGENCY_CHECKPOINT.md",
+      "PROJECT_SUMMARY.md"
+    ]
+  },
+  "nextSteps": [
+    "Fix continuous loop context detection",
+    "Update checkpoint thresholds to 85%",
+    "Clean up duplicate processes",
+    "Implement persistent storage"
+  ]
+}

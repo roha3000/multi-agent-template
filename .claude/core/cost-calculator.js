@@ -70,6 +70,12 @@ class CostCalculator {
         cacheCreation: 18.75,
         cacheRead: 1.50
       },
+      'claude-opus-4-5-20251101': {  // Opus 4.5 - BEST MODEL, USE FOR EVERYTHING
+        input: 5.00,   // $5 per million input tokens (much cheaper!)
+        output: 25.00,  // $25 per million output tokens (67% cheaper!)
+        cacheCreation: 6.25,  // 25% more than input
+        cacheRead: 0.50  // 90% discount from input
+      },
       'claude-haiku-4-5-20251001': {  // Haiku 4.5 with date stamp
         input: 0.80,
         output: 4.00,
