@@ -1,0 +1,304 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "multi-agent-template",
+    "phases": [
+      "research",
+      "planning",
+      "design",
+      "implementation",
+      "testing",
+      "validation"
+    ]
+  },
+  "backlog": {
+    "now": {
+      "description": "Active tasks for current sprint/iteration",
+      "tasks": [
+        "auth-oauth-login-1k2m3n",
+        "dashboard-metrics-1k2m4o"
+      ]
+    },
+    "next": {
+      "description": "Next priority after 'now' is complete",
+      "tasks": [
+        "api-refactor-endpoints-1k2m5p",
+        "docs-api-reference-1k2m6q"
+      ]
+    },
+    "later": {
+      "description": "Future work, not yet prioritized",
+      "tasks": [
+        "performance-optimization-1k2m7r"
+      ]
+    },
+    "someday": {
+      "description": "Ideas and possibilities, lowest priority",
+      "tasks": [
+        "ml-predictions-1k2m8s"
+      ]
+    }
+  },
+  "tasks": {
+    "auth-oauth-login-1k2m3n": {
+      "id": "auth-oauth-login-1k2m3n",
+      "title": "Implement OAuth 2.0 login flow",
+      "description": "Add OAuth authentication with Google and GitHub providers. Support token refresh and secure cookie storage.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": ["auth", "security", "backend"],
+      "depends": {
+        "blocks": [],
+        "requires": ["design-auth-architecture-1k2m1l"],
+        "related": ["auth-session-mgmt-1k2m9t"]
+      },
+      "acceptance": [
+        "Users can log in with Google OAuth",
+        "Users can log in with GitHub OAuth",
+        "Tokens stored securely in httpOnly cookies",
+        "Token refresh works automatically",
+        "All authentication tests passing"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-18T10:00:00Z",
+      "updated": "2025-12-18T10:00:00Z",
+      "started": null,
+      "completed": null
+    },
+    "dashboard-metrics-1k2m4o": {
+      "id": "dashboard-metrics-1k2m4o",
+      "title": "Add real-time metrics to dashboard",
+      "description": "Display token usage, cost tracking, and session metrics in the dashboard UI.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "3h",
+      "tags": ["dashboard", "metrics", "frontend"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["api-metrics-endpoint-1k2m10u"]
+      },
+      "acceptance": [
+        "Dashboard shows current token usage",
+        "Cost metrics updated in real-time",
+        "Session count displayed",
+        "Charts render correctly"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-18T11:00:00Z",
+      "updated": "2025-12-18T11:00:00Z",
+      "started": null,
+      "completed": null
+    },
+    "design-auth-architecture-1k2m1l": {
+      "id": "design-auth-architecture-1k2m1l",
+      "title": "Design OAuth architecture and security model",
+      "description": "Complete architectural design for OAuth implementation including token flow, security considerations, and session management strategy.",
+      "phase": "design",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": ["auth", "design", "architecture", "security"],
+      "depends": {
+        "blocks": [],
+        "requires": ["research-oauth-providers-1k2m0k"],
+        "related": []
+      },
+      "acceptance": [
+        "Architecture diagram created",
+        "Security review completed",
+        "Token flow documented",
+        "Session strategy defined"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-17T14:00:00Z",
+      "updated": "2025-12-17T16:30:00Z",
+      "started": "2025-12-17T14:15:00Z",
+      "completed": "2025-12-17T16:30:00Z"
+    },
+    "research-oauth-providers-1k2m0k": {
+      "id": "research-oauth-providers-1k2m0k",
+      "title": "Research OAuth 2.0 providers and best practices",
+      "description": "Evaluate Google, GitHub, and Microsoft OAuth implementations. Document security considerations and recommended approaches.",
+      "phase": "research",
+      "priority": "high",
+      "estimate": "3h",
+      "tags": ["auth", "research", "security"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Provider comparison document created",
+        "Security recommendations documented",
+        "Implementation approach decided"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-17T09:00:00Z",
+      "updated": "2025-12-17T12:00:00Z",
+      "started": "2025-12-17T09:30:00Z",
+      "completed": "2025-12-17T12:00:00Z"
+    },
+    "api-refactor-endpoints-1k2m5p": {
+      "id": "api-refactor-endpoints-1k2m5p",
+      "title": "Refactor API endpoints for consistency",
+      "description": "Standardize API endpoint naming, error responses, and request/response formats across all routes.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "6h",
+      "tags": ["api", "refactor", "backend"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["docs-api-reference-1k2m6q"]
+      },
+      "acceptance": [
+        "All endpoints follow RESTful conventions",
+        "Error responses standardized",
+        "API versioning implemented",
+        "Tests updated and passing"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-18T12:00:00Z",
+      "updated": "2025-12-18T12:00:00Z",
+      "started": null,
+      "completed": null
+    },
+    "docs-api-reference-1k2m6q": {
+      "id": "docs-api-reference-1k2m6q",
+      "title": "Create comprehensive API reference documentation",
+      "description": "Generate OpenAPI/Swagger documentation for all API endpoints with examples and error codes.",
+      "phase": "implementation",
+      "priority": "low",
+      "estimate": "4h",
+      "tags": ["docs", "api"],
+      "depends": {
+        "blocks": [],
+        "requires": ["api-refactor-endpoints-1k2m5p"],
+        "related": []
+      },
+      "acceptance": [
+        "OpenAPI 3.0 spec generated",
+        "Swagger UI accessible",
+        "All endpoints documented with examples",
+        "Error codes explained"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-18T13:00:00Z",
+      "updated": "2025-12-18T13:00:00Z",
+      "started": null,
+      "completed": null
+    },
+    "performance-optimization-1k2m7r": {
+      "id": "performance-optimization-1k2m7r",
+      "title": "Optimize database queries and caching",
+      "description": "Profile slow queries, add database indexes, and implement Redis caching for frequently accessed data.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "8h",
+      "tags": ["performance", "database", "caching"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Query response time < 100ms for 95th percentile",
+        "Cache hit rate > 80%",
+        "Database indexes added for slow queries",
+        "Load testing shows 2x improvement"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-18T14:00:00Z",
+      "updated": "2025-12-18T14:00:00Z",
+      "started": null,
+      "completed": null
+    },
+    "ml-predictions-1k2m8s": {
+      "id": "ml-predictions-1k2m8s",
+      "title": "Add ML-based task effort predictions",
+      "description": "Train a model on historical task data to predict effort and success likelihood for new tasks.",
+      "phase": "research",
+      "priority": "low",
+      "estimate": "16h",
+      "tags": ["ml", "predictions", "research"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Model trained on 100+ historical tasks",
+        "Prediction accuracy > 70%",
+        "Integration with TaskManager",
+        "Documentation complete"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-18T15:00:00Z",
+      "updated": "2025-12-18T15:00:00Z",
+      "started": null,
+      "completed": null
+    },
+    "auth-session-mgmt-1k2m9t": {
+      "id": "auth-session-mgmt-1k2m9t",
+      "title": "Implement session management and refresh tokens",
+      "description": "Add secure session handling with automatic token refresh before expiry.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "3h",
+      "tags": ["auth", "security", "backend"],
+      "depends": {
+        "blocks": ["auth-oauth-login-1k2m3n"],
+        "requires": [],
+        "related": ["auth-oauth-login-1k2m3n"]
+      },
+      "acceptance": [
+        "Sessions persist across browser restarts",
+        "Tokens refresh automatically before expiry",
+        "Logout clears all session data",
+        "Session security tests passing"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-18T10:30:00Z",
+      "updated": "2025-12-18T10:30:00Z",
+      "started": null,
+      "completed": null
+    },
+    "api-metrics-endpoint-1k2m10u": {
+      "id": "api-metrics-endpoint-1k2m10u",
+      "title": "Create metrics API endpoint",
+      "description": "Build RESTful API endpoint for retrieving real-time and historical metrics data.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": ["api", "metrics", "backend"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["dashboard-metrics-1k2m4o"]
+      },
+      "acceptance": [
+        "GET /api/metrics returns current metrics",
+        "Query parameters for filtering",
+        "Response includes timestamps and aggregations",
+        "Rate limiting implemented"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-18T11:30:00Z",
+      "updated": "2025-12-18T11:30:00Z",
+      "started": null,
+      "completed": null
+    }
+  }
+}

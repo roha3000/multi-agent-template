@@ -573,6 +573,293 @@ class MemoryStore {
   }
 
   // ============================================================================
+  // Task History Methods
+  // ============================================================================
+
+  /**
+   * Initialize task history schema
+   * @private
+   */
+  _initializeTaskSchema() {
+    const schemaPath = path.join(__dirname, 'schema-tasks.sql');
+
+    if (!fs.existsSync(schemaPath)) {
+      this.logger.warn('Task schema file not found', { schemaPath });
+      return;
+    }
+
+    const schema = fs.readFileSync(schemaPath, 'utf8');
+
+    try {
+      this.db.exec(schema);
+      this.logger.info('Task schema initialized successfully');
+    } catch (error) {
+      this.logger.error('Task schema initialization failed', {
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Record task completion for historical learning
+   *
+   * @param {Object} task - Completed task data
+   * @returns {number} Record ID
+   */
+  recordTaskCompletion(task) {
+    this._ensureTaskSchema();
+
+    const actualDuration = this._calculateTaskDuration(task.started || task.created, task.completed);
+
+    const stmt = this.db.prepare(`
+      INSERT INTO task_history (
+        task_id, title, description, phase, priority, estimate,
+        actual_duration, tags, status, success,
+        created_at, started_at, completed_at,
+        work_session_id, orchestration_id, metadata
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const result = stmt.run(
+      task.id,
+      task.title,
+      task.description || null,
+      task.phase,
+      task.priority,
+      task.estimate || null,
+      actualDuration,
+      JSON.stringify(task.tags || []),
+      task.status,
+      task.status === 'completed' ? 1 : 0,
+      task.created,
+      task.started || null,
+      task.completed,
+      task.workSessionId || null,
+      task.orchestrationId || null,
+      JSON.stringify(task.metadata || {})
+    );
+
+    // Update pattern stats
+    this._updateTaskPatternStats(task, actualDuration);
+
+    // Update tag stats
+    if (task.tags && task.tags.length > 0) {
+      this._updateTagStats(task.tags, task.status === 'completed', actualDuration);
+    }
+
+    this.logger.info('Task completion recorded', {
+      taskId: task.id,
+      phase: task.phase,
+      actualDuration
+    });
+
+    return result.lastInsertRowid;
+  }
+
+  /**
+   * Get task pattern success rate
+   *
+   * @param {Array<string>} tags - Task tags
+   * @returns {number} Success rate (0-1)
+   */
+  getTaskPatternSuccess(tags) {
+    this._ensureTaskSchema();
+
+    if (!tags || tags.length === 0) return 0.5; // neutral
+
+    // Get stats for primary tag
+    const stmt = this.db.prepare('SELECT success_rate FROM tag_stats WHERE tag = ?');
+    const result = stmt.get(tags[0]);
+
+    return result ? result.success_rate : 0.5;
+  }
+
+  /**
+   * Get average duration by phase
+   *
+   * @param {string} phase - Phase name
+   * @returns {number} Average duration in hours
+   */
+  getAverageDurationByPhase(phase) {
+    this._ensureTaskSchema();
+
+    const stmt = this.db.prepare(`
+      SELECT AVG(actual_duration) as avg_duration
+      FROM task_history
+      WHERE phase = ? AND success = 1 AND actual_duration IS NOT NULL
+    `);
+
+    const result = stmt.get(phase);
+    return result?.avg_duration || 4; // default 4 hours
+  }
+
+  /**
+   * Get task completion stats
+   *
+   * @param {Object} filters - { phase, priority, tags }
+   * @returns {Object} Completion statistics
+   */
+  getTaskStats(filters = {}) {
+    this._ensureTaskSchema();
+
+    let query = 'SELECT * FROM task_history WHERE 1=1';
+    const params = [];
+
+    if (filters.phase) {
+      query += ' AND phase = ?';
+      params.push(filters.phase);
+    }
+
+    if (filters.priority) {
+      query += ' AND priority = ?';
+      params.push(filters.priority);
+    }
+
+    if (filters.tags && filters.tags.length > 0) {
+      query += ' AND tags LIKE ?';
+      params.push(`%${filters.tags[0]}%`);
+    }
+
+    const stmt = this.db.prepare(query);
+    const tasks = stmt.all(...params);
+
+    const completed = tasks.filter(t => t.success === 1);
+
+    return {
+      total: tasks.length,
+      completed: completed.length,
+      success_rate: tasks.length > 0 ? completed.length / tasks.length : 0,
+      avg_duration: completed.length > 0
+        ? completed.reduce((sum, t) => sum + (t.actual_duration || 0), 0) / completed.length
+        : 0
+    };
+  }
+
+  /**
+   * Update task pattern statistics
+   * @private
+   */
+  _updateTaskPatternStats(task, actualDuration) {
+    const patternKey = `phase:${task.phase}|priority:${task.priority}`;
+    const success = task.status === 'completed' ? 1 : 0;
+
+    const estimateHours = this._parseEstimateHours(task.estimate);
+    const estimateAccuracy = estimateHours > 0 && actualDuration > 0
+      ? 1 - Math.abs(actualDuration - estimateHours) / estimateHours
+      : 0;
+
+    const stmt = this.db.prepare(`
+      INSERT INTO task_pattern_stats (
+        pattern_key, total_tasks, completed_tasks, success_rate,
+        avg_duration, avg_estimate_accuracy, last_updated
+      ) VALUES (?, 1, ?, ?, ?, ?, strftime('%s', 'now'))
+      ON CONFLICT(pattern_key) DO UPDATE SET
+        total_tasks = total_tasks + 1,
+        completed_tasks = completed_tasks + ?,
+        success_rate = CAST(completed_tasks AS REAL) / total_tasks,
+        avg_duration = (avg_duration * (total_tasks - 1) + ?) / total_tasks,
+        avg_estimate_accuracy = (avg_estimate_accuracy * (total_tasks - 1) + ?) / total_tasks,
+        last_updated = strftime('%s', 'now')
+    `);
+
+    stmt.run(
+      patternKey,
+      success,
+      success,
+      actualDuration || 0,
+      estimateAccuracy,
+      success,
+      actualDuration || 0,
+      estimateAccuracy
+    );
+  }
+
+  /**
+   * Update tag statistics
+   * @private
+   */
+  _updateTagStats(tags, success, actualDuration) {
+    for (const tag of tags) {
+      const successVal = success ? 1 : 0;
+      const failureVal = success ? 0 : 1;
+
+      const stmt = this.db.prepare(`
+        INSERT INTO tag_stats (
+          tag, total_occurrences, success_count, failure_count,
+          success_rate, avg_duration, last_seen
+        ) VALUES (?, 1, ?, ?, ?, ?, strftime('%s', 'now'))
+        ON CONFLICT(tag) DO UPDATE SET
+          total_occurrences = total_occurrences + 1,
+          success_count = success_count + ?,
+          failure_count = failure_count + ?,
+          success_rate = CAST(success_count AS REAL) / total_occurrences,
+          avg_duration = (avg_duration * (total_occurrences - 1) + ?) / total_occurrences,
+          last_seen = strftime('%s', 'now')
+      `);
+
+      stmt.run(
+        tag,
+        successVal,
+        failureVal,
+        successVal,
+        actualDuration || 0,
+        successVal,
+        failureVal,
+        actualDuration || 0
+      );
+    }
+  }
+
+  /**
+   * Calculate task duration in hours
+   * @private
+   */
+  _calculateTaskDuration(startTime, endTime) {
+    if (!startTime || !endTime) return null;
+
+    const start = new Date(startTime).getTime();
+    const end = new Date(endTime).getTime();
+
+    const durationMs = end - start;
+    return durationMs / (1000 * 60 * 60); // Convert to hours
+  }
+
+  /**
+   * Parse estimate to hours
+   * @private
+   */
+  _parseEstimateHours(estimate) {
+    if (!estimate) return 0;
+
+    const match = estimate.match(/(\d+\.?\d*)\s*(h|hour|hours|d|day|days)?/i);
+    if (!match) return 0;
+
+    const value = parseFloat(match[1]);
+    const unit = match[2]?.toLowerCase();
+
+    if (unit?.startsWith('d')) {
+      return value * 8; // Convert days to hours
+    }
+    return value;
+  }
+
+  /**
+   * Ensure task schema is initialized
+   * @private
+   */
+  _ensureTaskSchema() {
+    // Check if task_history table exists
+    const stmt = this.db.prepare(`
+      SELECT name FROM sqlite_master
+      WHERE type='table' AND name='task_history'
+    `);
+
+    if (!stmt.get()) {
+      this._initializeTaskSchema();
+    }
+  }
+
+  // ============================================================================
   // Utility Methods
   // ============================================================================
 
