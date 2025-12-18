@@ -382,6 +382,93 @@
             font-size: 14px;
             opacity: 0.7;
         }
+
+        /* Session Series Panel */
+        .series-panel {
+            background: linear-gradient(135deg, #1a1f2e 0%, #1c2128 100%);
+            border: 2px solid var(--info);
+            border-radius: 16px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+        }
+
+        .series-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .series-title {
+            font-size: 14px;
+            color: var(--info);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .series-active-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--info);
+            border-radius: 50%;
+            animation: pulse-dot 1.5s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .series-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .series-stat {
+            text-align: center;
+            padding: 12px;
+            background: rgba(88, 166, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        .series-stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .series-stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .series-history {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .series-session-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .series-session-chip.threshold { border-left: 3px solid var(--warning); }
+        .series-session-chip.complete { border-left: 3px solid var(--success); }
+        .series-session-chip.error { border-left: 3px solid var(--danger); }
+        .series-session-chip.active { border-left: 3px solid var(--info); background: rgba(88, 166, 255, 0.15); }
     </style>
 </head>
 <body>
@@ -405,6 +492,38 @@
     </header>
 
     <div class="container">
+        <!-- Session Series Panel (shown when continuous loop is active) -->
+        <div class="series-panel" id="seriesPanel" style="display: none;">
+            <div class="series-header">
+                <div class="series-title">
+                    <span class="series-active-dot"></span>
+                    Continuous Loop Active
+                </div>
+                <span id="seriesRuntime" style="color: var(--text-secondary); font-size: 13px;">0m 0s</span>
+            </div>
+            <div class="series-stats">
+                <div class="series-stat">
+                    <div class="series-stat-value" id="seriesCurrentSession">1</div>
+                    <div class="series-stat-label">Current Session</div>
+                </div>
+                <div class="series-stat">
+                    <div class="series-stat-value" id="seriesCompleted">0</div>
+                    <div class="series-stat-label">Completed</div>
+                </div>
+                <div class="series-stat">
+                    <div class="series-stat-value" id="seriesTotalTokens">0</div>
+                    <div class="series-stat-label">Total Tokens</div>
+                </div>
+                <div class="series-stat">
+                    <div class="series-stat-value" id="seriesTotalCost">$0.00</div>
+                    <div class="series-stat-label">Total Cost</div>
+                </div>
+            </div>
+            <div class="series-history" id="seriesHistory">
+                <!-- Session chips will be rendered here -->
+            </div>
+        </div>
+
         <div id="activeSessionsContainer">
             <div class="empty-state">
                 <div class="empty-state-icon">📭</div>
@@ -496,8 +615,76 @@
             return `${days}d ago`;
         }
 
+        function formatDuration(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            if (hours > 0) return `${hours}h ${minutes % 60}m`;
+            if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+            return `${seconds}s`;
+        }
+
+        function updateSessionSeries(series) {
+            const panel = document.getElementById('seriesPanel');
+
+            if (!series || !series.active) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            panel.style.display = 'block';
+
+            // Update stats
+            document.getElementById('seriesCurrentSession').textContent = series.currentSession || 1;
+            document.getElementById('seriesCompleted').textContent = series.sessions?.length || 0;
+            document.getElementById('seriesTotalTokens').textContent = formatTokens(series.totalTokens || 0);
+            document.getElementById('seriesTotalCost').textContent = `$${(series.totalCost || 0).toFixed(2)}`;
+
+            // Update runtime
+            if (series.startTime) {
+                const runtime = Date.now() - new Date(series.startTime).getTime();
+                document.getElementById('seriesRuntime').textContent = formatDuration(runtime);
+            }
+
+            // Update session history chips
+            const history = document.getElementById('seriesHistory');
+            if (series.sessions && series.sessions.length > 0) {
+                history.innerHTML = series.sessions.map((s, i) => {
+                    const chipClass = s.exitReason === 'threshold' ? 'threshold' :
+                                     s.exitReason === 'complete' ? 'complete' :
+                                     s.exitReason === 'error' ? 'error' : '';
+                    const icon = s.exitReason === 'threshold' ? '🔄' :
+                                s.exitReason === 'complete' ? '✅' :
+                                s.exitReason === 'error' ? '❌' : '📝';
+                    return `
+                        <div class="series-session-chip ${chipClass}">
+                            ${icon} Session ${s.sessionNumber}: ${s.peakContext?.toFixed(0) || 0}%
+                        </div>
+                    `;
+                }).join('');
+
+                // Add current session indicator
+                if (series.currentSession > series.sessions.length) {
+                    history.innerHTML += `
+                        <div class="series-session-chip active">
+                            ⚡ Session ${series.currentSession}: Running...
+                        </div>
+                    `;
+                }
+            } else {
+                history.innerHTML = `
+                    <div class="series-session-chip active">
+                        ⚡ Session 1: Running...
+                    </div>
+                `;
+            }
+        }
+
         function updateDisplay(data) {
-            const { projects } = data;
+            const { projects, sessionSeries } = data;
+
+            // Update session series panel
+            updateSessionSeries(sessionSeries);
 
             if (!projects || projects.length === 0) {
                 document.getElementById('activeSessionsContainer').innerHTML = `

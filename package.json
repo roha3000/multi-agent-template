@@ -23,7 +23,10 @@
     "context:dashboard": "start context-alert-dashboard.html && node context-manager-real.js",
     "context:alert": "node context-manager-real.js",
     "context:global": "node global-context-manager.js",
-    "monitor:global": "start http://localhost:3033/global-dashboard.html && node global-context-manager.js"
+    "monitor:global": "start http://localhost:3033/global-dashboard.html && node global-context-manager.js",
+    "loop": "node continuous-loop.js",
+    "loop:start": "node continuous-loop.js",
+    "loop:help": "node continuous-loop.js --help"
   },
   "keywords": [
     "multi-agent",
@@ -51,6 +54,7 @@
     "chokidar": "^5.0.0",
     "chromadb": "^3.1.1",
     "cors": "^2.8.5",
+    "eventsource": "^4.1.0",
     "express": "^5.2.1",
     "inquirer": "^8.2.7",
     "js-yaml": "^4.1.0",

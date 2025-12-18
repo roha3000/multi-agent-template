@@ -41,6 +41,17 @@ const tracker = new GlobalContextTracker({
 const recentAlerts = [];
 const MAX_ALERTS = 50;
 
+// Session series tracking for continuous loop
+let sessionSeries = {
+  active: false,
+  seriesId: null,
+  startTime: null,
+  sessions: [],
+  currentSession: 0,
+  totalTokens: 0,
+  totalCost: 0,
+};
+
 // ============================================================================
 // EVENT HANDLERS
 // ============================================================================
@@ -173,6 +184,58 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ============================================================================
+// SESSION SERIES API (for continuous loop orchestrator)
+// ============================================================================
+
+// Start a new session series
+app.post('/api/series/start', (req, res) => {
+  sessionSeries = {
+    active: true,
+    seriesId: Date.now(),
+    startTime: new Date().toISOString(),
+    sessions: [],
+    currentSession: 0,
+    totalTokens: 0,
+    totalCost: 0,
+  };
+  console.log(`[SERIES] Started new session series: ${sessionSeries.seriesId}`);
+  res.json({ success: true, seriesId: sessionSeries.seriesId });
+});
+
+// Record a completed session
+app.post('/api/series/session', (req, res) => {
+  const { sessionNumber, duration, exitReason, peakContext, tokens, cost } = req.body;
+
+  sessionSeries.currentSession = sessionNumber;
+  sessionSeries.sessions.push({
+    sessionNumber,
+    duration,
+    exitReason,
+    peakContext,
+    tokens: tokens || 0,
+    cost: cost || 0,
+    timestamp: new Date().toISOString(),
+  });
+  sessionSeries.totalTokens += tokens || 0;
+  sessionSeries.totalCost += cost || 0;
+
+  console.log(`[SERIES] Session ${sessionNumber} completed: ${exitReason} (peak: ${peakContext?.toFixed(1)}%)`);
+  res.json({ success: true });
+});
+
+// End the session series
+app.post('/api/series/end', (req, res) => {
+  sessionSeries.active = false;
+  console.log(`[SERIES] Series ${sessionSeries.seriesId} ended. ${sessionSeries.sessions.length} sessions completed.`);
+  res.json({ success: true, series: sessionSeries });
+});
+
+// Get current session series status
+app.get('/api/series', (req, res) => {
+  res.json(sessionSeries);
+});
+
 // SSE for real-time updates
 app.get('/api/events', (req, res) => {
   res.writeHead(200, {
@@ -188,6 +251,7 @@ app.get('/api/events', (req, res) => {
       projects: tracker.getAllProjects(),
       accountTotals: tracker.getAccountTotals(),
       alerts: recentAlerts.slice(0, 10),
+      sessionSeries: sessionSeries,
       timestamp: new Date().toISOString()
     };
     res.write(`data: ${JSON.stringify(data)}\n\n`);
