@@ -469,6 +469,256 @@
         .series-session-chip.complete { border-left: 3px solid var(--success); }
         .series-session-chip.error { border-left: 3px solid var(--danger); }
         .series-session-chip.active { border-left: 3px solid var(--info); background: rgba(88, 166, 255, 0.15); }
+
+        /* Execution State Panel */
+        .execution-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .execution-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .phase-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .phase-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .phase-card-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .phase-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .phase-badge.research { background: rgba(88, 166, 255, 0.2); color: var(--info); }
+        .phase-badge.design { background: rgba(163, 113, 247, 0.2); color: #a371f7; }
+        .phase-badge.implement { background: rgba(63, 185, 80, 0.2); color: var(--success); }
+        .phase-badge.test { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+        .phase-badge.complete { background: rgba(63, 185, 80, 0.3); color: var(--success); }
+
+        .phase-name {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-transform: capitalize;
+        }
+
+        .phase-iteration {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Quality Scores */
+        .scores-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .score-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .score-total {
+            font-size: 36px;
+            font-weight: 700;
+        }
+
+        .score-total.passing { color: var(--success); }
+        .score-total.failing { color: var(--danger); }
+        .score-total.close { color: var(--warning); }
+
+        .score-threshold {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .score-criteria {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .score-criterion {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .criterion-name {
+            color: var(--text-secondary);
+        }
+
+        .criterion-score {
+            font-weight: 600;
+        }
+
+        .criterion-bar {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            margin: 0 12px;
+            overflow: hidden;
+        }
+
+        .criterion-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+
+        .criterion-fill.high { background: var(--success); }
+        .criterion-fill.medium { background: var(--warning); }
+        .criterion-fill.low { background: var(--danger); }
+
+        /* Todo Progress */
+        .todos-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .todos-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .todos-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .todos-progress {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .todos-progress-bar {
+            width: 100px;
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .todos-progress-fill {
+            height: 100%;
+            background: var(--success);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        .todos-progress-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .todos-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .todo-item.completed {
+            opacity: 0.6;
+        }
+
+        .todo-checkbox {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .todo-checkbox.checked {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        .todo-checkbox.checked::after {
+            content: '✓';
+            color: #fff;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .todo-text {
+            flex: 1;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+        }
+
+        /* Phase History */
+        .phase-history {
+            display: flex;
+            gap: 4px;
+            margin-top: 12px;
+        }
+
+        .phase-history-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--border);
+        }
+
+        .phase-history-dot.passing { background: var(--success); }
+        .phase-history-dot.failing { background: var(--danger); }
+        .phase-history-dot.current { background: var(--info); animation: pulse-dot 1.5s infinite; }
     </style>
 </head>
 <body>
@@ -521,6 +771,52 @@
             </div>
             <div class="series-history" id="seriesHistory">
                 <!-- Session chips will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Execution State Panel -->
+        <div class="execution-panel" id="executionPanel" style="display: none;">
+            <!-- Current Phase -->
+            <div class="phase-card">
+                <div class="phase-card-header">
+                    <span class="phase-card-title">Current Phase</span>
+                    <span class="phase-badge" id="phaseBadge">research</span>
+                </div>
+                <div class="phase-name" id="phaseName">Research</div>
+                <div class="phase-iteration" id="phaseIteration">Iteration 1 of 10</div>
+                <div class="phase-history" id="phaseHistory">
+                    <!-- Phase history dots -->
+                </div>
+            </div>
+
+            <!-- Quality Scores -->
+            <div class="scores-card">
+                <div class="score-header">
+                    <div>
+                        <div class="phase-card-title">Quality Score</div>
+                        <div class="score-total" id="scoreTotal">--</div>
+                    </div>
+                    <div class="score-threshold" id="scoreThreshold">Min: 80</div>
+                </div>
+                <div class="score-criteria" id="scoreCriteria">
+                    <!-- Criteria bars will be rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Todo Progress Panel -->
+        <div class="todos-panel" id="todosPanel" style="display: none;">
+            <div class="todos-header">
+                <span class="todos-title">Task Progress</span>
+                <div class="todos-progress">
+                    <div class="todos-progress-bar">
+                        <div class="todos-progress-fill" id="todosProgressFill" style="width: 0%"></div>
+                    </div>
+                    <span class="todos-progress-text" id="todosProgressText">0/0</span>
+                </div>
+            </div>
+            <div class="todos-list" id="todosList">
+                <!-- Todo items will be rendered here -->
             </div>
         </div>
 
@@ -680,11 +976,115 @@
             }
         }
 
+        // Phase thresholds
+        const PHASE_THRESHOLDS = {
+            research: 80,
+            design: 85,
+            implement: 90,
+            test: 90,
+            complete: 100
+        };
+
+        function updateExecutionState(execState) {
+            const panel = document.getElementById('executionPanel');
+            const todosPanel = document.getElementById('todosPanel');
+
+            if (!execState || (!execState.currentPhase && !execState.qualityScores && (!execState.todos || execState.todos.length === 0))) {
+                panel.style.display = 'none';
+                todosPanel.style.display = 'none';
+                return;
+            }
+
+            // Show panels
+            if (execState.currentPhase || execState.qualityScores) {
+                panel.style.display = 'grid';
+            }
+
+            // Update phase info
+            if (execState.currentPhase) {
+                const phase = execState.currentPhase;
+                const phaseBadge = document.getElementById('phaseBadge');
+                const phaseName = document.getElementById('phaseName');
+                const phaseIteration = document.getElementById('phaseIteration');
+
+                phaseBadge.textContent = phase;
+                phaseBadge.className = `phase-badge ${phase}`;
+                phaseName.textContent = phase.charAt(0).toUpperCase() + phase.slice(1);
+                phaseIteration.textContent = `Iteration ${execState.phaseIteration || 1} of 10`;
+            }
+
+            // Update quality scores
+            if (execState.qualityScores) {
+                const scores = execState.qualityScores;
+                const scoreTotal = document.getElementById('scoreTotal');
+                const scoreThreshold = document.getElementById('scoreThreshold');
+                const scoreCriteria = document.getElementById('scoreCriteria');
+
+                const total = scores.totalScore || 0;
+                const threshold = PHASE_THRESHOLDS[scores.phase] || 80;
+
+                scoreTotal.textContent = total;
+                scoreTotal.className = `score-total ${total >= threshold ? 'passing' : total >= threshold - 10 ? 'close' : 'failing'}`;
+                scoreThreshold.textContent = `Min: ${threshold}`;
+
+                // Render criteria
+                if (scores.scores) {
+                    scoreCriteria.innerHTML = Object.entries(scores.scores).map(([name, score]) => {
+                        const fillClass = score >= 80 ? 'high' : score >= 60 ? 'medium' : 'low';
+                        return `
+                            <div class="score-criterion">
+                                <span class="criterion-name">${name}</span>
+                                <div class="criterion-bar">
+                                    <div class="criterion-fill ${fillClass}" style="width: ${score}%"></div>
+                                </div>
+                                <span class="criterion-score">${score}</span>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+
+            // Update phase history
+            if (execState.phaseHistory && execState.phaseHistory.length > 0) {
+                const historyContainer = document.getElementById('phaseHistory');
+                historyContainer.innerHTML = execState.phaseHistory.map((h, i) => {
+                    const threshold = PHASE_THRESHOLDS[h.phase] || 80;
+                    const isPassing = h.totalScore >= threshold;
+                    const isCurrent = i === execState.phaseHistory.length - 1;
+                    return `<div class="phase-history-dot ${isCurrent ? 'current' : isPassing ? 'passing' : 'failing'}" title="${h.phase}: ${h.totalScore}"></div>`;
+                }).join('');
+            }
+
+            // Update todos
+            if (execState.todos && execState.todos.length > 0) {
+                todosPanel.style.display = 'block';
+
+                const completed = execState.todos.filter(t => t.completed).length;
+                const total = execState.todos.length;
+                const percent = total > 0 ? (completed / total) * 100 : 0;
+
+                document.getElementById('todosProgressFill').style.width = `${percent}%`;
+                document.getElementById('todosProgressText').textContent = `${completed}/${total}`;
+
+                document.getElementById('todosList').innerHTML = execState.todos.map(todo => `
+                    <div class="todo-item ${todo.completed ? 'completed' : ''}">
+                        <div class="todo-checkbox ${todo.completed ? 'checked' : ''}"></div>
+                        <span class="todo-text">${todo.text}</span>
+                    </div>
+                `).join('');
+            } else {
+                todosPanel.style.display = 'none';
+            }
+        }
+
         function updateDisplay(data) {
-            const { projects, sessionSeries } = data;
+            const { projects, sessionSeries, executionState } = data;
 
             // Update session series panel
             updateSessionSeries(sessionSeries);
+
+            // Update execution state panel
+            updateExecutionState(executionState);
 
             if (!projects || projects.length === 0) {
                 document.getElementById('activeSessionsContainer').innerHTML = `

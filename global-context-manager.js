@@ -19,6 +19,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const chokidar = require('chokidar');
 const GlobalContextTracker = require('./.claude/core/global-context-tracker');
 
 const app = express();
@@ -51,6 +53,20 @@ let sessionSeries = {
   totalTokens: 0,
   totalCost: 0,
 };
+
+// Execution state tracking (phases, quality scores, todos)
+let executionState = {
+  currentPhase: null,
+  phaseIteration: 0,
+  qualityScores: null,
+  phaseHistory: [],
+  todos: [],
+  plan: null,
+  lastUpdate: null,
+};
+
+// File watchers for dev-docs
+let devDocsWatcher = null;
 
 // ============================================================================
 // EVENT HANDLERS
@@ -136,6 +152,168 @@ function addAlert(alert) {
   if (recentAlerts.length > MAX_ALERTS) {
     recentAlerts.pop();
   }
+}
+
+// ============================================================================
+// DEV-DOCS FILE WATCHING
+// ============================================================================
+
+function readQualityScores() {
+  const scoresPath = path.join(__dirname, '.claude', 'dev-docs', 'quality-scores.json');
+  try {
+    if (fs.existsSync(scoresPath)) {
+      const content = fs.readFileSync(scoresPath, 'utf-8');
+      return JSON.parse(content);
+    }
+  } catch (err) {
+    // Ignore parse errors
+  }
+  return null;
+}
+
+function readTasksFile() {
+  const tasksPath = path.join(__dirname, '.claude', 'dev-docs', 'tasks.md');
+  try {
+    if (fs.existsSync(tasksPath)) {
+      const content = fs.readFileSync(tasksPath, 'utf-8');
+      return parseTasksMarkdown(content);
+    }
+  } catch (err) {
+    // Ignore read errors
+  }
+  return { todos: [], phase: null };
+}
+
+function parseTasksMarkdown(content) {
+  const todos = [];
+  let currentPhase = null;
+
+  // Extract current phase from header
+  const phaseMatch = content.match(/Current Session[:\s]+([^\n]+)/i);
+  if (phaseMatch) {
+    currentPhase = phaseMatch[1].trim();
+  }
+
+  // Extract status
+  const statusMatch = content.match(/Status[:\s]+([^\n]+)/i);
+  const status = statusMatch ? statusMatch[1].trim() : null;
+
+  // Parse checkbox items
+  const checkboxPattern = /- \[([ xX])\] \*?\*?([^*\n]+)\*?\*?/g;
+  let match;
+  while ((match = checkboxPattern.exec(content)) !== null) {
+    todos.push({
+      completed: match[1].toLowerCase() === 'x',
+      text: match[2].trim(),
+    });
+  }
+
+  return { todos, phase: currentPhase, status };
+}
+
+function readPlanFile() {
+  const planPath = path.join(__dirname, '.claude', 'dev-docs', 'plan.md');
+  try {
+    if (fs.existsSync(planPath)) {
+      const content = fs.readFileSync(planPath, 'utf-8');
+      return parsePlanMarkdown(content);
+    }
+  } catch (err) {
+    // Ignore read errors
+  }
+  return null;
+}
+
+function parsePlanMarkdown(content) {
+  // Extract phase from header
+  const phaseMatch = content.match(/Current Phase[:\s]+([^\n]+)/i);
+  const phase = phaseMatch ? phaseMatch[1].trim() : null;
+
+  // Extract status
+  const statusMatch = content.match(/Status[:\s]+([^\n]+)/i);
+  const status = statusMatch ? statusMatch[1].trim() : null;
+
+  // Extract success criteria checkboxes
+  const criteria = [];
+  const criteriaSection = content.match(/### Success Criteria[\s\S]*?(?=###|$)/i);
+  if (criteriaSection) {
+    const checkboxPattern = /- \[([ xX])\] ([^\n]+)/g;
+    let match;
+    while ((match = checkboxPattern.exec(criteriaSection[0])) !== null) {
+      criteria.push({
+        completed: match[1].toLowerCase() === 'x',
+        text: match[2].trim(),
+      });
+    }
+  }
+
+  return { phase, status, criteria };
+}
+
+function updateExecutionState() {
+  const scores = readQualityScores();
+  const tasks = readTasksFile();
+  const plan = readPlanFile();
+
+  executionState.qualityScores = scores;
+  executionState.todos = tasks.todos;
+  executionState.plan = plan;
+  executionState.lastUpdate = new Date().toISOString();
+
+  // Update current phase from quality scores or tasks
+  if (scores?.phase) {
+    executionState.currentPhase = scores.phase;
+    executionState.phaseIteration = scores.iteration || 1;
+  } else if (tasks.phase) {
+    executionState.currentPhase = tasks.phase;
+  }
+
+  // Record phase history if score changed
+  if (scores && (!executionState.phaseHistory.length ||
+      executionState.phaseHistory[executionState.phaseHistory.length - 1]?.totalScore !== scores.totalScore)) {
+    executionState.phaseHistory.push({
+      phase: scores.phase,
+      iteration: scores.iteration,
+      totalScore: scores.totalScore,
+      timestamp: new Date().toISOString(),
+    });
+    // Keep last 20 entries
+    if (executionState.phaseHistory.length > 20) {
+      executionState.phaseHistory.shift();
+    }
+  }
+}
+
+function startDevDocsWatcher() {
+  const devDocsPath = path.join(__dirname, '.claude', 'dev-docs');
+
+  // Create directory if it doesn't exist
+  if (!fs.existsSync(devDocsPath)) {
+    fs.mkdirSync(devDocsPath, { recursive: true });
+  }
+
+  // Initial read
+  updateExecutionState();
+
+  // Watch for changes
+  devDocsWatcher = chokidar.watch(devDocsPath, {
+    persistent: true,
+    ignoreInitial: true,
+    usePolling: true,
+    interval: 1000,
+  });
+
+  devDocsWatcher.on('change', (filePath) => {
+    console.log(`[DEV-DOCS] File changed: ${path.basename(filePath)}`);
+    updateExecutionState();
+  });
+
+  devDocsWatcher.on('add', (filePath) => {
+    console.log(`[DEV-DOCS] File added: ${path.basename(filePath)}`);
+    updateExecutionState();
+  });
+
+  console.log('[DEV-DOCS] Watching for changes in:', devDocsPath);
 }
 
 // ============================================================================
@@ -236,6 +414,38 @@ app.get('/api/series', (req, res) => {
   res.json(sessionSeries);
 });
 
+// ============================================================================
+// EXECUTION STATE API
+// ============================================================================
+
+// Get current execution state (phase, scores, todos)
+app.get('/api/execution', (req, res) => {
+  updateExecutionState(); // Refresh before sending
+  res.json(executionState);
+});
+
+// Update execution state (called by orchestrator)
+app.post('/api/execution/phase', (req, res) => {
+  const { phase, iteration } = req.body;
+  executionState.currentPhase = phase;
+  executionState.phaseIteration = iteration || 1;
+  executionState.lastUpdate = new Date().toISOString();
+  console.log(`[EXECUTION] Phase updated: ${phase} (iteration ${iteration})`);
+  res.json({ success: true });
+});
+
+// Get quality scores
+app.get('/api/execution/scores', (req, res) => {
+  const scores = readQualityScores();
+  res.json(scores || { phase: null, scores: {}, totalScore: 0 });
+});
+
+// Get todos from tasks.md
+app.get('/api/execution/todos', (req, res) => {
+  const tasks = readTasksFile();
+  res.json(tasks);
+});
+
 // SSE for real-time updates
 app.get('/api/events', (req, res) => {
   res.writeHead(200, {
@@ -252,6 +462,7 @@ app.get('/api/events', (req, res) => {
       accountTotals: tracker.getAccountTotals(),
       alerts: recentAlerts.slice(0, 10),
       sessionSeries: sessionSeries,
+      executionState: executionState,
       timestamp: new Date().toISOString()
     };
     res.write(`data: ${JSON.stringify(data)}\n\n`);
@@ -305,7 +516,15 @@ app.listen(PORT, async () => {
   console.log('  50% - Warning (state auto-saved)');
   console.log('  65% - Critical (consider /clear)');
   console.log('  75% - Emergency (MUST /clear now, before 77.5% auto-compact!)');
+  console.log('');
+  console.log('Execution State:');
+  console.log('  GET  /api/execution     - Current phase, scores, todos');
+  console.log('  GET  /api/execution/scores - Quality scores only');
+  console.log('  GET  /api/execution/todos  - Todo list only');
   console.log('='.repeat(70) + '\n');
+
+  // Start dev-docs file watcher
+  startDevDocsWatcher();
 
   // Start tracking
   await tracker.start();
@@ -314,12 +533,14 @@ app.listen(PORT, async () => {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\nShutting down...');
+  if (devDocsWatcher) await devDocsWatcher.close();
   await tracker.stop();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\nShutting down...');
+  if (devDocsWatcher) await devDocsWatcher.close();
   await tracker.stop();
   process.exit(0);
 });
