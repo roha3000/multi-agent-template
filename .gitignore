@@ -85,3 +85,7 @@ actual-projects/
 test-projects/
 test-temp/
 *.backup
+
+# Task Management (keep example, ignore user tasks)
+tasks.json
+!tasks.json.example
