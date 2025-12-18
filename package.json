@@ -26,7 +26,15 @@
     "monitor:global": "start http://localhost:3033/global-dashboard.html && node global-context-manager.js",
     "loop": "node continuous-loop.js",
     "loop:start": "node continuous-loop.js",
-    "loop:help": "node continuous-loop.js --help"
+    "loop:help": "node continuous-loop.js --help",
+    "autonomous": "node autonomous-orchestrator.js",
+    "autonomous:research": "node autonomous-orchestrator.js --phase research",
+    "autonomous:design": "node autonomous-orchestrator.js --phase design",
+    "autonomous:implement": "node autonomous-orchestrator.js --phase implement",
+    "autonomous:test": "node autonomous-orchestrator.js --phase test",
+    "handoff": "node handoff-to-loop.js",
+    "quality:list": "node quality-gates.js list-phases",
+    "quality:agents": "node quality-gates.js list-agents"
   },
   "keywords": [
     "multi-agent",
