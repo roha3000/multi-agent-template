@@ -34,7 +34,14 @@
     "autonomous:test": "node autonomous-orchestrator.js --phase test",
     "handoff": "node handoff-to-loop.js",
     "quality:list": "node quality-gates.js list-phases",
-    "quality:agents": "node quality-gates.js list-agents"
+    "quality:agents": "node quality-gates.js list-agents",
+    "task": "node task-cli.js",
+    "task:ready": "node task-cli.js ready",
+    "task:backlog": "node task-cli.js backlog",
+    "task:create": "node task-cli.js create",
+    "task:stats": "node task-cli.js stats",
+    "task:list": "node task-cli.js list",
+    "task:migrate": "node tasks-migration.js"
   },
   "keywords": [
     "multi-agent",
