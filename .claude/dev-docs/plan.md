@@ -1,266 +1,203 @@
-# Current Plan - CRITICAL: Fix Real Context Tracking
+# Current Plan - Continuous Loop Orchestrator
 
-**Last Updated**: 2025-12-14T23:15:00Z (Session 8 - Saved at 97% context)
-**Current Phase**: Emergency Fix Required - Monitoring Uses Fake Data
-**Status**: System Non-Functional - Shows 60% when real context at 97%
-**Priority**: CRITICAL (Monitoring provides no value with simulated data)
-
----
-
-## CRITICAL DISCOVERY - SESSION 8
-
-The monitoring system is completely non-functional because it uses **simulated data** instead of real Claude context. When the real context reached 97%, the dashboard still showed 60% from Math.random() simulation. This makes the entire system useless until fixed.
-
-**Critical Issues Found**:
-1. Dashboard shows fake 60% usage from Math.random()
-2. Real Claude context reached 97% undetected
-3. No API integration with Claude Code's actual context
-4. Auto-checkpoint at 70% never triggers (uses fake data)
-5. Emergency save at 95% never fires
-6. Manual checkpoint was required at 92% to prevent data loss
-
-**Immediate Fix Required**: Replace all simulated data with real Claude context tracking
+**Last Updated**: 2025-12-17 (Session 12)
+**Current Phase**: Implementation
+**Status**: Building continuous loop system
+**Priority**: HIGH - Core feature for automated long-running tasks
 
 ---
 
-## System Status
+## SESSION 12: Continuous Loop Implementation Plan
 
-### Completed Components ✅
+### Goal
+Build an external orchestrator that automatically cycles Claude CLI sessions when context threshold is reached, enabling unlimited-length automated tasks.
 
-All major components have been successfully implemented and tested:
+### Architecture
 
-1. **Core Multi-Agent Framework** (Sessions 1-5)
-   - Intelligence Layer with 7 specialized agents
-   - Usage Analytics with SQLite persistence
-   - API Layer with health monitoring
-   - Dashboard Manager with real-time updates
-   - Continuous Loop Orchestrator
-
-2. **OpenTelemetry Integration** (Session 6)
-   - OTLP Receiver on port 4318
-   - Advanced MetricProcessor (90% optimization)
-   - Claude Code telemetry configuration
-   - Complete integration with UsageTracker
-   - 25 unit tests, all passing
-
-3. **Multi-Session Support** (Session 7)
-   - OTLP-Checkpoint Bridge (automatic saves at 95%)
-   - Session-Aware Metric Processor
-   - Enhanced Dashboard with execution plans
-   - Production staging environment
-   - Load testing framework
-
-### Quality Metrics
-- **Code**: ~12,000+ lines
-- **Tests**: 260+ tests, all passing
-- **Coverage**: 90%+ critical paths
-- **Documentation**: 20,000+ lines
-- **Performance**: <50MB RAM, <5% CPU
-- **Overall Quality**: 98/100
-
----
-
-## Deployment Plan
-
-### Phase 1: Documentation Cleanup (30 min) 🟡 IN PROGRESS
-**Status**: In Progress
-**Tasks**:
-- [x] Update PROJECT_SUMMARY.md with Session 7 achievements
-- [x] Update tasks.md to reflect completed status
-- [x] Archive old plan.md and create new deployment plan
-- [ ] Commit all Session 7 work with comprehensive message
-- [ ] Update state manager to production phase
-
-### Phase 2: Production Deployment (2 hours) ⚪ PENDING
-**Status**: Ready to begin after cleanup
-**Tasks**:
-1. **Environment Setup** (30 min)
-   - Configure production environment variables
-   - Set up production database
-   - Configure OTLP endpoints
-   - Set up SSL certificates if needed
-
-2. **Service Deployment** (45 min)
-   - Deploy OTLP Receiver service
-   - Deploy Dashboard service
-   - Deploy Session-Aware Processor
-   - Deploy OTLP-Checkpoint Bridge
-   - Configure systemd/pm2 for auto-restart
-
-3. **Monitoring Setup** (30 min)
-   - Configure Prometheus metrics export
-   - Set up Grafana dashboards
-   - Configure alerting rules
-   - Set up health check monitoring
-
-4. **Validation** (15 min)
-   - Test service connectivity
-   - Verify metric flow
-   - Check dashboard accessibility
-   - Validate health endpoints
-
-### Phase 3: Production Validation (1 hour) ⚪ PENDING
-**Status**: Ready after deployment
-**Tasks**:
-1. **Real Session Testing** (30 min)
-   - Enable telemetry in Claude Code
-   - Run real coding sessions
-   - Verify metrics capture
-   - Check dashboard updates
-
-2. **Checkpoint Validation** (15 min)
-   - Test 95% threshold trigger
-   - Verify state preservation
-   - Validate context reload
-   - Check session isolation
-
-3. **Load Testing** (15 min)
-   - Run multiple parallel sessions
-   - Monitor resource usage
-   - Check performance metrics
-   - Validate scaling behavior
-
----
-
-## Post-Deployment Options
-
-After successful deployment, choose the next enhancement:
-
-### Option A: Predictive Analytics (8 hours)
-- Token usage forecasting using ML
-- Context exhaustion predictions
-- Cost optimization recommendations
-- Pattern analysis and insights
-
-### Option B: Multi-Model Support (8 hours)
-- GPT-4 integration
-- Gemini metrics tracking
-- Unified dashboard for all models
-- Cross-model comparisons
-
-### Option C: Advanced Visualizations (6 hours)
-- Interactive charts and graphs
-- Historical trend analysis
-- Cost breakdown views
-- PDF report generation
-
-### Option D: Enterprise Features (10 hours)
-- Team usage tracking
-- Budget alerts and limits
-- Role-based access control
-- API and webhooks
-
----
-
-## Deployment Commands
-
-### Quick Start
-```bash
-# 1. Commit all changes
-git add .
-git commit -m "[PRODUCTION] Complete multi-session OTLP system ready for deployment
-
-- OTLP-Checkpoint Bridge for automatic context management
-- Session-Aware Metric Processor for parallel tracking
-- Enhanced Dashboard with execution plans
-- Production staging environment
-- Comprehensive integration tests
-- Load testing framework
-
-System prevents context exhaustion and supports unlimited sessions."
-
-# 2. Start production services
-npm run deploy:production
-
-# 3. Validate deployment
-npm run test:production
-
-# 4. Monitor logs
-npm run logs:production
+```
+┌─────────────────────────────────────────────────────────────┐
+│              continuous-loop.js (Orchestrator)              │
+├─────────────────────────────────────────────────────────────┤
+│  1. Spawn: claude "Run /session-init and continue task"     │
+│  2. Monitor: Listen to dashboard SSE for context alerts     │
+│  3. At 70%: Send SIGTERM, wait for graceful exit            │
+│  4. Loop: Start new session (dev-docs already has state)    │
+└─────────────────────────────────────────────────────────────┘
+          │                              ▲
+          │ stdio: inherit               │ SSE alerts
+          ▼                              │
+┌─────────────────────┐    ┌─────────────────────────────────┐
+│   Claude CLI        │    │  Dashboard (localhost:3033)     │
+│   (visible output)  │    │  - Context % monitoring         │
+│                     │    │  - Session series tracking      │
+└─────────────────────┘    └─────────────────────────────────┘
 ```
 
-### Manual Deployment
+### Implementation Steps
+
+#### Step 1: Build Orchestrator (`continuous-loop.js`)
+- Spawn Claude CLI with `stdio: 'inherit'` for visibility
+- Connect to dashboard SSE at `localhost:3033/events`
+- Listen for threshold alerts (≤30% remaining = 70% used)
+- Graceful termination with SIGTERM
+- Auto-restart loop with configurable delay
+
+#### Step 2: Add Session Series Tracking
+- Track session count in current series
+- Accumulate total tokens/cost across sessions
+- Record exit reasons (threshold/complete/error)
+- Display in dashboard UI
+
+#### Step 3: Add NPM Scripts
+- `npm run loop` - Start continuous loop
+- `npm run loop:start` - Same as above
+- Update package.json
+
+#### Step 4: Test the System
+- Verify session spawns with visible output
+- Verify threshold detection triggers termination
+- Verify new session picks up state via /session-init
+- Verify dashboard shows session series
+
+### Files to Create/Modify
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `continuous-loop.js` | CREATE | Main orchestrator |
+| `global-context-manager.js` | MODIFY | Add session series tracking |
+| `global-dashboard.html` | MODIFY | Display session series |
+| `package.json` | MODIFY | Add npm scripts |
+
+### Success Criteria
+- [ ] Claude output visible in terminal during execution
+- [ ] Automatic session cycling at 70% context
+- [ ] New session loads state via /session-init
+- [ ] Dashboard shows session series (session 1, 2, 3...)
+- [ ] Total cost/tokens tracked across series
+
+---
+
+## PREVIOUS: SESSION 11 REFINEMENTS - ACCURACY IMPROVEMENTS
+
+Refined the context calculation and dashboard display for better accuracy.
+
+### Changes Made
+
+1. **System Overhead Calibration**
+   - Adjusted from 45k to 38k tokens based on `/context` validation
+   - Now matches `/context` output within ~2%
+
+2. **Dashboard Display Updates**
+   - Shows "context remaining" (100% - used%) as main metric
+   - Shows "X tokens until auto-compact" (remaining - 45k buffer)
+   - Updated threshold markers on progress bar
+
+3. **Threshold Adjustments**
+   - ≤25% remaining = EMERGENCY
+   - ≤35% remaining = CRITICAL
+   - ≤50% remaining = WARNING
+   - >50% remaining = OK
+
+### Key Understanding
+
+- `/context` "Free space" = usable space before auto-compact triggers
+- Autocompact buffer (45k/22.5%) is reserved and never usable
+- Auto-compact triggers when "Free space" reaches 0%
+
+---
+
+## SESSION 10 ACHIEVEMENT - GLOBAL CONTEXT MONITOR
+
+Built a real-time context monitoring dashboard that tracks ALL active Claude Code sessions across all projects.
+
+### What Was Built
+
+1. **Global Context Tracker** (`.claude/core/global-context-tracker.js`)
+   - Watches all projects in `~/.claude/projects/`
+   - Real-time JSONL file monitoring with chokidar
+   - Windows-compatible polling for reliability
+   - Automatic session detection (active within 5 min)
+   - Cost estimation per session
+
+2. **Global Context Manager** (`global-context-manager.js`)
+   - Express server on port 3033
+   - SSE real-time updates to dashboard
+   - REST API for project/account data
+   - Alert event emission
+
+3. **Simplified Dashboard** (`global-dashboard.html`)
+   - Shows **context remaining** (not used) - more actionable
+   - Big percentage display with token count
+   - Progress bar with threshold markers (50%, 65%, 75%)
+   - Audio alerts and browser notifications
+   - Copy buttons for /clear and /session-init
+   - Inactive projects collapsed at bottom
+
+### Key Fixes Applied
+
+1. **Token Calculation** - Fixed to use LATEST API response, not cumulative sum
+   - Context = `input_tokens + cache_read + cache_creation + output_tokens`
+   - Added 20k system overhead (prompts, tools, memory)
+
+2. **Windows File Watching** - Fixed unreliable glob patterns
+   - Now watches each project directory explicitly
+   - Uses polling on Windows for reliability
+
+3. **Threshold Adjustment** - Aligned with auto-compact at ~77.5%
+   - 50% Warning
+   - 65% Critical
+   - 75% Emergency (before 77.5% auto-compact)
+
+---
+
+## How to Use
+
+### Start the Monitor
 ```bash
-# Start OTLP Receiver
-node .claude/core/otlp-receiver.js &
-
-# Start Enhanced Dashboard
-node .claude/core/enhanced-dashboard-server.js &
-
-# Start Session Processor
-node .claude/core/session-aware-metric-processor.js &
-
-# Start Checkpoint Bridge
-node .claude/core/otlp-checkpoint-bridge.js &
+npm run monitor:global
+# Opens dashboard + starts server on port 3033
 ```
 
----
+### Or manually:
+```bash
+node global-context-manager.js
+# Then open http://localhost:3033/global-dashboard.html
+```
 
-## Success Criteria
-
-### Deployment Success
-- [ ] All services running without errors
-- [ ] Dashboard accessible at configured URL
-- [ ] OTLP receiver accepting metrics
-- [ ] Database persisting data
-- [ ] Health checks passing
-
-### Validation Success
-- [ ] Real Claude Code metrics captured
-- [ ] Dashboard shows accurate usage
-- [ ] Checkpoint triggers at 95%
-- [ ] Multiple sessions tracked correctly
-- [ ] Performance within limits
+### Dashboard Features
+- Real-time updates every 500ms
+- Sound alerts at threshold crossings
+- Browser notifications (requires permission)
+- Copy /clear command with one click
 
 ---
 
-## Risk Assessment
+## Files Created/Modified
 
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| Service crashes | LOW | HIGH | Auto-restart with pm2/systemd |
-| Port conflicts | LOW | MEDIUM | Configurable ports |
-| SSL issues | LOW | LOW | Fall back to HTTP locally |
-| Database issues | LOW | HIGH | Backup before deployment |
-| Resource limits | LOW | MEDIUM | Monitor and scale |
-
-**Overall Risk**: LOW - System thoroughly tested
+| File | Purpose |
+|------|---------|
+| `.claude/core/global-context-tracker.js` | Multi-project JSONL watcher |
+| `global-context-manager.js` | Express server + SSE |
+| `global-dashboard.html` | Simplified UI (context remaining focus) |
+| `package.json` | Added npm scripts |
 
 ---
 
-## Timeline
+## Known Limitations
 
-| Task | Duration | Status |
-|------|----------|--------|
-| Documentation Cleanup | 30 min | 🟡 In Progress |
-| Production Deployment | 2 hours | ⚪ Pending |
-| Production Validation | 1 hour | ⚪ Pending |
-| **Total** | **3.5 hours** | Ready |
-
-**Expected Completion**: Within current session
+1. **~10% accuracy variance** - JSONL doesn't capture exact system tokens
+2. **5-minute active window** - Sessions go inactive after 5 min of no API calls
+3. **Polling overhead** - Windows uses 500ms polling (slight CPU usage)
 
 ---
 
-## Next Immediate Actions
+## Next Steps (Optional)
 
-1. ✅ Update PROJECT_SUMMARY.md (DONE)
-2. ✅ Update tasks.md (DONE)
-3. ✅ Archive old plan.md (DONE)
-4. ⏳ Commit all Session 7 work
-5. ⏳ Deploy to production
-6. ⏳ Validate with real sessions
+- [ ] Add historical context trends
+- [ ] Integrate with notification services (Slack, Discord)
+- [ ] Add cost projections based on velocity
+- [ ] Create system tray app for always-on monitoring
 
 ---
 
-## Notes
-
-- System is fully tested and production-ready
-- All critical features implemented and working
-- Documentation is comprehensive
-- No blockers or dependencies
-- Ready for immediate deployment
-
----
-
-**Last Updated**: 2025-12-14
-**Next Update**: After production deployment
+**Status**: COMPLETE - Dashboard is operational at http://localhost:3033

@@ -1,9 +1,35 @@
 # PROJECT SUMMARY - Multi-Agent Template with Production Telemetry
-**CRITICAL**: SESSION 8 - Context saved at 97% - IMMEDIATE RELOAD REQUIRED
-**Last Updated**: 2025-12-14T23:15:00Z (Session 8)
+**Last Updated**: 2025-12-17 (Session 12)
 
-**Current Phase**: Critical Context Management & Monitoring Fix Required
-**Status**: Monitoring System Non-Functional - Uses Simulated Data Only ⚠️
+**Current Phase**: Continuous Loop Implementation
+**Status**: Building automated session cycling with external orchestration
+
+---
+
+## Session 12: Continuous Loop Implementation
+
+### Problem Statement
+Claude Code cannot clear its own context from within a CLI session. This prevents fully automated long-running tasks that exceed the context window.
+
+### Solution: External Orchestration Pattern
+Inspired by [continuous-claude](https://github.com/AnandChowdhary/continuous-claude), but adapted to leverage our existing dev-docs pattern:
+
+1. **External orchestrator** spawns Claude CLI sessions
+2. **Dashboard** monitors context % via JSONL file watching (already built)
+3. **At threshold** (70%), orchestrator terminates current session
+4. **New session** starts, runs `/session-init`, picks up from dev-docs
+5. **Loop continues** until task complete
+
+### Key Insight
+Unlike continuous-claude which passes state via prompt injection, our approach:
+- State lives on disk (dev-docs 3-file pattern)
+- Each session runs `/session-init` to load context (~400 tokens)
+- No external prompt building needed - Claude reads its own state
+
+### Components to Build
+1. `continuous-loop.js` - Orchestrator that spawns/monitors/cycles sessions
+2. Session series tracking in dashboard
+3. Graceful termination handling
 
 ---
 

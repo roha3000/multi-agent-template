@@ -1,53 +1,136 @@
-# Active Tasks - CRITICAL FIX REQUIRED
+# Active Tasks - Continuous Loop Implementation
 
-**Last Updated**: 2025-12-14T23:15:00Z (Session 8 - Saved at 97% context)
-**Current Session**: Emergency Context Save - Monitoring System Non-Functional
-**Status**: System Uses Fake Data - No Real Context Tracking ⚠️
-**Priority**: 🔴 CRITICAL - System Provides No Value
+**Last Updated**: 2025-12-17 (Session 12)
+**Current Session**: Building continuous loop orchestrator
+**Status**: IN PROGRESS
+**Priority**: HIGH - Core automation feature
 
 ---
 
-## 🚨 SESSION 8 CRITICAL TASKS - CONTEXT AT 97%
+## SESSION 12: Continuous Loop Tasks
 
-### Critical Discovery
-**The monitoring system shows fake 60% usage while real context is at 97%!**
-- Dashboard displays Math.random() simulated data
-- No integration with Claude Code's actual context API
-- Auto-checkpoint at 70% never triggered (uses fake data)
-- Emergency save at 95% never fired
-- Manual checkpoint required at 92% to prevent data loss
+### Current Task: Build Continuous Loop Orchestrator
 
-### Immediate Tasks After Reload
+**Problem**: Claude Code cannot clear context from within CLI. Need external orchestration to cycle sessions.
 
-#### 1. Kill Duplicate Processes 🟡 IN PROGRESS
-- [ ] Kill all 20+ duplicate background processes
-- [ ] Implement singleton pattern enforcement
-- [ ] Clean up orphaned processes
+**Solution**: External orchestrator pattern inspired by [continuous-claude](https://github.com/AnandChowdhary/continuous-claude), adapted for our dev-docs pattern.
 
-#### 2. Fix Real Context Tracking 🔴 CRITICAL
-- [ ] Find Claude Code's actual context API
-- [ ] Remove ALL Math.random() simulations
-- [ ] Connect to real token usage metrics
-- [ ] Test with actual context growth
+### Tasks
 
-#### 3. Fix Auto-Checkpoint System ⚪ PENDING
-- [ ] Connect to real context percentage
-- [ ] Test 70% checkpoint trigger
-- [ ] Test 95% emergency save
-- [ ] Validate reload mechanism
+- [ ] **Build `continuous-loop.js`** - Main orchestrator
+  - Spawn Claude CLI with visible output (stdio: inherit)
+  - Connect to dashboard SSE for context alerts
+  - Terminate at 70% context threshold
+  - Auto-restart with /session-init pickup
 
-#### 4. Add Dashboard Controls ⚪ PENDING
-- [ ] Add continuous loop ON/OFF toggle
-- [ ] Show real context percentage
-- [ ] Add manual checkpoint button
-- [ ] Display warning indicators
+- [ ] **Add session series tracking** - Dashboard enhancement
+  - Track session count in series
+  - Accumulate tokens/cost across sessions
+  - Display in dashboard UI
 
-### Work Completed in Session 8
-- ✅ Created singleton monitor launcher
-- ✅ Added protected production start script
-- ✅ Fixed StateManager path type error
-- ✅ Created session initialization protocol
-- ✅ Saved state at 97% context using dev-docs pattern
+- [ ] **Add npm scripts** - Developer experience
+  - `npm run loop` to start continuous mode
+
+- [ ] **Test end-to-end** - Validation
+  - Verify session cycling works
+  - Verify state pickup via /session-init
+
+### Key Insight
+State lives in dev-docs (PROJECT_SUMMARY.md, plan.md, tasks.md). Each new session runs `/session-init` to load ~400 tokens of context. No prompt injection needed.
+
+---
+
+## PREVIOUS: SESSION 10-11 ACHIEVEMENTS - GLOBAL CONTEXT MONITOR DASHBOARD
+
+Built a real-time context monitoring dashboard that tracks ALL active Claude Code sessions across all projects.
+
+### What Was Built
+
+1. **Global Context Tracker** (`.claude/core/global-context-tracker.js`)
+   - Watches all projects in `~/.claude/projects/`
+   - Real-time JSONL file monitoring with chokidar
+   - Windows-compatible polling for reliability
+   - Automatic session detection (active within 5 min)
+   - Cost estimation per session
+
+2. **Global Context Manager** (`global-context-manager.js`)
+   - Express server on port 3033
+   - SSE real-time updates to dashboard
+   - REST API for project/account data
+   - Alert event emission
+
+3. **Simplified Dashboard** (`global-dashboard.html`)
+   - Shows **context remaining** (not used) - more actionable
+   - Big percentage display with token count
+   - Progress bar with threshold markers (50%, 65%, 75%)
+   - Audio alerts and browser notifications
+   - Copy buttons for /clear and /session-init
+   - Inactive projects collapsed at bottom
+
+### Key Fixes Applied
+
+1. **Token Calculation** - Fixed to use LATEST API response, not cumulative sum
+   - Context = `input_tokens + cache_read + cache_creation + output_tokens`
+   - Added 20k system overhead (prompts, tools, memory)
+
+2. **Windows File Watching** - Fixed unreliable glob patterns
+   - Now watches each project directory explicitly
+   - Uses polling on Windows for reliability
+
+3. **Threshold Adjustment** - Aligned with auto-compact at ~77.5%
+   - 50% Warning
+   - 65% Critical
+   - 75% Emergency (before 77.5% auto-compact)
+
+### How to Use
+```bash
+npm run monitor:global
+# Opens dashboard + starts server on port 3033
+```
+
+---
+
+## 🎉 SESSION 9 ACHIEVEMENTS - REAL CONTEXT TRACKING COMPLETE!
+
+### Critical Fix Implemented
+**The monitoring system now uses REAL data from JSONL session files!**
+- ✅ Real-time file watching with chokidar (<200ms latency)
+- ✅ Actual token counts from Claude Code API responses
+- ✅ Auto-checkpoint triggers at 70%/85%/95% thresholds
+- ✅ Integration with dev-docs 3-file pattern for state conservation
+- ✅ NO MORE Math.random() simulations!
+
+### Completed Tasks
+
+#### 1. Real-Time Context Tracker ✅ COMPLETE
+- [x] Created `RealTimeContextTracker` class (`.claude/core/real-time-context-tracker.js`)
+- [x] Implemented chokidar file watching for JSONL sessions
+- [x] Real-time token extraction from API response usage data
+- [x] Session accumulation for context window tracking
+- [x] Automatic checkpoint triggers at configurable thresholds
+
+#### 2. Context Manager Update ✅ COMPLETE
+- [x] Created `context-manager-real.js` (replaces simulated version)
+- [x] Removed ALL Math.random() simulations
+- [x] Connected to real JSONL token data
+- [x] API endpoints serve REAL metrics
+
+#### 3. State Management Integration ✅ COMPLETE
+- [x] Integrated with StateManager for dev-docs pattern
+- [x] Checkpoint saves use efficient 3-file pattern
+- [x] Decisions recorded for audit trail
+- [x] Recovery instructions included in checkpoints
+
+#### 4. NPM Scripts Added ✅ COMPLETE
+- [x] `npm run context` - Start real-time context manager
+- [x] `npm run context:real` - Same as above
+- [x] `npm run context:old` - Legacy simulated version
+
+### Verified Working
+- ✅ Current session detected: `a6184b45-d4a2-47e5-82c9-52408d09e01c`
+- ✅ Real token counts: 89,878 tokens (44.9% context)
+- ✅ File watcher monitoring 51 JSONL files
+- ✅ Checkpoint triggers armed at 70%/85%/95%
 
 ---
 

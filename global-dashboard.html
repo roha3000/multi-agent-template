@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context Monitor</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --bg-card: #1c2128;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --success: #3fb950;
+            --warning: #d29922;
+            --danger: #f85149;
+            --critical: #ff6b6b;
+            --info: #58a6ff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* Alert Banner */
+        .alert-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 20px;
+            text-align: center;
+            font-weight: 600;
+            z-index: 1000;
+            display: none;
+        }
+
+        .alert-banner.warning {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(90deg, #d29922, #e8a832);
+            color: #000;
+        }
+
+        .alert-banner.critical {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(90deg, #f85149, #ff6b6b);
+            color: #fff;
+        }
+
+        .alert-banner.emergency {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(90deg, #ff0000, #cc0000);
+            color: #fff;
+            animation: flash 0.5s infinite;
+        }
+
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .copy-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid currentColor;
+            color: inherit;
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .copy-btn:hover { background: rgba(255,255,255,0.3); }
+
+        /* Header */
+        .header {
+            padding: 20px 30px;
+            padding-top: 80px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .status-dot.disconnected { background: var(--danger); }
+
+        .sound-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .sound-toggle input { width: 16px; height: 16px; }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Active Sessions Section */
+        .section-title {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Session Card - The Main Focus */
+        .session-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .session-card.warning { border-color: var(--warning); }
+        .session-card.critical { border-color: var(--danger); }
+        .session-card.emergency {
+            border-color: var(--critical);
+            animation: pulse-border 1s infinite;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(255, 107, 107, 0.1); }
+        }
+
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .session-name {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .session-path {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: 'SF Mono', Monaco, monospace;
+            margin-top: 4px;
+        }
+
+        .session-status {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .session-status.ok { background: rgba(63, 185, 80, 0.15); color: var(--success); }
+        .session-status.warning { background: rgba(210, 153, 34, 0.15); color: var(--warning); }
+        .session-status.critical { background: rgba(248, 81, 73, 0.15); color: var(--danger); }
+        .session-status.emergency { background: rgba(255, 0, 0, 0.15); color: var(--critical); }
+
+        /* The Big Number - Remaining Context */
+        .remaining-display {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        .remaining-value {
+            font-size: 72px;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .remaining-value.ok { color: var(--success); }
+        .remaining-value.warning { color: var(--warning); }
+        .remaining-value.critical { color: var(--danger); }
+        .remaining-value.emergency { color: var(--critical); }
+
+        .remaining-label {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+
+        .remaining-tokens {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin: 24px 0;
+        }
+
+        .progress-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .progress-bar {
+            height: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.3s, background 0.3s;
+        }
+
+        .progress-fill.ok { background: var(--success); }
+        .progress-fill.warning { background: var(--warning); }
+        .progress-fill.critical { background: var(--danger); }
+        .progress-fill.emergency { background: var(--critical); }
+
+        /* Threshold markers */
+        .progress-markers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        .marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .marker::after {
+            content: attr(data-label);
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        /* Action Buttons */
+        .session-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover { background: var(--border); }
+
+        .action-btn.primary {
+            background: var(--info);
+            border-color: var(--info);
+            color: #fff;
+        }
+
+        .action-btn.primary:hover { background: #4a8fd9; }
+
+        .action-btn.danger {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: #fff;
+        }
+
+        /* Inactive Projects - Collapsed */
+        .inactive-section {
+            margin-top: 32px;
+        }
+
+        .inactive-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .inactive-header:hover { background: var(--bg-tertiary); }
+
+        .inactive-list {
+            display: none;
+            margin-top: 8px;
+        }
+
+        .inactive-list.show { display: block; }
+
+        .inactive-item {
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .inactive-name { color: var(--text-secondary); }
+        .inactive-time { color: var(--text-secondary); font-size: 12px; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .empty-state-sub {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <!-- Alert Banner -->
+    <div class="alert-banner" id="alertBanner">
+        <span id="alertIcon">⚠️</span>
+        <span id="alertMessage">Alert message here</span>
+        <button class="copy-btn" onclick="copyCommand('/clear')">Copy /clear</button>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <h1>
+            <span class="status-dot" id="statusDot"></span>
+            Context Monitor
+        </h1>
+        <div class="sound-toggle">
+            <input type="checkbox" id="soundEnabled" checked>
+            <label for="soundEnabled">Sound Alerts</label>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="activeSessionsContainer">
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <div class="empty-state-text">No active sessions</div>
+                <div class="empty-state-sub">Start a Claude Code session to begin monitoring</div>
+            </div>
+        </div>
+
+        <!-- Inactive Projects (Collapsed) -->
+        <div class="inactive-section" id="inactiveSection" style="display: none;">
+            <div class="inactive-header" onclick="toggleInactive()">
+                <span id="inactiveCount">0 inactive projects</span>
+                <span id="inactiveToggle">▼</span>
+            </div>
+            <div class="inactive-list" id="inactiveList"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3033';
+        let soundEnabled = true;
+        let audioContext = null;
+        let lastAlertLevel = null;
+        let eventSource = null;
+
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playAlertSound(frequency = 800, duration = 0.3, count = 1) {
+            if (!soundEnabled) return;
+            initAudio();
+
+            for (let i = 0; i < count; i++) {
+                setTimeout(() => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    oscillator.frequency.value = frequency;
+                    oscillator.type = 'sine';
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + duration);
+                }, i * (duration * 1000 + 100));
+            }
+        }
+
+        function formatTokens(num) {
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+            return num.toLocaleString();
+        }
+
+        function getStatusClass(usedPercent) {
+            // Based on context remaining (100 - used)
+            // Thresholds: <25% remaining = emergency, <35% = critical, <50% = warning
+            const remaining = 100 - usedPercent;
+            if (remaining <= 25) return 'emergency';   // ≤25% remaining (~5k until compact)
+            if (remaining <= 35) return 'critical';    // ≤35% remaining (~25k until compact)
+            if (remaining <= 50) return 'warning';     // ≤50% remaining (~55k until compact)
+            return 'ok';
+        }
+
+        function copyCommand(cmd) {
+            navigator.clipboard.writeText(cmd);
+            // Brief visual feedback
+            event.target.textContent = 'Copied!';
+            setTimeout(() => { event.target.textContent = `Copy ${cmd}`; }, 1000);
+        }
+
+        function toggleInactive() {
+            const list = document.getElementById('inactiveList');
+            const toggle = document.getElementById('inactiveToggle');
+            list.classList.toggle('show');
+            toggle.textContent = list.classList.contains('show') ? '▲' : '▼';
+        }
+
+        function timeAgo(timestamp) {
+            const seconds = Math.floor((Date.now() - timestamp) / 1000);
+            if (seconds < 60) return 'just now';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}h ago`;
+            const days = Math.floor(hours / 24);
+            return `${days}d ago`;
+        }
+
+        function updateDisplay(data) {
+            const { projects } = data;
+
+            if (!projects || projects.length === 0) {
+                document.getElementById('activeSessionsContainer').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div class="empty-state-text">No projects found</div>
+                        <div class="empty-state-sub">Claude Code projects will appear here</div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Split active vs inactive
+            const active = projects.filter(p => p.status === 'active');
+            const inactive = projects.filter(p => p.status !== 'active');
+
+            // Find highest alert level for banner
+            let highestAlert = null;
+            let highestAlertProject = null;
+
+            // Render active sessions
+            const container = document.getElementById('activeSessionsContainer');
+
+            if (active.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💤</div>
+                        <div class="empty-state-text">No active sessions</div>
+                        <div class="empty-state-sub">Start a Claude Code session to begin monitoring</div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = active.map(project => {
+                    const used = project.metrics?.contextPercent || 0;
+                    const usedTokens = project.metrics?.contextUsed || 0;
+                    // Total remaining = 100% - used%
+                    // Free until auto-compact ≈ remaining - 22.5% buffer (but shown as remaining tokens)
+                    const totalRemaining = Math.max(0, 100 - used);
+                    const remainingTokens = Math.max(0, 200000 - usedTokens);
+                    // Tokens until auto-compact (subtracting 45k buffer)
+                    const tokensUntilCompact = Math.max(0, remainingTokens - 45000);
+                    const statusClass = getStatusClass(used);
+                    const safetyStatus = project.safetyStatus || 'OK';
+
+                    // Track highest alert
+                    if (safetyStatus === 'EMERGENCY') {
+                        highestAlert = 'EMERGENCY';
+                        highestAlertProject = project;
+                    } else if (safetyStatus === 'CRITICAL' && highestAlert !== 'EMERGENCY') {
+                        highestAlert = 'CRITICAL';
+                        highestAlertProject = project;
+                    } else if (safetyStatus === 'WARNING' && !highestAlert) {
+                        highestAlert = 'WARNING';
+                        highestAlertProject = project;
+                    }
+
+                    return `
+                        <div class="session-card ${statusClass !== 'ok' ? statusClass : ''}">
+                            <div class="session-header">
+                                <div>
+                                    <div class="session-name">${project.name}</div>
+                                    <div class="session-path">${project.path}</div>
+                                </div>
+                                <span class="session-status ${statusClass}">${safetyStatus}</span>
+                            </div>
+
+                            <div class="remaining-display">
+                                <div class="remaining-value ${statusClass}">${totalRemaining.toFixed(0)}%</div>
+                                <div class="remaining-label">context remaining</div>
+                                <div class="remaining-tokens">${formatTokens(tokensUntilCompact)} until auto-compact</div>
+                            </div>
+
+                            <div class="progress-container">
+                                <div class="progress-labels">
+                                    <span>Used: ${used.toFixed(1)}%</span>
+                                    <span>Auto-compact: 77.5%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill ${statusClass}" style="width: ${Math.min(used, 100)}%"></div>
+                                    <div class="progress-markers">
+                                        <div class="marker" style="left: 50%;" data-label="50%"></div>
+                                        <div class="marker" style="left: 65%;" data-label="65%"></div>
+                                        <div class="marker" style="left: 75%;" data-label="75%"></div>
+                                        <div class="marker" style="left: 77.5%; background: var(--critical);" data-label="⚡"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            ${statusClass !== 'ok' ? `
+                                <div class="session-actions">
+                                    <button class="action-btn ${statusClass === 'emergency' ? 'danger' : 'primary'}"
+                                            onclick="copyCommand('/clear')">
+                                        Copy /clear
+                                    </button>
+                                    <button class="action-btn" onclick="copyCommand('/session-init')">
+                                        Copy /session-init
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Update alert banner
+            const banner = document.getElementById('alertBanner');
+            const alertMessage = document.getElementById('alertMessage');
+            const alertIcon = document.getElementById('alertIcon');
+
+            if (highestAlert === 'EMERGENCY') {
+                banner.className = 'alert-banner emergency';
+                alertIcon.textContent = '🚨';
+                alertMessage.textContent = `${highestAlertProject.name}: Only ${(100 - highestAlertProject.metrics.contextPercent).toFixed(0)}% remaining - Run /clear NOW!`;
+                if (lastAlertLevel !== 'EMERGENCY') {
+                    playAlertSound(1000, 0.2, 5);
+                    showNotification('EMERGENCY', `Only ${(100 - highestAlertProject.metrics.contextPercent).toFixed(0)}% context remaining!`);
+                }
+                lastAlertLevel = 'EMERGENCY';
+            } else if (highestAlert === 'CRITICAL') {
+                banner.className = 'alert-banner critical';
+                alertIcon.textContent = '⚠️';
+                alertMessage.textContent = `${highestAlertProject.name}: ${(100 - highestAlertProject.metrics.contextPercent).toFixed(0)}% remaining - Clear soon`;
+                if (lastAlertLevel !== 'CRITICAL' && lastAlertLevel !== 'EMERGENCY') {
+                    playAlertSound(800, 0.3, 3);
+                    showNotification('Critical', `${(100 - highestAlertProject.metrics.contextPercent).toFixed(0)}% context remaining`);
+                }
+                lastAlertLevel = 'CRITICAL';
+            } else if (highestAlert === 'WARNING') {
+                banner.className = 'alert-banner warning';
+                alertIcon.textContent = '⚡';
+                alertMessage.textContent = `${highestAlertProject.name}: ${(100 - highestAlertProject.metrics.contextPercent).toFixed(0)}% remaining`;
+                if (!lastAlertLevel) {
+                    playAlertSound(600, 0.2, 2);
+                }
+                lastAlertLevel = 'WARNING';
+            } else {
+                banner.className = 'alert-banner';
+                lastAlertLevel = null;
+            }
+
+            // Update inactive section
+            const inactiveSection = document.getElementById('inactiveSection');
+            const inactiveList = document.getElementById('inactiveList');
+            const inactiveCount = document.getElementById('inactiveCount');
+
+            if (inactive.length > 0) {
+                inactiveSection.style.display = 'block';
+                inactiveCount.textContent = `${inactive.length} inactive project${inactive.length > 1 ? 's' : ''}`;
+                inactiveList.innerHTML = inactive.map(p => `
+                    <div class="inactive-item">
+                        <span class="inactive-name">${p.name}</span>
+                        <span class="inactive-time">${timeAgo(p.metrics?.lastUpdate)}</span>
+                    </div>
+                `).join('');
+            } else {
+                inactiveSection.style.display = 'none';
+            }
+        }
+
+        function showNotification(title, body) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(`Claude: ${title}`, { body });
+            }
+        }
+
+        function connect() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+
+            eventSource = new EventSource(`${API_URL}/api/events`);
+
+            eventSource.onopen = () => {
+                document.getElementById('statusDot').classList.remove('disconnected');
+                console.log('Connected to global tracker');
+            };
+
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateDisplay(data);
+                } catch (e) {
+                    console.error('Parse error:', e);
+                }
+            };
+
+            eventSource.onerror = () => {
+                document.getElementById('statusDot').classList.add('disconnected');
+                eventSource.close();
+                setTimeout(connect, 3000);
+            };
+        }
+
+        // Sound toggle
+        document.getElementById('soundEnabled').addEventListener('change', (e) => {
+            soundEnabled = e.target.checked;
+        });
+
+        // Initial connection
+        connect();
+    </script>
+</body>
+</html>
