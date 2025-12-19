@@ -88,10 +88,15 @@
       ".claude/core/**/*.js",
       "scripts/**/*.js",
       "!scripts/validate-traceability.js",
-      "!**/__tests__/**"
+      "!**/__tests__/**",
+      "!**/*.test.js"
     ],
     "testMatch": [
-      "**/__tests__/**/*.test.js"
+      "**/__tests__/**/*.test.js",
+      "**/*.test.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/"
     ],
     "coverageThreshold": {
       "global": {
@@ -100,6 +105,8 @@
         "lines": 30,
         "statements": 30
       }
-    }
+    },
+    "testTimeout": 10000,
+    "verbose": true
   }
 }
