@@ -55,6 +55,248 @@ Claude-Code-Usage-Monitor excels at **user-facing terminal UX** and **ML-based l
 
 ---
 
+## Visual Design & Dashboard Comparison
+
+This section provides a detailed comparison of the visual design elements between both projects.
+
+### Dashboard Architecture Comparison
+
+| Aspect | Claude-Code-Usage-Monitor | Multi-Agent-Template |
+|--------|--------------------------|---------------------|
+| **Platform** | Terminal (Rich library) | Web Browser (HTML/CSS/JS) |
+| **Rendering** | ANSI escape codes | DOM + CSS |
+| **Refresh Rate** | 0.1-20 Hz configurable | SSE (~2s intervals) |
+| **Responsive** | Terminal width adaptation | CSS media queries |
+| **Offline Support** | Full (local JSONL) | Requires server running |
+
+### Color System Comparison
+
+#### Claude-Code-Usage-Monitor (Terminal)
+```
+Light Theme (for light terminals):
+├── Header:  Deep blue (#00005f)     - 21:1 contrast ⭐
+├── Success: Dark green (#005f00)    - 15:1 contrast
+├── Warning: Dark orange (#d75f00)   - 8:1 contrast
+├── Error:   Dark red (#8b0000)      - 10:1 contrast
+└── Info:    Deep blue (#00005f)     - 21:1 contrast
+
+Dark Theme (for dark terminals):
+├── Header:  Light blue (#87d7ff)    - 14:1 contrast
+├── Success: Bright green (#87ff00)  - 15:1 contrast ⭐
+├── Warning: Bright orange (#ffaf00) - 11:1 contrast
+├── Error:   Light red (#ff5f5f)     - 8:1 contrast
+└── Info:    Light blue (#87d7ff)    - 14:1 contrast
+
+Classic Theme: Basic ANSI 16-color palette (maximum compatibility)
+```
+
+**Key Strength**: Scientific color selection with WCAG AA+ compliance (8:1+ contrast ratios)
+
+#### Multi-Agent-Template (Web)
+```css
+:root {
+    --bg-primary: #0d1117;      /* GitHub-dark inspired */
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --success: #3fb950;
+    --warning: #d29922;
+    --danger: #f85149;
+    --critical: #ff6b6b;
+    --info: #58a6ff;
+}
+```
+
+**Key Strength**: Modern dark theme with gradient alerts and animations
+
+### Progress Bar Comparison
+
+#### Claude-Code-Usage-Monitor
+```
+Token Progress:
+[████████████████░░░░░░░░░░░░░░] 52% | 104,000 / 200,000
+
+Color States:
+- 🟢 Green: <50% usage
+- 🟡 Yellow: 50-90% usage
+- 🔴 Red: ≥90% usage
+
+Features:
+- Scales with terminal width
+- Percentage + absolute numbers
+- Single-line compact display
+```
+
+#### Multi-Agent-Template
+```html
+┌─────────────────────────────────────────────────┐
+│  Context: 67% (134,000 / 200,000 tokens)        │
+│  ████████████████████░░░░░░░░░░░  67%           │
+│           ▲50%      ▲65%    ▲75%  ⚡77.5%       │
+│                                                  │
+│  Burn Rate: 1,247 tokens/min                    │
+│  Time Remaining: ~52 minutes                    │
+└─────────────────────────────────────────────────┘
+
+Features:
+- Threshold markers at 50%, 65%, 75%, 77.5% (auto-compact)
+- Animated pulse effect on emergency
+- Gradient fill colors
+```
+
+**Visual Advantages**:
+| Feature | Usage-Monitor | Multi-Agent |
+|---------|--------------|-------------|
+| Threshold markers | ❌ | ✅ Clear visual markers |
+| Animations | ❌ (terminal limitation) | ✅ Pulse, flash effects |
+| Big number display | ❌ | ✅ 72px hero percentage |
+| Compact single-line | ✅ | ❌ |
+| Works in SSH | ✅ | ❌ |
+
+### Information Density Comparison
+
+#### Claude-Code-Usage-Monitor Display Layout
+```
+╭─────────────────────── Claude Usage Monitor ───────────────────────╮
+│  Session: abc123                              Plan: Max5           │
+├────────────────────────────────────────────────────────────────────┤
+│  Tokens:  [████████████████░░░░░░░░] 67% (58,960 / 88,000)        │
+│  Cost:    [██████████░░░░░░░░░░░░░░] 42% ($14.70 / $35.00)        │
+│  Messages:[████████░░░░░░░░░░░░░░░░] 32% (320 / 1,000)            │
+├────────────────────────────────────────────────────────────────────┤
+│  🔥 Burn Rate: 1,247 tokens/min | ⏰ ~24 min remaining            │
+│  💰 $4.32/hour | Session ends: 2:45 PM                            │
+╰────────────────────────────────────────────────────────────────────╯
+
+ Daily Summary                    Monthly Summary
+┌──────────────────────────────┐ ┌──────────────────────────────┐
+│ Date       Tokens    Cost    │ │ Month      Tokens    Cost    │
+├──────────────────────────────┤ ├──────────────────────────────┤
+│ Dec 20     145,230   $12.45  │ │ Dec 2025   1.2M      $89.50  │
+│ Dec 19     132,100   $11.20  │ │ Nov 2025   980K      $72.30  │
+│ Dec 18     98,450    $8.90   │ │ Oct 2025   1.1M      $85.20  │
+└──────────────────────────────┘ └──────────────────────────────┘
+```
+
+**Strengths**:
+- Multiple metrics visible simultaneously (tokens, cost, messages)
+- Tabular historical views (daily/monthly)
+- Burn rate + time projection in compact format
+
+#### Multi-Agent-Template Display Layout
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 🔴 CRITICAL: Only 35% remaining - Clear soon                   │
+│                                            [Copy /clear]        │
+└─────────────────────────────────────────────────────────────────┘
+
+┌── Continuous Loop Active ──────────────────────────────────────┐
+│ ⚡ Session: 3  │ Completed: 2 │ Tokens: 245k │ Cost: $18.50   │
+│                                                                 │
+│ [🔄 S1: 65%] [✅ S2: 72%] [⚡ S3: Running...]                  │
+└─────────────────────────────────────────────────────────────────┘
+
+┌── Current Phase ───────┐  ┌── Quality Score ──────────────────┐
+│ 🏗️ IMPLEMENT           │  │ Score: 87/100 (Min: 90)           │
+│ Iteration 2 of 10      │  │ ████████████████░░░░ Code: 85     │
+│ ○ ○ ● (history)        │  │ ███████████████░░░░░ Tests: 78    │
+└────────────────────────┘  └───────────────────────────────────┘
+
+┌── Task Progress ────────────────────────────────────────────────┐
+│ ████████████░░░░░░░░░░░░ 4/10                                  │
+│ ☑ Implement P90 calculator                                      │
+│ ☑ Add plan configuration                                        │
+│ ☑ Create burn rate module                                       │
+│ ☐ Update dashboard display  ← in progress                       │
+│ ☐ Add theme system                                              │
+└─────────────────────────────────────────────────────────────────┘
+
+┌── my-project ──────────────────────────────────────────────────┐
+│                          35%                                    │
+│                     CONTEXT REMAINING                           │
+│                    (70,000 tokens left)                         │
+│                                                                 │
+│ ████████████████████████████░░░░░░░░░░░░ 65%                   │
+│             ▲50%        ▲65%      ▲75%  ⚡77.5%                 │
+│                                                                 │
+│ [Copy /clear]                    [Copy /session-init]           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Strengths**:
+- Big hero number (72px) for quick glance
+- Session series history with visual chips
+- Quality gate scoring with criteria breakdown
+- Todo list with progress
+- Phase-based execution visibility
+- Autonomous orchestration status
+
+### Visual Elements Worth Adopting
+
+#### From Claude-Code-Usage-Monitor → Multi-Agent-Template
+
+| Element | Description | Implementation Effort |
+|---------|-------------|----------------------|
+| **Multi-Metric Progress Bars** | Show tokens, cost, AND messages side-by-side | 3-4 hours |
+| **Burn Rate Display** | "1,247 tokens/min \| ~24 min remaining" | 2-3 hours |
+| **Time Projection** | "Session ends: 2:45 PM" | 1-2 hours |
+| **Daily/Monthly Tables** | Tabular historical summaries | 6-8 hours |
+| **Light Theme** | WCAG-compliant light mode option | 4-5 hours |
+| **Model Usage Breakdown** | Stacked bar showing Opus/Sonnet/Haiku split | 3-4 hours |
+| **Plan Indicator Badge** | "Pro" / "Max5" / "Max20" badge in header | 1 hour |
+
+#### Visual Mockup: Enhanced Dashboard
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 🔴 CRITICAL: Only 35% remaining (~24 min) - Clear soon         │
+└─────────────────────────────────────────────────────────────────┘
+
+┌── my-project ─────────────────────────────── [Max5] ───────────┐
+│                                                                 │
+│                          35%                                    │
+│                     CONTEXT REMAINING                           │
+│              🔥 1,247 tokens/min | ⏰ ~24 min left              │
+│                                                                 │
+│ Tokens:   ████████████████████████████░░░░░░░░░ 65% (57k/88k)  │
+│ Cost:     ██████████████░░░░░░░░░░░░░░░░░░░░░░ 42% ($14.70)    │
+│ Messages: ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 32% (320/1k)    │
+│                                                                 │
+│ Model Usage: [████ Opus 45%][██████ Sonnet 55%]                │
+│                                                                 │
+│ [Copy /clear]  [Copy /session-init]  [View Daily]  [Monthly]   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Recommended Visual Enhancements (Priority Order)
+
+1. **Add Burn Rate + Time Remaining** (Critical, 3h)
+   - Display tokens/minute in real-time
+   - Show projected time until threshold
+   - Add "Session ends at: X:XX PM"
+
+2. **Multi-Metric Progress Bars** (High, 4h)
+   - Add cost progress bar below tokens
+   - Add message count progress bar
+   - Stacked or side-by-side layout
+
+3. **Light Theme Support** (Medium, 5h)
+   - WCAG-compliant light color palette
+   - `prefers-color-scheme` media query detection
+   - Manual toggle in header
+
+4. **Plan Badge** (Low, 1h)
+   - Show current plan (Pro/Max5/Max20/Custom)
+   - Auto-detected or configured
+
+5. **View Mode Tabs** (Medium, 6h)
+   - Realtime (current) / Daily / Monthly tabs
+   - Table views for historical data
+   - SQLite aggregation queries
+
+---
+
 ## Best Elements to Incorporate
 
 ### Priority 1: High-Impact, Low-Effort (Recommended for Immediate Implementation)
