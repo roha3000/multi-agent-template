@@ -359,12 +359,34 @@ User requirement: "Manual tracking is a non-starter. I want fully automated and 
 
 ## Next Phase Options (After Deployment)
 
+### 🔗 INTEGRATION OPPORTUNITY: Claude-Code-Usage-Monitor Features
+**Research Document**: `.claude/research/claude-usage-monitor-integration-proposal.md`
+**Status**: Proposal Complete - Ready for Implementation
+
+The following features from Claude-Code-Usage-Monitor (6k+ GitHub stars) are recommended for integration and align with Options A & C below:
+
+| Feature | Aligns With | Effort | Priority |
+|---------|-------------|--------|----------|
+| P90 Limit Detection (ML-based) | Option A | 4-6h | Critical |
+| Burn Rate + Time Projection | Option A | 3-4h | High |
+| Subscription Plans (Pro/Max5/Max20) | Existing claude-limit-tracker.js | 2-3h | High |
+| View Modes (Realtime/Daily/Monthly) | Option C | 6-8h | Medium |
+| WCAG Theme System | Option C | 4-5h | Medium |
+
+⚠️ **Alignment Note**: Existing `claude-limit-tracker.js` uses Free/Pro/Team plans.
+Claude-Code-Usage-Monitor uses Pro/Max5/Max20. Need to reconcile or support both.
+
+---
+
 ### Option A: Predictive Analytics (8 hours)
+**🔗 Enhanced by Claude-Code-Usage-Monitor integration**
 - Token usage forecasting per project
-- Context exhaustion predictions
+- Context exhaustion predictions ← **P90 algorithm provides this**
 - Cost optimization recommendations
 - Session pattern analysis
-- ML-based trend analysis
+- ML-based trend analysis ← **P90 percentile calculation**
+- **NEW**: Burn rate display (tokens/min, time remaining)
+- **NEW**: Session gap detection for accurate predictions
 
 ### Option B: Multi-Model Support (8 hours)
 - Extend to GPT-4 tracking
@@ -374,11 +396,15 @@ User requirement: "Manual tracking is a non-starter. I want fully automated and 
 - Model performance analytics
 
 ### Option C: Advanced Visualizations (6 hours)
+**🔗 Enhanced by Claude-Code-Usage-Monitor integration**
 - Interactive charts and graphs
-- Historical trend analysis
+- Historical trend analysis ← **Daily/Monthly view modes**
 - Cost breakdown visualizations
 - Session timeline views
 - Export to PDF reports
+- **NEW**: Multi-metric progress bars (tokens, cost, messages)
+- **NEW**: Light/Dark theme with WCAG compliance
+- **NEW**: Model usage breakdown (stacked bar)
 
 ### Option D: Enterprise Features (10 hours)
 - Team usage tracking

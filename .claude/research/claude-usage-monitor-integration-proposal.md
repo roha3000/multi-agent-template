@@ -389,6 +389,16 @@ Context: 67% (134,000 / 200,000 tokens)
 **Impact**: High
 **Effort**: 2-3 hours
 
+> ⚠️ **ALIGNMENT NOTE - Existing Plan System**
+> The `claude-limit-tracker.js` already implements plan support with **Free/Pro/Team** tiers.
+> Claude-Code-Usage-Monitor uses **Pro/Max5/Max20** (context limits, not API limits).
+> These are complementary systems:
+> - **claude-limit-tracker.js**: API rate limits (requests/min, requests/day)
+> - **Claude-Code-Usage-Monitor plans**: Context window limits (token thresholds)
+>
+> **Recommendation**: Extend existing system to support both plan taxonomies.
+> See `.claude/dev-docs/tasks.md` for integration notes.
+
 **Current Gap**: Multi-agent-template assumes 200k context for everyone. Pro users have ~19k tokens, Max5 has ~88k.
 
 **Proposed Configuration**:
