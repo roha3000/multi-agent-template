@@ -415,6 +415,38 @@ Claude-Code-Usage-Monitor uses Pro/Max5/Max20. Need to reconcile or support both
 
 ---
 
+### 🆕 Option E: Task Management & Backlog UI (21-29 hours)
+**🔗 New requirement - Dashboard task tracking with read/write capability**
+**Research Document**: `.claude/research/claude-usage-monitor-integration-proposal.md#task-management--backlog-ui-requirements`
+
+**Current Gap**: Dashboard shows in-flight tasks (read-only). Cannot toggle, add, edit, or view backlog.
+
+**Proposed Features**:
+
+| Phase | Feature | Effort | Priority |
+|-------|---------|--------|----------|
+| **1** | Toggle task completion from UI | 3-4h | 🔴 Critical |
+| **2** | Backlog view with filtering | 4-6h | 🟡 High |
+| **3** | Add/Edit/Delete tasks | 4-5h | 🟡 High |
+| **4** | Kanban board view | 6-8h | 🟢 Medium |
+| **5** | Drag-and-drop reordering | 4-6h | ⚪ Low |
+
+**New API Endpoints Required**:
+- `POST /api/todos` - Create task
+- `PUT /api/todos/:id` - Update task
+- `PATCH /api/todos/:id/status` - Toggle completion
+- `DELETE /api/todos/:id` - Delete task
+- `GET /api/todos/backlog` - View backlog
+
+**Markdown Sync**: Bidirectional sync with `.claude/dev-docs/tasks.md` preserving format
+
+**Integration Points**:
+- P90 Limit Detection → Show task as blocked if near context limit
+- Burn Rate → Estimate completion time based on token velocity
+- Quality Gates → Auto-block tasks if phase score < threshold
+
+---
+
 ## Progress Summary
 
 ### OpenTelemetry Implementation

@@ -269,6 +269,185 @@ Features:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+---
+
+## Task Management & Backlog UI Requirements
+
+This section addresses the need for comprehensive task tracking with read/write capability.
+
+### Current State Analysis
+
+**What exists now:**
+```
+┌── Task Progress Panel (Read-Only) ─────────────────────────────┐
+│ ████████████░░░░░░░░░░░░ 4/10                                  │
+│ ☑ Implement P90 calculator                                      │
+│ ☑ Add plan configuration                                        │
+│ ☐ Update dashboard display                                      │
+│ ☐ Add theme system                                              │
+└─────────────────────────────────────────────────────────────────┘
+
+Data Source: .claude/dev-docs/tasks.md (parsed markdown checkboxes)
+API: GET /api/execution/todos (read-only)
+```
+
+**Current Limitations:**
+| Capability | Status | Gap |
+|------------|--------|-----|
+| View in-flight tasks | ✅ Works | - |
+| Toggle task completion | ❌ Missing | No write API |
+| View backlog (future tasks) | ❌ Missing | Only parses current session |
+| Add new tasks | ❌ Missing | No creation endpoint |
+| Edit task text | ❌ Missing | No update endpoint |
+| Task categories/phases | ❌ Missing | Flat list only |
+| Priority indicators | ❌ Missing | No priority field |
+| Drag-and-drop reorder | ❌ Missing | Static order |
+
+### Proposed Task Management System
+
+#### Data Model Enhancement
+
+```javascript
+// Current: Simple todo object
+{ completed: boolean, text: string }
+
+// Proposed: Rich task object
+{
+  id: string,                    // Unique identifier
+  text: string,                  // Task description
+  status: 'pending' | 'in_progress' | 'completed' | 'blocked',
+  priority: 'critical' | 'high' | 'medium' | 'low',
+  phase: 'research' | 'design' | 'implement' | 'test' | null,
+  category: 'backlog' | 'current' | 'completed',
+  createdAt: ISO8601,
+  completedAt: ISO8601 | null,
+  blockedBy: string | null,      // Reference to blocking task
+  order: number                  // For drag-and-drop ordering
+}
+```
+
+#### API Endpoints (New)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/todos` | Get all tasks with filtering |
+| `GET` | `/api/todos/backlog` | Get backlog tasks only |
+| `GET` | `/api/todos/current` | Get in-flight tasks only |
+| `POST` | `/api/todos` | Create new task |
+| `PUT` | `/api/todos/:id` | Update task (text, status, priority) |
+| `PATCH` | `/api/todos/:id/status` | Toggle completion status |
+| `PATCH` | `/api/todos/:id/order` | Reorder task (for drag-drop) |
+| `DELETE` | `/api/todos/:id` | Delete task |
+
+**Query Parameters for GET /api/todos:**
+- `?status=pending,in_progress` - Filter by status
+- `?phase=implement` - Filter by phase
+- `?category=backlog` - Filter by category
+- `?priority=critical,high` - Filter by priority
+
+#### UI Components (New)
+
+```
+┌── Task Management Dashboard ─────────────────────────────────────┐
+│                                                                   │
+│  [+ Add Task]  [Filter ▼]  [View: Kanban | List]                 │
+│                                                                   │
+│  ┌─ BACKLOG (12) ─────┐  ┌─ IN PROGRESS (3) ─┐  ┌─ DONE (8) ────┐│
+│  │ ○ Add P90 calc   🔴│  │ ● Update UI    🟡│  │ ✓ Research   ││
+│  │ ○ Burn rate      🟡│  │ ● Fix SSE     🟡│  │ ✓ Design     ││
+│  │ ○ Theme system   🟢│  │ ● Add tests   🟢│  │ ✓ API layer  ││
+│  │ ○ View modes     🟢│  │                  │  │              ││
+│  │ [drag to reorder]  │  │                  │  │              ││
+│  └─────────────────────┘  └──────────────────┘  └──────────────┘│
+│                                                                   │
+│  Legend: 🔴 Critical  🟡 High  🟢 Medium  ⚪ Low                  │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+#### Markdown Sync Strategy
+
+**Problem**: tasks.md is the source of truth, but dashboard needs write capability.
+
+**Solution**: Bidirectional sync with markdown preservation
+
+```javascript
+// Write changes back to tasks.md
+async function updateTaskInMarkdown(taskId, updates) {
+  const content = await fs.readFile(TASKS_PATH, 'utf-8');
+
+  // Find and update the specific checkbox line
+  const updated = content.replace(
+    /- \[[ xX]\] (.+)/g,
+    (match, text) => {
+      if (generateId(text) === taskId) {
+        const checkbox = updates.completed ? 'x' : ' ';
+        return `- [${checkbox}] ${updates.text || text}`;
+      }
+      return match;
+    }
+  );
+
+  await fs.writeFile(TASKS_PATH, updated, 'utf-8');
+  return parseTasksMarkdown(updated);
+}
+```
+
+#### Implementation Phases
+
+| Phase | Features | Effort | Priority |
+|-------|----------|--------|----------|
+| **Phase 1** | Toggle completion from UI | 3-4h | Critical |
+| **Phase 2** | Backlog view with filters | 4-6h | High |
+| **Phase 3** | Add/Edit/Delete tasks | 4-5h | High |
+| **Phase 4** | Kanban board view | 6-8h | Medium |
+| **Phase 5** | Drag-and-drop reordering | 4-6h | Low |
+
+**Total Effort**: 21-29 hours
+
+### Backlog View Mockup
+
+```
+┌── Backlog Management ────────────────────────────────────────────┐
+│                                                                   │
+│  📋 BACKLOG                                    [+ Add Task]       │
+│                                                                   │
+│  Filter: [All Phases ▼] [All Priorities ▼] [Search...        ]  │
+│                                                                   │
+│  ┌─ Option A: Predictive Analytics ──────────────────────────┐   │
+│  │ 🔴 P90 Limit Detection (ML-based)           [research] 4-6h│   │
+│  │ 🟡 Burn Rate + Time Projection              [implement] 3-4h│   │
+│  │ 🟡 Session Gap Detection                    [implement] 2-3h│   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                   │
+│  ┌─ Option C: Advanced Visualizations ────────────────────────┐   │
+│  │ 🟢 View Modes (Realtime/Daily/Monthly)      [design] 6-8h  │   │
+│  │ 🟢 WCAG Theme System                        [design] 4-5h  │   │
+│  │ 🟢 Multi-metric Progress Bars               [implement] 3-4h│   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                   │
+│  ┌─ Task Management ──────────────────────────────────────────┐   │
+│  │ 🔴 Toggle completion from UI                [implement] 3-4h│   │
+│  │ 🟡 Backlog view with filters                [implement] 4-6h│   │
+│  │ 🟡 Add/Edit/Delete tasks                    [implement] 4-5h│   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                   │
+│  Total: 15 tasks | Est: 45-60 hours                              │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### Integration with Claude-Code-Usage-Monitor Features
+
+The task management system integrates with proposed features:
+
+| Feature | Task Integration |
+|---------|------------------|
+| **P90 Limit Detection** | Show task as blocked if near context limit |
+| **Burn Rate** | Estimate time to complete based on token velocity |
+| **View Modes** | Daily/Monthly task completion history |
+| **Quality Gates** | Auto-block tasks if phase quality score < threshold |
+
+---
+
 ### Recommended Visual Enhancements (Priority Order)
 
 1. **Add Burn Rate + Time Remaining** (Critical, 3h)
