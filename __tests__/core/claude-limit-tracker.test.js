@@ -374,6 +374,9 @@ describe('ClaudeLimitTracker', () => {
         freeTracker.recordCall(1000);
       }
 
+      // Reset minute window to test day limit only
+      freeTracker.windows.minute.calls = 0;
+
       const result = freeTracker.canMakeCall(1000);
 
       expect(result.level).toBe('WARNING');
@@ -457,10 +460,13 @@ describe('ClaudeLimitTracker', () => {
 
   describe('safety recommendations', () => {
     test('should recommend wrap-up at critical level', () => {
-      // Fill to 90%
+      // Fill to 90% of daily limit
       for (let i = 0; i < 900; i++) {
         tracker.recordCall(100);
       }
+
+      // Reset minute window to test day limit only
+      tracker.windows.minute.calls = 0;
 
       const result = tracker.canMakeCall(100);
 
@@ -469,10 +475,13 @@ describe('ClaudeLimitTracker', () => {
     });
 
     test('should not recommend halt until emergency', () => {
-      // Fill to 90%
+      // Fill to 90% of daily limit
       for (let i = 0; i < 900; i++) {
         tracker.recordCall(100);
       }
+
+      // Reset minute window to test day limit only
+      tracker.windows.minute.calls = 0;
 
       const result = tracker.canMakeCall(100);
 
@@ -503,10 +512,13 @@ describe('ClaudeLimitTracker', () => {
         }
       });
 
-      // Fill to 65% (above custom warning threshold)
+      // Fill to 65% of daily limit (above custom warning threshold)
       for (let i = 0; i < 650; i++) {
         customTracker.recordCall(100);
       }
+
+      // Reset minute window to test day limit only
+      customTracker.windows.minute.calls = 0;
 
       const result = customTracker.canMakeCall(100);
 
@@ -514,15 +526,15 @@ describe('ClaudeLimitTracker', () => {
     });
 
     test('should apply thresholds to all limit types', () => {
-      // Test minute limit warning
-      for (let i = 0; i < 4; i++) {
+      // Test minute limit warning (3 + 1 projection = 4/5 = 80%)
+      for (let i = 0; i < 3; i++) {
         tracker.recordCall(1000);
       }
 
       const minuteResult = tracker.canMakeCall(1000);
       expect(minuteResult.level).toBe('WARNING');
 
-      // Reset and test day limit warning
+      // Reset and test day limit warning (800 + 1 projection = 801/1000 = 80.1%)
       tracker.windows.minute.calls = 0;
       tracker.windows.day.calls = 800; // 80% of 1000
 
