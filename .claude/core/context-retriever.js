@@ -46,7 +46,7 @@ class ContextRetriever {
     // Dependencies
     this.memoryStore = deps.memoryStore;
     this.vectorStore = deps.vectorStore;
-    this.tokenCounter = TokenCounter;
+    this.tokenCounter = new TokenCounter({ memoryStore: deps.memoryStore });
     this.logger = createComponentLogger('ContextRetriever');
 
     // Configuration
