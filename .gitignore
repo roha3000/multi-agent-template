@@ -84,4 +84,10 @@ temp/
 actual-projects/
 test-projects/
 test-temp/
-*.backup__tests__/integration/test-otlp-*.db
+*.backup
+
+# Test database artifacts
+__tests__/integration/test-otlp-*.db
+__tests__/core/test-*.db
+*.db-shm
+*.db-wal
