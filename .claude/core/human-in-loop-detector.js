@@ -72,7 +72,9 @@ class HumanInLoopDetector {
         keywords: [
           'architecture decision', 'design choice', 'technical approach',
           'trade-off', 'technology selection', 'framework choice',
-          'should we use', 'which approach', 'better to'
+          'should we use', 'which approach', 'better to',
+          'decide whether', 'choose between', 'which database',
+          'which framework', 'decide', 'architecture'
         ],
         confidence: 0.85,
         reason: 'Design/architecture decision requires review'
@@ -183,6 +185,11 @@ class HumanInLoopDetector {
       };
     }
 
+    // Handle null/undefined context
+    if (!context) {
+      context = {};
+    }
+
     const {
       task = '',
       phase = 'unknown',
@@ -254,6 +261,15 @@ class HumanInLoopDetector {
       adjustedConfidence = (topMatch.baseConfidence * 0.7) + (accuracy.precision * 0.3);
     }
 
+    // Reduce confidence for safe contexts (documentation, testing, writing)
+    const safeContextKeywords = ['write', 'documentation', 'tests for', 'test', 'example', 'tutorial', 'guide'];
+    const hasSafeContext = safeContextKeywords.some(keyword => text.includes(keyword));
+
+    if (hasSafeContext && topMatch.pattern === 'highRisk') {
+      // Reduce confidence by 20% for safe contexts
+      adjustedConfidence = adjustedConfidence * 0.8;
+    }
+
     // Boost confidence if multiple patterns match
     if (matches.length > 1) {
       adjustedConfidence = Math.min(0.99, adjustedConfidence * 1.1);
@@ -315,7 +331,11 @@ class HumanInLoopDetector {
 
     if (!detection) {
       this.logger.error('Detection not found', { detectionId });
-      return;
+      return {
+        success: false,
+        error: 'Detection not found',
+        stats: this.learningData.stats
+      };
     }
 
     const feedbackRecord = {
@@ -362,6 +382,31 @@ class HumanInLoopDetector {
 
     // Persist learning data
     this._saveLearningData();
+
+    // Save feedback to database
+    if (this.memoryStore) {
+      try {
+        const stmt = this.memoryStore.db.prepare(`
+          INSERT INTO human_in_loop_feedback (
+            detection_id, timestamp, was_correct, actual_need, comment, pattern, confidence
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        stmt.run(
+          detectionId,
+          feedbackRecord.timestamp,
+          feedback.wasCorrect ? 1 : 0,
+          feedback.actualNeed,
+          feedback.comment || '',
+          feedbackRecord.pattern,
+          feedbackRecord.confidence
+        );
+      } catch (error) {
+        this.logger.warn('Failed to save feedback to database', {
+          error: error.message
+        });
+      }
+    }
 
     this.logger.info('Feedback recorded', {
       detectionId,
@@ -669,6 +714,21 @@ class HumanInLoopDetector {
 
         CREATE INDEX IF NOT EXISTS idx_human_loop_pattern
         ON human_loop_detections(pattern);
+
+        CREATE TABLE IF NOT EXISTS human_in_loop_feedback (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          detection_id TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          was_correct INTEGER NOT NULL,
+          actual_need TEXT NOT NULL,
+          comment TEXT,
+          pattern TEXT,
+          confidence REAL,
+          created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_feedback_detection
+        ON human_in_loop_feedback(detection_id);
       `);
     } catch (error) {
       this.logger.warn('Failed to create human loop tables', {
@@ -688,7 +748,7 @@ class HumanInLoopDetector {
 
     try {
       const stmt = this.memoryStore.db.prepare(`
-        SELECT data FROM human_loop_learning
+        SELECT data FROM human_in_loop_learning
         WHERE id = 'current'
       `);
 
@@ -712,7 +772,7 @@ class HumanInLoopDetector {
       // Table might not exist
       try {
         this.memoryStore.db.exec(`
-          CREATE TABLE IF NOT EXISTS human_loop_learning (
+          CREATE TABLE IF NOT EXISTS human_in_loop_learning (
             id TEXT PRIMARY KEY,
             data TEXT NOT NULL,
             updated_at INTEGER NOT NULL
@@ -739,7 +799,7 @@ class HumanInLoopDetector {
       const data = JSON.stringify(this.learningData);
 
       const stmt = this.memoryStore.db.prepare(`
-        INSERT OR REPLACE INTO human_loop_learning (id, data, updated_at)
+        INSERT OR REPLACE INTO human_in_loop_learning (id, data, updated_at)
         VALUES ('current', ?, ?)
       `);
 
