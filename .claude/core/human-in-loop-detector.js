@@ -449,6 +449,7 @@ class HumanInLoopDetector {
         learned: this.learningData.customPatterns.length,
         total: Object.keys(this.patterns).length + this.learningData.customPatterns.length
       },
+      patternsLearned: this.learningData.customPatterns.length,
       statistics: { ...this.learningData.stats },
       patternAccuracy: { ...this.learningData.patternAccuracy },
       recentFeedback: this.learningData.userFeedback.slice(-10)
@@ -671,30 +672,49 @@ class HumanInLoopDetector {
   _adaptThresholds() {
     const stats = this.learningData.stats;
 
-    // If precision is low (too many false positives), increase threshold
-    if (stats.precision < 0.7 && stats.falsePositives > 5) {
-      this.options.confidenceThreshold = Math.min(
-        0.95,
-        this.options.confidenceThreshold + 0.05
-      );
+    // Calculate total feedback received
+    const totalPredictedPositive = stats.truePositives + stats.falsePositives;
+    const totalActualPositive = stats.truePositives + stats.falseNegatives;
 
-      this.logger.info('Threshold increased due to low precision', {
-        newThreshold: this.options.confidenceThreshold,
-        precision: stats.precision.toFixed(2)
-      });
+    // If precision is low (too many false positives), increase threshold
+    // Adapt if we have at least 2 detections and precision < 70%
+    if (totalPredictedPositive >= 2) {
+      if (stats.precision < 0.7) {
+        const oldThreshold = this.options.confidenceThreshold;
+        this.options.confidenceThreshold = Math.min(
+          0.95,
+          oldThreshold + 0.05
+        );
+
+        this.logger.info('Threshold increased due to low precision', {
+          oldThreshold,
+          newThreshold: this.options.confidenceThreshold,
+          precision: stats.precision,
+          falsePositives: stats.falsePositives,
+          truePositives: stats.truePositives
+        });
+        return; // Only adapt once per call
+      }
     }
 
     // If recall is low (too many false negatives), decrease threshold
-    if (stats.recall < 0.7 && stats.falseNegatives > 5) {
-      this.options.confidenceThreshold = Math.max(
-        0.5,
-        this.options.confidenceThreshold - 0.05
-      );
+    // Adapt if we have at least 2 instances where human review was actually needed
+    if (totalActualPositive >= 2) {
+      if (stats.recall < 0.7) {
+        const oldThreshold = this.options.confidenceThreshold;
+        this.options.confidenceThreshold = Math.max(
+          0.5,
+          oldThreshold - 0.05
+        );
 
-      this.logger.info('Threshold decreased due to low recall', {
-        newThreshold: this.options.confidenceThreshold,
-        recall: stats.recall.toFixed(2)
-      });
+        this.logger.info('Threshold decreased due to low recall', {
+          oldThreshold,
+          newThreshold: this.options.confidenceThreshold,
+          recall: stats.recall,
+          falseNegatives: stats.falseNegatives,
+          truePositives: stats.truePositives
+        });
+      }
     }
   }
 
