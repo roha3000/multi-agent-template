@@ -263,8 +263,11 @@ describe('ClaudeLimitTracker', () => {
       expect(tracker.windows.day.calls).toBe(1);
     });
 
-    test('should update resetAt timestamp on reset', () => {
+    test('should update resetAt timestamp on reset', async () => {
       const oldResetAt = tracker.windows.minute.resetAt;
+
+      // Wait 2ms to ensure time has passed since construction
+      await new Promise(resolve => setTimeout(resolve, 2));
 
       tracker.windows.minute.resetAt = Date.now() - 1000;
       tracker._resetExpiredWindows();
