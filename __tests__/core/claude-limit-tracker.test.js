@@ -141,8 +141,7 @@ describe('ClaudeLimitTracker', () => {
     });
 
     test('should warn at 80% threshold', () => {
-      // Record calls to reach 80% of minute limit (4 of 5)
-      tracker.recordCall(1000);
+      // Record calls to reach 80% of minute limit when including next call (3 + 1 = 4/5 = 80%)
       tracker.recordCall(1000);
       tracker.recordCall(1000);
       tracker.recordCall(1000);
@@ -155,13 +154,16 @@ describe('ClaudeLimitTracker', () => {
     });
 
     test('should be critical at 90% threshold', () => {
-      // Record calls to reach 90% of minute limit
-      tracker.recordCall(1000);
-      tracker.recordCall(1000);
-      tracker.recordCall(1000);
-      tracker.recordCall(1000);
+      // Record calls to reach 90% of daily limit (900 of 1000)
+      // Making one more call would put us at 901/1000 = 90.1%
+      for (let i = 0; i < 900; i++) {
+        tracker.recordCall(100);
+      }
 
-      const result = tracker.canMakeCall(1000);
+      // Reset minute window so only day limit is checked
+      tracker.windows.minute.calls = 0;
+
+      const result = tracker.canMakeCall(100);
 
       expect(result.level).toContain('CRITICAL');
     });

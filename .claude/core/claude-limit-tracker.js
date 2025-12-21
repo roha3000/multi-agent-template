@@ -182,22 +182,36 @@ class ClaudeLimitTracker {
       };
     }
 
+    // Check with projection for next call
+    return this._checkLimits(estimatedTokens, true);
+  }
+
+  /**
+   * Check limits with optional projection
+   * @private
+   * @param {number} estimatedTokens - Estimated tokens for next call
+   * @param {boolean} projectNextCall - Whether to include next call in calculation
+   * @returns {Object} Check result
+   */
+  _checkLimits(estimatedTokens = 1000, projectNextCall = true) {
     this._resetExpiredWindows();
 
     // Check all constraints
-    // For requests: check all windows
+    // For requests: optionally include next request in calculation
     // For tokens: add estimated tokens to check if next call would exceed
+    const requestIncrement = projectNextCall ? 1 : 0;
+
     const constraints = [
       {
         name: 'requests/minute',
-        current: this.windows.minute.calls,
+        current: this.windows.minute.calls + requestIncrement,
         limit: this.limits.requestsPerMinute,
         window: 'minute',
         type: 'requests'
       },
       {
         name: 'requests/day',
-        current: this.windows.day.calls,
+        current: this.windows.day.calls + requestIncrement,
         limit: this.limits.requestsPerDay,
         window: 'day',
         type: 'requests'
@@ -319,7 +333,8 @@ class ClaudeLimitTracker {
 
     this._resetExpiredWindows();
 
-    const check = this.canMakeCall(0);
+    // Check current status without projecting next call
+    const check = this._checkLimits(0, false);
 
     return {
       plan: this.plan,
