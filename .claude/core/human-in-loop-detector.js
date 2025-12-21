@@ -134,6 +134,9 @@ class HumanInLoopDetector {
       }
     };
 
+    // Detection tracking (Map for quick lookups)
+    this.detections = new Map();
+
     // Learning state
     this.learningData = {
       detections: [],           // Historical detection events
@@ -258,11 +261,16 @@ class HumanInLoopDetector {
 
     const requiresHuman = adjustedConfidence >= this.options.confidenceThreshold;
 
+    // Generate unique detection ID
+    const detectionId = `det-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     const result = {
       requiresHuman,
       confidence: adjustedConfidence,
       reason: topMatch.reason,
       pattern: topMatch.pattern,
+      matchedKeywords: topMatch.keywords,  // Add matched keywords to result
+      detectionId,
       matches,
       recommendation: this._getRecommendation(topMatch, adjustedConfidence),
       context: {
@@ -297,7 +305,13 @@ class HumanInLoopDetector {
    * @param {string} feedback.comment - Optional comment
    */
   async recordFeedback(detectionId, feedback) {
-    const detection = this.learningData.detections.find(d => d.id === detectionId);
+    // Try Map first for quick lookup
+    let detection = this.detections.get(detectionId);
+
+    // Fallback to array search
+    if (!detection) {
+      detection = this.learningData.detections.find(d => d.id === detectionId);
+    }
 
     if (!detection) {
       this.logger.error('Detection not found', { detectionId });
@@ -430,7 +444,7 @@ class HumanInLoopDetector {
    */
   async _recordDetection(result, context) {
     const detection = {
-      id: `detection-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: result.detectionId,  // Use the ID from result
       timestamp: Date.now(),
       requiresHuman: result.requiresHuman,
       confidence: result.confidence,
@@ -446,6 +460,7 @@ class HumanInLoopDetector {
     };
 
     this.learningData.detections.push(detection);
+    this.detections.set(result.detectionId, detection);  // Store in Map for quick lookup
     this.learningData.stats.totalDetections++;
 
     // Keep only last 1000 detections in memory
@@ -563,6 +578,14 @@ class HumanInLoopDetector {
     };
 
     this.learningData.customPatterns.push(learnedPattern);
+
+    // Also add to main patterns with learned_ prefix
+    const patternKey = `learned_${Date.now()}`;
+    this.patterns[patternKey] = {
+      keywords: newKeywords.slice(0, 5),
+      confidence: 0.6,
+      reason: `Learned pattern: ${feedback.comment || 'User indicated review needed'}`
+    };
 
     this.logger.info('Learned new pattern from feedback', {
       patternId: learnedPattern.id,
