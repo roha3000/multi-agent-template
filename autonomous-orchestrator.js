@@ -87,6 +87,7 @@ const state = {
   startTime: new Date(),
   task: CONFIG.task,
   currentTaskId: null, // Track current task being worked on
+  currentOrchestrationId: null, // Track current orchestration run
 };
 
 let claudeProcess = null;
@@ -102,6 +103,32 @@ const memoryStore = new MemoryStore({
 const taskManager = new TaskManager({
   tasksPath: path.join(CONFIG.projectPath, 'tasks.json'),
   memoryStore
+});
+
+// Set up TaskManager event listeners
+taskManager.on('task:created', (data) => {
+  console.log(`[TASK EVENT] Task created: ${data.task.id}`);
+});
+
+taskManager.on('task:updated', (data) => {
+  console.log(`[TASK EVENT] Task updated: ${data.taskId} -> ${data.updates.status || 'modified'}`);
+});
+
+taskManager.on('task:completed', (data) => {
+  console.log(`[TASK EVENT] Task completed: ${data.task.id}`);
+
+  // Record task completion in orchestration metadata
+  if (state.currentOrchestrationId) {
+    console.log(`[TASK EVENT] Task ${data.task.id} linked to orchestration ${state.currentOrchestrationId}`);
+  }
+});
+
+taskManager.on('task:phase-mismatch', (data) => {
+  console.log(`[TASK EVENT] Warning: Task ${data.task.id} phase (${data.taskPhase}) doesn't match requested phase (${data.requestedPhase})`);
+});
+
+taskManager.on('task:promoted', (data) => {
+  console.log(`[TASK EVENT] Task promoted: ${data.task.id} from '${data.from}' to '${data.to}'`);
 });
 
 // ============================================================================
@@ -530,7 +557,36 @@ async function main() {
       iteration: state.phaseIteration,
       exitReason: currentSessionData.exitReason,
       peakContext: currentSessionData.peakContext,
+      taskId: state.currentTaskId,
+      orchestrationId: state.currentOrchestrationId,
     });
+
+    // Record orchestration in MemoryStore
+    try {
+      const orchestrationId = memoryStore.recordOrchestration({
+        pattern: 'autonomous-phase',
+        task: state.task || `${state.currentPhase} phase execution`,
+        agentIds: ['autonomous-orchestrator'],
+        resultSummary: `Session ${state.totalSessions}: ${state.currentPhase} phase, iteration ${state.phaseIteration}`,
+        success: currentSessionData.exitReason === 'complete',
+        duration: null, // Could calculate from session start/end times
+        tokenCount: currentSessionData.peakContext || 0,
+        metadata: {
+          phase: state.currentPhase,
+          iteration: state.phaseIteration,
+          sessionNumber: state.totalSessions,
+          exitReason: currentSessionData.exitReason,
+          taskId: state.currentTaskId, // Link to task
+          peakContext: currentSessionData.peakContext,
+        },
+        workSessionId: `autonomous-run-${state.startTime.toISOString()}`,
+      });
+
+      state.currentOrchestrationId = orchestrationId;
+      console.log(`[ORCHESTRATION] Recorded session ${state.totalSessions} as ${orchestrationId}`);
+    } catch (err) {
+      console.log(`[ORCHESTRATION] Warning: Could not record orchestration: ${err.message}`);
+    }
 
     await postToDashboard('/api/series/session', {
       sessionNumber: state.totalSessions,
