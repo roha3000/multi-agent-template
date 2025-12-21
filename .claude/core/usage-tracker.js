@@ -93,6 +93,23 @@ class UsageTracker {
   }
 
   /**
+   * Track tokens (simple alias for recordUsage)
+   * Simplified method for tests that just need to track token usage
+   *
+   * @param {Object} usage - Usage data
+   * @param {number} usage.inputTokens - Input tokens
+   * @param {number} usage.outputTokens - Output tokens
+   * @param {string} usage.model - Model used
+   * @returns {Promise<string|null>} Usage record ID
+   */
+  async trackTokens(usage) {
+    return this.recordUsage({
+      orchestrationId: this.sessionId || `session-${Date.now()}`,
+      ...usage
+    });
+  }
+
+  /**
    * Record usage for an orchestration
    *
    * @param {Object} usage - Usage data
