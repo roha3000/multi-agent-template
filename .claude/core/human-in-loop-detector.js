@@ -240,12 +240,24 @@ class HumanInLoopDetector {
 
     // No matches - continue normally
     if (matches.length === 0) {
-      return {
+      const detectionId = `det-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const result = {
         requiresHuman: false,
         confidence: 0,
         reason: 'No concerning patterns detected',
-        matches: []
+        detectionId,
+        matches: [],
+        context: {
+          phase,
+          type,
+          taskPreview: task.substring(0, 100)
+        }
       };
+
+      // Still record detection for learning purposes
+      await this._recordDetection(result, context);
+
+      return result;
     }
 
     // Calculate final confidence score
