@@ -18,14 +18,14 @@ const StateManager = require('../../.claude/core/state-manager');
 const MemoryStore = require('../../.claude/core/memory-store');
 const UsageTracker = require('../../.claude/core/usage-tracker');
 const MessageBus = require('../../.claude/core/message-bus');
-const tokenCounter = require('../../.claude/core/token-counter');
+const TokenCounter = require('../../.claude/core/token-counter');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
 describe('OTLP-Checkpoint Integration', () => {
   let otlpReceiver, metricProcessor, bridge, orchestrator;
-  let checkpointOptimizer, stateManager, memoryStore, usageTracker, messageBus;
+  let checkpointOptimizer, stateManager, memoryStore, usageTracker, messageBus, tokenCounter;
   let testDbPath;
 
   beforeEach(async () => {
@@ -39,10 +39,12 @@ describe('OTLP-Checkpoint Integration', () => {
       sessionId: `test-${Date.now()}`
     });
 
-    stateManager = new StateManager(
-      { memoryStore },
-      { persistInterval: 100 }
-    );
+    tokenCounter = new TokenCounter({
+      model: 'claude-sonnet-4-20250514',
+      memoryStore: memoryStore
+    });
+
+    stateManager = new StateManager(__dirname);
 
     metricProcessor = new MetricProcessor({
       batchSize: 10,
@@ -119,13 +121,13 @@ describe('OTLP-Checkpoint Integration', () => {
 
   afterEach(async () => {
     // Cleanup
-    bridge.stop();
-    await orchestrator.stop();
-    await otlpReceiver.stop();
-    memoryStore.close();
+    if (bridge) bridge.stop();
+    if (orchestrator) await orchestrator.stop();
+    if (otlpReceiver) await otlpReceiver.stop();
+    if (memoryStore) memoryStore.close();
 
     // Remove test database
-    if (fs.existsSync(testDbPath)) {
+    if (testDbPath && fs.existsSync(testDbPath)) {
       fs.unlinkSync(testDbPath);
     }
   });
