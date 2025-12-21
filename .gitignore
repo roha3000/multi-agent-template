@@ -38,6 +38,10 @@ coverage/
 # nyc test coverage
 .nyc_output
 
+# Test artifacts
+__tests__/**/*.db
+__tests__/fixtures/test-agents/
+
 # Dependency directories
 node_modules/
 bower_components/
