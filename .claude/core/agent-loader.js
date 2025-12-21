@@ -282,6 +282,9 @@ class AgentLoader {
         return { agent, tagScore: matches };
       });
 
+      // Keep only agents with at least one tag match
+      candidates = candidates.filter(c => c.tagScore > 0);
+
       // Sort by tag score descending
       candidates.sort((a, b) => b.tagScore - a.tagScore);
 
