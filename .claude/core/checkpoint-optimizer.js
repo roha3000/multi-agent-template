@@ -87,6 +87,33 @@ class CheckpointOptimizer {
   }
 
   /**
+   * Check if a checkpoint should be created (simplified API)
+   * @param {number} contextTokens - Current context size
+   * @param {number} maxContextTokens - Maximum context limit
+   * @param {string} taskType - Type of task being executed
+   * @returns {Object} Checkpoint recommendation
+   */
+  shouldCheckpoint(contextTokens, maxContextTokens, taskType = 'unknown') {
+    const prediction = this.predictCheckpoint({
+      contextTokens,
+      maxContextTokens,
+      taskType,
+      estimatedRemaining: 5000
+    });
+
+    return {
+      should: prediction.shouldCheckpoint,
+      reason: prediction.shouldCheckpoint
+        ? `Context at ${(prediction.currentUtilization * 100).toFixed(1)}% (threshold: ${(this.thresholds.context * 100).toFixed(0)}%)`
+        : `Below threshold (${(prediction.currentUtilization * 100).toFixed(1)}%)`,
+      utilizationPercent: prediction.currentUtilization * 100,
+      urgency: prediction.urgency,
+      tokensUntilThreshold: prediction.tokensUntilThreshold,
+      confidence: prediction.confidence
+    };
+  }
+
+  /**
    * Predict optimal checkpoint timing
    * @param {Object} currentState - Current execution state
    * @returns {Object} Prediction result
