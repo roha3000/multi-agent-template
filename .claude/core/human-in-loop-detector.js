@@ -270,7 +270,13 @@ class HumanInLoopDetector {
 
     if (this.learningData.patternAccuracy[topMatch.pattern]) {
       const accuracy = this.learningData.patternAccuracy[topMatch.pattern];
-      adjustedConfidence = (topMatch.baseConfidence * 0.7) + (accuracy.precision * 0.3);
+      const totalSamples = accuracy.truePositives + accuracy.falsePositives + accuracy.trueNegatives + accuracy.falseNegatives;
+
+      // Be less aggressive with confidence adjustment - only apply after enough samples
+      // Use 90% base confidence and 10% precision to avoid over-reacting to initial feedback
+      if (totalSamples >= 3) {
+        adjustedConfidence = (topMatch.baseConfidence * 0.9) + (accuracy.precision * 0.1);
+      }
     }
 
     // Reduce confidence for safe contexts (documentation, testing, writing)
@@ -677,8 +683,8 @@ class HumanInLoopDetector {
     const totalActualPositive = stats.truePositives + stats.falseNegatives;
 
     // If precision is low (too many false positives), increase threshold
-    // Adapt if we have at least 2 detections and precision < 70%
-    if (totalPredictedPositive >= 2) {
+    // Adapt if we have at least 3 detections and precision < 70%
+    if (totalPredictedPositive >= 3) {
       if (stats.precision < 0.7) {
         const oldThreshold = this.options.confidenceThreshold;
         this.options.confidenceThreshold = Math.min(
