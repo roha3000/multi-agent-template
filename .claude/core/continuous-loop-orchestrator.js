@@ -346,18 +346,25 @@ class ContinuousLoopOrchestrator extends EventEmitter {
    * @private
    */
   async _checkContextWindow(operation) {
-    if (!this.usageTracker) {
+    if (!this.usageTracker && !this.otlpBridge) {
       return {
         safe: true,
         level: 'OK',
         action: 'CONTINUE',
         utilization: 0,
-        message: 'Context monitoring unavailable (no usage tracker)'
+        message: 'Context monitoring unavailable (no usage tracker or OTLP bridge)'
       };
     }
 
-    const currentUsage = this.usageTracker.getSessionUsage();
-    const currentTokens = currentUsage.totalTokens || 0;
+    // Get current token count from OTLP bridge if available, otherwise from usage tracker
+    let currentTokens = 0;
+    if (this.otlpBridge) {
+      currentTokens = this.otlpBridge.state.currentTokens || 0;
+    } else if (this.usageTracker) {
+      const currentUsage = this.usageTracker.getSessionUsage();
+      currentTokens = currentUsage.totalTokens || 0;
+    }
+
     const maxTokens = this.options.contextMonitoring.contextWindowSize || 200000;
 
     // Check for compaction
@@ -564,7 +571,9 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         level: 'EMERGENCY',
         checks,
         message: emergency.message,
-        recommendation: 'HALT IMMEDIATELY - Emergency condition detected'
+        recommendation: 'HALT IMMEDIATELY - Emergency condition detected',
+        // Spread emergency-specific fields to top level
+        ...( emergency.reviewId ? { reviewId: emergency.reviewId, detectionId: emergency.detectionId, requiresHuman: emergency.requiresHuman, confidence: emergency.confidence } : {})
       };
     }
 
@@ -575,7 +584,9 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         level: 'CRITICAL',
         checks,
         message: critical.message,
-        recommendation: this._getRecommendation(critical.action)
+        recommendation: this._getRecommendation(critical.action),
+        // Spread critical-specific fields to top level (includes reviewId, detectionId for human reviews)
+        ...( critical.reviewId ? { reviewId: critical.reviewId, detectionId: critical.detectionId, requiresHuman: critical.requiresHuman, confidence: critical.confidence } : {})
       };
     }
 
@@ -626,7 +637,8 @@ class ContinuousLoopOrchestrator extends EventEmitter {
   async checkpoint(options = {}) {
     this.logger.info('Creating checkpoint');
 
-    const checkpointId = `checkpoint-${Date.now()}`;
+    // Include random component to avoid collision when creating concurrent checkpoints
+    const checkpointId = `checkpoint-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     try {
       // Get current state
