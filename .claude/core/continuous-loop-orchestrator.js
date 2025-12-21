@@ -53,8 +53,8 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       status: 'idle', // idle, running, paused, wrapping-up, stopped
       sessionId: `session-${Date.now()}`,
       startTime: Date.now(),
-      operationCount: 0,
-      checkpointCount: 0,
+      operations: 0,
+      checkpoints: 0,
       wrapUpCount: 0,
       lastCheckpoint: null,
       lastOperation: null
@@ -316,7 +316,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       result: result.action
     };
 
-    this.state.operationCount++;
+    this.state.operations++;
 
     return result;
   }
@@ -621,7 +621,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
 
       // Update state
       this.state.lastCheckpoint = checkpoint;
-      this.state.checkpointCount++;
+      this.state.checkpoints++;
 
       // Emit event
       if (this.messageBus) {
@@ -733,8 +733,8 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       session: {
         id: this.state.sessionId,
         duration: this._formatDuration(duration),
-        operations: this.state.operationCount,
-        checkpoints: this.state.checkpointCount,
+        operations: this.state.operations,
+        checkpoints: this.state.checkpoints,
         wrapUps: this.state.wrapUpCount
       },
       usage: {
