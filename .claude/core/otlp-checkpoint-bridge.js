@@ -486,14 +486,20 @@ class OTLPCheckpointBridge extends EventEmitter {
     if (metrics.metrics) {
       metrics.metrics.forEach(metric => {
         if (metric.name.includes('token') || metric.name.includes('context')) {
-          const dataPoint = metric.data?.dataPoints?.[0];
+          // OTLP format uses sum.dataPoints or gauge.dataPoints
+          const dataPoint = metric.sum?.dataPoints?.[0] ||
+                           metric.gauge?.dataPoints?.[0] ||
+                           metric.data?.dataPoints?.[0];
           if (dataPoint) {
+            // Parse the value (could be number, string, or asInt)
+            const value = parseInt(dataPoint.value || dataPoint.asInt || 0);
+
             if (metric.name.includes('total')) {
-              tokenMetrics.totalTokens = dataPoint.value || dataPoint.asInt || 0;
+              tokenMetrics.totalTokens = value;
             } else if (metric.name.includes('input')) {
-              tokenMetrics.inputTokens = dataPoint.value || dataPoint.asInt || 0;
+              tokenMetrics.inputTokens = value;
             } else if (metric.name.includes('output')) {
-              tokenMetrics.outputTokens = dataPoint.value || dataPoint.asInt || 0;
+              tokenMetrics.outputTokens = value;
             }
           }
         }

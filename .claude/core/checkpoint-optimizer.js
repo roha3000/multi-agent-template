@@ -66,8 +66,10 @@ class CheckpointOptimizer {
     // Learning state
     this.learningData = {
       checkpoints: [],              // Checkpoint history
+      checkpointHistory: [],        // Limited checkpoint history for learning
       compactionEvents: [],         // Detected compaction events
-      taskPatterns: new Map(),      // Task type -> average token usage
+      compactionsDetected: 0,       // Total compactions detected
+      taskPatterns: {},             // Task type -> pattern data (use plain object for tests)
       successRate: 1.0,             // Current success rate
       totalCheckpoints: 0,
       successfulCheckpoints: 0,
@@ -87,6 +89,68 @@ class CheckpointOptimizer {
   }
 
   /**
+   * Check if a checkpoint should be created (simplified API)
+   * @param {number} contextTokens - Current context size
+   * @param {number} maxContextTokens - Maximum context limit
+   * @param {string} taskType - Type of task being executed
+   * @returns {Object} Checkpoint recommendation
+   */
+  shouldCheckpoint(contextTokens, maxContextTokens, taskType = 'unknown') {
+    // Check if disabled
+    if (this.options.enabled === false) {
+      return {
+        should: false,
+        reason: 'Checkpoint optimization disabled',
+        utilizationPercent: 0,
+        urgency: 'none',
+        tokensUntilThreshold: 0,
+        confidence: 0
+      };
+    }
+
+    const prediction = this.predictCheckpoint({
+      contextTokens,
+      maxContextTokens,
+      taskType,
+      estimatedRemaining: 5000
+    });
+
+    // Build reason message
+    let reason;
+    if (prediction.shouldCheckpoint) {
+      const utilPct = (prediction.currentUtilization * 100).toFixed(1);
+      const thresholdPct = (this.thresholds.context * 100).toFixed(0);
+      const bufferRemaining = maxContextTokens - contextTokens;
+
+      if (bufferRemaining < this.thresholds.buffer) {
+        reason = `Context at ${utilPct}% and buffer (${bufferRemaining} tokens) below threshold (${this.thresholds.buffer} tokens)`;
+      } else {
+        reason = `Context at ${utilPct}% (threshold: ${thresholdPct}%)`;
+      }
+    } else {
+      reason = `Below threshold (${(prediction.currentUtilization * 100).toFixed(1)}%)`;
+    }
+
+    const result = {
+      should: prediction.shouldCheckpoint,
+      reason,
+      utilizationPercent: prediction.currentUtilization * 100,
+      urgency: prediction.urgency,
+      tokensUntilThreshold: prediction.tokensUntilThreshold,
+      confidence: prediction.confidence
+    };
+
+    // Add predicted next if task pattern exists
+    const taskPattern = this.learningData.taskPatterns[taskType];
+    if (taskPattern) {
+      const nextPrediction = this.predictNextTaskTokens(taskType);
+      result.predictedNext = nextPrediction.estimated;
+    }
+
+    return result;
+  }
+
+  /**
    * Predict optimal checkpoint timing
    * @param {Object} currentState - Current execution state
    * @returns {Object} Prediction result
@@ -103,7 +167,7 @@ class CheckpointOptimizer {
     const utilization = contextTokens / maxContextTokens;
 
     // Get task-specific pattern if available
-    const taskPattern = this.learningData.taskPatterns.get(taskType);
+    const taskPattern = this.learningData.taskPatterns[taskType];
     const estimatedTaskTokens = taskPattern?.avgTokens || estimatedRemaining || 5000;
 
     // Calculate projected tokens after task
@@ -165,6 +229,12 @@ class CheckpointOptimizer {
     };
 
     this.learningData.checkpoints.push(record);
+    this.learningData.checkpointHistory.push(record);
+
+    // Limit checkpoint history to prevent unbounded growth
+    if (this.learningData.checkpointHistory.length > 100) {
+      this.learningData.checkpointHistory.shift();
+    }
 
     if (success) {
       this.learningData.successfulCheckpoints++;
@@ -184,6 +254,12 @@ class CheckpointOptimizer {
       this._updateTaskPattern(checkpoint.taskType, checkpoint.tokensUsed || 0);
     }
 
+    // Trigger adaptation after minimum samples (6) and every 5 checkpoints after
+    if (this.learningData.totalCheckpoints === 6 ||
+        (this.learningData.totalCheckpoints > 6 && this.learningData.totalCheckpoints % 5 === 0)) {
+      this._adaptThresholds();
+    }
+
     // Persist learning data
     this._saveLearningData();
 
@@ -193,6 +269,35 @@ class CheckpointOptimizer {
       successRate: this.learningData.successRate.toFixed(2),
       newThreshold: this.thresholds.context
     });
+  }
+
+  /**
+   * Record task pattern for learning
+   * @param {Object} pattern - Task pattern details
+   */
+  recordTaskPattern(pattern) {
+    const { taskType, estimatedTokens, actualTokens } = pattern;
+
+    if (!this.learningData.taskPatterns[taskType]) {
+      this.learningData.taskPatterns[taskType] = {
+        samples: 0,
+        avgTokens: 0,
+        maxTokens: 0,
+        minTokens: Infinity,
+        stdDev: 0,
+        totalTokens: 0
+      };
+    }
+
+    const taskPattern = this.learningData.taskPatterns[taskType];
+    taskPattern.samples++;
+    taskPattern.totalTokens += actualTokens;
+    taskPattern.avgTokens = taskPattern.totalTokens / taskPattern.samples;
+    taskPattern.maxTokens = Math.max(taskPattern.maxTokens, actualTokens);
+    taskPattern.minTokens = Math.min(taskPattern.minTokens, actualTokens);
+
+    // Simple stdDev calculation (can be improved)
+    taskPattern.stdDev = Math.abs(actualTokens - taskPattern.avgTokens);
   }
 
   /**
@@ -253,6 +358,7 @@ class CheckpointOptimizer {
     };
 
     this.learningData.compactionEvents.push(compactionEvent);
+    this.learningData.compactionsDetected++;
 
     // Aggressively adapt - this is a critical failure
     this.thresholds.context = Math.max(
@@ -277,6 +383,82 @@ class CheckpointOptimizer {
     if (this.onCompactionDetected) {
       this.onCompactionDetected(compactionEvent);
     }
+  }
+
+  /**
+   * Adapt thresholds based on success rate
+   * @private
+   */
+  _adaptThresholds() {
+    const minSamples = this.options.minSessionsForLearning || 5;
+
+    // Need enough data to adapt
+    if (this.learningData.totalCheckpoints < minSamples) {
+      return;
+    }
+
+    // Calculate success rate from actual counts (don't rely on cached value)
+    const successRate = this.learningData.totalCheckpoints > 0
+      ? this.learningData.successfulCheckpoints / this.learningData.totalCheckpoints
+      : 1.0;
+
+    const oldThreshold = this.thresholds.context;
+
+    // High success rate (>=95%) - can be more aggressive
+    if (successRate >= 0.95) {
+      this.thresholds.context = Math.min(
+        this.options.maxThreshold,
+        this.thresholds.context * this.options.successAdaptionFactor
+      );
+    }
+    // Low success rate (<80%) - be more conservative
+    else if (successRate < 0.80) {
+      this.thresholds.context = Math.max(
+        this.options.minThreshold,
+        this.thresholds.context * this.options.failureAdaptionFactor
+      );
+    }
+
+    if (oldThreshold !== this.thresholds.context) {
+      this.logger.info('Thresholds adapted', {
+        oldThreshold,
+        newThreshold: this.thresholds.context,
+        successRate
+      });
+    }
+  }
+
+  /**
+   * Predict tokens for next task
+   * @param {string} taskType - Task type
+   * @returns {Object} Prediction with estimated, conservative, and confidence
+   */
+  predictNextTaskTokens(taskType) {
+    const pattern = this.learningData.taskPatterns[taskType];
+
+    if (!pattern || pattern.samples === 0) {
+      // No data - use fallback
+      return {
+        estimated: this.options.fallbackTaskTokens || 5000,
+        conservative: (this.options.fallbackTaskTokens || 5000) * 1.5,
+        confidence: 0
+      };
+    }
+
+    // Calculate confidence based on sample size
+    const confidence = Math.min(0.95, pattern.samples / 20);
+
+    // Conservative estimate uses max or avg + 2*stdDev
+    const conservative = Math.max(
+      pattern.maxTokens,
+      pattern.avgTokens + 2 * (pattern.stdDev || 0)
+    );
+
+    return {
+      estimated: pattern.avgTokens,
+      conservative,
+      confidence
+    };
   }
 
   /**
@@ -343,7 +525,7 @@ class CheckpointOptimizer {
    * @private
    */
   _updateTaskPattern(taskType, tokensUsed) {
-    const pattern = this.learningData.taskPatterns.get(taskType) || {
+    const pattern = this.learningData.taskPatterns[taskType] || {
       count: 0,
       totalTokens: 0,
       avgTokens: 0,
@@ -357,7 +539,7 @@ class CheckpointOptimizer {
     pattern.minTokens = Math.min(pattern.minTokens, tokensUsed);
     pattern.maxTokens = Math.max(pattern.maxTokens, tokensUsed);
 
-    this.learningData.taskPatterns.set(taskType, pattern);
+    this.learningData.taskPatterns[taskType] = pattern;
   }
 
   /**
@@ -405,25 +587,20 @@ class CheckpointOptimizer {
    * @returns {Object} Statistics
    */
   getStatistics() {
+    // Calculate success rate from actual counts
+    const successRate = this.learningData.totalCheckpoints > 0
+      ? this.learningData.successfulCheckpoints / this.learningData.totalCheckpoints
+      : 1.0;
+
     return {
+      totalCheckpoints: this.learningData.totalCheckpoints,
+      successfulCheckpoints: this.learningData.successfulCheckpoints,
+      failedCheckpoints: this.learningData.failedCheckpoints,
+      successRate,
+      currentThreshold: this.thresholds.context,
+      compactionsDetected: this.learningData.compactionsDetected,
       thresholds: { ...this.thresholds },
-      learning: {
-        totalCheckpoints: this.learningData.totalCheckpoints,
-        successfulCheckpoints: this.learningData.successfulCheckpoints,
-        failedCheckpoints: this.learningData.failedCheckpoints,
-        successRate: this.learningData.successRate,
-        compactionEvents: this.learningData.compactionEvents.length,
-        taskPatternsLearned: this.learningData.taskPatterns.size
-      },
-      taskPatterns: Array.from(this.learningData.taskPatterns.entries()).map(
-        ([type, pattern]) => ({
-          taskType: type,
-          count: pattern.count,
-          avgTokens: Math.round(pattern.avgTokens),
-          minTokens: pattern.minTokens,
-          maxTokens: pattern.maxTokens
-        })
-      )
+      taskPatterns: { ...this.learningData.taskPatterns }
     };
   }
 
@@ -439,7 +616,7 @@ class CheckpointOptimizer {
     try {
       // Try to load from database
       const stmt = this.memoryStore.db.prepare(`
-        SELECT data FROM checkpoint_learning_data
+        SELECT data FROM checkpoint_learning
         WHERE id = 'current'
       `);
 
@@ -452,7 +629,7 @@ class CheckpointOptimizer {
         this.learningData = {
           ...this.learningData,
           ...loaded.learningData,
-          taskPatterns: new Map(loaded.learningData?.taskPatterns || [])
+          taskPatterns: loaded.learningData?.taskPatterns || {}
         };
 
         this.logger.info('Learning data loaded', {
@@ -465,7 +642,7 @@ class CheckpointOptimizer {
       // Table might not exist yet, create it
       try {
         this.memoryStore.db.exec(`
-          CREATE TABLE IF NOT EXISTS checkpoint_learning_data (
+          CREATE TABLE IF NOT EXISTS checkpoint_learning (
             id TEXT PRIMARY KEY,
             data TEXT NOT NULL,
             updated_at INTEGER NOT NULL
@@ -493,12 +670,12 @@ class CheckpointOptimizer {
         thresholds: this.thresholds,
         learningData: {
           ...this.learningData,
-          taskPatterns: Array.from(this.learningData.taskPatterns.entries())
+          taskPatterns: this.learningData.taskPatterns
         }
       });
 
       const stmt = this.memoryStore.db.prepare(`
-        INSERT OR REPLACE INTO checkpoint_learning_data (id, data, updated_at)
+        INSERT OR REPLACE INTO checkpoint_learning (id, data, updated_at)
         VALUES ('current', ?, ?)
       `);
 
@@ -513,6 +690,15 @@ class CheckpointOptimizer {
   }
 
   /**
+   * Initialize async (for tests that need to wait for data loading)
+   * @returns {Promise<void>}
+   */
+  async initialize() {
+    // Already loaded in constructor, but provide async interface for tests
+    return Promise.resolve();
+  }
+
+  /**
    * Reset learning data (for testing or emergency)
    * @param {boolean} confirm - Must be true to execute
    */
@@ -524,8 +710,10 @@ class CheckpointOptimizer {
     this.thresholds = { ...this.options.initialThresholds };
     this.learningData = {
       checkpoints: [],
+      checkpointHistory: [],
       compactionEvents: [],
-      taskPatterns: new Map(),
+      compactionsDetected: 0,
+      taskPatterns: {},
       successRate: 1.0,
       totalCheckpoints: 0,
       successfulCheckpoints: 0,

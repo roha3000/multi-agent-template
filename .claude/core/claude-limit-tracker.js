@@ -3,14 +3,15 @@
  *
  * Tracks usage against Claude plan limits:
  * - Free: 50 req/day, 5 req/min
- * - Pro: 1000 req/day, 50 req/min
- * - Team: Custom limits
+ * - Pro: 1000 req/day, 5 req/min
+ * - Team: 10000 req/day, 10 req/min
  *
  * Features:
  * - Rolling window tracking (minute, hour, day)
  * - Proactive limit warnings
  * - Safety thresholds
  * - Automatic window resets
+ * - Database persistence
  *
  * @module claude-limit-tracker
  */
@@ -21,22 +22,26 @@ class ClaudeLimitTracker {
   /**
    * Create a Claude limit tracker
    *
+   * @param {Object} stores - Store instances
+   * @param {Object} stores.memoryStore - Memory store for persistence
    * @param {Object} options - Configuration options
-   * @param {string} [options.plan='pro'] - Claude plan (free, pro, team)
+   * @param {string} [options.plan='Pro'] - Claude plan (Free, Pro, Team, Custom)
    * @param {Object} [options.customLimits] - Override default limits
-   * @param {number} [options.warningThreshold=0.80] - Warning at 80%
-   * @param {number} [options.criticalThreshold=0.90] - Critical at 90%
-   * @param {number} [options.emergencyThreshold=0.95] - Emergency at 95%
+   * @param {Object} [options.thresholds] - Safety thresholds
+   * @param {number} [options.thresholds.warning=0.80] - Warning at 80%
+   * @param {number} [options.thresholds.critical=0.90] - Critical at 90%
+   * @param {number} [options.thresholds.emergency=0.95] - Emergency at 95%
    * @param {boolean} [options.enabled=true] - Enable tracking
    */
-  constructor(options = {}) {
+  constructor(stores = {}, options = {}) {
     this.logger = createComponentLogger('ClaudeLimitTracker');
+    this.memoryStore = stores.memoryStore;
 
-    this.plan = options.plan || 'pro';
+    this.plan = options.plan || 'Pro';
     this.enabled = options.enabled !== false;
 
     // Get base limits for plan
-    this.limits = this._getLimitsForPlan(this.plan);
+    this._loadPlanLimits(this.plan);
 
     // Override with custom limits if provided
     if (options.customLimits) {
@@ -45,9 +50,9 @@ class ClaudeLimitTracker {
 
     // Safety thresholds
     this.thresholds = {
-      warning: options.warningThreshold || 0.80,
-      critical: options.criticalThreshold || 0.90,
-      emergency: options.emergencyThreshold || 0.95
+      warning: options.thresholds?.warning || 0.80,
+      critical: options.thresholds?.critical || 0.90,
+      emergency: options.thresholds?.emergency || 0.95
     };
 
     // Rolling time windows
@@ -77,37 +82,44 @@ class ClaudeLimitTracker {
   }
 
   /**
-   * Get default limits for Claude plan
+   * Load plan limits
    * @param {string} plan - Plan name
-   * @returns {Object} Limit configuration
    * @private
    */
-  _getLimitsForPlan(plan) {
+  _loadPlanLimits(plan) {
     const limits = {
-      free: {
+      Free: {
         requestsPerMinute: 5,
         requestsPerHour: 50,
         requestsPerDay: 50,
         tokensPerMinute: 10000,
         tokensPerDay: 150000
       },
-      pro: {
-        requestsPerMinute: 50,
+      Pro: {
+        requestsPerMinute: 5,
         requestsPerHour: 1000,
         requestsPerDay: 1000,
         tokensPerMinute: 40000,
         tokensPerDay: 2500000
       },
-      team: {
-        requestsPerMinute: 100,
+      Team: {
+        requestsPerMinute: 10,
         requestsPerHour: 5000,
         requestsPerDay: 10000,
         tokensPerMinute: 100000,
-        tokensPerDay: 10000000
+        tokensPerDay: 5000000
+      },
+      Custom: {
+        requestsPerMinute: 5,
+        requestsPerHour: 1000,
+        requestsPerDay: 1000,
+        tokensPerMinute: 40000,
+        tokensPerDay: 2500000
       }
     };
 
-    return limits[plan] || limits.pro;
+    this.limits = limits[plan] || limits.Pro;
+    this.plan = plan;
   }
 
   /**
@@ -131,6 +143,20 @@ class ClaudeLimitTracker {
     this.windows.day.calls++;
     this.windows.day.tokens += tokenCount;
 
+    // Persist to database if available
+    if (this.memoryStore && this.memoryStore.db) {
+      try {
+        const stmt = this.memoryStore.db.prepare(`
+          INSERT INTO api_limit_tracking (timestamp, tokens, calls)
+          VALUES (?, ?, ?)
+        `);
+        stmt.run(Date.now(), tokenCount, 1);
+      } catch (error) {
+        // Table might not exist, ignore
+        this.logger.debug('Could not persist call to database', { error: error.message });
+      }
+    }
+
     this.logger.debug('API call recorded', {
       tokens: tokenCount,
       minuteCalls: this.windows.minute.calls,
@@ -148,43 +174,47 @@ class ClaudeLimitTracker {
       return {
         safe: true,
         level: 'DISABLED',
-        action: 'CONTINUE',
+        action: 'PROCEED',
         utilization: 0,
+        utilizationPercent: 0,
+        reason: 'Limit tracking disabled',
         message: 'Limit tracking disabled'
       };
     }
 
+    // Check with projection for next call
+    return this._checkLimits(estimatedTokens, true);
+  }
+
+  /**
+   * Check limits with optional projection
+   * @private
+   * @param {number} estimatedTokens - Estimated tokens for next call
+   * @param {boolean} projectNextCall - Whether to include next call in calculation
+   * @returns {Object} Check result
+   */
+  _checkLimits(estimatedTokens = 1000, projectNextCall = true) {
     this._resetExpiredWindows();
 
     // Check all constraints
+    // For requests: optionally include next request in calculation
+    // For tokens: add estimated tokens to check if next call would exceed
+    const requestIncrement = projectNextCall ? 1 : 0;
+
     const constraints = [
       {
         name: 'requests/minute',
-        current: this.windows.minute.calls + 1,
+        current: this.windows.minute.calls + requestIncrement,
         limit: this.limits.requestsPerMinute,
         window: 'minute',
         type: 'requests'
       },
       {
-        name: 'requests/hour',
-        current: this.windows.hour.calls + 1,
-        limit: this.limits.requestsPerHour,
-        window: 'hour',
-        type: 'requests'
-      },
-      {
         name: 'requests/day',
-        current: this.windows.day.calls + 1,
+        current: this.windows.day.calls + requestIncrement,
         limit: this.limits.requestsPerDay,
         window: 'day',
         type: 'requests'
-      },
-      {
-        name: 'tokens/minute',
-        current: this.windows.minute.tokens + estimatedTokens,
-        limit: this.limits.tokensPerMinute,
-        window: 'minute',
-        type: 'tokens'
       },
       {
         name: 'tokens/day',
@@ -197,16 +227,19 @@ class ClaudeLimitTracker {
 
     // Find most constraining limit
     let maxUtilization = 0;
-    let limitingFactor = null;
+    let limitingFactorObj = null;
 
     for (const constraint of constraints) {
       const utilization = constraint.current / constraint.limit;
 
       if (utilization > maxUtilization) {
         maxUtilization = utilization;
-        limitingFactor = constraint;
+        limitingFactorObj = constraint;
       }
     }
+
+    const utilizationPercent = maxUtilization * 100;
+    const limitingFactor = limitingFactorObj ? limitingFactorObj.window : 'none';
 
     // Determine safety level and recommended action
     if (maxUtilization >= this.thresholds.emergency) {
@@ -215,9 +248,12 @@ class ClaudeLimitTracker {
         level: 'EMERGENCY',
         action: 'HALT_IMMEDIATELY',
         utilization: maxUtilization,
+        utilizationPercent,
         limitingFactor,
-        timeToReset: this._getTimeToReset(limitingFactor.window),
-        message: `EMERGENCY: ${(maxUtilization * 100).toFixed(1)}% of ${limitingFactor.name} limit reached. System will halt.`
+        limitingFactorObj,
+        timeToReset: this._getTimeToReset(limitingFactorObj.window),
+        reason: `EMERGENCY: ${utilizationPercent.toFixed(1)}% of ${limitingFactorObj.name} limit reached. System will halt.`,
+        message: `EMERGENCY: ${utilizationPercent.toFixed(1)}% of ${limitingFactorObj.name} limit reached. System will halt.`
       };
     }
 
@@ -227,9 +263,12 @@ class ClaudeLimitTracker {
         level: 'CRITICAL',
         action: 'WRAP_UP_NOW',
         utilization: maxUtilization,
+        utilizationPercent,
         limitingFactor,
-        timeToReset: this._getTimeToReset(limitingFactor.window),
-        message: `CRITICAL: ${(maxUtilization * 100).toFixed(1)}% of ${limitingFactor.name} limit reached. Initiating wrap-up.`
+        limitingFactorObj,
+        timeToReset: this._getTimeToReset(limitingFactorObj.window),
+        reason: `CRITICAL: ${utilizationPercent.toFixed(1)}% of ${limitingFactorObj.name} limit reached. Initiating wrap-up.`,
+        message: `CRITICAL: ${utilizationPercent.toFixed(1)}% of ${limitingFactorObj.name} limit reached. Initiating wrap-up.`
       };
     }
 
@@ -237,22 +276,47 @@ class ClaudeLimitTracker {
       return {
         safe: true,
         level: 'WARNING',
-        action: 'PREPARE_WRAP_UP',
+        action: 'PROCEED_WITH_CAUTION',
         utilization: maxUtilization,
+        utilizationPercent,
         limitingFactor,
-        timeToReset: this._getTimeToReset(limitingFactor.window),
-        message: `WARNING: ${(maxUtilization * 100).toFixed(1)}% of ${limitingFactor.name} limit reached. Prepare for wrap-up.`
+        limitingFactorObj,
+        timeToReset: this._getTimeToReset(limitingFactorObj.window),
+        reason: `WARNING: ${utilizationPercent.toFixed(1)}% of ${limitingFactorObj.name} limit reached. Prepare for wrap-up.`,
+        message: `WARNING: ${utilizationPercent.toFixed(1)}% of ${limitingFactorObj.name} limit reached. Prepare for wrap-up.`
       };
     }
 
     return {
       safe: true,
       level: 'OK',
-      action: 'CONTINUE',
+      action: 'PROCEED',
       utilization: maxUtilization,
+      utilizationPercent,
       limitingFactor,
-      message: `Safe: ${(maxUtilization * 100).toFixed(1)}% utilization across all limits.`
+      limitingFactorObj,
+      reason: `Safe: ${utilizationPercent.toFixed(1)}% utilization across all limits.`,
+      message: `Safe: ${utilizationPercent.toFixed(1)}% utilization across all limits.`
     };
+  }
+
+  /**
+   * Get time until API calls are available again
+   * @returns {number} Milliseconds to wait, or 0 if calls available now
+   */
+  getTimeUntilAvailable() {
+    const check = this.canMakeCall(0);
+
+    if (check.safe || check.level === 'WARNING') {
+      return 0;
+    }
+
+    // Return time to reset for the limiting window
+    if (check.limitingFactorObj) {
+      return this._getTimeToReset(check.limitingFactorObj.window);
+    }
+
+    return 0;
   }
 
   /**
@@ -269,9 +333,14 @@ class ClaudeLimitTracker {
 
     this._resetExpiredWindows();
 
+    // Check current status without projecting next call
+    const check = this._checkLimits(0, false);
+
     return {
       plan: this.plan,
       enabled: this.enabled,
+      safe: check.safe,
+      level: check.level,
       windows: {
         minute: {
           calls: this.windows.minute.calls,
@@ -298,6 +367,16 @@ class ClaudeLimitTracker {
           tokensUtilization: this.windows.day.tokens / this.limits.tokensPerDay,
           resetIn: Math.max(0, this.windows.day.resetAt - Date.now())
         }
+      },
+      utilization: {
+        requestsPerMinute: (this.windows.minute.calls / this.limits.requestsPerMinute) * 100,
+        requestsPerDay: (this.windows.day.calls / this.limits.requestsPerDay) * 100,
+        tokensPerDay: (this.windows.day.tokens / this.limits.tokensPerDay) * 100
+      },
+      timeUntilReset: {
+        minute: Math.max(0, this.windows.minute.resetAt - Date.now()),
+        hour: Math.max(0, this.windows.hour.resetAt - Date.now()),
+        day: Math.max(0, this.windows.day.resetAt - Date.now())
       },
       thresholds: this.thresholds
     };

@@ -46,7 +46,7 @@ class ContextRetriever {
     // Dependencies
     this.memoryStore = deps.memoryStore;
     this.vectorStore = deps.vectorStore;
-    this.tokenCounter = TokenCounter;
+    this.tokenCounter = new TokenCounter({ memoryStore: deps.memoryStore });
     this.logger = createComponentLogger('ContextRetriever');
 
     // Configuration
@@ -735,7 +735,7 @@ class ContextRetriever {
    * @param {boolean} wasTruncated - Whether truncation occurred
    */
   _updateMetrics(startTime, tokenCount, wasTruncated) {
-    const duration = Date.now() - startTime;
+    const duration = Math.max(1, Date.now() - startTime); // Ensure at least 1ms
 
     this.metrics.totalRetrievalTime += duration;
     this.metrics.totalTokensServed += tokenCount;

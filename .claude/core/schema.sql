@@ -172,6 +172,21 @@ CREATE INDEX IF NOT EXISTS idx_cache_expires ON context_cache(expires_at);
 CREATE INDEX IF NOT EXISTS idx_cache_accessed ON context_cache(last_accessed DESC);
 
 -- ============================================================================
+-- API Rate Limiting Tables
+-- ============================================================================
+
+-- API Limit Tracking: Track API calls for rate limiting
+CREATE TABLE IF NOT EXISTS api_limit_tracking (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  timestamp INTEGER NOT NULL,
+  tokens INTEGER DEFAULT 0,
+  calls INTEGER DEFAULT 1,
+  created_at INTEGER DEFAULT (strftime('%s', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_limit_timestamp ON api_limit_tracking(timestamp DESC);
+
+-- ============================================================================
 -- System Metadata
 -- ============================================================================
 

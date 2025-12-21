@@ -53,12 +53,15 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       status: 'idle', // idle, running, paused, wrapping-up, stopped
       sessionId: `session-${Date.now()}`,
       startTime: Date.now(),
-      operationCount: 0,
-      checkpointCount: 0,
+      operations: 0,
+      checkpoints: 0,
       wrapUpCount: 0,
       lastCheckpoint: null,
       lastOperation: null
     };
+
+    // Initialize database tables
+    this._initializeDatabase();
 
     // Initialize components
     this._initializeComponents();
@@ -84,14 +87,19 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     // 1. Claude API Limit Tracker
     if (this.options.apiLimitTracking.enabled) {
       const ClaudeLimitTracker = require('./claude-limit-tracker');
-      this.limitTracker = new ClaudeLimitTracker({
-        plan: this.options.apiLimitTracking.plan,
-        customLimits: this.options.apiLimitTracking.customLimits,
-        warningThreshold: this.options.apiLimitTracking.warningThreshold,
-        criticalThreshold: this.options.apiLimitTracking.criticalThreshold,
-        emergencyThreshold: this.options.apiLimitTracking.emergencyThreshold,
-        enabled: true
-      });
+      this.limitTracker = new ClaudeLimitTracker(
+        { memoryStore: this.memoryStore },
+        {
+          plan: this.options.apiLimitTracking.plan,
+          customLimits: this.options.apiLimitTracking.customLimits,
+          thresholds: {
+            warning: this.options.apiLimitTracking.warningThreshold,
+            critical: this.options.apiLimitTracking.criticalThreshold,
+            emergency: this.options.apiLimitTracking.emergencyThreshold
+          },
+          enabled: true
+        }
+      );
       this.logger.info('ClaudeLimitTracker initialized');
     }
 
@@ -102,7 +110,10 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         memoryStore: this.memoryStore,
         usageTracker: this.usageTracker
       }, {
-        initialThresholds: this.options.contextMonitoring,
+        initialThresholds: {
+          context: this.options.contextMonitoring.checkpointThreshold || this.options.contextMonitoring.warningThreshold || 0.75,
+          buffer: this.options.contextMonitoring.bufferTokens || 15000
+        },
         learningRate: this.options.checkpointOptimizer.learningRate,
         minThreshold: this.options.checkpointOptimizer.minThreshold,
         maxThreshold: this.options.checkpointOptimizer.maxThreshold,
@@ -125,7 +136,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     }
 
     // 4. Dashboard Manager
-    if (this.options.dashboard.enableWeb || this.options.dashboard.enableTerminal) {
+    if (this.options.dashboard.enabled && (this.options.dashboard.enableWeb || this.options.dashboard.enableTerminal)) {
       const DashboardManager = require('./dashboard-manager');
       this.dashboard = new DashboardManager({
         usageTracker: this.usageTracker,
@@ -160,6 +171,15 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       });
       this.logger.info('ClaudeCodeUsageParser initialized');
     }
+  }
+
+  /**
+   * Initialize (no-op since initialization happens in constructor)
+   * This method exists for compatibility with test suites
+   */
+  async initialize() {
+    // Already initialized in constructor
+    return Promise.resolve();
   }
 
   /**
@@ -316,7 +336,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       result: result.action
     };
 
-    this.state.operationCount++;
+    this.state.operations++;
 
     return result;
   }
@@ -326,8 +346,25 @@ class ContinuousLoopOrchestrator extends EventEmitter {
    * @private
    */
   async _checkContextWindow(operation) {
-    const currentUsage = this.usageTracker.getSessionUsage();
-    const currentTokens = currentUsage.totalTokens || 0;
+    if (!this.usageTracker && !this.otlpBridge) {
+      return {
+        safe: true,
+        level: 'OK',
+        action: 'CONTINUE',
+        utilization: 0,
+        message: 'Context monitoring unavailable (no usage tracker or OTLP bridge)'
+      };
+    }
+
+    // Get current token count from OTLP bridge if available, otherwise from usage tracker
+    let currentTokens = 0;
+    if (this.otlpBridge) {
+      currentTokens = this.otlpBridge.state.currentTokens || 0;
+    } else if (this.usageTracker) {
+      const currentUsage = this.usageTracker.getSessionUsage();
+      currentTokens = currentUsage.totalTokens || 0;
+    }
+
     const maxTokens = this.options.contextMonitoring.contextWindowSize || 200000;
 
     // Check for compaction
@@ -400,6 +437,17 @@ class ContinuousLoopOrchestrator extends EventEmitter {
    */
   async _checkAPILimits(operation) {
     const estimatedTokens = operation.estimatedTokens || 1000;
+
+    // First check current status (without projection)
+    // This gives us the current warning level
+    const currentStatus = this.limitTracker.getStatus();
+
+    // If already at warning/critical/emergency, return current status
+    if (currentStatus.level && currentStatus.level !== 'OK') {
+      return currentStatus;
+    }
+
+    // Otherwise, check if next call would be safe (with projection)
     return this.limitTracker.canMakeCall(estimatedTokens);
   }
 
@@ -472,6 +520,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
           safe: false,
           level: 'CRITICAL',
           action: 'WAIT_FOR_APPROVAL',
+          requiresHuman: true,
           confidence: analysis.confidence,
           reason: analysis.reason,
           reviewId: reviewId,
@@ -479,12 +528,26 @@ class ContinuousLoopOrchestrator extends EventEmitter {
           message: `Human review required: ${analysis.reason}`
         };
       }
+
+      // If no dashboard, use detectionId as reviewId
+      return {
+        safe: false,
+        level: 'CRITICAL',
+        action: 'WAIT_FOR_APPROVAL',
+        requiresHuman: true,
+        confidence: analysis.confidence,
+        reason: analysis.reason,
+        reviewId: analysis.detectionId,  // Use detectionId when no dashboard
+        detectionId: analysis.detectionId,
+        message: `Human review required: ${analysis.reason}`
+      };
     }
 
     return {
       safe: true,
       level: 'OK',
       action: 'CONTINUE',
+      requiresHuman: false,
       message: 'No human review needed'
     };
   }
@@ -508,7 +571,9 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         level: 'EMERGENCY',
         checks,
         message: emergency.message,
-        recommendation: 'HALT IMMEDIATELY - Emergency condition detected'
+        recommendation: 'HALT IMMEDIATELY - Emergency condition detected',
+        // Spread emergency-specific fields to top level
+        ...( emergency.reviewId ? { reviewId: emergency.reviewId, detectionId: emergency.detectionId, requiresHuman: emergency.requiresHuman, confidence: emergency.confidence } : {})
       };
     }
 
@@ -519,7 +584,9 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         level: 'CRITICAL',
         checks,
         message: critical.message,
-        recommendation: this._getRecommendation(critical.action)
+        recommendation: this._getRecommendation(critical.action),
+        // Spread critical-specific fields to top level (includes reviewId, detectionId for human reviews)
+        ...( critical.reviewId ? { reviewId: critical.reviewId, detectionId: critical.detectionId, requiresHuman: critical.requiresHuman, confidence: critical.confidence } : {})
       };
     }
 
@@ -536,7 +603,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
 
     return {
       safe: true,
-      action: 'CONTINUE',
+      action: 'PROCEED',
       level: 'OK',
       checks,
       message: 'All checks passed',
@@ -570,7 +637,8 @@ class ContinuousLoopOrchestrator extends EventEmitter {
   async checkpoint(options = {}) {
     this.logger.info('Creating checkpoint');
 
-    const checkpointId = `checkpoint-${Date.now()}`;
+    // Include random component to avoid collision when creating concurrent checkpoints
+    const checkpointId = `checkpoint-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     try {
       // Get current state
@@ -621,7 +689,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
 
       // Update state
       this.state.lastCheckpoint = checkpoint;
-      this.state.checkpointCount++;
+      this.state.checkpoints++;
 
       // Emit event
       if (this.messageBus) {
@@ -722,6 +790,73 @@ class ContinuousLoopOrchestrator extends EventEmitter {
   }
 
   /**
+   * Record human feedback for a review
+   *
+   * @param {string} reviewId - Review ID or detection ID
+   * @param {Object} feedback - Feedback data
+   * @param {boolean} feedback.approved - Whether the action was approved
+   * @param {boolean} feedback.wasCorrect - Whether the detection was correct
+   * @param {string} feedback.actualNeed - Actual need (yes/no)
+   * @param {string} feedback.comment - Optional comment
+   * @returns {Promise<Object>} Feedback result
+   */
+  async recordHumanFeedback(reviewId, feedback) {
+    this.logger.info('Recording human feedback', { reviewId });
+
+    try {
+      if (!this.hilDetector) {
+        this.logger.warn('HumanInLoopDetector not available');
+        return {
+          success: false,
+          error: 'HumanInLoopDetector not available',
+          approved: feedback.approved
+        };
+      }
+
+      // Record feedback with detector (it handles detection lookup internally)
+      const result = await this.hilDetector.recordFeedback(reviewId, {
+        wasCorrect: feedback.wasCorrect,
+        actualNeed: feedback.actualNeed,
+        comment: feedback.comment
+      });
+
+      // Update dashboard if available
+      if (this.dashboard) {
+        this.dashboard.updateReviewStatus(reviewId, {
+          status: feedback.approved ? 'approved' : 'rejected',
+          feedback: feedback.comment
+        });
+      }
+
+      this.logger.info('Human feedback recorded', {
+        reviewId,
+        wasCorrect: feedback.wasCorrect,
+        approved: feedback.approved,
+        learnedFromFeedback: result.learned
+      });
+
+      return {
+        success: true,
+        approved: feedback.approved,
+        learned: result.learned,
+        updated: result.updated
+      };
+
+    } catch (error) {
+      this.logger.error('Failed to record feedback', {
+        error: error.message,
+        reviewId
+      });
+
+      return {
+        success: false,
+        error: error.message,
+        approved: feedback.approved
+      };
+    }
+  }
+
+  /**
    * Generate session summary
    * @private
    */
@@ -730,19 +865,16 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     const duration = Date.now() - this.state.startTime;
 
     const summary = {
-      session: {
-        id: this.state.sessionId,
-        duration: this._formatDuration(duration),
-        operations: this.state.operationCount,
-        checkpoints: this.state.checkpointCount,
-        wrapUps: this.state.wrapUpCount
-      },
-      usage: {
-        totalTokens: usage.totalTokens || 0,
-        totalCost: usage.totalCost || 0,
-        cacheSavings: usage.cacheSavings || 0
-      },
-      learning: {
+      sessionId: this.state.sessionId,
+      durationMs: duration,
+      duration: this._formatDuration(duration),
+      operationsCompleted: this.state.operations,
+      checkpointsCreated: this.state.checkpoints,
+      wrapUps: this.state.wrapUpCount,
+      totalTokens: usage.totalTokens || 0,
+      totalCost: usage.totalCost || 0,
+      cacheSavings: usage.cacheSavings || 0,
+      learningStats: {
         checkpointOptimizer: this.optimizer ? this.optimizer.getStatistics() : null,
         humanInLoop: this.hilDetector ? this.hilDetector.getStatistics() : null
       }
@@ -775,16 +907,39 @@ class ContinuousLoopOrchestrator extends EventEmitter {
    */
   getStatus() {
     const usage = this.usageTracker.getSessionUsage();
+    const hilStats = this.hilDetector ? this.hilDetector.getStatistics() : null;
+    const optimizerStats = this.optimizer ? this.optimizer.getStatistics() : null;
+    const limitTrackerStats = this.limitTracker ? this.limitTracker.getStatus() : null;
 
     return {
-      state: { ...this.state },
+      // Flatten state properties to top level for test compatibility
+      sessionId: this.state.sessionId,
+      status: this.state.status,
+      startTime: this.state.startTime,
+      operations: this.state.operations,
+      checkpoints: this.state.checkpoints,
+      wrapUpCount: this.state.wrapUpCount,
+      lastCheckpoint: this.state.lastCheckpoint,
+      lastOperation: this.state.lastOperation,
+
       enabled: this.options.enabled,
+      uptimeMs: Date.now() - this.state.startTime,
       components: {
-        limitTracker: this.limitTracker ? this.limitTracker.getStatus() : null,
-        optimizer: this.optimizer ? this.optimizer.getStatistics() : null,
-        hilDetector: this.hilDetector ? this.hilDetector.getStatistics() : null
+        limitTracker: limitTrackerStats,
+        optimizer: optimizerStats,
+        hilDetector: hilStats
       },
+      // Convenience aliases for common access patterns
+      humanInLoop: hilStats,
+      checkpointOptimizer: optimizerStats,
+      apiLimits: limitTrackerStats,
+      // Usage and cost information
       usage,
+      costs: {
+        total: usage.totalCost || 0,
+        sessionCost: usage.totalCost || 0,
+        cacheSavings: usage.cacheSavings || 0
+      },
       duration: Date.now() - this.state.startTime
     };
   }
@@ -801,6 +956,8 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       contextMonitoring: {
         enabled: options.contextMonitoring?.enabled !== false,
         contextWindowSize: options.contextMonitoring?.contextWindowSize || 200000,
+        checkpointThreshold: options.contextMonitoring?.checkpointThreshold || 0.75,
+        bufferTokens: options.contextMonitoring?.bufferTokens || 15000,
         warningThreshold: options.contextMonitoring?.warningThreshold || 0.80,
         criticalThreshold: options.contextMonitoring?.criticalThreshold || 0.85,
         emergencyThreshold: options.contextMonitoring?.emergencyThreshold || 0.95
@@ -837,6 +994,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       },
 
       dashboard: {
+        enabled: options.dashboard?.enabled !== false,
         enableWeb: options.dashboard?.enableWeb !== false,
         enableTerminal: options.dashboard?.enableTerminal !== false,
         webPort: options.dashboard?.webPort || 3030,

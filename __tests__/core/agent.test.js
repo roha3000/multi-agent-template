@@ -256,17 +256,31 @@ describe('Agent', () => {
       // Create a separate agent to avoid interference from afterEach
       const testAgent = new TestAgent('testAgent', 'Test', messageBus);
 
+      // Verify initial state
+      expect(testAgent.state).toBe('idle');
+
+      let eventReceived = false;
+
       messageBus.subscribe('agent:state-change', 'test', (message) => {
-        if (message.agentId === 'testAgent') {
-          expect(message.agentId).toBe('testAgent');
-          expect(message.oldState).toBe('idle');
-          expect(message.newState).toBe('working');
-          testAgent.destroy();
-          done();
+        if (message.agentId === 'testAgent' && !eventReceived) {
+          eventReceived = true;
+          try {
+            expect(message.agentId).toBe('testAgent');
+            expect(message.oldState).toBe('idle');
+            expect(message.newState).toBe('working');
+            testAgent.destroy();
+            done();
+          } catch (error) {
+            testAgent.destroy();
+            done(error);
+          }
         }
       });
 
-      testAgent.setState('working');
+      // Use setImmediate to ensure subscription is active before state change
+      setImmediate(() => {
+        testAgent.setState('working');
+      });
     });
   });
 

@@ -678,11 +678,12 @@ class AgentOrchestrator {
    * @private
    */
   async _performVoting(results, strategy, threshold, weights) {
-    // For simplicity, assume results have a 'value' or 'decision' field
+    // For simplicity, assume results have a 'decision' or 'value' field
     const votes = new Map();
 
     results.forEach(({ agentId, result }) => {
-      const value = result.value || result.decision || JSON.stringify(result);
+      // Prioritize 'decision' field over 'value' for voting
+      const value = result.decision || result.value || JSON.stringify(result);
       const weight = weights[agentId] || 1;
 
       votes.set(value, (votes.get(value) || 0) + weight);

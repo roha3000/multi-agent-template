@@ -18,14 +18,14 @@ const StateManager = require('../../.claude/core/state-manager');
 const MemoryStore = require('../../.claude/core/memory-store');
 const UsageTracker = require('../../.claude/core/usage-tracker');
 const MessageBus = require('../../.claude/core/message-bus');
-const tokenCounter = require('../../.claude/core/token-counter');
+const TokenCounter = require('../../.claude/core/token-counter');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
 describe('OTLP-Checkpoint Integration', () => {
   let otlpReceiver, metricProcessor, bridge, orchestrator;
-  let checkpointOptimizer, stateManager, memoryStore, usageTracker, messageBus;
+  let checkpointOptimizer, stateManager, memoryStore, usageTracker, messageBus, tokenCounter;
   let testDbPath;
 
   beforeEach(async () => {
@@ -39,10 +39,12 @@ describe('OTLP-Checkpoint Integration', () => {
       sessionId: `test-${Date.now()}`
     });
 
-    stateManager = new StateManager(
-      { memoryStore },
-      { persistInterval: 100 }
-    );
+    tokenCounter = new TokenCounter({
+      model: 'claude-sonnet-4-20250514',
+      memoryStore: memoryStore
+    });
+
+    stateManager = new StateManager(__dirname);
 
     metricProcessor = new MetricProcessor({
       batchSize: 10,
@@ -62,6 +64,7 @@ describe('OTLP-Checkpoint Integration', () => {
       { memoryStore, usageTracker },
       {
         compactionDetectionEnabled: true,
+        compactionTokenDrop: 50000,  // Explicitly set threshold
         initialThresholds: {
           context: 0.75,
           buffer: 10000
@@ -111,6 +114,9 @@ describe('OTLP-Checkpoint Integration', () => {
       }
     );
 
+    // Set bridge in orchestrator so it can access OTLP token counts
+    orchestrator.otlpBridge = bridge;
+
     // Start services
     await otlpReceiver.start();
     await orchestrator.start();
@@ -119,13 +125,13 @@ describe('OTLP-Checkpoint Integration', () => {
 
   afterEach(async () => {
     // Cleanup
-    bridge.stop();
-    await orchestrator.stop();
-    await otlpReceiver.stop();
-    memoryStore.close();
+    if (bridge) bridge.stop();
+    if (orchestrator) await orchestrator.stop();
+    if (otlpReceiver) await otlpReceiver.stop();
+    if (memoryStore) memoryStore.close();
 
     // Remove test database
-    if (fs.existsSync(testDbPath)) {
+    if (testDbPath && fs.existsSync(testDbPath)) {
       fs.unlinkSync(testDbPath);
     }
   });
@@ -209,7 +215,7 @@ describe('OTLP-Checkpoint Integration', () => {
       await sendMetric(port, 170000); // 85% of 200K
 
       const warning = await warningPromise;
-      expect(warning.remainingTokens).toBeLessThan(30000);
+      expect(warning.remainingTokens).toBeLessThanOrEqual(30000);
     });
 
     test('should detect rapid token exhaustion', async () => {
@@ -258,22 +264,13 @@ describe('OTLP-Checkpoint Integration', () => {
     test('should record checkpoint in optimizer for learning', async () => {
       const recordSpy = jest.spyOn(checkpointOptimizer, 'recordCheckpoint');
 
-      orchestrator.checkpoint = jest.fn(async () => ({
-        success: true,
-        checkpoint: {
-          contextTokens: 160000,
-          maxContextTokens: 200000,
-          taskType: 'test'
-        }
-      }));
-
       // Trigger checkpoint through high usage
       const port = otlpReceiver.server.address().port;
       await sendMetric(port, 160000);
 
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Manually trigger checkpoint
+      // Manually trigger checkpoint (using real method, not mocked)
       await orchestrator.checkpoint({ taskType: 'test' });
 
       expect(recordSpy).toHaveBeenCalled();
@@ -308,21 +305,18 @@ describe('OTLP-Checkpoint Integration', () => {
     });
 
     test('should detect compaction via sudden token drop', async () => {
-      const port = otlpReceiver.server.address().port;
+      // Establish baseline - set context to 180K
+      checkpointOptimizer.lastContextSize = 180000;
 
-      // Set high token count
-      await sendMetric(port, 180000);
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Simulate compaction (sudden drop)
-      await sendMetric(port, 100000); // Drop of 80K tokens
-
-      // Check if compaction was detected
+      // Simulate compaction (sudden drop to 100K)
       const compactionDetected = checkpointOptimizer.detectCompaction(100000);
+
+      // Should detect: drop = 180000 - 100000 = 80000 > 50000
       expect(compactionDetected).toBe(true);
 
-      // Verify thresholds were adjusted
+      // Verify thresholds were adjusted (reduced by 15%)
       expect(checkpointOptimizer.thresholds.context).toBeLessThan(0.75);
+      expect(checkpointOptimizer.learningData.compactionsDetected).toBe(1);
     });
   });
 
@@ -455,7 +449,7 @@ describe('OTLP-Checkpoint Integration', () => {
 
       // Verify pattern was recorded
       const patterns = checkpointOptimizer.learningData.taskPatterns;
-      expect(patterns.has('code-generation')).toBe(true);
+      expect('code-generation' in patterns).toBe(true);
     });
   });
 

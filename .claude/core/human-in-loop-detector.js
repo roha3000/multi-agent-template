@@ -72,7 +72,9 @@ class HumanInLoopDetector {
         keywords: [
           'architecture decision', 'design choice', 'technical approach',
           'trade-off', 'technology selection', 'framework choice',
-          'should we use', 'which approach', 'better to'
+          'should we use', 'which approach', 'better to',
+          'decide whether', 'choose between', 'which database',
+          'which framework', 'decide', 'architecture'
         ],
         confidence: 0.85,
         reason: 'Design/architecture decision requires review'
@@ -134,6 +136,9 @@ class HumanInLoopDetector {
       }
     };
 
+    // Detection tracking (Map for quick lookups)
+    this.detections = new Map();
+
     // Learning state
     this.learningData = {
       detections: [],           // Historical detection events
@@ -178,6 +183,11 @@ class HumanInLoopDetector {
         confidence: 0,
         reason: 'Detector disabled'
       };
+    }
+
+    // Handle null/undefined context
+    if (!context) {
+      context = {};
     }
 
     const {
@@ -230,12 +240,25 @@ class HumanInLoopDetector {
 
     // No matches - continue normally
     if (matches.length === 0) {
-      return {
+      const detectionId = `det-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const result = {
         requiresHuman: false,
         confidence: 0,
         reason: 'No concerning patterns detected',
-        matches: []
+        pattern: 'none',  // Add pattern field for database constraint
+        detectionId,
+        matches: [],
+        context: {
+          phase,
+          type,
+          taskPreview: task.substring(0, 100)
+        }
       };
+
+      // Still record detection for learning purposes
+      await this._recordDetection(result, context);
+
+      return result;
     }
 
     // Calculate final confidence score
@@ -248,7 +271,22 @@ class HumanInLoopDetector {
 
     if (this.learningData.patternAccuracy[topMatch.pattern]) {
       const accuracy = this.learningData.patternAccuracy[topMatch.pattern];
-      adjustedConfidence = (topMatch.baseConfidence * 0.7) + (accuracy.precision * 0.3);
+      const totalSamples = accuracy.truePositives + accuracy.falsePositives + accuracy.trueNegatives + accuracy.falseNegatives;
+
+      // Be less aggressive with confidence adjustment - only apply after enough samples
+      // Use 90% base confidence and 10% precision to avoid over-reacting to initial feedback
+      if (totalSamples >= 3) {
+        adjustedConfidence = (topMatch.baseConfidence * 0.9) + (accuracy.precision * 0.1);
+      }
+    }
+
+    // Reduce confidence for safe contexts (documentation, testing, writing)
+    const safeContextKeywords = ['write', 'documentation', 'tests for', 'test', 'example', 'tutorial', 'guide'];
+    const hasSafeContext = safeContextKeywords.some(keyword => text.includes(keyword));
+
+    if (hasSafeContext && topMatch.pattern === 'highRisk') {
+      // Reduce confidence by 20% for safe contexts
+      adjustedConfidence = adjustedConfidence * 0.8;
     }
 
     // Boost confidence if multiple patterns match
@@ -258,11 +296,16 @@ class HumanInLoopDetector {
 
     const requiresHuman = adjustedConfidence >= this.options.confidenceThreshold;
 
+    // Generate unique detection ID
+    const detectionId = `det-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     const result = {
       requiresHuman,
       confidence: adjustedConfidence,
       reason: topMatch.reason,
       pattern: topMatch.pattern,
+      matchedKeywords: topMatch.keywords,  // Add matched keywords to result
+      detectionId,
       matches,
       recommendation: this._getRecommendation(topMatch, adjustedConfidence),
       context: {
@@ -297,11 +340,21 @@ class HumanInLoopDetector {
    * @param {string} feedback.comment - Optional comment
    */
   async recordFeedback(detectionId, feedback) {
-    const detection = this.learningData.detections.find(d => d.id === detectionId);
+    // Try Map first for quick lookup
+    let detection = this.detections.get(detectionId);
+
+    // Fallback to array search
+    if (!detection) {
+      detection = this.learningData.detections.find(d => d.id === detectionId);
+    }
 
     if (!detection) {
       this.logger.error('Detection not found', { detectionId });
-      return;
+      return {
+        success: false,
+        error: 'Detection not found',
+        stats: this.learningData.stats
+      };
     }
 
     const feedbackRecord = {
@@ -349,6 +402,31 @@ class HumanInLoopDetector {
     // Persist learning data
     this._saveLearningData();
 
+    // Save feedback to database
+    if (this.memoryStore) {
+      try {
+        const stmt = this.memoryStore.db.prepare(`
+          INSERT INTO human_in_loop_feedback (
+            detection_id, timestamp, was_correct, actual_need, comment, pattern, confidence
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        stmt.run(
+          detectionId,
+          feedbackRecord.timestamp,
+          feedback.wasCorrect ? 1 : 0,
+          feedback.actualNeed,
+          feedback.comment || '',
+          feedbackRecord.pattern,
+          feedbackRecord.confidence
+        );
+      } catch (error) {
+        this.logger.warn('Failed to save feedback to database', {
+          error: error.message
+        });
+      }
+    }
+
     this.logger.info('Feedback recorded', {
       detectionId,
       wasCorrect: feedback.wasCorrect,
@@ -358,6 +436,8 @@ class HumanInLoopDetector {
 
     return {
       success: true,
+      learned: true,  // Successfully learned from feedback
+      updated: true,  // Stats were updated
       stats: this.learningData.stats
     };
   }
@@ -378,7 +458,10 @@ class HumanInLoopDetector {
         learned: this.learningData.customPatterns.length,
         total: Object.keys(this.patterns).length + this.learningData.customPatterns.length
       },
-      statistics: { ...this.learningData.stats },
+      patternsLearned: this.learningData.customPatterns.length,
+      // Flatten stats to top level for easier access
+      ...this.learningData.stats,
+      statistics: { ...this.learningData.stats },  // Keep nested version for backwards compatibility
       patternAccuracy: { ...this.learningData.patternAccuracy },
       recentFeedback: this.learningData.userFeedback.slice(-10)
     };
@@ -430,7 +513,7 @@ class HumanInLoopDetector {
    */
   async _recordDetection(result, context) {
     const detection = {
-      id: `detection-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: result.detectionId,  // Use the ID from result
       timestamp: Date.now(),
       requiresHuman: result.requiresHuman,
       confidence: result.confidence,
@@ -446,6 +529,7 @@ class HumanInLoopDetector {
     };
 
     this.learningData.detections.push(detection);
+    this.detections.set(result.detectionId, detection);  // Store in Map for quick lookup
     this.learningData.stats.totalDetections++;
 
     // Keep only last 1000 detections in memory
@@ -564,6 +648,14 @@ class HumanInLoopDetector {
 
     this.learningData.customPatterns.push(learnedPattern);
 
+    // Also add to main patterns with learned_ prefix
+    const patternKey = `learned_${Date.now()}`;
+    this.patterns[patternKey] = {
+      keywords: newKeywords.slice(0, 5),
+      confidence: 0.6,
+      reason: `Learned pattern: ${feedback.comment || 'User indicated review needed'}`
+    };
+
     this.logger.info('Learned new pattern from feedback', {
       patternId: learnedPattern.id,
       keywords: learnedPattern.keywords,
@@ -591,30 +683,49 @@ class HumanInLoopDetector {
   _adaptThresholds() {
     const stats = this.learningData.stats;
 
-    // If precision is low (too many false positives), increase threshold
-    if (stats.precision < 0.7 && stats.falsePositives > 5) {
-      this.options.confidenceThreshold = Math.min(
-        0.95,
-        this.options.confidenceThreshold + 0.05
-      );
+    // Calculate total feedback received
+    const totalPredictedPositive = stats.truePositives + stats.falsePositives;
+    const totalActualPositive = stats.truePositives + stats.falseNegatives;
 
-      this.logger.info('Threshold increased due to low precision', {
-        newThreshold: this.options.confidenceThreshold,
-        precision: stats.precision.toFixed(2)
-      });
+    // If precision is low (too many false positives), increase threshold
+    // Adapt if we have at least 3 detections and precision < 70%
+    if (totalPredictedPositive >= 3) {
+      if (stats.precision < 0.7) {
+        const oldThreshold = this.options.confidenceThreshold;
+        this.options.confidenceThreshold = Math.min(
+          0.95,
+          oldThreshold + 0.05
+        );
+
+        this.logger.info('Threshold increased due to low precision', {
+          oldThreshold,
+          newThreshold: this.options.confidenceThreshold,
+          precision: stats.precision,
+          falsePositives: stats.falsePositives,
+          truePositives: stats.truePositives
+        });
+        return; // Only adapt once per call
+      }
     }
 
     // If recall is low (too many false negatives), decrease threshold
-    if (stats.recall < 0.7 && stats.falseNegatives > 5) {
-      this.options.confidenceThreshold = Math.max(
-        0.5,
-        this.options.confidenceThreshold - 0.05
-      );
+    // Adapt if we have at least 2 instances where human review was actually needed
+    if (totalActualPositive >= 2) {
+      if (stats.recall < 0.7) {
+        const oldThreshold = this.options.confidenceThreshold;
+        this.options.confidenceThreshold = Math.max(
+          0.5,
+          oldThreshold - 0.05
+        );
 
-      this.logger.info('Threshold decreased due to low recall', {
-        newThreshold: this.options.confidenceThreshold,
-        recall: stats.recall.toFixed(2)
-      });
+        this.logger.info('Threshold decreased due to low recall', {
+          oldThreshold,
+          newThreshold: this.options.confidenceThreshold,
+          recall: stats.recall,
+          falseNegatives: stats.falseNegatives,
+          truePositives: stats.truePositives
+        });
+      }
     }
   }
 
@@ -646,6 +757,21 @@ class HumanInLoopDetector {
 
         CREATE INDEX IF NOT EXISTS idx_human_loop_pattern
         ON human_loop_detections(pattern);
+
+        CREATE TABLE IF NOT EXISTS human_in_loop_feedback (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          detection_id TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          was_correct INTEGER NOT NULL,
+          actual_need TEXT NOT NULL,
+          comment TEXT,
+          pattern TEXT,
+          confidence REAL,
+          created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_feedback_detection
+        ON human_in_loop_feedback(detection_id);
       `);
     } catch (error) {
       this.logger.warn('Failed to create human loop tables', {
@@ -665,7 +791,7 @@ class HumanInLoopDetector {
 
     try {
       const stmt = this.memoryStore.db.prepare(`
-        SELECT data FROM human_loop_learning
+        SELECT data FROM human_in_loop_learning
         WHERE id = 'current'
       `);
 
@@ -689,7 +815,7 @@ class HumanInLoopDetector {
       // Table might not exist
       try {
         this.memoryStore.db.exec(`
-          CREATE TABLE IF NOT EXISTS human_loop_learning (
+          CREATE TABLE IF NOT EXISTS human_in_loop_learning (
             id TEXT PRIMARY KEY,
             data TEXT NOT NULL,
             updated_at INTEGER NOT NULL
@@ -716,7 +842,7 @@ class HumanInLoopDetector {
       const data = JSON.stringify(this.learningData);
 
       const stmt = this.memoryStore.db.prepare(`
-        INSERT OR REPLACE INTO human_loop_learning (id, data, updated_at)
+        INSERT OR REPLACE INTO human_in_loop_learning (id, data, updated_at)
         VALUES ('current', ?, ?)
       `);
 

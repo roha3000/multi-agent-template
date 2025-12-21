@@ -1,0 +1,14 @@
+{
+  "current_phase": "research",
+  "phase_history": [],
+  "quality_scores": {},
+  "artifacts": {},
+  "decisions": [],
+  "blockers": [],
+  "last_updated": "2025-12-21T15:28:56.180Z",
+  "metadata": {
+    "project_name": "Unknown Project",
+    "created_at": "2025-12-21T15:28:54.145Z",
+    "version": "1.0.0"
+  }
+}

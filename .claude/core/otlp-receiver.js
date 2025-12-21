@@ -14,21 +14,33 @@ const express = require('express');
 const { MeterProvider, PeriodicExportingMetricReader } = require('@opentelemetry/sdk-metrics');
 const { Resource } = require('@opentelemetry/resources');
 const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
+const EventEmitter = require('events');
 const UsageTracker = require('./usage-tracker');
 const path = require('path');
 
-class OTLPReceiver {
-    constructor(projectRoot, options = {}) {
-        this.projectRoot = projectRoot;
-        this.port = options.port || 4318;
+class OTLPReceiver extends EventEmitter {
+    constructor(options = {}) {
+        super();
+
+        // Support both old (projectRoot, options) and new (options) signatures
+        if (typeof options === 'string') {
+            // Old signature: (projectRoot, options)
+            this.projectRoot = options;
+            options = arguments[1] || {};
+        } else {
+            // New signature: (options)
+            this.projectRoot = options.projectRoot;
+        }
+
+        this.port = options.port !== undefined ? options.port : 4318;
         this.host = options.host || 'localhost';
         this.app = express();
         this.server = null;
         this.isRunning = false;
 
-        // Initialize UsageTracker only (DashboardManager is optional for metrics viewing)
-        this.usageTracker = new UsageTracker(projectRoot);
-        // Note: DashboardManager disabled to avoid complexity - data is saved to disk
+        // Use provided instances or create new ones
+        this.usageTracker = options.usageTracker || new UsageTracker(this.projectRoot);
+        this.metricProcessor = options.metricProcessor || null;
 
         // Metrics storage for processing
         this.metricsBuffer = [];
@@ -128,6 +140,13 @@ class OTLPReceiver {
     }
 
     processMetrics(metricsData) {
+        // If a metricProcessor is provided, use it
+        if (this.metricProcessor) {
+            this.metricProcessor.processMetrics(metricsData);
+        }
+
+        const processedMetrics = [];
+
         // OTLP metric structure has resourceMetrics array
         if (metricsData.resourceMetrics) {
             for (const resourceMetric of metricsData.resourceMetrics) {
@@ -138,11 +157,20 @@ class OTLPReceiver {
                         if (scopeMetric.metrics) {
                             for (const metric of scopeMetric.metrics) {
                                 this.processMetric(metric);
+                                processedMetrics.push(metric);
+
+                                // Emit individual metric event
+                                this.emit('metrics:processed', { metrics: [metric] });
                             }
                         }
                     }
                 }
             }
+        }
+
+        // Emit batch event
+        if (processedMetrics.length > 0) {
+            this.emit('metrics:batch', processedMetrics);
         }
     }
 
@@ -289,9 +317,6 @@ class OTLPReceiver {
         // Clear buffer
         this.metricsBuffer = [];
         this.lastFlush = Date.now();
-
-        // Save usage data to disk
-        this.usageTracker.saveUsageData();
     }
 
     async start() {

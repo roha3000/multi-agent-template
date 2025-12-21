@@ -141,8 +141,7 @@ describe('ClaudeLimitTracker', () => {
     });
 
     test('should warn at 80% threshold', () => {
-      // Record calls to reach 80% of minute limit (4 of 5)
-      tracker.recordCall(1000);
+      // Record calls to reach 80% of minute limit when including next call (3 + 1 = 4/5 = 80%)
       tracker.recordCall(1000);
       tracker.recordCall(1000);
       tracker.recordCall(1000);
@@ -155,13 +154,16 @@ describe('ClaudeLimitTracker', () => {
     });
 
     test('should be critical at 90% threshold', () => {
-      // Record calls to reach 90% of minute limit
-      tracker.recordCall(1000);
-      tracker.recordCall(1000);
-      tracker.recordCall(1000);
-      tracker.recordCall(1000);
+      // Record calls to reach 90% of daily limit (900 of 1000)
+      // Making one more call would put us at 901/1000 = 90.1%
+      for (let i = 0; i < 900; i++) {
+        tracker.recordCall(100);
+      }
 
-      const result = tracker.canMakeCall(1000);
+      // Reset minute window so only day limit is checked
+      tracker.windows.minute.calls = 0;
+
+      const result = tracker.canMakeCall(100);
 
       expect(result.level).toContain('CRITICAL');
     });
@@ -261,8 +263,11 @@ describe('ClaudeLimitTracker', () => {
       expect(tracker.windows.day.calls).toBe(1);
     });
 
-    test('should update resetAt timestamp on reset', () => {
+    test('should update resetAt timestamp on reset', async () => {
       const oldResetAt = tracker.windows.minute.resetAt;
+
+      // Wait 2ms to ensure time has passed since construction
+      await new Promise(resolve => setTimeout(resolve, 2));
 
       tracker.windows.minute.resetAt = Date.now() - 1000;
       tracker._resetExpiredWindows();
@@ -372,6 +377,9 @@ describe('ClaudeLimitTracker', () => {
         freeTracker.recordCall(1000);
       }
 
+      // Reset minute window to test day limit only
+      freeTracker.windows.minute.calls = 0;
+
       const result = freeTracker.canMakeCall(1000);
 
       expect(result.level).toBe('WARNING');
@@ -455,10 +463,13 @@ describe('ClaudeLimitTracker', () => {
 
   describe('safety recommendations', () => {
     test('should recommend wrap-up at critical level', () => {
-      // Fill to 90%
+      // Fill to 90% of daily limit
       for (let i = 0; i < 900; i++) {
         tracker.recordCall(100);
       }
+
+      // Reset minute window to test day limit only
+      tracker.windows.minute.calls = 0;
 
       const result = tracker.canMakeCall(100);
 
@@ -467,10 +478,13 @@ describe('ClaudeLimitTracker', () => {
     });
 
     test('should not recommend halt until emergency', () => {
-      // Fill to 90%
+      // Fill to 90% of daily limit
       for (let i = 0; i < 900; i++) {
         tracker.recordCall(100);
       }
+
+      // Reset minute window to test day limit only
+      tracker.windows.minute.calls = 0;
 
       const result = tracker.canMakeCall(100);
 
@@ -501,10 +515,13 @@ describe('ClaudeLimitTracker', () => {
         }
       });
 
-      // Fill to 65% (above custom warning threshold)
+      // Fill to 65% of daily limit (above custom warning threshold)
       for (let i = 0; i < 650; i++) {
         customTracker.recordCall(100);
       }
+
+      // Reset minute window to test day limit only
+      customTracker.windows.minute.calls = 0;
 
       const result = customTracker.canMakeCall(100);
 
@@ -512,15 +529,15 @@ describe('ClaudeLimitTracker', () => {
     });
 
     test('should apply thresholds to all limit types', () => {
-      // Test minute limit warning
-      for (let i = 0; i < 4; i++) {
+      // Test minute limit warning (3 + 1 projection = 4/5 = 80%)
+      for (let i = 0; i < 3; i++) {
         tracker.recordCall(1000);
       }
 
       const minuteResult = tracker.canMakeCall(1000);
       expect(minuteResult.level).toBe('WARNING');
 
-      // Reset and test day limit warning
+      // Reset and test day limit warning (800 + 1 projection = 801/1000 = 80.1%)
       tracker.windows.minute.calls = 0;
       tracker.windows.day.calls = 800; // 80% of 1000
 
