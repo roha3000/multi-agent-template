@@ -27,6 +27,8 @@ const {
   generateScoringPrompt,
   generateImprovementGuidance,
 } = require('./quality-gates');
+const TaskManager = require('./.claude/core/task-manager');
+const MemoryStore = require('./.claude/core/memory-store');
 
 // ============================================================================
 // CONFIGURATION
@@ -84,6 +86,7 @@ const state = {
   sessionHistory: [],
   startTime: new Date(),
   task: CONFIG.task,
+  currentTaskId: null, // Track current task being worked on
 };
 
 let claudeProcess = null;
@@ -91,6 +94,15 @@ let eventSource = null;
 let shouldContinue = true;
 let thresholdReached = false;
 let currentSessionData = null;
+
+// Initialize TaskManager and MemoryStore
+const memoryStore = new MemoryStore({
+  dbPath: path.join(CONFIG.projectPath, '.claude', 'memory', 'orchestrations.db')
+});
+const taskManager = new TaskManager({
+  tasksPath: path.join(CONFIG.projectPath, 'tasks.json'),
+  memoryStore
+});
 
 // ============================================================================
 // PROMPT GENERATION
@@ -104,9 +116,48 @@ function generatePhasePrompt(phase, iteration, previousScore = null, improvement
 
   let prompt = `# AUTONOMOUS EXECUTION: ${phaseConfig.name} Phase\n\n`;
 
-  // Task context
+  // Get next task from TaskManager
+  const nextTask = taskManager.getNextTask(phase);
+
+  if (nextTask) {
+    state.currentTaskId = nextTask.id;
+
+    prompt += `## 🎯 Current Task\n\n`;
+    prompt += `**${nextTask.title}**\n\n`;
+    prompt += `- **ID**: ${nextTask.id}\n`;
+    prompt += `- **Phase**: ${nextTask.phase}\n`;
+    prompt += `- **Priority**: ${nextTask.priority}\n`;
+    if (nextTask.estimate) {
+      prompt += `- **Estimate**: ${nextTask.estimate}\n`;
+    }
+    if (nextTask.tags && nextTask.tags.length > 0) {
+      prompt += `- **Tags**: ${nextTask.tags.join(', ')}\n`;
+    }
+
+    if (nextTask.description) {
+      prompt += `\n**Description**:\n${nextTask.description}\n`;
+    }
+
+    if (nextTask.acceptance && nextTask.acceptance.length > 0) {
+      prompt += `\n**Acceptance Criteria**:\n`;
+      nextTask.acceptance.forEach(criterion => {
+        prompt += `- ${criterion}\n`;
+      });
+    }
+
+    if (nextTask.context) {
+      prompt += `\n**Context**: ${nextTask.context}\n`;
+    }
+
+    prompt += `\n`;
+  } else {
+    state.currentTaskId = null;
+    prompt += `## 📝 Note\n\nNo specific task assigned for this phase. Proceed with general ${phase} phase objectives.\n\n`;
+  }
+
+  // Legacy task context (for backwards compatibility)
   if (state.task) {
-    prompt += `## Task\n${state.task}\n\n`;
+    prompt += `## Additional Context\n${state.task}\n\n`;
   }
 
   prompt += `## Session Context\n`;
@@ -273,6 +324,21 @@ function runSession(prompt) {
     console.log('\n' + '─'.repeat(70));
     console.log(`SESSION ${state.totalSessions + 1}: ${state.currentPhase} phase (iteration ${state.phaseIteration})`);
     console.log('─'.repeat(70));
+
+    // Mark task as in_progress when starting
+    if (state.currentTaskId) {
+      try {
+        taskManager.updateStatus(state.currentTaskId, 'in_progress', {
+          started: new Date().toISOString(),
+          phase: state.currentPhase,
+          iteration: state.phaseIteration
+        });
+        console.log(`[TASK] Marked task ${state.currentTaskId} as in_progress`);
+      } catch (err) {
+        console.log(`[TASK] Warning: Could not update task status: ${err.message}`);
+      }
+    }
+
     console.log('\nPrompt preview (first 500 chars):');
     console.log(prompt.substring(0, 500) + '...\n');
     console.log('─'.repeat(70) + '\n');
@@ -482,6 +548,31 @@ async function main() {
       if (evaluation.complete) {
         console.log(`[SUCCESS] ${state.currentPhase} phase complete!`);
         state.phaseScores[state.currentPhase] = evaluation.score;
+
+        // Mark task as completed
+        if (state.currentTaskId) {
+          try {
+            taskManager.updateStatus(state.currentTaskId, 'completed', {
+              completed: new Date().toISOString(),
+              phase: state.currentPhase,
+              score: evaluation.score,
+              iterations: state.phaseIteration
+            });
+            console.log(`[TASK] Marked task ${state.currentTaskId} as completed`);
+
+            // Record in MemoryStore for historical learning
+            const task = taskManager.getTask(state.currentTaskId);
+            if (task && memoryStore) {
+              memoryStore.recordTaskCompletion(task);
+              console.log(`[TASK] Recorded task completion for historical learning`);
+            }
+
+            state.currentTaskId = null;
+          } catch (err) {
+            console.log(`[TASK] Warning: Could not complete task: ${err.message}`);
+          }
+        }
+
         advancePhase();
       } else {
         console.log(`[ITERATE] Score ${evaluation.score} below threshold. Will iterate.`);
