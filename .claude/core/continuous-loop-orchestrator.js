@@ -536,7 +536,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
 
     return {
       safe: true,
-      action: 'CONTINUE',
+      action: 'PROCEED',
       level: 'OK',
       checks,
       message: 'All checks passed',
