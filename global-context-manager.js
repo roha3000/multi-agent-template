@@ -184,9 +184,46 @@ function readTasksFile() {
   return { todos: [], phase: null };
 }
 
+// Generate stable task ID from text using hash
+function generateTaskId(text) {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return 'task_' + Math.abs(hash).toString(16);
+}
+
+// Extract priority from emoji in task text
+function extractPriority(text) {
+  if (text.includes('🔴')) return 'critical';
+  if (text.includes('🟡')) return 'high';
+  if (text.includes('🟢')) return 'medium';
+  if (text.includes('⚪')) return 'low';
+  return null;
+}
+
+// Extract phase from task text [PHASE] format
+function extractPhase(text) {
+  const phaseMatch = text.match(/\[([A-Z]+)\]/i);
+  return phaseMatch ? phaseMatch[1].toLowerCase() : null;
+}
+
+// Determine category from section header
+function determineCategory(sectionHeader) {
+  if (!sectionHeader) return 'backlog';
+  const lower = sectionHeader.toLowerCase();
+  if (lower.includes('current') || lower.includes('in progress') || lower.includes('active')) return 'current';
+  if (lower.includes('completed') || lower.includes('done')) return 'completed';
+  if (lower.includes('backlog') || lower.includes('next') || lower.includes('option')) return 'backlog';
+  return 'backlog';
+}
+
 function parseTasksMarkdown(content) {
   const todos = [];
   let currentPhase = null;
+  let currentSection = '';
 
   // Extract current phase from header
   const phaseMatch = content.match(/Current Session[:\s]+([^\n]+)/i);
@@ -198,17 +235,117 @@ function parseTasksMarkdown(content) {
   const statusMatch = content.match(/Status[:\s]+([^\n]+)/i);
   const status = statusMatch ? statusMatch[1].trim() : null;
 
-  // Parse checkbox items
-  const checkboxPattern = /- \[([ xX])\] \*?\*?([^*\n]+)\*?\*?/g;
-  let match;
-  while ((match = checkboxPattern.exec(content)) !== null) {
-    todos.push({
-      completed: match[1].toLowerCase() === 'x',
-      text: match[2].trim(),
-    });
+  // Parse line by line to track sections
+  const lines = content.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Track section headers
+    if (line.startsWith('##')) {
+      currentSection = line;
+      continue;
+    }
+
+    // Parse checkbox items
+    const taskMatch = line.match(/^[\s-]*\[([x ])\]\s*\*?\*?([^*\n]+)\*?\*?$/i);
+    if (taskMatch) {
+      const text = taskMatch[2].trim();
+      todos.push({
+        id: generateTaskId(text),
+        completed: taskMatch[1].toLowerCase() === 'x',
+        text: text,
+        priority: extractPriority(text),
+        phase: extractPhase(text),
+        category: determineCategory(currentSection),
+        lineNumber: i
+      });
+    }
   }
 
-  return { todos, phase: currentPhase, status };
+  return { todos, phase: currentPhase, status, rawContent: content };
+}
+
+// Write tasks back to tasks.md preserving structure
+function writeTasksFile(updates) {
+  const tasksPath = path.join(__dirname, '.claude', 'dev-docs', 'tasks.md');
+  try {
+    let content = fs.existsSync(tasksPath) ? fs.readFileSync(tasksPath, 'utf-8') : '';
+    const lines = content.split('\n');
+
+    // Process updates (array of {id, completed, text} or single update)
+    const updateList = Array.isArray(updates) ? updates : [updates];
+    const updateMap = new Map(updateList.map(u => [u.id, u]));
+
+    // Update matching lines
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const taskMatch = line.match(/^([\s-]*)\[([x ])\]\s*\*?\*?([^*\n]+)\*?\*?$/i);
+
+      if (taskMatch) {
+        const text = taskMatch[3].trim();
+        const taskId = generateTaskId(text);
+        const update = updateMap.get(taskId);
+
+        if (update) {
+          const indent = taskMatch[1];
+          const checkbox = update.completed ? '[x]' : '[ ]';
+          const newText = update.text || text;
+          lines[i] = `${indent}${checkbox} ${newText}`;
+          updateMap.delete(taskId);
+        }
+      }
+    }
+
+    // Add new tasks if any remain (append to end of first ## section)
+    if (updateMap.size > 0) {
+      const newTasks = Array.from(updateMap.values());
+      const insertLines = newTasks.map(t => {
+        const checkbox = t.completed ? '[x]' : '[ ]';
+        return `- ${checkbox} ${t.text}`;
+      });
+
+      // Find a good insertion point (after first ## header)
+      let insertIndex = lines.findIndex(l => l.startsWith('## '));
+      if (insertIndex !== -1) {
+        // Find next section or end
+        let endIndex = lines.findIndex((l, idx) => idx > insertIndex && l.startsWith('## '));
+        if (endIndex === -1) endIndex = lines.length;
+        lines.splice(endIndex, 0, '', ...insertLines);
+      } else {
+        lines.push('', ...insertLines);
+      }
+    }
+
+    fs.writeFileSync(tasksPath, lines.join('\n'), 'utf-8');
+    return true;
+  } catch (err) {
+    console.error('Error writing tasks file:', err);
+    return false;
+  }
+}
+
+// Delete a task by ID from tasks.md
+function deleteTaskFromFile(taskId) {
+  const tasksPath = path.join(__dirname, '.claude', 'dev-docs', 'tasks.md');
+  try {
+    const content = fs.readFileSync(tasksPath, 'utf-8');
+    const lines = content.split('\n');
+
+    const filteredLines = lines.filter(line => {
+      const taskMatch = line.match(/^[\s-]*\[([x ])\]\s*\*?\*?([^*\n]+)\*?\*?$/i);
+      if (taskMatch) {
+        const text = taskMatch[2].trim();
+        return generateTaskId(text) !== taskId;
+      }
+      return true;
+    });
+
+    fs.writeFileSync(tasksPath, filteredLines.join('\n'), 'utf-8');
+    return true;
+  } catch (err) {
+    console.error('Error deleting task:', err);
+    return false;
+  }
 }
 
 function readPlanFile() {
@@ -440,10 +577,209 @@ app.get('/api/execution/scores', (req, res) => {
   res.json(scores || { phase: null, scores: {}, totalScore: 0 });
 });
 
-// Get todos from tasks.md
+// Get todos from tasks.md (legacy endpoint)
 app.get('/api/execution/todos', (req, res) => {
   const tasks = readTasksFile();
   res.json(tasks);
+});
+
+// ============================================================================
+// TASK MANAGEMENT API ENDPOINTS
+// ============================================================================
+
+// GET /api/todos - Get all tasks with filtering
+app.get('/api/todos', (req, res) => {
+  try {
+    const { status, phase, priority, category } = req.query;
+    let { todos } = readTasksFile();
+
+    // Apply filters
+    if (status) {
+      const statuses = status.split(',');
+      todos = todos.filter(task => {
+        if (statuses.includes('pending') && !task.completed) return true;
+        if (statuses.includes('completed') && task.completed) return true;
+        return false;
+      });
+    }
+
+    if (phase) {
+      todos = todos.filter(task => task.phase === phase.toLowerCase());
+    }
+
+    if (priority) {
+      todos = todos.filter(task => task.priority === priority.toLowerCase());
+    }
+
+    if (category) {
+      todos = todos.filter(task => task.category === category.toLowerCase());
+    }
+
+    res.json({ success: true, count: todos.length, tasks: todos });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/todos/backlog - Get backlog tasks only
+app.get('/api/todos/backlog', (req, res) => {
+  try {
+    const { todos } = readTasksFile();
+    const backlogTasks = todos.filter(task =>
+      task.category === 'backlog' && !task.completed
+    );
+    res.json({ success: true, count: backlogTasks.length, tasks: backlogTasks });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/todos - Create new task
+app.post('/api/todos', (req, res) => {
+  try {
+    const { text, priority, phase, category } = req.body;
+
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'Task text is required' });
+    }
+
+    // Build task text with metadata
+    let taskText = text.trim();
+
+    // Add priority emoji if specified
+    if (priority) {
+      const priorityEmoji = { critical: '🔴', high: '🟡', medium: '🟢', low: '⚪' };
+      const emoji = priorityEmoji[priority.toLowerCase()];
+      if (emoji && !taskText.includes(emoji)) {
+        taskText = `${emoji} ${taskText}`;
+      }
+    }
+
+    // Add phase tag if specified
+    if (phase && !taskText.match(/\[[A-Z]+\]/i)) {
+      taskText = `[${phase.toUpperCase()}] ${taskText}`;
+    }
+
+    const newTask = {
+      id: generateTaskId(taskText),
+      text: taskText,
+      completed: false,
+      priority: extractPriority(taskText),
+      phase: extractPhase(taskText),
+      category: category || 'backlog'
+    };
+
+    // Write to file
+    const success = writeTasksFile(newTask);
+    if (success) {
+      updateExecutionState(); // Refresh state
+      res.status(201).json({ success: true, task: newTask });
+    } else {
+      res.status(500).json({ success: false, error: 'Failed to write task' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PATCH /api/todos/:id/status - Toggle task completion
+app.patch('/api/todos/:id/status', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { todos } = readTasksFile();
+    const task = todos.find(t => t.id === id);
+
+    if (!task) {
+      return res.status(404).json({ success: false, error: 'Task not found' });
+    }
+
+    const updatedTask = { ...task, completed: !task.completed };
+    const success = writeTasksFile(updatedTask);
+
+    if (success) {
+      updateExecutionState(); // Refresh state
+      res.json({ success: true, task: updatedTask });
+    } else {
+      res.status(500).json({ success: false, error: 'Failed to update task' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PUT /api/todos/:id - Update task
+app.put('/api/todos/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text, priority, phase } = req.body;
+    const { todos } = readTasksFile();
+    const task = todos.find(t => t.id === id);
+
+    if (!task) {
+      return res.status(404).json({ success: false, error: 'Task not found' });
+    }
+
+    let newText = text ? text.trim() : task.text;
+
+    // Update priority emoji
+    if (priority) {
+      const priorityEmoji = { critical: '🔴', high: '🟡', medium: '🟢', low: '⚪' };
+      newText = newText.replace(/[🔴🟡🟢⚪]\s*/g, ''); // Remove existing
+      const emoji = priorityEmoji[priority.toLowerCase()];
+      if (emoji) newText = `${emoji} ${newText}`;
+    }
+
+    // Update phase tag
+    if (phase) {
+      newText = newText.replace(/\[[A-Z]+\]\s*/gi, ''); // Remove existing
+      newText = `[${phase.toUpperCase()}] ${newText}`;
+    }
+
+    const updatedTask = {
+      ...task,
+      id: generateTaskId(newText), // New ID based on new text
+      text: newText,
+      priority: extractPriority(newText),
+      phase: extractPhase(newText)
+    };
+
+    // Delete old and write new (since ID changed)
+    deleteTaskFromFile(id);
+    const success = writeTasksFile(updatedTask);
+
+    if (success) {
+      updateExecutionState();
+      res.json({ success: true, task: updatedTask });
+    } else {
+      res.status(500).json({ success: false, error: 'Failed to update task' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// DELETE /api/todos/:id - Delete task
+app.delete('/api/todos/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { todos } = readTasksFile();
+    const task = todos.find(t => t.id === id);
+
+    if (!task) {
+      return res.status(404).json({ success: false, error: 'Task not found' });
+    }
+
+    const success = deleteTaskFromFile(id);
+
+    if (success) {
+      updateExecutionState();
+      res.json({ success: true, message: 'Task deleted', deletedTask: task });
+    } else {
+      res.status(500).json({ success: false, error: 'Failed to delete task' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // SSE for real-time updates

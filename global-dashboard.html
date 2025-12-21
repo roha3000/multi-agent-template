@@ -719,6 +719,234 @@
         .phase-history-dot.passing { background: var(--success); }
         .phase-history-dot.failing { background: var(--danger); }
         .phase-history-dot.current { background: var(--info); animation: pulse-dot 1.5s infinite; }
+
+        /* Task Action Buttons */
+        .todos-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .add-task-btn, .view-backlog-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+        }
+
+        .add-task-btn {
+            background: linear-gradient(135deg, var(--info), #667eea);
+            color: white;
+            flex: 1;
+        }
+
+        .add-task-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(88, 166, 255, 0.4);
+        }
+
+        .view-backlog-btn {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .view-backlog-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        /* Clickable Todo Items */
+        .todo-item {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .todo-item:hover {
+            background: var(--bg-secondary);
+            border-left-color: var(--info);
+            transform: translateX(4px);
+        }
+
+        .todo-priority {
+            font-size: 1rem;
+            margin-left: 8px;
+        }
+
+        /* Backlog Panel */
+        .backlog-panel {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .backlog-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .backlog-count {
+            background: var(--info);
+            color: white;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+
+        .backlog-filters select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 12px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .backlog-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .backlog-item {
+            background: var(--bg-secondary);
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 3px solid var(--border);
+        }
+
+        .backlog-item:hover {
+            border-left-color: var(--info);
+            transform: translateX(4px);
+        }
+
+        .backlog-item-text {
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        /* Modal */
+        .task-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .task-modal-content {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid var(--border);
+            animation: modalSlideIn 0.2s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .task-modal-content h3 {
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .task-modal-content input,
+        .task-modal-content select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 12px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .task-modal-content input:focus,
+        .task-modal-content select:focus {
+            outline: none;
+            border-color: var(--info);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .modal-btn-primary, .modal-btn-secondary {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .modal-btn-primary {
+            background: linear-gradient(135deg, var(--info), #667eea);
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .modal-btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .modal-btn-secondary:hover {
+            background: var(--bg-primary);
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 2000;
+            animation: slideInRight 0.3s ease;
+        }
+
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
     </style>
 </head>
 <body>
@@ -815,8 +1043,53 @@
                     <span class="todos-progress-text" id="todosProgressText">0/0</span>
                 </div>
             </div>
+
+            <!-- Task Actions -->
+            <div class="todos-actions">
+                <button class="add-task-btn" onclick="showAddTaskModal()">+ Add Task</button>
+                <button class="view-backlog-btn" onclick="toggleBacklogView()">📋 View Backlog</button>
+            </div>
+
             <div class="todos-list" id="todosList">
                 <!-- Todo items will be rendered here -->
+            </div>
+
+            <!-- Backlog Panel (hidden by default) -->
+            <div id="backlogPanel" class="backlog-panel" style="display: none;">
+                <div class="backlog-header">
+                    <span>📋 Backlog</span>
+                    <span class="backlog-count" id="backlogCount">0</span>
+                </div>
+                <div class="backlog-filters">
+                    <select id="backlogPriorityFilter" onchange="filterBacklog()">
+                        <option value="">All Priorities</option>
+                        <option value="critical">🔴 Critical</option>
+                        <option value="high">🟡 High</option>
+                        <option value="medium">🟢 Medium</option>
+                        <option value="low">⚪ Low</option>
+                    </select>
+                </div>
+                <div class="backlog-list" id="backlogList">
+                    <!-- Backlog items rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Task Modal -->
+        <div id="addTaskModal" class="task-modal" style="display: none;">
+            <div class="task-modal-content">
+                <h3>Add New Task</h3>
+                <input type="text" id="newTaskText" placeholder="Task description..." />
+                <select id="newTaskPriority">
+                    <option value="medium">🟢 Medium Priority</option>
+                    <option value="high">🟡 High Priority</option>
+                    <option value="critical">🔴 Critical Priority</option>
+                    <option value="low">⚪ Low Priority</option>
+                </select>
+                <div class="modal-actions">
+                    <button class="modal-btn-primary" onclick="submitNewTask()">Add Task</button>
+                    <button class="modal-btn-secondary" onclick="hideAddTaskModal()">Cancel</button>
+                </div>
             </div>
         </div>
 
@@ -1067,9 +1340,12 @@
                 document.getElementById('todosProgressText').textContent = `${completed}/${total}`;
 
                 document.getElementById('todosList').innerHTML = execState.todos.map(todo => `
-                    <div class="todo-item ${todo.completed ? 'completed' : ''}">
+                    <div class="todo-item ${todo.completed ? 'completed' : ''}"
+                         onclick="toggleTask('${todo.id || ''}', ${todo.completed})"
+                         title="Click to ${todo.completed ? 'reopen' : 'complete'}">
                         <div class="todo-checkbox ${todo.completed ? 'checked' : ''}"></div>
                         <span class="todo-text">${todo.text}</span>
+                        ${todo.priority ? `<span class="todo-priority">${getPriorityIcon(todo.priority)}</span>` : ''}
                     </div>
                 `).join('');
             } else {
@@ -1281,6 +1557,224 @@
         // Sound toggle
         document.getElementById('soundEnabled').addEventListener('change', (e) => {
             soundEnabled = e.target.checked;
+        });
+
+        // ============================================================
+        // Task Management Functions
+        // ============================================================
+
+        let backlogData = [];
+        let backlogVisible = false;
+
+        // Show add task modal
+        function showAddTaskModal() {
+            document.getElementById('addTaskModal').style.display = 'flex';
+            document.getElementById('newTaskText').focus();
+        }
+
+        // Hide add task modal
+        function hideAddTaskModal() {
+            document.getElementById('addTaskModal').style.display = 'none';
+            document.getElementById('newTaskText').value = '';
+            document.getElementById('newTaskPriority').value = 'medium';
+        }
+
+        // Submit new task
+        async function submitNewTask() {
+            const text = document.getElementById('newTaskText').value.trim();
+            const priority = document.getElementById('newTaskPriority').value;
+
+            if (!text) {
+                showToast('Please enter a task description', 'error');
+                return;
+            }
+
+            // Add priority emoji to text
+            const priorityEmoji = {
+                'critical': '🔴',
+                'high': '🟡',
+                'medium': '🟢',
+                'low': '⚪'
+            };
+
+            const taskText = `${priorityEmoji[priority] || ''} ${text}`;
+
+            try {
+                const response = await fetch(`${API_URL}/api/todos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: taskText, completed: false })
+                });
+
+                if (response.ok) {
+                    showToast('Task added successfully', 'success');
+                    hideAddTaskModal();
+                    // Backlog will be refreshed by SSE
+                } else {
+                    showToast('Failed to add task', 'error');
+                }
+            } catch (error) {
+                console.error('Error adding task:', error);
+                showToast('Error adding task', 'error');
+            }
+        }
+
+        // Toggle backlog view
+        function toggleBacklogView() {
+            const panel = document.getElementById('backlogPanel');
+            backlogVisible = !backlogVisible;
+
+            if (backlogVisible) {
+                panel.style.display = 'block';
+                loadBacklog();
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        // Load backlog from API
+        async function loadBacklog() {
+            try {
+                const response = await fetch(`${API_URL}/api/todos/backlog`);
+                if (response.ok) {
+                    const result = await response.json();
+                    backlogData = result.tasks || result || [];
+                    renderBacklog();
+                }
+            } catch (error) {
+                console.error('Error loading backlog:', error);
+            }
+        }
+
+        // Filter backlog by priority
+        function filterBacklog() {
+            renderBacklog();
+        }
+
+        // Render backlog items
+        function renderBacklog() {
+            const filter = document.getElementById('backlogPriorityFilter').value;
+            const list = document.getElementById('backlogList');
+            const count = document.getElementById('backlogCount');
+
+            let filtered = backlogData;
+            if (filter) {
+                filtered = backlogData.filter(task => task.priority === filter);
+            }
+
+            count.textContent = filtered.length;
+
+            if (filtered.length === 0) {
+                list.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">No backlog items</div>';
+                return;
+            }
+
+            list.innerHTML = filtered.map(task => `
+                <div class="backlog-item" onclick="activateTask('${task.id}')" title="Click to activate">
+                    <span class="backlog-item-text">${task.text}</span>
+                    ${task.priority ? `<span class="todo-priority">${getPriorityIcon(task.priority)}</span>` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Get priority icon
+        function getPriorityIcon(priority) {
+            const icons = {
+                'critical': '🔴',
+                'high': '🟡',
+                'medium': '🟢',
+                'low': '⚪'
+            };
+            return icons[priority] || '';
+        }
+
+        // Activate a backlog task (move to in-flight)
+        async function activateTask(taskId) {
+            try {
+                const response = await fetch(`${API_URL}/api/todos/${taskId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ completed: false })
+                });
+
+                if (response.ok) {
+                    showToast('Task activated', 'success');
+                    loadBacklog(); // Refresh backlog
+                }
+            } catch (error) {
+                console.error('Error activating task:', error);
+            }
+        }
+
+        // Toggle task completion status
+        async function toggleTask(taskId, currentStatus) {
+            try {
+                const response = await fetch(`${API_URL}/api/todos/${taskId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ completed: !currentStatus })
+                });
+
+                if (response.ok) {
+                    showToast(currentStatus ? 'Task reopened' : 'Task completed', 'success');
+                }
+            } catch (error) {
+                console.error('Error toggling task:', error);
+                showToast('Error updating task', 'error');
+            }
+        }
+
+        // Delete task
+        async function deleteTask(taskId) {
+            if (!confirm('Delete this task?')) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/todos/${taskId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showToast('Task deleted', 'success');
+                    loadBacklog(); // Refresh backlog if visible
+                }
+            } catch (error) {
+                console.error('Error deleting task:', error);
+                showToast('Error deleting task', 'error');
+            }
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            // Remove existing toast
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Escape to close modal
+            if (e.key === 'Escape') {
+                hideAddTaskModal();
+            }
+            // Ctrl+K to open add task modal
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                showAddTaskModal();
+            }
+            // Enter to submit task when modal is open
+            if (e.key === 'Enter' && document.getElementById('addTaskModal').style.display === 'flex') {
+                submitNewTask();
+            }
         });
 
         // Initial connection
