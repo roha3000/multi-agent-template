@@ -60,6 +60,9 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       lastOperation: null
     };
 
+    // Initialize database tables
+    this._initializeDatabase();
+
     // Initialize components
     this._initializeComponents();
 
@@ -102,7 +105,10 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         memoryStore: this.memoryStore,
         usageTracker: this.usageTracker
       }, {
-        initialThresholds: this.options.contextMonitoring,
+        initialThresholds: {
+          context: this.options.contextMonitoring.checkpointThreshold || this.options.contextMonitoring.warningThreshold || 0.75,
+          buffer: this.options.contextMonitoring.bufferTokens || 15000
+        },
         learningRate: this.options.checkpointOptimizer.learningRate,
         minThreshold: this.options.checkpointOptimizer.minThreshold,
         maxThreshold: this.options.checkpointOptimizer.maxThreshold,
@@ -472,6 +478,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
           safe: false,
           level: 'CRITICAL',
           action: 'WAIT_FOR_APPROVAL',
+          requiresHuman: true,
           confidence: analysis.confidence,
           reason: analysis.reason,
           reviewId: reviewId,
@@ -479,12 +486,25 @@ class ContinuousLoopOrchestrator extends EventEmitter {
           message: `Human review required: ${analysis.reason}`
         };
       }
+
+      // If no dashboard, still return requiresHuman flag
+      return {
+        safe: false,
+        level: 'CRITICAL',
+        action: 'WAIT_FOR_APPROVAL',
+        requiresHuman: true,
+        confidence: analysis.confidence,
+        reason: analysis.reason,
+        detectionId: analysis.detectionId,
+        message: `Human review required: ${analysis.reason}`
+      };
     }
 
     return {
       safe: true,
       level: 'OK',
       action: 'CONTINUE',
+      requiresHuman: false,
       message: 'No human review needed'
     };
   }
@@ -722,6 +742,72 @@ class ContinuousLoopOrchestrator extends EventEmitter {
   }
 
   /**
+   * Record human feedback for a review
+   *
+   * @param {string} reviewId - Review ID or detection ID
+   * @param {Object} feedback - Feedback data
+   * @param {boolean} feedback.approved - Whether the action was approved
+   * @param {boolean} feedback.wasCorrect - Whether the detection was correct
+   * @param {string} feedback.actualNeed - Actual need (yes/no)
+   * @param {string} feedback.comment - Optional comment
+   * @returns {Promise<Object>} Feedback result
+   */
+  async recordHumanFeedback(reviewId, feedback) {
+    this.logger.info('Recording human feedback', { reviewId });
+
+    try {
+      // Find the detection
+      const detection = this.hilDetector.detections.get(reviewId);
+
+      if (!detection) {
+        this.logger.warn('Detection not found for feedback', { reviewId });
+        return {
+          success: false,
+          error: 'Detection not found'
+        };
+      }
+
+      // Record feedback with detector
+      const result = await this.hilDetector.recordFeedback(reviewId, {
+        wasCorrect: feedback.wasCorrect,
+        actualNeed: feedback.actualNeed,
+        comment: feedback.comment
+      });
+
+      // Update dashboard if available
+      if (this.dashboard) {
+        this.dashboard.updateReviewStatus(reviewId, {
+          status: feedback.approved ? 'approved' : 'rejected',
+          feedback: feedback.comment
+        });
+      }
+
+      this.logger.info('Human feedback recorded', {
+        reviewId,
+        wasCorrect: feedback.wasCorrect,
+        learnedFromFeedback: result.learned
+      });
+
+      return {
+        success: true,
+        learned: result.learned,
+        updated: result.updated
+      };
+
+    } catch (error) {
+      this.logger.error('Failed to record feedback', {
+        error: error.message,
+        reviewId
+      });
+
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Generate session summary
    * @private
    */
@@ -730,19 +816,16 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     const duration = Date.now() - this.state.startTime;
 
     const summary = {
-      session: {
-        id: this.state.sessionId,
-        duration: this._formatDuration(duration),
-        operations: this.state.operations,
-        checkpoints: this.state.checkpoints,
-        wrapUps: this.state.wrapUpCount
-      },
-      usage: {
-        totalTokens: usage.totalTokens || 0,
-        totalCost: usage.totalCost || 0,
-        cacheSavings: usage.cacheSavings || 0
-      },
-      learning: {
+      sessionId: this.state.sessionId,
+      durationMs: duration,
+      duration: this._formatDuration(duration),
+      operationsCompleted: this.state.operations,
+      checkpointsCreated: this.state.checkpoints,
+      wrapUps: this.state.wrapUpCount,
+      totalTokens: usage.totalTokens || 0,
+      totalCost: usage.totalCost || 0,
+      cacheSavings: usage.cacheSavings || 0,
+      learningStats: {
         checkpointOptimizer: this.optimizer ? this.optimizer.getStatistics() : null,
         humanInLoop: this.hilDetector ? this.hilDetector.getStatistics() : null
       }
@@ -801,6 +884,8 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       contextMonitoring: {
         enabled: options.contextMonitoring?.enabled !== false,
         contextWindowSize: options.contextMonitoring?.contextWindowSize || 200000,
+        checkpointThreshold: options.contextMonitoring?.checkpointThreshold || 0.75,
+        bufferTokens: options.contextMonitoring?.bufferTokens || 15000,
         warningThreshold: options.contextMonitoring?.warningThreshold || 0.80,
         criticalThreshold: options.contextMonitoring?.criticalThreshold || 0.85,
         emergencyThreshold: options.contextMonitoring?.emergencyThreshold || 0.95
