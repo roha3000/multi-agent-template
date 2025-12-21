@@ -457,7 +457,7 @@ describe('OTLP-Checkpoint Integration', () => {
 
       // Verify pattern was recorded
       const patterns = checkpointOptimizer.learningData.taskPatterns;
-      expect(patterns.has('code-generation')).toBe(true);
+      expect('code-generation' in patterns).toBe(true);
     });
   });
 

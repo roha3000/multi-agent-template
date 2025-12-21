@@ -14,11 +14,14 @@ const express = require('express');
 const { MeterProvider, PeriodicExportingMetricReader } = require('@opentelemetry/sdk-metrics');
 const { Resource } = require('@opentelemetry/resources');
 const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
+const EventEmitter = require('events');
 const UsageTracker = require('./usage-tracker');
 const path = require('path');
 
-class OTLPReceiver {
+class OTLPReceiver extends EventEmitter {
     constructor(options = {}) {
+        super();
+
         // Support both old (projectRoot, options) and new (options) signatures
         if (typeof options === 'string') {
             // Old signature: (projectRoot, options)
@@ -142,6 +145,8 @@ class OTLPReceiver {
             this.metricProcessor.processMetrics(metricsData);
         }
 
+        const processedMetrics = [];
+
         // OTLP metric structure has resourceMetrics array
         if (metricsData.resourceMetrics) {
             for (const resourceMetric of metricsData.resourceMetrics) {
@@ -152,11 +157,20 @@ class OTLPReceiver {
                         if (scopeMetric.metrics) {
                             for (const metric of scopeMetric.metrics) {
                                 this.processMetric(metric);
+                                processedMetrics.push(metric);
+
+                                // Emit individual metric event
+                                this.emit('metrics:processed', { metrics: [metric] });
                             }
                         }
                     }
                 }
             }
+        }
+
+        // Emit batch event
+        if (processedMetrics.length > 0) {
+            this.emit('metrics:batch', processedMetrics);
         }
     }
 
@@ -303,9 +317,6 @@ class OTLPReceiver {
         // Clear buffer
         this.metricsBuffer = [];
         this.lastFlush = Date.now();
-
-        // Save usage data to disk
-        this.usageTracker.saveUsageData();
     }
 
     async start() {
