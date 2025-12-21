@@ -245,6 +245,7 @@ class HumanInLoopDetector {
         requiresHuman: false,
         confidence: 0,
         reason: 'No concerning patterns detected',
+        pattern: 'none',  // Add pattern field for database constraint
         detectionId,
         matches: [],
         context: {
@@ -435,6 +436,8 @@ class HumanInLoopDetector {
 
     return {
       success: true,
+      learned: true,  // Successfully learned from feedback
+      updated: true,  // Stats were updated
       stats: this.learningData.stats
     };
   }
@@ -456,7 +459,9 @@ class HumanInLoopDetector {
         total: Object.keys(this.patterns).length + this.learningData.customPatterns.length
       },
       patternsLearned: this.learningData.customPatterns.length,
-      statistics: { ...this.learningData.stats },
+      // Flatten stats to top level for easier access
+      ...this.learningData.stats,
+      statistics: { ...this.learningData.stats },  // Keep nested version for backwards compatibility
       patternAccuracy: { ...this.learningData.patternAccuracy },
       recentFeedback: this.learningData.userFeedback.slice(-10)
     };

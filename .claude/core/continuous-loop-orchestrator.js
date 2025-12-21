@@ -87,14 +87,19 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     // 1. Claude API Limit Tracker
     if (this.options.apiLimitTracking.enabled) {
       const ClaudeLimitTracker = require('./claude-limit-tracker');
-      this.limitTracker = new ClaudeLimitTracker({
-        plan: this.options.apiLimitTracking.plan,
-        customLimits: this.options.apiLimitTracking.customLimits,
-        warningThreshold: this.options.apiLimitTracking.warningThreshold,
-        criticalThreshold: this.options.apiLimitTracking.criticalThreshold,
-        emergencyThreshold: this.options.apiLimitTracking.emergencyThreshold,
-        enabled: true
-      });
+      this.limitTracker = new ClaudeLimitTracker(
+        { memoryStore: this.memoryStore },
+        {
+          plan: this.options.apiLimitTracking.plan,
+          customLimits: this.options.apiLimitTracking.customLimits,
+          thresholds: {
+            warning: this.options.apiLimitTracking.warningThreshold,
+            critical: this.options.apiLimitTracking.criticalThreshold,
+            emergency: this.options.apiLimitTracking.emergencyThreshold
+          },
+          enabled: true
+        }
+      );
       this.logger.info('ClaudeLimitTracker initialized');
     }
 
@@ -131,7 +136,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     }
 
     // 4. Dashboard Manager
-    if (this.options.dashboard.enableWeb || this.options.dashboard.enableTerminal) {
+    if (this.options.dashboard.enabled && (this.options.dashboard.enableWeb || this.options.dashboard.enableTerminal)) {
       const DashboardManager = require('./dashboard-manager');
       this.dashboard = new DashboardManager({
         usageTracker: this.usageTracker,
@@ -166,6 +171,15 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       });
       this.logger.info('ClaudeCodeUsageParser initialized');
     }
+  }
+
+  /**
+   * Initialize (no-op since initialization happens in constructor)
+   * This method exists for compatibility with test suites
+   */
+  async initialize() {
+    // Already initialized in constructor
+    return Promise.resolve();
   }
 
   /**
@@ -332,6 +346,16 @@ class ContinuousLoopOrchestrator extends EventEmitter {
    * @private
    */
   async _checkContextWindow(operation) {
+    if (!this.usageTracker) {
+      return {
+        safe: true,
+        level: 'OK',
+        action: 'CONTINUE',
+        utilization: 0,
+        message: 'Context monitoring unavailable (no usage tracker)'
+      };
+    }
+
     const currentUsage = this.usageTracker.getSessionUsage();
     const currentTokens = currentUsage.totalTokens || 0;
     const maxTokens = this.options.contextMonitoring.contextWindowSize || 200000;
@@ -406,6 +430,17 @@ class ContinuousLoopOrchestrator extends EventEmitter {
    */
   async _checkAPILimits(operation) {
     const estimatedTokens = operation.estimatedTokens || 1000;
+
+    // First check current status (without projection)
+    // This gives us the current warning level
+    const currentStatus = this.limitTracker.getStatus();
+
+    // If already at warning/critical/emergency, return current status
+    if (currentStatus.level && currentStatus.level !== 'OK') {
+      return currentStatus;
+    }
+
+    // Otherwise, check if next call would be safe (with projection)
     return this.limitTracker.canMakeCall(estimatedTokens);
   }
 
@@ -757,19 +792,16 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     this.logger.info('Recording human feedback', { reviewId });
 
     try {
-      // Find the detection
-      const detection = this.hilDetector.detections.get(reviewId);
-
-      if (!detection) {
-        this.logger.warn('Detection not found for feedback', { reviewId });
+      if (!this.hilDetector) {
+        this.logger.warn('HumanInLoopDetector not available');
         return {
           success: false,
-          error: 'Detection not found',
+          error: 'HumanInLoopDetector not available',
           approved: feedback.approved
         };
       }
 
-      // Record feedback with detector
+      // Record feedback with detector (it handles detection lookup internally)
       const result = await this.hilDetector.recordFeedback(reviewId, {
         wasCorrect: feedback.wasCorrect,
         actualNeed: feedback.actualNeed,
@@ -868,9 +900,18 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     const limitTrackerStats = this.limitTracker ? this.limitTracker.getStatus() : null;
 
     return {
-      state: { ...this.state },
+      // Flatten state properties to top level for test compatibility
+      sessionId: this.state.sessionId,
+      status: this.state.status,
+      startTime: this.state.startTime,
+      operations: this.state.operations,
+      checkpoints: this.state.checkpoints,
+      wrapUpCount: this.state.wrapUpCount,
+      lastCheckpoint: this.state.lastCheckpoint,
+      lastOperation: this.state.lastOperation,
+
       enabled: this.options.enabled,
-      uptime: Date.now() - this.state.startTime,
+      uptimeMs: Date.now() - this.state.startTime,
       components: {
         limitTracker: limitTrackerStats,
         optimizer: optimizerStats,
@@ -882,9 +923,9 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       apiLimits: limitTrackerStats,
       // Usage and cost information
       usage,
-      cost: {
+      costs: {
         total: usage.totalCost || 0,
-        session: usage.totalCost || 0,
+        sessionCost: usage.totalCost || 0,
         cacheSavings: usage.cacheSavings || 0
       },
       duration: Date.now() - this.state.startTime
@@ -941,6 +982,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       },
 
       dashboard: {
+        enabled: options.dashboard?.enabled !== false,
         enableWeb: options.dashboard?.enableWeb !== false,
         enableTerminal: options.dashboard?.enableTerminal !== false,
         webPort: options.dashboard?.webPort || 3030,
