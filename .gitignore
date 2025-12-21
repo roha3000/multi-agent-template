@@ -84,4 +84,4 @@ temp/
 actual-projects/
 test-projects/
 test-temp/
-*.backup
+*.backup__tests__/integration/test-otlp-*.db
