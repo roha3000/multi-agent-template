@@ -487,7 +487,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         };
       }
 
-      // If no dashboard, still return requiresHuman flag
+      // If no dashboard, use detectionId as reviewId
       return {
         safe: false,
         level: 'CRITICAL',
@@ -495,6 +495,7 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         requiresHuman: true,
         confidence: analysis.confidence,
         reason: analysis.reason,
+        reviewId: analysis.detectionId,  // Use detectionId when no dashboard
         detectionId: analysis.detectionId,
         message: `Human review required: ${analysis.reason}`
       };
@@ -763,7 +764,8 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         this.logger.warn('Detection not found for feedback', { reviewId });
         return {
           success: false,
-          error: 'Detection not found'
+          error: 'Detection not found',
+          approved: feedback.approved
         };
       }
 
@@ -785,11 +787,13 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       this.logger.info('Human feedback recorded', {
         reviewId,
         wasCorrect: feedback.wasCorrect,
+        approved: feedback.approved,
         learnedFromFeedback: result.learned
       });
 
       return {
         success: true,
+        approved: feedback.approved,
         learned: result.learned,
         updated: result.updated
       };
@@ -802,7 +806,8 @@ class ContinuousLoopOrchestrator extends EventEmitter {
 
       return {
         success: false,
-        error: error.message
+        error: error.message,
+        approved: feedback.approved
       };
     }
   }
@@ -858,16 +863,30 @@ class ContinuousLoopOrchestrator extends EventEmitter {
    */
   getStatus() {
     const usage = this.usageTracker.getSessionUsage();
+    const hilStats = this.hilDetector ? this.hilDetector.getStatistics() : null;
+    const optimizerStats = this.optimizer ? this.optimizer.getStatistics() : null;
+    const limitTrackerStats = this.limitTracker ? this.limitTracker.getStatus() : null;
 
     return {
       state: { ...this.state },
       enabled: this.options.enabled,
+      uptime: Date.now() - this.state.startTime,
       components: {
-        limitTracker: this.limitTracker ? this.limitTracker.getStatus() : null,
-        optimizer: this.optimizer ? this.optimizer.getStatistics() : null,
-        hilDetector: this.hilDetector ? this.hilDetector.getStatistics() : null
+        limitTracker: limitTrackerStats,
+        optimizer: optimizerStats,
+        hilDetector: hilStats
       },
+      // Convenience aliases for common access patterns
+      humanInLoop: hilStats,
+      checkpointOptimizer: optimizerStats,
+      apiLimits: limitTrackerStats,
+      // Usage and cost information
       usage,
+      cost: {
+        total: usage.totalCost || 0,
+        session: usage.totalCost || 0,
+        cacheSavings: usage.cacheSavings || 0
+      },
       duration: Date.now() - this.state.startTime
     };
   }
