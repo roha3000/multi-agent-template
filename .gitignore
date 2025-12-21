@@ -78,6 +78,9 @@ temp/
 # Claude Code specific (if any)
 .claude/cache/
 .claude/logs/
+.claude/memory/*.db
+.claude/memory/*.db-shm
+.claude/memory/*.db-wal
 *.log
 
 # Project specific
