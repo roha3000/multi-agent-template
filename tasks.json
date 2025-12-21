@@ -1,0 +1,168 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "multi-agent-template",
+    "phases": [
+      "research",
+      "planning",
+      "design",
+      "implementation",
+      "testing",
+      "validation"
+    ]
+  },
+  "backlog": {
+    "now": {
+      "description": "Active tasks for current sprint/iteration",
+      "tasks": [
+        "merge-task-management-pr",
+        "integrate-dashboard-tasks"
+      ]
+    },
+    "next": {
+      "description": "Next priority after now is complete",
+      "tasks": [
+        "add-task-visualization"
+      ]
+    },
+    "later": {
+      "description": "Future work, not yet prioritized",
+      "tasks": [
+        "add-model-pricing"
+      ]
+    },
+    "someday": {
+      "description": "Ideas and possibilities, lowest priority",
+      "tasks": []
+    }
+  },
+  "tasks": {
+    "merge-task-management-pr": {
+      "id": "merge-task-management-pr",
+      "title": "Merge Task Management PR to Main",
+      "description": "Review and merge the task-management-tests branch to main, ensuring all 160 tests pass",
+      "phase": "validation",
+      "priority": "high",
+      "estimate": "30m",
+      "tags": [
+        "git",
+        "merge",
+        "testing"
+      ],
+      "depends": {
+        "blocks": [
+          "integrate-dashboard-tasks"
+        ],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "All 160 tests pass",
+        "No merge conflicts",
+        "PR approved and merged to main"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-18T00:00:00.000Z",
+      "updated": "2025-12-19T04:11:13.356Z",
+      "started": null,
+      "completed": null
+    },
+    "integrate-dashboard-tasks": {
+      "id": "integrate-dashboard-tasks",
+      "title": "Integrate Task Display in Dashboard",
+      "description": "Add task list and progress display to the global dashboard, showing current task, backlog summary, and completion status",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "ui",
+        "integration"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "merge-task-management-pr"
+        ],
+        "related": [
+          "add-task-visualization"
+        ]
+      },
+      "acceptance": [
+        "Dashboard shows current active task",
+        "Backlog summary visible (now/next/later counts)",
+        "Task completion triggers dashboard update",
+        "Real-time updates via SSE"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-18T00:00:00.000Z",
+      "updated": "2025-12-18T00:00:00.000Z",
+      "started": null,
+      "completed": null
+    },
+    "add-task-visualization": {
+      "id": "add-task-visualization",
+      "title": "Add Dependency Graph Visualization",
+      "description": "Create visual dependency graph showing task relationships and blocking status",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": [
+        "visualization",
+        "dashboard",
+        "dependencies"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "integrate-dashboard-tasks"
+        ]
+      },
+      "acceptance": [
+        "Visual graph shows task dependencies",
+        "Blocked tasks highlighted in red",
+        "Completed tasks shown in green",
+        "Interactive - click to view task details"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-18T00:00:00.000Z",
+      "updated": "2025-12-18T00:00:00.000Z",
+      "started": null,
+      "completed": null
+    },
+    "add-model-pricing": {
+      "id": "add-model-pricing",
+      "title": "Add GPT-5.2 and Gemini 3 Pricing",
+      "description": "Add pricing configuration for GPT-5.2 and Gemini 3 models to the cost calculator and fix hardcoded Claude defaults",
+      "phase": "implementation",
+      "priority": "low",
+      "estimate": "1h",
+      "tags": [
+        "pricing",
+        "multi-model",
+        "configuration"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "GPT-5.2 pricing added to cost-calculator.js",
+        "Gemini 3 pricing added to cost-calculator.js",
+        "Hardcoded Claude defaults made configurable",
+        "Tests pass with non-Claude models"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-19T04:07:23.583Z",
+      "updated": "2025-12-19T04:07:23.585Z",
+      "started": null,
+      "completed": null
+    }
+  }
+}

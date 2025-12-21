@@ -14,7 +14,7 @@
  */
 
 const { spawn } = require('child_process');
-const EventSource = require('eventsource');
+const { EventSource } = require('eventsource');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -27,6 +27,24 @@ const {
   generateScoringPrompt,
   generateImprovementGuidance,
 } = require('./quality-gates');
+const TaskManager = require('./.claude/core/task-manager');
+const MemoryStore = require('./.claude/core/memory-store');
+
+// Phase name mapping (tasks.json uses longer names, quality-gates uses shorter)
+const PHASE_MAP = {
+  'research': 'research',
+  'planning': 'research',  // Map planning to research phase
+  'design': 'design',
+  'implementation': 'implement',
+  'implement': 'implement',
+  'testing': 'test',
+  'test': 'test',
+  'validation': 'test',  // Map validation to test phase
+};
+
+function normalizePhase(phase) {
+  return PHASE_MAP[phase] || phase;
+}
 
 // ============================================================================
 // CONFIGURATION
@@ -84,6 +102,9 @@ const state = {
   sessionHistory: [],
   startTime: new Date(),
   task: CONFIG.task,
+  currentTask: null,        // Current task from TaskManager
+  tasksCompleted: 0,        // Tasks completed this session
+  taskIterations: {},       // Track iterations per task
 };
 
 let claudeProcess = null;
@@ -92,20 +113,61 @@ let shouldContinue = true;
 let thresholdReached = false;
 let currentSessionData = null;
 
+// Task Management instances (initialized in main)
+let taskManager = null;
+let memoryStore = null;
+
 // ============================================================================
 // PROMPT GENERATION
 // ============================================================================
 
-function generatePhasePrompt(phase, iteration, previousScore = null, improvements = null) {
-  const phaseConfig = PHASES[phase];
-  if (!phaseConfig) throw new Error(`Unknown phase: ${phase}`);
+function generatePhasePrompt(phase, iteration, previousScore = null, improvements = null, task = null) {
+  const normalizedPhase = normalizePhase(phase);
+  const phaseConfig = PHASES[normalizedPhase];
+  if (!phaseConfig) throw new Error(`Unknown phase: ${phase} (normalized: ${normalizedPhase})`);
 
-  const agentRole = Object.values(AGENT_ROLES).find(a => a.phases.includes(phase) && a.name !== 'Quality Reviewer' && a.name !== 'Technical Critic');
+  const agentRole = Object.values(AGENT_ROLES).find(a => a.phases.includes(normalizedPhase) && a.name !== 'Quality Reviewer' && a.name !== 'Technical Critic');
 
   let prompt = `# AUTONOMOUS EXECUTION: ${phaseConfig.name} Phase\n\n`;
 
-  // Task context
-  if (state.task) {
+  // Task context - prefer TaskManager task over CLI --task
+  if (task) {
+    prompt += `## Current Task\n`;
+    prompt += `**ID**: ${task.id}\n`;
+    prompt += `**Title**: ${task.title}\n`;
+    prompt += `**Priority**: ${task.priority}\n`;
+    prompt += `**Estimate**: ${task.estimate}\n`;
+    if (task.description) {
+      prompt += `**Description**: ${task.description}\n`;
+    }
+    if (task.tags && task.tags.length > 0) {
+      prompt += `**Tags**: ${task.tags.join(', ')}\n`;
+    }
+    prompt += `\n`;
+
+    // Acceptance criteria as success conditions
+    if (task.acceptance && task.acceptance.length > 0) {
+      prompt += `### Acceptance Criteria\n`;
+      prompt += `You must satisfy ALL of these criteria for the task to be complete:\n`;
+      task.acceptance.forEach((criterion, i) => {
+        prompt += `${i + 1}. ${criterion}\n`;
+      });
+      prompt += `\n`;
+    }
+
+    // Dependency context
+    if (task.depends) {
+      if (task.depends.blocks && task.depends.blocks.length > 0) {
+        prompt += `### Tasks This Unblocks\n`;
+        prompt += `Completing this task will unblock: ${task.depends.blocks.join(', ')}\n\n`;
+      }
+      if (task.depends.related && task.depends.related.length > 0) {
+        prompt += `### Related Tasks\n`;
+        prompt += `For context, see also: ${task.depends.related.join(', ')}\n\n`;
+      }
+    }
+  } else if (state.task) {
+    // Fallback to CLI --task argument
     prompt += `## Task\n${state.task}\n\n`;
   }
 
@@ -145,11 +207,13 @@ function generatePhasePrompt(phase, iteration, previousScore = null, improvement
 
   // Execution instructions
   prompt += `## Execution Instructions\n\n`;
+  prompt += `**IMPORTANT**: You are running in AUTONOMOUS mode. Do NOT ask questions - execute the task directly.\n\n`;
   prompt += `1. **First**: Run \`/session-init\` to load project context\n`;
-  prompt += `2. **Then**: Work on the ${phase} phase objectives\n`;
-  prompt += `3. **Use TodoWrite**: Track your progress with todo items\n`;
-  prompt += `4. **Save Progress**: Update dev-docs files regularly\n`;
-  prompt += `5. **Quality Focus**: Ensure all criteria are addressed\n\n`;
+  prompt += `2. **Then**: Immediately begin working on the task - do NOT ask for confirmation\n`;
+  prompt += `3. **Execute**: Complete ALL acceptance criteria without human intervention\n`;
+  prompt += `4. **Use TodoWrite**: Track your progress with todo items\n`;
+  prompt += `5. **Save Progress**: Update dev-docs files as you work\n`;
+  prompt += `6. **Create Completion File**: When done, write the task-completion.json and quality-scores.json\n\n`;
 
   // Multi-agent validation
   prompt += `## Multi-Agent Validation\n\n`;
@@ -166,11 +230,30 @@ function generatePhasePrompt(phase, iteration, previousScore = null, improvement
 
   // Exit criteria
   prompt += `## Exit Criteria\n\n`;
-  prompt += `When you believe the phase is complete:\n\n`;
-  prompt += `1. Create/update \`.claude/dev-docs/quality-scores.json\` with:\n`;
+  prompt += `When you believe the ${task ? 'task' : 'phase'} is complete:\n\n`;
+
+  // Task-specific completion instructions
+  if (task) {
+    prompt += `### Task Completion\n`;
+    prompt += `1. Verify ALL acceptance criteria are met\n`;
+    prompt += `2. Create/update \`.claude/dev-docs/task-completion.json\` with:\n`;
+    prompt += `\`\`\`json\n{\n`;
+    prompt += `  "taskId": "${task.id}",\n`;
+    prompt += `  "status": "completed",\n`;
+    prompt += `  "acceptanceMet": [true/false for each criterion],\n`;
+    prompt += `  "deliverables": ["list of files created/modified"],\n`;
+    prompt += `  "notes": "any relevant completion notes"\n`;
+    prompt += `}\n\`\`\`\n\n`;
+  }
+
+  prompt += `### Quality Scoring\n`;
+  prompt += `Create/update \`.claude/dev-docs/quality-scores.json\` with:\n`;
   prompt += `\`\`\`json\n{\n`;
   prompt += `  "phase": "${phase}",\n`;
   prompt += `  "iteration": ${iteration},\n`;
+  if (task) {
+    prompt += `  "taskId": "${task.id}",\n`;
+  }
   prompt += `  "scores": {\n`;
 
   const criteria = Object.keys(phaseConfig.criteria);
@@ -184,11 +267,12 @@ function generatePhasePrompt(phase, iteration, previousScore = null, improvement
   prompt += `  "recommendation": "proceed" | "iterate"\n`;
   prompt += `}\n\`\`\`\n\n`;
 
-  prompt += `2. If totalScore >= ${phaseConfig.minScore} and recommendation is "proceed":\n`;
+  prompt += `### Next Steps\n`;
+  prompt += `- If totalScore >= ${phaseConfig.minScore} and recommendation is "proceed":\n`;
   prompt += `   - Update tasks.md with completion status\n`;
-  prompt += `   - The orchestrator will automatically advance to the next phase\n\n`;
+  prompt += `   - The orchestrator will automatically ${task ? 'pick the next task or ' : ''}advance to the next phase\n\n`;
 
-  prompt += `3. If totalScore < ${phaseConfig.minScore}:\n`;
+  prompt += `- If totalScore < ${phaseConfig.minScore}:\n`;
   prompt += `   - List specific improvements needed\n`;
   prompt += `   - The orchestrator will run another iteration\n\n`;
 
@@ -224,7 +308,7 @@ function generateValidationPrompt(phase) {
 }
 
 // ============================================================================
-// SCORE PARSING
+// SCORE PARSING & TASK COMPLETION
 // ============================================================================
 
 function readQualityScores() {
@@ -242,15 +326,42 @@ function readQualityScores() {
   return null;
 }
 
+function readTaskCompletion() {
+  const completionPath = path.join(CONFIG.projectPath, '.claude', 'dev-docs', 'task-completion.json');
+
+  try {
+    if (fs.existsSync(completionPath)) {
+      const content = fs.readFileSync(completionPath, 'utf-8');
+      return JSON.parse(content);
+    }
+  } catch (err) {
+    console.log('[TASK] Could not read task completion:', err.message);
+  }
+
+  return null;
+}
+
+function clearTaskCompletion() {
+  const completionPath = path.join(CONFIG.projectPath, '.claude', 'dev-docs', 'task-completion.json');
+  try {
+    if (fs.existsSync(completionPath)) {
+      fs.unlinkSync(completionPath);
+    }
+  } catch (err) {
+    // Ignore errors
+  }
+}
+
 function evaluatePhaseCompletion() {
   const scores = readQualityScores();
+  const normalizedPhase = normalizePhase(state.currentPhase);
 
-  if (!scores || scores.phase !== state.currentPhase) {
+  if (!scores || (scores.phase !== state.currentPhase && scores.phase !== normalizedPhase)) {
     return { complete: false, score: 0, reason: 'No scores found for current phase' };
   }
 
-  const calculatedScore = calculatePhaseScore(state.currentPhase, scores.scores || {});
-  const minScore = PHASES[state.currentPhase]?.minScore || 80;
+  const calculatedScore = calculatePhaseScore(normalizedPhase, scores.scores || {});
+  const minScore = PHASES[normalizedPhase]?.minScore || 80;
 
   if (calculatedScore >= minScore && scores.recommendation === 'proceed') {
     return { complete: true, score: calculatedScore, reason: 'Quality gate passed' };
@@ -262,6 +373,105 @@ function evaluatePhaseCompletion() {
     reason: `Score ${calculatedScore} < ${minScore} or recommendation is not "proceed"`,
     improvements: scores.improvements || [],
   };
+}
+
+/**
+ * Evaluate task completion from task-completion.json
+ * @returns {Object} { complete, taskId, deliverables, notes }
+ */
+function evaluateTaskCompletion() {
+  const completion = readTaskCompletion();
+
+  if (!completion) {
+    return { complete: false, reason: 'No task completion file found' };
+  }
+
+  // Check if it matches current task
+  if (state.currentTask && completion.taskId !== state.currentTask.id) {
+    return { complete: false, reason: `Task ID mismatch: expected ${state.currentTask.id}, got ${completion.taskId}` };
+  }
+
+  if (completion.status === 'completed') {
+    // Check if all acceptance criteria are met
+    const allMet = completion.acceptanceMet?.every(m => m === true) ?? true;
+
+    if (allMet) {
+      return {
+        complete: true,
+        taskId: completion.taskId,
+        deliverables: completion.deliverables || [],
+        notes: completion.notes || '',
+      };
+    } else {
+      return {
+        complete: false,
+        reason: 'Not all acceptance criteria met',
+        acceptanceMet: completion.acceptanceMet,
+      };
+    }
+  }
+
+  return { complete: false, reason: `Task status is ${completion.status}` };
+}
+
+/**
+ * Handle task completion - update TaskManager and MemoryStore
+ */
+function handleTaskCompletion(taskCompletion, qualityScore) {
+  if (!taskManager || !state.currentTask) return;
+
+  const task = state.currentTask;
+
+  try {
+    // Calculate duration
+    const started = task.started || new Date().toISOString();
+    const completed = new Date().toISOString();
+    const durationMs = new Date(completed) - new Date(started);
+    const durationHours = durationMs / (1000 * 60 * 60);
+
+    // Update task status in TaskManager
+    taskManager.updateStatus(task.id, 'completed', {
+      deliverables: taskCompletion.deliverables,
+      notes: taskCompletion.notes,
+      qualityScore,
+      actualDuration: `${durationHours.toFixed(1)}h`,
+    });
+
+    state.tasksCompleted++;
+    console.log(`[TASK] Completed: ${task.title} (${task.id})`);
+    console.log(`[TASK] Duration: ${durationHours.toFixed(1)}h, Quality: ${qualityScore}/100`);
+
+    // Clear completion file for next task
+    clearTaskCompletion();
+
+  } catch (err) {
+    console.error('[TASK] Error handling completion:', err.message);
+  }
+}
+
+/**
+ * Get next task from TaskManager or fall back to --task argument
+ * @returns {Object|null} Task object or null
+ */
+function getNextTaskFromManager() {
+  if (!taskManager) return null;
+
+  try {
+    const nextTask = taskManager.getNextTask(state.currentPhase);
+
+    if (nextTask) {
+      // Mark as in_progress
+      taskManager.updateStatus(nextTask.id, 'in_progress');
+      console.log(`[TASK] Selected: ${nextTask.title} (${nextTask.id})`);
+      console.log(`[TASK] Priority: ${nextTask.priority}, Estimate: ${nextTask.estimate}`);
+      return nextTask;
+    }
+
+    return null;
+  } catch (err) {
+    console.error('[TASK] Error getting next task:', err.message);
+    return null;
+  }
 }
 
 // ============================================================================
@@ -278,9 +488,10 @@ function runSession(prompt) {
     console.log('─'.repeat(70) + '\n');
 
     // Spawn Claude with dangerous skip permissions for autonomous execution
+    // Use -p to pass initial prompt, NOT --print (which is one-shot mode)
     claudeProcess = spawn('claude', [
       '--dangerously-skip-permissions',
-      '--print',
+      '-p',
       prompt,
     ], {
       stdio: 'inherit',
@@ -399,6 +610,53 @@ function postToDashboard(endpoint, data) {
 // MAIN LOOP
 // ============================================================================
 
+/**
+ * Initialize TaskManager and MemoryStore
+ */
+function initializeTaskManagement() {
+  const tasksPath = path.join(CONFIG.projectPath, 'tasks.json');
+
+  // Check if tasks.json exists
+  if (!fs.existsSync(tasksPath)) {
+    console.log('[TASK] No tasks.json found - using --task argument mode');
+    return false;
+  }
+
+  try {
+    // Initialize MemoryStore first (for historical learning)
+    const dbPath = path.join(CONFIG.projectPath, '.claude', 'data', 'memory.db');
+    memoryStore = new MemoryStore(dbPath);
+
+    // Initialize TaskManager with MemoryStore
+    taskManager = new TaskManager({
+      tasksPath,
+      memoryStore,
+    });
+
+    // Set up event listeners
+    taskManager.on('task:completed', ({ task }) => {
+      console.log(`[EVENT] Task completed: ${task.title}`);
+    });
+
+    taskManager.on('task:unblocked', ({ task, unblockedBy }) => {
+      console.log(`[EVENT] Task unblocked: ${task.title} (by ${unblockedBy})`);
+    });
+
+    taskManager.on('task:promoted', ({ task, from, to }) => {
+      console.log(`[EVENT] Task promoted: ${task.title} (${from} → ${to})`);
+    });
+
+    const stats = taskManager.getStats();
+    console.log(`[TASK] TaskManager initialized: ${stats.total} tasks`);
+    console.log(`[TASK] Ready: ${stats.byStatus.ready || 0}, In Progress: ${stats.byStatus.in_progress || 0}, Blocked: ${stats.byStatus.blocked || 0}`);
+
+    return true;
+  } catch (err) {
+    console.error('[TASK] Failed to initialize TaskManager:', err.message);
+    return false;
+  }
+}
+
 async function main() {
   console.log('\n' + '═'.repeat(70));
   console.log('AUTONOMOUS MULTI-AGENT ORCHESTRATOR');
@@ -407,8 +665,16 @@ async function main() {
   console.log(`Context Threshold: ${CONFIG.contextThreshold}%`);
   console.log(`Max Sessions: ${CONFIG.maxSessions || 'unlimited'}`);
   console.log(`Max Iterations/Phase: ${CONFIG.maxIterationsPerPhase}`);
-  if (CONFIG.task) console.log(`Task: ${CONFIG.task}`);
+  if (CONFIG.task) console.log(`Task (CLI): ${CONFIG.task}`);
   console.log('═'.repeat(70) + '\n');
+
+  // Initialize TaskManager (optional - falls back to --task mode)
+  const taskManagementEnabled = initializeTaskManagement();
+  if (taskManagementEnabled) {
+    console.log('[MODE] Task-driven execution (using tasks.json)\n');
+  } else {
+    console.log('[MODE] Phase-driven execution (using --task argument)\n');
+  }
 
   connectToDashboard();
   await postToDashboard('/api/series/start', {});
@@ -423,12 +689,59 @@ async function main() {
       break;
     }
 
-    if (state.phaseIteration > CONFIG.maxIterationsPerPhase) {
-      console.log(`\n[LIMIT] Max iterations for ${state.currentPhase} phase reached.`);
-      console.log('[ADVANCING] Moving to next phase despite score...');
-      advancePhase();
-      continue;
+    // ====================================================================
+    // TASK SELECTION (new integration)
+    // ====================================================================
+
+    let currentTask = null;
+
+    if (taskManagementEnabled) {
+      // Get next task from TaskManager
+      currentTask = getNextTaskFromManager();
+
+      if (!currentTask) {
+        // No more tasks in current phase - check if we should advance
+        console.log(`\n[PHASE] No ready tasks for ${state.currentPhase} phase`);
+
+        // Check if there are blocked tasks that might unblock later
+        const blockedTasks = taskManager.getBlockedTasks().filter(t => t.phase === state.currentPhase);
+        if (blockedTasks.length > 0) {
+          console.log(`[BLOCKED] ${blockedTasks.length} task(s) blocked - waiting for dependencies`);
+          // Could add logic to work on other phases or wait
+        }
+
+        // Advance to next phase
+        advancePhase();
+        continue;
+      }
+
+      state.currentTask = currentTask;
+
+      // Track iterations per task (not just per phase)
+      const taskId = currentTask.id;
+      state.taskIterations[taskId] = (state.taskIterations[taskId] || 0) + 1;
+
+      if (state.taskIterations[taskId] > CONFIG.maxIterationsPerPhase) {
+        console.log(`\n[LIMIT] Max iterations for task ${taskId} reached.`);
+        console.log('[SKIPPING] Moving to next task...');
+        // Mark as blocked or skip
+        taskManager.updateStatus(taskId, 'blocked');
+        state.currentTask = null;
+        continue;
+      }
+    } else {
+      // Legacy mode: check phase iteration limit
+      if (state.phaseIteration > CONFIG.maxIterationsPerPhase) {
+        console.log(`\n[LIMIT] Max iterations for ${state.currentPhase} phase reached.`);
+        console.log('[ADVANCING] Moving to next phase despite score...');
+        advancePhase();
+        continue;
+      }
     }
+
+    // ====================================================================
+    // PROMPT GENERATION
+    // ====================================================================
 
     // Get previous evaluation
     const prevEval = evaluatePhaseCompletion();
@@ -438,12 +751,13 @@ async function main() {
       improvements = generateImprovementGuidance(state.currentPhase, readQualityScores()?.scores || {});
     }
 
-    // Generate prompt
+    // Generate prompt with task details
     const prompt = generatePhasePrompt(
       state.currentPhase,
-      state.phaseIteration,
+      currentTask ? state.taskIterations[currentTask.id] : state.phaseIteration,
       prevEval.score > 0 ? prevEval.score : null,
-      improvements
+      improvements,
+      currentTask  // Pass task to prompt generator
     );
 
     // Reset session state
@@ -452,6 +766,7 @@ async function main() {
       startTime: new Date(),
       peakContext: 0,
       exitReason: 'unknown',
+      taskId: currentTask?.id || null,
     };
 
     // Run session
@@ -461,7 +776,8 @@ async function main() {
     state.sessionHistory.push({
       session: state.totalSessions,
       phase: state.currentPhase,
-      iteration: state.phaseIteration,
+      iteration: currentTask ? state.taskIterations[currentTask.id] : state.phaseIteration,
+      taskId: currentTask?.id || null,
       exitReason: currentSessionData.exitReason,
       peakContext: currentSessionData.peakContext,
     });
@@ -469,23 +785,50 @@ async function main() {
     await postToDashboard('/api/series/session', {
       sessionNumber: state.totalSessions,
       phase: state.currentPhase,
-      iteration: state.phaseIteration,
+      iteration: currentTask ? state.taskIterations[currentTask.id] : state.phaseIteration,
+      taskId: currentTask?.id || null,
       exitReason: currentSessionData.exitReason,
       peakContext: currentSessionData.peakContext,
     });
 
-    // Evaluate completion
-    if (currentSessionData.exitReason === 'complete') {
-      const evaluation = evaluatePhaseCompletion();
-      console.log(`\n[EVALUATION] Phase: ${state.currentPhase}, Score: ${evaluation.score}`);
+    // ====================================================================
+    // COMPLETION EVALUATION (enhanced for tasks)
+    // ====================================================================
 
-      if (evaluation.complete) {
-        console.log(`[SUCCESS] ${state.currentPhase} phase complete!`);
-        state.phaseScores[state.currentPhase] = evaluation.score;
-        advancePhase();
+    if (currentSessionData.exitReason === 'complete') {
+      const phaseEval = evaluatePhaseCompletion();
+      console.log(`\n[EVALUATION] Phase: ${state.currentPhase}, Score: ${phaseEval.score}`);
+
+      if (currentTask && taskManagementEnabled) {
+        // Check task-specific completion
+        const taskEval = evaluateTaskCompletion();
+
+        if (taskEval.complete && phaseEval.complete) {
+          // Task completed successfully
+          handleTaskCompletion(taskEval, phaseEval.score);
+          state.phaseScores[state.currentPhase] = phaseEval.score;
+          state.currentTask = null;
+
+          // Continue to next task (don't advance phase yet)
+          console.log('[CONTINUE] Looking for next task...');
+        } else if (taskEval.complete && !phaseEval.complete) {
+          // Task done but quality not met - iterate
+          console.log(`[ITERATE] Task done but quality ${phaseEval.score} below threshold.`);
+          console.log(`[REASON] ${phaseEval.reason}`);
+        } else {
+          // Task not complete
+          console.log(`[ITERATE] Task not complete: ${taskEval.reason}`);
+        }
       } else {
-        console.log(`[ITERATE] Score ${evaluation.score} below threshold. Will iterate.`);
-        console.log(`[REASON] ${evaluation.reason}`);
+        // Legacy phase-based evaluation
+        if (phaseEval.complete) {
+          console.log(`[SUCCESS] ${state.currentPhase} phase complete!`);
+          state.phaseScores[state.currentPhase] = phaseEval.score;
+          advancePhase();
+        } else {
+          console.log(`[ITERATE] Score ${phaseEval.score} below threshold. Will iterate.`);
+          console.log(`[REASON] ${phaseEval.reason}`);
+        }
       }
     }
 
@@ -517,13 +860,24 @@ function printSummary() {
   console.log(`Total Sessions: ${state.totalSessions}`);
   console.log(`Total Runtime: ${formatDuration(Date.now() - state.startTime.getTime())}`);
   console.log(`Final Phase: ${state.currentPhase}`);
+
+  // Task statistics (if using TaskManager)
+  if (taskManager) {
+    console.log(`\nTask Statistics:`);
+    console.log(`  Tasks Completed: ${state.tasksCompleted}`);
+    const stats = taskManager.getStats();
+    console.log(`  Remaining: ${stats.byStatus.ready || 0} ready, ${stats.byStatus.blocked || 0} blocked`);
+  }
+
   console.log('\nPhase Scores:');
   for (const [phase, score] of Object.entries(state.phaseScores)) {
     console.log(`  ${phase}: ${score}/100`);
   }
+
   console.log('\nSession History:');
   state.sessionHistory.forEach(s => {
-    console.log(`  ${s.session}. ${s.phase} (iter ${s.iteration}): ${s.exitReason} @ ${s.peakContext.toFixed(1)}%`);
+    const taskInfo = s.taskId ? ` [${s.taskId}]` : '';
+    console.log(`  ${s.session}. ${s.phase} (iter ${s.iteration})${taskInfo}: ${s.exitReason} @ ${s.peakContext.toFixed(1)}%`);
   });
   console.log('═'.repeat(70) + '\n');
 }
@@ -542,6 +896,7 @@ function printHelp() {
 Autonomous Multi-Agent Orchestrator
 
 Runs Claude Code autonomously through development phases with quality gates.
+Supports both task-driven (tasks.json) and phase-driven (--task) execution modes.
 
 Usage:
   node autonomous-orchestrator.js [options]
@@ -550,10 +905,23 @@ Options:
   --phase <phase>          Starting phase (research, design, implement, test)
   --threshold <percent>    Context threshold for session cycling (default: 65)
   --max-sessions <n>       Maximum total sessions (default: unlimited)
-  --max-iterations <n>     Max iterations per phase (default: 10)
-  --task <description>     Task description
+  --max-iterations <n>     Max iterations per task/phase (default: 10)
+  --task <description>     Task description (fallback if no tasks.json)
   --delay <ms>             Delay between sessions (default: 5000)
   --help, -h               Show this help
+
+Execution Modes:
+
+  1. Task-Driven (Recommended)
+     - Create tasks.json with task definitions
+     - Orchestrator uses TaskManager to select highest-priority ready tasks
+     - Supports dependencies, auto-unblocking, and historical learning
+     - Example: npm run autonomous --phase implement
+
+  2. Phase-Driven (Legacy)
+     - Use --task argument for simple task description
+     - No dependency tracking or task management
+     - Example: node autonomous-orchestrator.js --task "Build auth system"
 
 Phases:
   research    Requirements, analysis, risk assessment (min: 80)
@@ -561,9 +929,22 @@ Phases:
   implement   Code implementation (min: 90)
   test        Testing and validation (min: 90)
 
+Task Management:
+  The orchestrator integrates with TaskManager when tasks.json exists:
+  - Selects tasks by phase, priority, and dependency status
+  - Tracks iterations per task (not just per phase)
+  - Auto-unblocks dependent tasks when dependencies complete
+  - Records completion data for historical learning
+
 Examples:
+  # Task-driven (with tasks.json)
+  node autonomous-orchestrator.js --phase implement
+
+  # Phase-driven (fallback)
   node autonomous-orchestrator.js --task "Build user auth system"
-  node autonomous-orchestrator.js --phase design --max-iterations 5
+
+  # With custom settings
+  node autonomous-orchestrator.js --phase design --max-iterations 5 --threshold 70
 `);
 }
 
