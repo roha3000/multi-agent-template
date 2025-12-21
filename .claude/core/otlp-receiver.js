@@ -18,17 +18,26 @@ const UsageTracker = require('./usage-tracker');
 const path = require('path');
 
 class OTLPReceiver {
-    constructor(projectRoot, options = {}) {
-        this.projectRoot = projectRoot;
-        this.port = options.port || 4318;
+    constructor(options = {}) {
+        // Support both old (projectRoot, options) and new (options) signatures
+        if (typeof options === 'string') {
+            // Old signature: (projectRoot, options)
+            this.projectRoot = options;
+            options = arguments[1] || {};
+        } else {
+            // New signature: (options)
+            this.projectRoot = options.projectRoot;
+        }
+
+        this.port = options.port !== undefined ? options.port : 4318;
         this.host = options.host || 'localhost';
         this.app = express();
         this.server = null;
         this.isRunning = false;
 
-        // Initialize UsageTracker only (DashboardManager is optional for metrics viewing)
-        this.usageTracker = new UsageTracker(projectRoot);
-        // Note: DashboardManager disabled to avoid complexity - data is saved to disk
+        // Use provided instances or create new ones
+        this.usageTracker = options.usageTracker || new UsageTracker(this.projectRoot);
+        this.metricProcessor = options.metricProcessor || null;
 
         // Metrics storage for processing
         this.metricsBuffer = [];
@@ -128,6 +137,11 @@ class OTLPReceiver {
     }
 
     processMetrics(metricsData) {
+        // If a metricProcessor is provided, use it
+        if (this.metricProcessor) {
+            this.metricProcessor.processMetrics(metricsData);
+        }
+
         // OTLP metric structure has resourceMetrics array
         if (metricsData.resourceMetrics) {
             for (const resourceMetric of metricsData.resourceMetrics) {
