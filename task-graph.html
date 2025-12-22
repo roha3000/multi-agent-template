@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Dependency Graph</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow: hidden;
+    }
+
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #1e293b;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+      border-bottom: 1px solid #334155;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .header .stats {
+      display: flex;
+      gap: 20px;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    .header .stats span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header .stats .count {
+      color: #f1f5f9;
+      font-weight: 600;
+    }
+
+    #graph-container {
+      width: 100vw;
+      height: 100vh;
+      padding-top: 56px;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .node {
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .node:hover {
+      opacity: 0.8;
+    }
+
+    .node-label {
+      font-size: 11px;
+      fill: #f1f5f9;
+      pointer-events: none;
+      text-anchor: middle;
+    }
+
+    .link {
+      stroke-opacity: 0.6;
+      fill: none;
+    }
+
+    .link.requires {
+      stroke: #64748b;
+      stroke-width: 2;
+    }
+
+    .link.blocks {
+      stroke: #ef4444;
+      stroke-width: 2;
+    }
+
+    .link.related {
+      stroke: #475569;
+      stroke-width: 1;
+      stroke-dasharray: 4,4;
+    }
+
+    .arrow {
+      fill: #64748b;
+    }
+
+    .arrow.blocks {
+      fill: #ef4444;
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: absolute;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      max-width: 300px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 1000;
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+    }
+
+    .tooltip h3 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #f1f5f9;
+    }
+
+    .tooltip .status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .tooltip .status.completed { background: #166534; color: #bbf7d0; }
+    .tooltip .status.in_progress { background: #1d4ed8; color: #bfdbfe; }
+    .tooltip .status.ready { background: #b45309; color: #fef3c7; }
+    .tooltip .status.blocked { background: #b91c1c; color: #fecaca; }
+    .tooltip .status.pending { background: #374151; color: #d1d5db; }
+
+    .tooltip .meta {
+      color: #94a3b8;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .tooltip .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 8px;
+    }
+
+    .tooltip .tag {
+      background: #334155;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    /* Legend */
+    .legend {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+    }
+
+    .legend h4 {
+      margin-bottom: 8px;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .legend-line {
+      width: 20px;
+      height: 2px;
+    }
+
+    /* Controls */
+    .controls {
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .controls button {
+      background: #334155;
+      border: none;
+      color: #e2e8f0;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      margin: 2px;
+      transition: background 0.2s;
+    }
+
+    .controls button:hover {
+      background: #475569;
+    }
+
+    /* Critical path highlight */
+    .critical-path {
+      stroke: #fbbf24 !important;
+      stroke-width: 3 !important;
+    }
+
+    .critical-node {
+      stroke: #fbbf24;
+      stroke-width: 3;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Task Dependency Graph</h1>
+    <div class="stats">
+      <span>Tasks: <span class="count" id="task-count">0</span></span>
+      <span>Dependencies: <span class="count" id="dep-count">0</span></span>
+      <span>Completed: <span class="count" id="completed-count">0</span></span>
+      <span>Blocked: <span class="count" id="blocked-count">0</span></span>
+    </div>
+  </div>
+
+  <div id="graph-container">
+    <svg></svg>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <div class="legend">
+    <h4>Status</h4>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #22c55e;"></div>
+      <span>Completed</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #3b82f6;"></div>
+      <span>In Progress</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #f59e0b;"></div>
+      <span>Ready</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #ef4444;"></div>
+      <span>Blocked</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #6b7280;"></div>
+      <span>Pending</span>
+    </div>
+    <h4 style="margin-top: 12px;">Links</h4>
+    <div class="legend-item">
+      <div class="legend-line" style="background: #64748b;"></div>
+      <span>Requires</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background: #ef4444;"></div>
+      <span>Blocks</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background: #475569; border-style: dashed;"></div>
+      <span>Related</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button onclick="resetZoom()">Reset View</button>
+    <button onclick="toggleCriticalPath()">Show Critical Path</button>
+    <button onclick="refreshData()">Refresh</button>
+  </div>
+
+  <script>
+    // Graph state
+    let graphData = { nodes: [], links: [] };
+    let simulation = null;
+    let showingCriticalPath = false;
+    let criticalPath = [];
+
+    // SVG setup
+    const svg = d3.select('svg');
+    const container = svg.append('g');
+
+    // Arrow markers
+    svg.append('defs').selectAll('marker')
+      .data(['requires', 'blocks'])
+      .join('marker')
+      .attr('id', d => `arrow-${d}`)
+      .attr('viewBox', '0 -5 10 10')
+      .attr('refX', 20)
+      .attr('refY', 0)
+      .attr('markerWidth', 6)
+      .attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M0,-5L10,0L0,5')
+      .attr('class', d => `arrow ${d}`);
+
+    // Zoom behavior
+    const zoom = d3.zoom()
+      .scaleExtent([0.2, 4])
+      .on('zoom', (event) => {
+        container.attr('transform', event.transform);
+      });
+
+    svg.call(zoom);
+
+    // Tooltip
+    const tooltip = d3.select('#tooltip');
+
+    // Load and render data
+    async function loadData() {
+      try {
+        const response = await fetch('/api/tasks/graph');
+        const data = await response.json();
+        graphData = data.graph;
+        criticalPath = data.statistics?.criticalPath || [];
+        renderGraph();
+        updateStats(data.statistics);
+      } catch (err) {
+        console.error('Failed to load graph data:', err);
+        // Try to load from tasks.json directly
+        loadFromTasksJson();
+      }
+    }
+
+    async function loadFromTasksJson() {
+      try {
+        const response = await fetch('/tasks.json');
+        const data = await response.json();
+        graphData = transformTasksToGraph(data);
+        renderGraph();
+        updateStatsFromGraph();
+      } catch (err) {
+        console.error('Failed to load tasks.json:', err);
+      }
+    }
+
+    function transformTasksToGraph(tasksData) {
+      const nodes = [];
+      const links = [];
+
+      const tasks = tasksData.tasks || {};
+      const taskIds = Object.keys(tasks);
+
+      // Create nodes
+      for (const id of taskIds) {
+        const task = tasks[id];
+        nodes.push({
+          id: task.id,
+          title: task.title,
+          status: task.status,
+          priority: task.priority,
+          phase: task.phase,
+          estimate: task.estimate,
+          tags: task.tags || [],
+          radius: task.priority === 'high' ? 20 : task.priority === 'medium' ? 15 : 10,
+          color: getStatusColor(task.status),
+        });
+      }
+
+      // Create links
+      for (const id of taskIds) {
+        const task = tasks[id];
+        if (task.depends) {
+          if (task.depends.requires) {
+            for (const reqId of task.depends.requires) {
+              if (tasks[reqId]) {
+                links.push({ source: reqId, target: id, type: 'requires' });
+              }
+            }
+          }
+          if (task.depends.blocks) {
+            for (const blockId of task.depends.blocks) {
+              if (tasks[blockId]) {
+                links.push({ source: id, target: blockId, type: 'blocks' });
+              }
+            }
+          }
+        }
+      }
+
+      return { nodes, links };
+    }
+
+    function getStatusColor(status) {
+      const colors = {
+        completed: '#22c55e',
+        in_progress: '#3b82f6',
+        ready: '#f59e0b',
+        blocked: '#ef4444',
+        pending: '#6b7280',
+      };
+      return colors[status] || '#9ca3af';
+    }
+
+    function renderGraph() {
+      const width = window.innerWidth;
+      const height = window.innerHeight - 56;
+
+      // Clear existing
+      container.selectAll('*').remove();
+
+      // Create simulation
+      simulation = d3.forceSimulation(graphData.nodes)
+        .force('link', d3.forceLink(graphData.links).id(d => d.id).distance(120))
+        .force('charge', d3.forceManyBody().strength(-300))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(d => d.radius + 20));
+
+      // Draw links
+      const link = container.append('g')
+        .selectAll('line')
+        .data(graphData.links)
+        .join('line')
+        .attr('class', d => `link ${d.type}`)
+        .attr('marker-end', d => d.type !== 'related' ? `url(#arrow-${d.type})` : null);
+
+      // Draw nodes
+      const node = container.append('g')
+        .selectAll('circle')
+        .data(graphData.nodes)
+        .join('circle')
+        .attr('class', 'node')
+        .attr('r', d => d.radius)
+        .attr('fill', d => d.color)
+        .call(drag(simulation))
+        .on('mouseover', showTooltip)
+        .on('mouseout', hideTooltip)
+        .on('click', handleNodeClick);
+
+      // Draw labels
+      const label = container.append('g')
+        .selectAll('text')
+        .data(graphData.nodes)
+        .join('text')
+        .attr('class', 'node-label')
+        .attr('dy', d => d.radius + 14)
+        .text(d => truncate(d.title, 20));
+
+      // Update positions on tick
+      simulation.on('tick', () => {
+        link
+          .attr('x1', d => d.source.x)
+          .attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x)
+          .attr('y2', d => d.target.y);
+
+        node
+          .attr('cx', d => d.x)
+          .attr('cy', d => d.y);
+
+        label
+          .attr('x', d => d.x)
+          .attr('y', d => d.y);
+      });
+    }
+
+    function drag(simulation) {
+      function dragstarted(event) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        event.subject.fx = event.subject.x;
+        event.subject.fy = event.subject.y;
+      }
+
+      function dragged(event) {
+        event.subject.fx = event.x;
+        event.subject.fy = event.y;
+      }
+
+      function dragended(event) {
+        if (!event.active) simulation.alphaTarget(0);
+        event.subject.fx = null;
+        event.subject.fy = null;
+      }
+
+      return d3.drag()
+        .on('start', dragstarted)
+        .on('drag', dragged)
+        .on('end', dragended);
+    }
+
+    function showTooltip(event, d) {
+      const html = `
+        <h3>${d.title}</h3>
+        <span class="status ${d.status}">${d.status.replace('_', ' ')}</span>
+        <div class="meta">Phase: ${d.phase || 'N/A'}</div>
+        <div class="meta">Priority: ${d.priority || 'N/A'}</div>
+        <div class="meta">Estimate: ${d.estimate || 'N/A'}</div>
+        ${d.tags.length ? `<div class="tags">${d.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
+      `;
+
+      tooltip
+        .html(html)
+        .style('left', (event.pageX + 15) + 'px')
+        .style('top', (event.pageY - 10) + 'px')
+        .classed('visible', true);
+    }
+
+    function hideTooltip() {
+      tooltip.classed('visible', false);
+    }
+
+    function handleNodeClick(event, d) {
+      console.log('Clicked:', d);
+      // Could open edit modal or highlight dependencies
+    }
+
+    function updateStats(stats) {
+      if (!stats) return;
+      document.getElementById('task-count').textContent = stats.totalNodes || 0;
+      document.getElementById('dep-count').textContent = stats.totalLinks || 0;
+      document.getElementById('completed-count').textContent = stats.statusCounts?.completed || 0;
+      document.getElementById('blocked-count').textContent = stats.statusCounts?.blocked || 0;
+    }
+
+    function updateStatsFromGraph() {
+      const stats = {
+        totalNodes: graphData.nodes.length,
+        totalLinks: graphData.links.length,
+        statusCounts: {}
+      };
+      for (const node of graphData.nodes) {
+        stats.statusCounts[node.status] = (stats.statusCounts[node.status] || 0) + 1;
+      }
+      updateStats(stats);
+    }
+
+    function resetZoom() {
+      svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+    }
+
+    function toggleCriticalPath() {
+      showingCriticalPath = !showingCriticalPath;
+      // This would highlight the critical path - for now just log
+      console.log('Critical path:', criticalPath);
+    }
+
+    function refreshData() {
+      loadData();
+    }
+
+    function truncate(str, len) {
+      return str.length > len ? str.substring(0, len) + '...' : str;
+    }
+
+    // Handle resize
+    window.addEventListener('resize', () => {
+      if (simulation) {
+        simulation.force('center', d3.forceCenter(window.innerWidth / 2, (window.innerHeight - 56) / 2));
+        simulation.alpha(0.3).restart();
+      }
+    });
+
+    // Initial load
+    loadData();
+
+    // Auto-refresh every 30 seconds
+    setInterval(refreshData, 30000);
+  </script>
+</body>
+</html>

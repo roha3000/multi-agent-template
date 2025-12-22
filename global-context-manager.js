@@ -22,6 +22,9 @@ const path = require('path');
 const fs = require('fs');
 const chokidar = require('chokidar');
 const GlobalContextTracker = require('./.claude/core/global-context-tracker');
+const PredictiveAnalytics = require('./.claude/core/predictive-analytics');
+const TaskManager = require('./.claude/core/task-manager');
+const TaskGraph = require('./.claude/core/task-graph');
 
 const app = express();
 app.use(cors());
@@ -42,6 +45,40 @@ const tracker = new GlobalContextTracker({
 // Store recent alerts for dashboard
 const recentAlerts = [];
 const MAX_ALERTS = 50;
+
+// Initialize Predictive Analytics
+const analytics = new PredictiveAnalytics({
+  globalTracker: tracker,
+  historyWindow: 30,
+  predictionHorizon: 10,
+});
+
+// Forward exhaustion warnings to alerts
+analytics.on('exhaustion-warning', (data) => {
+  recentAlerts.unshift({
+    timestamp: Date.now(),
+    level: 'EXHAUSTION_WARNING',
+    project: data.projectId,
+    message: `Context exhaustion in ~${data.minutesToExhaustion} minutes`,
+    data,
+  });
+  if (recentAlerts.length > MAX_ALERTS) recentAlerts.pop();
+});
+
+// Initialize TaskManager and TaskGraph for visualization
+const tasksPath = path.join(__dirname, 'tasks.json');
+let taskManager = null;
+let taskGraph = null;
+
+try {
+  if (fs.existsSync(tasksPath)) {
+    taskManager = new TaskManager({ persistPath: tasksPath });
+    taskGraph = new TaskGraph(taskManager);
+    console.log('[TASKS] TaskManager initialized for graph visualization');
+  }
+} catch (err) {
+  console.log('[TASKS] TaskManager not available:', err.message);
+}
 
 // Session series tracking for continuous loop
 let sessionSeries = {
@@ -446,6 +483,88 @@ app.get('/api/execution/todos', (req, res) => {
   res.json(tasks);
 });
 
+// ============================================================================
+// PREDICTIVE ANALYTICS ENDPOINTS
+// ============================================================================
+
+// Get all predictions
+app.get('/api/predictions', (req, res) => {
+  res.json(analytics.getSummary());
+});
+
+// Get prediction for specific project
+app.get('/api/predictions/:projectId', (req, res) => {
+  const prediction = analytics.getPrediction(req.params.projectId);
+  const patterns = analytics.analyzePatterns(req.params.projectId);
+  res.json({ prediction, patterns });
+});
+
+// Get cost recommendations
+app.get('/api/recommendations', (req, res) => {
+  res.json(analytics.getCostRecommendations());
+});
+
+// Get pattern analysis for project
+app.get('/api/patterns/:projectId', (req, res) => {
+  res.json(analytics.analyzePatterns(req.params.projectId));
+});
+
+// ============================================================================
+// TASK GRAPH ENDPOINTS
+// ============================================================================
+
+// Get graph data for D3.js visualization
+app.get('/api/tasks/graph', (req, res) => {
+  if (!taskGraph) {
+    return res.status(503).json({ error: 'TaskGraph not initialized' });
+  }
+  res.json({
+    graph: taskGraph.generateGraphData(),
+    statistics: taskGraph.getStatistics(),
+  });
+});
+
+// Get task tree structure
+app.get('/api/tasks/tree', (req, res) => {
+  if (!taskGraph) {
+    return res.status(503).json({ error: 'TaskGraph not initialized' });
+  }
+  res.json(taskGraph.generateTreeData());
+});
+
+// Get graph in DOT format (for Graphviz)
+app.get('/api/tasks/dot', (req, res) => {
+  if (!taskGraph) {
+    return res.status(503).json({ error: 'TaskGraph not initialized' });
+  }
+  res.type('text/plain').send(taskGraph.toDOT());
+});
+
+// Get all tasks
+app.get('/api/tasks', (req, res) => {
+  if (!taskManager) {
+    return res.status(503).json({ error: 'TaskManager not initialized' });
+  }
+  res.json({
+    tasks: taskManager.getAllTasks(),
+    stats: taskManager.getStats(),
+  });
+});
+
+// Update task status
+app.post('/api/tasks/:id/status', (req, res) => {
+  if (!taskManager) {
+    return res.status(503).json({ error: 'TaskManager not initialized' });
+  }
+  const { status } = req.body;
+  try {
+    taskManager.updateStatus(req.params.id, status);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // SSE for real-time updates
 app.get('/api/events', (req, res) => {
   res.writeHead(200, {
@@ -511,6 +630,20 @@ app.listen(PORT, async () => {
   console.log(`  GET  /api/account      - Account-level totals`);
   console.log(`  GET  /api/alerts       - Recent alerts`);
   console.log(`  GET  /api/events       - SSE real-time stream`);
+  console.log('');
+  console.log('Predictive Analytics:');
+  console.log(`  GET  /api/predictions      - All predictions + recommendations`);
+  console.log(`  GET  /api/predictions/:id  - Prediction for specific project`);
+  console.log(`  GET  /api/recommendations  - Cost optimization recommendations`);
+  console.log(`  GET  /api/patterns/:id     - Pattern analysis for project`);
+  console.log('');
+  console.log('Task Graph (D3.js visualization):');
+  console.log(`  GET  /api/tasks/graph      - Graph data for D3.js`);
+  console.log(`  GET  /api/tasks/tree       - Tree structure`);
+  console.log(`  GET  /api/tasks/dot        - DOT format (Graphviz)`);
+  console.log(`  GET  /api/tasks            - All tasks with stats`);
+  console.log(`  POST /api/tasks/:id/status - Update task status`);
+  console.log(`  VIEW /task-graph.html      - Interactive graph UI`);
   console.log('');
   console.log('Thresholds:');
   console.log('  50% - Warning (state auto-saved)');

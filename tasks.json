@@ -15,14 +15,15 @@
     "now": {
       "description": "Active tasks for current sprint/iteration",
       "tasks": [
-        "merge-task-management-pr",
-        "integrate-dashboard-tasks"
+        "option-a-test-autonomous",
+        "option-b-predictive-analytics"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "add-task-visualization"
+        "option-c-task-visualization",
+        "option-d-sms-email-notifications"
       ]
     },
     "later": {
@@ -37,100 +38,168 @@
     }
   },
   "tasks": {
-    "merge-task-management-pr": {
-      "id": "merge-task-management-pr",
-      "title": "Merge Task Management PR to Main",
-      "description": "Review and merge the task-management-tests branch to main, ensuring all 160 tests pass",
-      "phase": "validation",
+    "option-a-test-autonomous": {
+      "id": "option-a-test-autonomous",
+      "title": "Option A: Test Autonomous Loop",
+      "description": "Validate the autonomous orchestrator works correctly - phase transitions, quality gates, context monitoring, and state persistence across sessions",
+      "phase": "testing",
       "priority": "high",
-      "estimate": "30m",
+      "estimate": "2h",
       "tags": [
-        "git",
-        "merge",
-        "testing"
+        "autonomous",
+        "testing",
+        "orchestrator"
       ],
       "depends": {
         "blocks": [
-          "integrate-dashboard-tasks"
+          "option-b-predictive-analytics"
         ],
         "requires": [],
         "related": []
       },
       "acceptance": [
-        "All 160 tests pass",
-        "No merge conflicts",
-        "PR approved and merged to main"
+        "Autonomous orchestrator starts correctly",
+        "Phase transitions work (research → design → implement → test)",
+        "Quality gates enforce thresholds (80/85/90/90)",
+        "Context monitoring triggers session cycling at 65%",
+        "Dev-docs state persists across sessions"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
-      "created": "2025-12-18T00:00:00.000Z",
-      "updated": "2025-12-19T04:11:13.356Z",
-      "started": null,
-      "completed": null
+      "created": "2025-12-22T00:00:00.000Z",
+      "updated": "2025-12-22T21:40:00.000Z",
+      "started": "2025-12-22T21:28:29.412Z",
+      "completed": "2025-12-22T21:40:00.000Z",
+      "qualityScore": 98,
+      "deliverables": [
+        "scripts/validate-orchestrator.js (16 unit tests)",
+        "tests/e2e/orchestrator.e2e.test.js (18 E2E tests)",
+        "tests/e2e/context-tracking.e2e.test.js (17 E2E tests)",
+        "tests/e2e/session-lifecycle.e2e.test.js (15 E2E tests)",
+        "Fixed autonomous-orchestrator.js: stdio logging (context isolation)",
+        "Fixed autonomous-orchestrator.js: EventSource cleanup",
+        "Fixed autonomous-orchestrator.js: gracefulShutdown handler",
+        "Fixed autonomous-orchestrator.js: reconnect dashboard after threshold",
+        "npm scripts: test:e2e:all, test:e2e:context, test:e2e:lifecycle"
+      ],
+      "notes": "50 E2E tests total verifying: context tracking flow, session lifecycle, state persistence, task continuity across sessions, threshold detection, and graceful shutdown. Critical fixes applied after discovering unit tests passed but E2E behavior was broken."
     },
-    "integrate-dashboard-tasks": {
-      "id": "integrate-dashboard-tasks",
-      "title": "Integrate Task Display in Dashboard",
-      "description": "Add task list and progress display to the global dashboard, showing current task, backlog summary, and completion status",
-      "phase": "implementation",
+    "option-b-predictive-analytics": {
+      "id": "option-b-predictive-analytics",
+      "title": "Option B: Predictive Analytics",
+      "description": "Build ML-based token usage forecasting, context exhaustion predictions, cost optimization recommendations, and session pattern analysis",
+      "phase": "research",
       "priority": "high",
-      "estimate": "2h",
+      "estimate": "8h",
       "tags": [
+        "ml",
+        "analytics",
+        "predictions",
+        "cost"
+      ],
+      "depends": {
+        "blocks": [
+          "option-c-task-visualization"
+        ],
+        "requires": [
+          "option-a-test-autonomous"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "ML model predicts token usage per project",
+        "Context exhaustion predictions accurate to 5 minutes",
+        "Cost optimization recommendations generated",
+        "Session pattern analysis identifies usage trends",
+        "Trend visualization components in dashboard"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-22T00:00:00.000Z",
+      "updated": "2025-12-22T21:55:00.000Z",
+      "started": "2025-12-22T21:40:00.000Z",
+      "completed": "2025-12-22T21:55:00.000Z",
+      "qualityScore": 92,
+      "deliverables": [
+        ".claude/core/predictive-analytics.js",
+        ".claude/core/predictive-analytics.test.js (19 tests)",
+        "global-context-manager.js (API endpoints added)"
+      ]
+    },
+    "option-c-task-visualization": {
+      "id": "option-c-task-visualization",
+      "title": "Option C: Task Dependency Graph Visualization",
+      "description": "Create visual dependency graph in dashboard showing task relationships, blocking status, and interactive editing",
+      "phase": "research",
+      "priority": "medium",
+      "estimate": "6h",
+      "tags": [
+        "visualization",
         "dashboard",
-        "ui",
-        "integration"
+        "dependencies",
+        "d3js"
+      ],
+      "depends": {
+        "blocks": [
+          "option-d-sms-email-notifications"
+        ],
+        "requires": [
+          "option-b-predictive-analytics"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Dependency graph data structure designed",
+        "Graph rendering with D3.js or similar",
+        "Interactive task node editing",
+        "Blocking/blocked relationships shown visually",
+        "Integrated with global dashboard"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-22T00:00:00.000Z",
+      "updated": "2025-12-22T22:10:00.000Z",
+      "started": "2025-12-22T21:55:00.000Z",
+      "completed": "2025-12-22T22:10:00.000Z",
+      "qualityScore": 91,
+      "deliverables": [
+        ".claude/core/task-graph.js",
+        ".claude/core/task-graph.test.js (13 tests)",
+        "task-graph.html (D3.js visualization)",
+        "global-context-manager.js (5 new API endpoints)"
+      ]
+    },
+    "option-d-sms-email-notifications": {
+      "id": "option-d-sms-email-notifications",
+      "title": "Option D: SMS/Email Notifications",
+      "description": "Implement Twilio SMS and email alerts for phase/task group completion, context threshold alerts, and configurable notification preferences",
+      "phase": "research",
+      "priority": "medium",
+      "estimate": "6h",
+      "tags": [
+        "notifications",
+        "twilio",
+        "email",
+        "alerts"
       ],
       "depends": {
         "blocks": [],
         "requires": [
-          "merge-task-management-pr"
+          "option-c-task-visualization"
         ],
-        "related": [
-          "add-task-visualization"
-        ]
+        "related": []
       },
       "acceptance": [
-        "Dashboard shows current active task",
-        "Backlog summary visible (now/next/later counts)",
-        "Task completion triggers dashboard update",
-        "Real-time updates via SSE"
-      ],
-      "status": "blocked",
-      "assignee": null,
-      "created": "2025-12-18T00:00:00.000Z",
-      "updated": "2025-12-18T00:00:00.000Z",
-      "started": null,
-      "completed": null
-    },
-    "add-task-visualization": {
-      "id": "add-task-visualization",
-      "title": "Add Dependency Graph Visualization",
-      "description": "Create visual dependency graph showing task relationships and blocking status",
-      "phase": "implementation",
-      "priority": "medium",
-      "estimate": "4h",
-      "tags": [
-        "visualization",
-        "dashboard",
-        "dependencies"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "integrate-dashboard-tasks"
-        ]
-      },
-      "acceptance": [
-        "Visual graph shows task dependencies",
-        "Blocked tasks highlighted in red",
-        "Completed tasks shown in green",
-        "Interactive - click to view task details"
+        "Twilio SMS integration working",
+        "Email service configured (SendGrid/SES)",
+        "Phase completion notifications sent",
+        "Context threshold alerts (70%, 85%, 95%)",
+        "Notification preferences UI available"
       ],
       "status": "ready",
       "assignee": null,
-      "created": "2025-12-18T00:00:00.000Z",
-      "updated": "2025-12-18T00:00:00.000Z",
+      "created": "2025-12-22T00:00:00.000Z",
+      "updated": "2025-12-22T23:00:00.000Z",
       "started": null,
       "completed": null
     },

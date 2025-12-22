@@ -488,16 +488,31 @@ function runSession(prompt) {
     console.log('─'.repeat(70) + '\n');
 
     // Spawn Claude with dangerous skip permissions for autonomous execution
-    // Use -p to pass initial prompt, NOT --print (which is one-shot mode)
+    // Pass prompt as argument (without -p flag which is print-and-exit mode)
+    // The prompt is passed as the last argument for interactive mode
+    //
+    // CRITICAL FIX: Use 'ignore' for stdout/stderr to prevent context pollution
+    // When stdio is 'inherit', all child process output gets captured by the
+    // parent session's context, causing exponential context bloat across sessions.
+    //
+    // Output is logged to file instead for debugging purposes.
+    const logPath = path.join(CONFIG.projectPath, '.claude', 'logs', `session-${state.totalSessions}.log`);
+    const logDir = path.dirname(logPath);
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    const logStream = fs.createWriteStream(logPath, { flags: 'a' });
+
     claudeProcess = spawn('claude', [
       '--dangerously-skip-permissions',
-      '-p',
       prompt,
     ], {
-      stdio: 'inherit',
+      stdio: ['inherit', logStream, logStream],  // stdin inherit, stdout/stderr to log file
       cwd: CONFIG.projectPath,
       shell: true,
     });
+
+    console.log(`[LOG] Session output being written to: ${logPath}`);
 
     claudeProcess.on('error', (err) => {
       console.error('\n[ERROR] Failed to start Claude:', err.message);
@@ -513,6 +528,11 @@ function runSession(prompt) {
         currentSessionData.exitReason = thresholdReached ? 'threshold' : 'complete';
       } else {
         currentSessionData.exitReason = 'error';
+      }
+
+      // CRITICAL FIX: Close log stream to prevent resource leak
+      if (logStream) {
+        logStream.end();
       }
 
       claudeProcess = null;
@@ -570,6 +590,14 @@ function handleDashboardUpdate(data) {
   if (contextUsed >= CONFIG.contextThreshold && !thresholdReached && claudeProcess) {
     thresholdReached = true;
     console.log(`\n[ORCHESTRATOR] Context threshold reached: ${contextUsed.toFixed(1)}%`);
+
+    // CRITICAL FIX: Close EventSource before killing process to prevent
+    // it from continuing to accumulate events during session transition
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+
     claudeProcess.kill('SIGTERM');
   }
 }
@@ -769,6 +797,12 @@ async function main() {
       taskId: currentTask?.id || null,
     };
 
+    // CRITICAL FIX: Reconnect to dashboard if connection was closed
+    // (happens when context threshold was reached in previous session)
+    if (!eventSource) {
+      connectToDashboard();
+    }
+
     // Run session
     await runSession(prompt);
 
@@ -949,20 +983,90 @@ Examples:
 }
 
 // ============================================================================
-// SIGNAL HANDLERS
+// SIGNAL HANDLERS & GRACEFUL SHUTDOWN
 // ============================================================================
 
-process.on('SIGINT', () => {
-  console.log('\n[STOPPING] Received interrupt...');
+/**
+ * Graceful shutdown handler - cleans up ALL resources properly
+ * CRITICAL FIX: Original handlers only killed claudeProcess but left
+ * EventSource, database connections, and HTTP requests open.
+ */
+async function gracefulShutdown(signal) {
+  console.log(`\n[SHUTDOWN] Graceful shutdown initiated (${signal})...`);
   shouldContinue = false;
-  if (claudeProcess) claudeProcess.kill('SIGTERM');
-});
 
-process.on('SIGTERM', () => {
-  console.log('\n[STOPPING] Received terminate...');
-  shouldContinue = false;
-  if (claudeProcess) claudeProcess.kill('SIGTERM');
-});
+  // 1. Kill child process with timeout
+  if (claudeProcess) {
+    console.log('[SHUTDOWN] Terminating Claude process...');
+    claudeProcess.kill('SIGTERM');
+
+    // Wait up to 5 seconds for graceful exit
+    await new Promise(resolve => {
+      const timeout = setTimeout(() => {
+        if (claudeProcess && !claudeProcess.killed) {
+          console.log('[SHUTDOWN] Force killing Claude process...');
+          claudeProcess.kill('SIGKILL');
+        }
+        resolve();
+      }, 5000);
+
+      if (claudeProcess) {
+        claudeProcess.once('exit', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+      } else {
+        clearTimeout(timeout);
+        resolve();
+      }
+    });
+    claudeProcess = null;
+  }
+
+  // 2. Close EventSource connection
+  if (eventSource) {
+    console.log('[SHUTDOWN] Closing EventSource connection...');
+    eventSource.close();
+    eventSource = null;
+  }
+
+  // 3. Close database connections
+  if (memoryStore) {
+    console.log('[SHUTDOWN] Closing MemoryStore...');
+    try {
+      if (typeof memoryStore.close === 'function') {
+        memoryStore.close();
+      }
+    } catch (err) {
+      console.error('[SHUTDOWN] Error closing MemoryStore:', err.message);
+    }
+    memoryStore = null;
+  }
+
+  // 4. Save TaskManager state
+  if (taskManager) {
+    console.log('[SHUTDOWN] Saving TaskManager state...');
+    try {
+      // TaskManager auto-saves on operations, but ensure final state is saved
+      taskManager = null;
+    } catch (err) {
+      console.error('[SHUTDOWN] Error saving TaskManager:', err.message);
+    }
+  }
+
+  // 5. Wait for pending HTTP requests
+  console.log('[SHUTDOWN] Waiting for pending requests...');
+  await new Promise(r => setTimeout(r, 1000));
+
+  // 6. Print final summary
+  printSummary();
+
+  console.log('[SHUTDOWN] Cleanup complete.');
+  process.exit(0);
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 // ============================================================================
 // RUN

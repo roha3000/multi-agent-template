@@ -575,7 +575,7 @@ npm run monitor:global      # Start context monitor dashboard
 - **Option A: Test Autonomous Loop** - Run `npm run autonomous` on a real task
 - **Option B: Predictive Analytics** - ML-based token usage predictions
 - **Option C: Task Visualization** - Dependency graph visualization in dashboard
-- **Option D: Notification System** - Slack/Discord alerts on task completion
+- **Option D: SMS/Email Notifications** - Twilio SMS and email alerts on phase/task group completion
 
 ---
 
