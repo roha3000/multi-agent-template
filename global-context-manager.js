@@ -464,12 +464,27 @@ app.post('/api/projects/:folder/reset', (req, res) => {
   res.json({ success: true });
 });
 
-// Health check
+// Health check endpoint
+// Returns comprehensive system status including uptime, active projects, notification service, and memory usage
 app.get('/api/health', (req, res) => {
+  const memoryUsage = process.memoryUsage();
+
   res.json({
     status: tracker.isRunning ? 'healthy' : 'starting',
-    projectCount: tracker.projects.size,
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    activeProjectsCount: tracker.projects.size,
+    notificationService: {
+      sms: notificationStatus.sms?.available || false,
+      email: notificationStatus.email?.available || false,
+      initialized: notificationService ? true : false
+    },
+    memory: {
+      heapUsed: memoryUsage.heapUsed,
+      heapTotal: memoryUsage.heapTotal,
+      rss: memoryUsage.rss,
+      external: memoryUsage.external
+    },
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -818,6 +833,7 @@ app.listen(PORT, async () => {
   console.log(`  GET  /api/account      - Account-level totals`);
   console.log(`  GET  /api/alerts       - Recent alerts`);
   console.log(`  GET  /api/events       - SSE real-time stream`);
+  console.log(`  GET  /api/health       - System health (uptime, projects, notifications, memory)`);
   console.log('');
   console.log('Predictive Analytics:');
   console.log(`  GET  /api/predictions      - All predictions + recommendations`);

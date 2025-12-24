@@ -193,8 +193,9 @@ function generatePhasePrompt(phase, iteration, previousScore = null, improvement
     prompt += `  "phase": "${phase}",\n`;
     prompt += `  "taskId": "${task.id}",\n`;
     prompt += `  "scores": {\n`;
-    phaseConfig.criteria.forEach((criterion, i) => {
-      prompt += `    "${criterion.id}": <score 0-100>${i < phaseConfig.criteria.length - 1 ? ',' : ''}\n`;
+    const criteriaEntries = Object.entries(phaseConfig.criteria);
+    criteriaEntries.forEach(([criterionId, criterion], i) => {
+      prompt += `    "${criterionId}": <score 0-100>${i < criteriaEntries.length - 1 ? ',' : ''}\n`;
     });
     prompt += `  },\n`;
     prompt += `  "recommendation": "proceed",\n`;
@@ -204,8 +205,8 @@ function generatePhasePrompt(phase, iteration, previousScore = null, improvement
     prompt += `\`\`\`\n\n`;
 
     prompt += `**Scoring criteria for ${phaseConfig.name} phase**:\n`;
-    phaseConfig.criteria.forEach(criterion => {
-      prompt += `- **${criterion.id}** (weight: ${criterion.weight}): ${criterion.description}\n`;
+    criteriaEntries.forEach(([criterionId, criterion]) => {
+      prompt += `- **${criterionId}** (weight: ${criterion.weight}): ${criterion.description}\n`;
     });
     prompt += `\nMinimum score to proceed: ${phaseConfig.minScore}/100\n`;
 

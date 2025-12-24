@@ -15,6 +15,7 @@
     "now": {
       "description": "Active tasks for current sprint/iteration",
       "tasks": [
+        "add-health-endpoint",
         "add-model-pricing"
       ]
     },
@@ -42,6 +43,37 @@
     }
   },
   "tasks": {
+    "add-health-endpoint": {
+      "id": "add-health-endpoint",
+      "title": "Add Health Check Endpoint",
+      "description": "Add a /api/health endpoint to global-context-manager.js that returns system status including: server uptime, active projects count, notification service status, and memory usage",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "30m",
+      "tags": [
+        "api",
+        "health",
+        "monitoring"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "GET /api/health endpoint returns 200 OK",
+        "Response includes server uptime in seconds",
+        "Response includes count of active projects",
+        "Response includes notification service status",
+        "Response includes memory usage (heapUsed, heapTotal)"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-24T20:45:00.000Z",
+      "updated": "2025-12-24T20:43:58.453Z",
+      "started": "2025-12-24T20:40:50.303Z",
+      "completed": "2025-12-24T20:43:58.453Z"
+    },
     "option-a-test-autonomous": {
       "id": "option-a-test-autonomous",
       "title": "Option A: Test Autonomous Loop",
