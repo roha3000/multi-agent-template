@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notification Preferences - Multi-Agent System</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-available {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--success);
+    }
+
+    .status-unavailable {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--error);
+    }
+
+    .status-disabled {
+      background: rgba(148, 163, 184, 0.2);
+      color: var(--text-muted);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .label-description {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: normal;
+      margin-top: 4px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="time"] {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toggle-container:last-child {
+      border-bottom: none;
+    }
+
+    .toggle-label {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .toggle-title {
+      font-weight: 500;
+    }
+
+    .toggle-description {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .toggle {
+      position: relative;
+      width: 50px;
+      height: 26px;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--border);
+      transition: 0.3s;
+      border-radius: 26px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+
+    .toggle input:checked + .toggle-slider {
+      background-color: var(--primary);
+    }
+
+    .toggle input:checked + .toggle-slider:before {
+      transform: translateX(24px);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: #475569;
+    }
+
+    .btn-test {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--success);
+      border: 1px solid var(--success);
+    }
+
+    .btn-test:hover {
+      background: rgba(34, 197, 94, 0.3);
+    }
+
+    .quiet-hours-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .alert-thresholds {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .threshold-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+    }
+
+    .threshold-chip.active {
+      border-color: var(--primary);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .threshold-chip input {
+      width: 16px;
+      height: 16px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-card {
+      background: var(--bg);
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 16px 24px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 500;
+      z-index: 1000;
+      animation: slideIn 0.3s ease;
+    }
+
+    .toast.success {
+      background: var(--success);
+    }
+
+    .toast.error {
+      background: var(--error);
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateY(100px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .loading {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .nav-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      text-decoration: none;
+      margin-bottom: 20px;
+    }
+
+    .nav-back:hover {
+      color: var(--text);
+    }
+
+    .help-text {
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid var(--primary);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .help-text code {
+      background: var(--bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/global-dashboard.html" class="nav-back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Back to Dashboard
+    </a>
+
+    <header>
+      <h1>Notification Preferences</h1>
+      <p class="subtitle">Configure SMS and Email alerts for the Multi-Agent System</p>
+    </header>
+
+    <!-- Master Toggle -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Notifications</h2>
+        <span id="master-status" class="status-badge status-disabled">Disabled</span>
+      </div>
+      <div class="toggle-container">
+        <div class="toggle-label">
+          <span class="toggle-title">Enable Notifications</span>
+          <span class="toggle-description">Master switch for all SMS and email notifications</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="notifications-enabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- SMS Configuration -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">SMS (Twilio)</h2>
+        <span id="sms-status" class="status-badge status-unavailable">Unavailable</span>
+      </div>
+      <div class="toggle-container">
+        <div class="toggle-label">
+          <span class="toggle-title">Enable SMS Alerts</span>
+          <span class="toggle-description">Receive text message notifications</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="sms-enabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="form-group" style="margin-top: 16px;">
+        <label for="phone-number">
+          Phone Number
+          <span class="label-description">Format: +1234567890 (include country code)</span>
+        </label>
+        <input type="tel" id="phone-number" placeholder="+1234567890">
+      </div>
+      <button class="btn-test" onclick="testSMS()">Send Test SMS</button>
+    </div>
+
+    <!-- Email Configuration -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Email (SendGrid)</h2>
+        <span id="email-status" class="status-badge status-unavailable">Unavailable</span>
+      </div>
+      <div class="toggle-container">
+        <div class="toggle-label">
+          <span class="toggle-title">Enable Email Alerts</span>
+          <span class="toggle-description">Receive email notifications</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="email-enabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="form-group" style="margin-top: 16px;">
+        <label for="email-address">
+          Email Address
+          <span class="label-description">Where to send alert emails</span>
+        </label>
+        <input type="email" id="email-address" placeholder="you@example.com">
+      </div>
+      <button class="btn-test" onclick="testEmail()">Send Test Email</button>
+    </div>
+
+    <!-- Alert Types -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Alert Types</h2>
+      </div>
+      <div class="toggle-container">
+        <div class="toggle-label">
+          <span class="toggle-title">Context Threshold Alerts</span>
+          <span class="toggle-description">Get notified when context usage reaches warning levels</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="context-alerts-enabled" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="form-group" style="margin-top: 16px; margin-bottom: 0;">
+        <label>Alert at these thresholds:</label>
+        <div class="alert-thresholds" style="margin-top: 8px;">
+          <label class="threshold-chip active">
+            <input type="checkbox" id="threshold-70" checked>
+            <span>70% (Warning)</span>
+          </label>
+          <label class="threshold-chip active">
+            <input type="checkbox" id="threshold-85" checked>
+            <span>85% (Critical)</span>
+          </label>
+          <label class="threshold-chip active">
+            <input type="checkbox" id="threshold-95" checked>
+            <span>95% (Emergency)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="toggle-container" style="margin-top: 20px;">
+        <div class="toggle-label">
+          <span class="toggle-title">Phase Completion Alerts</span>
+          <span class="toggle-description">Get notified when a development phase completes</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="phase-alerts-enabled" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-container">
+        <div class="toggle-label">
+          <span class="toggle-title">Task Group Completion Alerts</span>
+          <span class="toggle-description">Get notified when a group of tasks completes</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="taskgroup-alerts-enabled" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Quiet Hours -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Quiet Hours</h2>
+      </div>
+      <div class="toggle-container">
+        <div class="toggle-label">
+          <span class="toggle-title">Enable Quiet Hours</span>
+          <span class="toggle-description">Suppress non-emergency alerts during specified hours</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="quiet-hours-enabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="quiet-hours-grid">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="quiet-start">Start Time</label>
+          <input type="time" id="quiet-start" value="22:00">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="quiet-end">End Time</label>
+          <input type="time" id="quiet-end" value="08:00">
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Statistics</h2>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-sms">0</div>
+          <div class="stat-label">SMS Sent</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-emails">0</div>
+          <div class="stat-label">Emails Sent</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-triggered">0</div>
+          <div class="stat-label">Alerts Triggered</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-suppressed">0</div>
+          <div class="stat-label">Suppressed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help -->
+    <div class="help-text">
+      <strong>Setup Instructions:</strong><br><br>
+      1. Configure Twilio credentials in <code>.env</code>: <code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code>, <code>TWILIO_FROM_NUMBER</code><br><br>
+      2. Configure SendGrid API key in <code>.env</code>: <code>SENDGRID_API_KEY</code>, <code>SENDGRID_FROM_EMAIL</code><br><br>
+      3. Restart the global context manager: <code>npm run monitor:global</code><br><br>
+      4. Enable notifications and configure your phone/email above.
+    </div>
+
+    <!-- Save Button -->
+    <div class="button-group">
+      <button class="btn-primary" onclick="savePreferences()">Save Preferences</button>
+      <button class="btn-secondary" onclick="loadPreferences()">Reset</button>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api/notifications';
+
+    // Load preferences on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadPreferences();
+      loadStatus();
+      loadStats();
+
+      // Add event listeners for threshold chips
+      document.querySelectorAll('.threshold-chip input').forEach(input => {
+        input.addEventListener('change', function() {
+          this.closest('.threshold-chip').classList.toggle('active', this.checked);
+        });
+      });
+    });
+
+    async function loadPreferences() {
+      try {
+        const res = await fetch(`${API_BASE}/preferences`);
+        const prefs = await res.json();
+
+        // Master toggle
+        document.getElementById('notifications-enabled').checked = prefs.enabled;
+        updateMasterStatus(prefs.enabled);
+
+        // SMS
+        document.getElementById('sms-enabled').checked = prefs.channels?.sms?.enabled || false;
+        document.getElementById('phone-number').value = prefs.channels?.sms?.phoneNumber || '';
+
+        // Email
+        document.getElementById('email-enabled').checked = prefs.channels?.email?.enabled || false;
+        document.getElementById('email-address').value = prefs.channels?.email?.address || '';
+
+        // Alert types
+        document.getElementById('context-alerts-enabled').checked = prefs.alerts?.contextThreshold?.enabled ?? true;
+        document.getElementById('phase-alerts-enabled').checked = prefs.alerts?.phaseCompletion?.enabled ?? true;
+        document.getElementById('taskgroup-alerts-enabled').checked = prefs.alerts?.taskGroupCompletion?.enabled ?? true;
+
+        // Context thresholds
+        const levels = prefs.alerts?.contextThreshold?.levels || [70, 85, 95];
+        document.getElementById('threshold-70').checked = levels.includes(70);
+        document.getElementById('threshold-85').checked = levels.includes(85);
+        document.getElementById('threshold-95').checked = levels.includes(95);
+
+        // Update chip styling
+        document.querySelectorAll('.threshold-chip input').forEach(input => {
+          input.closest('.threshold-chip').classList.toggle('active', input.checked);
+        });
+
+        // Quiet hours
+        document.getElementById('quiet-hours-enabled').checked = prefs.quietHours?.enabled || false;
+        document.getElementById('quiet-start').value = prefs.quietHours?.start || '22:00';
+        document.getElementById('quiet-end').value = prefs.quietHours?.end || '08:00';
+
+      } catch (err) {
+        showToast('Failed to load preferences', 'error');
+      }
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await fetch(`${API_BASE}/status`);
+        const status = await res.json();
+
+        // SMS status
+        const smsStatus = document.getElementById('sms-status');
+        if (status.sms?.available) {
+          smsStatus.textContent = 'Available';
+          smsStatus.className = 'status-badge status-available';
+        } else {
+          smsStatus.textContent = 'Unavailable';
+          smsStatus.className = 'status-badge status-unavailable';
+        }
+
+        // Email status
+        const emailStatus = document.getElementById('email-status');
+        if (status.email?.available) {
+          emailStatus.textContent = 'Available';
+          emailStatus.className = 'status-badge status-available';
+        } else {
+          emailStatus.textContent = 'Unavailable';
+          emailStatus.className = 'status-badge status-unavailable';
+        }
+
+      } catch (err) {
+        console.error('Failed to load status:', err);
+      }
+    }
+
+    async function loadStats() {
+      try {
+        const res = await fetch(`${API_BASE}/stats`);
+        const stats = await res.json();
+
+        document.getElementById('stat-sms').textContent = stats.smsSent || 0;
+        document.getElementById('stat-emails').textContent = stats.emailsSent || 0;
+        document.getElementById('stat-triggered').textContent = stats.alertsTriggered || 0;
+        document.getElementById('stat-suppressed').textContent = stats.alertsSuppressed || 0;
+
+      } catch (err) {
+        console.error('Failed to load stats:', err);
+      }
+    }
+
+    function updateMasterStatus(enabled) {
+      const badge = document.getElementById('master-status');
+      if (enabled) {
+        badge.textContent = 'Enabled';
+        badge.className = 'status-badge status-available';
+      } else {
+        badge.textContent = 'Disabled';
+        badge.className = 'status-badge status-disabled';
+      }
+    }
+
+    async function savePreferences() {
+      const levels = [];
+      if (document.getElementById('threshold-70').checked) levels.push(70);
+      if (document.getElementById('threshold-85').checked) levels.push(85);
+      if (document.getElementById('threshold-95').checked) levels.push(95);
+
+      const prefs = {
+        enabled: document.getElementById('notifications-enabled').checked,
+        channels: {
+          sms: {
+            enabled: document.getElementById('sms-enabled').checked,
+            phoneNumber: document.getElementById('phone-number').value
+          },
+          email: {
+            enabled: document.getElementById('email-enabled').checked,
+            address: document.getElementById('email-address').value
+          }
+        },
+        alerts: {
+          contextThreshold: {
+            enabled: document.getElementById('context-alerts-enabled').checked,
+            levels
+          },
+          phaseCompletion: {
+            enabled: document.getElementById('phase-alerts-enabled').checked
+          },
+          taskGroupCompletion: {
+            enabled: document.getElementById('taskgroup-alerts-enabled').checked
+          }
+        },
+        quietHours: {
+          enabled: document.getElementById('quiet-hours-enabled').checked,
+          start: document.getElementById('quiet-start').value,
+          end: document.getElementById('quiet-end').value
+        }
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/preferences`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(prefs)
+        });
+
+        if (res.ok) {
+          showToast('Preferences saved successfully!', 'success');
+          updateMasterStatus(prefs.enabled);
+        } else {
+          throw new Error('Failed to save');
+        }
+      } catch (err) {
+        showToast('Failed to save preferences', 'error');
+      }
+    }
+
+    async function testSMS() {
+      showToast('Sending test SMS...', 'success');
+      try {
+        const res = await fetch(`${API_BASE}/test`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: 'sms' })
+        });
+        const result = await res.json();
+
+        if (result.success && result.result?.results?.sms?.success) {
+          showToast('Test SMS sent successfully!', 'success');
+        } else {
+          showToast('SMS test failed. Check configuration.', 'error');
+        }
+        loadStats();
+      } catch (err) {
+        showToast('Failed to send test SMS', 'error');
+      }
+    }
+
+    async function testEmail() {
+      showToast('Sending test email...', 'success');
+      try {
+        const res = await fetch(`${API_BASE}/test`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: 'email' })
+        });
+        const result = await res.json();
+
+        if (result.success && result.result?.results?.email?.success) {
+          showToast('Test email sent successfully!', 'success');
+        } else {
+          showToast('Email test failed. Check configuration.', 'error');
+        }
+        loadStats();
+      } catch (err) {
+        showToast('Failed to send test email', 'error');
+      }
+    }
+
+    function showToast(message, type) {
+      // Remove existing toasts
+      document.querySelectorAll('.toast').forEach(t => t.remove());
+
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

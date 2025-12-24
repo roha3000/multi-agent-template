@@ -115,7 +115,9 @@ class AgentLoader {
    * @returns {Object} Parsed agent configuration
    */
   async _loadAgent(filepath) {
-    const content = fs.readFileSync(filepath, 'utf8');
+    // Normalize line endings (Windows uses \r\n, Unix uses \n)
+    const rawContent = fs.readFileSync(filepath, 'utf8');
+    const content = rawContent.replace(/\r\n/g, '\n');
 
     // Extract YAML frontmatter
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);

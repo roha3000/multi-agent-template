@@ -13,7 +13,7 @@
  * @module autonomous-orchestrator
  */
 
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 const { EventSource } = require('eventsource');
 const path = require('path');
 const fs = require('fs');
@@ -29,6 +29,7 @@ const {
 } = require('./quality-gates');
 const TaskManager = require('./.claude/core/task-manager');
 const MemoryStore = require('./.claude/core/memory-store');
+const NotificationService = require('./.claude/core/notification-service');
 
 // Phase name mapping (tasks.json uses longer names, quality-gates uses shorter)
 const PHASE_MAP = {
@@ -117,6 +118,9 @@ let currentSessionData = null;
 let taskManager = null;
 let memoryStore = null;
 
+// Notification Service (initialized in main)
+let notificationService = null;
+
 // ============================================================================
 // PROMPT GENERATION
 // ============================================================================
@@ -126,157 +130,91 @@ function generatePhasePrompt(phase, iteration, previousScore = null, improvement
   const phaseConfig = PHASES[normalizedPhase];
   if (!phaseConfig) throw new Error(`Unknown phase: ${phase} (normalized: ${normalizedPhase})`);
 
-  const agentRole = Object.values(AGENT_ROLES).find(a => a.phases.includes(normalizedPhase) && a.name !== 'Quality Reviewer' && a.name !== 'Technical Critic');
+  let prompt = '';
 
-  let prompt = `# AUTONOMOUS EXECUTION: ${phaseConfig.name} Phase\n\n`;
-
-  // Task context - prefer TaskManager task over CLI --task
   if (task) {
-    prompt += `## Current Task\n`;
-    prompt += `**ID**: ${task.id}\n`;
-    prompt += `**Title**: ${task.title}\n`;
-    prompt += `**Priority**: ${task.priority}\n`;
-    prompt += `**Estimate**: ${task.estimate}\n`;
-    if (task.description) {
-      prompt += `**Description**: ${task.description}\n`;
-    }
-    if (task.tags && task.tags.length > 0) {
-      prompt += `**Tags**: ${task.tags.join(', ')}\n`;
-    }
-    prompt += `\n`;
+    prompt += `# Task: ${task.title}\n\n`;
+    prompt += `**Task ID**: ${task.id}\n`;
+    prompt += `**Phase**: ${phase}\n`;
+    prompt += `**Iteration**: ${iteration}\n\n`;
 
-    // Acceptance criteria as success conditions
+    if (task.description) {
+      prompt += `## Description\n${task.description}\n\n`;
+    }
+
     if (task.acceptance && task.acceptance.length > 0) {
-      prompt += `### Acceptance Criteria\n`;
-      prompt += `You must satisfy ALL of these criteria for the task to be complete:\n`;
+      prompt += `## Acceptance Criteria\n`;
       task.acceptance.forEach((criterion, i) => {
         prompt += `${i + 1}. ${criterion}\n`;
       });
       prompt += `\n`;
     }
 
-    // Dependency context
-    if (task.depends) {
-      if (task.depends.blocks && task.depends.blocks.length > 0) {
-        prompt += `### Tasks This Unblocks\n`;
-        prompt += `Completing this task will unblock: ${task.depends.blocks.join(', ')}\n\n`;
+    // Previous score feedback
+    if (previousScore !== null && previousScore > 0) {
+      prompt += `## Previous Attempt\n`;
+      prompt += `Score: ${previousScore}/100 (minimum required: ${phaseConfig.minScore})\n`;
+      if (improvements && improvements.length > 0) {
+        prompt += `Improvements needed:\n`;
+        improvements.forEach((imp, i) => {
+          prompt += `- ${imp}\n`;
+        });
       }
-      if (task.depends.related && task.depends.related.length > 0) {
-        prompt += `### Related Tasks\n`;
-        prompt += `For context, see also: ${task.depends.related.join(', ')}\n\n`;
-      }
+      prompt += `\n`;
     }
-  } else if (state.task) {
-    // Fallback to CLI --task argument
-    prompt += `## Task\n${state.task}\n\n`;
-  }
 
-  prompt += `## Session Context\n`;
-  prompt += `- Phase: ${phase} (iteration ${iteration}/${CONFIG.maxIterationsPerPhase})\n`;
-  prompt += `- Minimum Score to Proceed: ${phaseConfig.minScore}/100\n`;
-  if (previousScore !== null) {
-    prompt += `- Previous Score: ${previousScore}/100\n`;
-  }
-  prompt += `\n`;
+    prompt += `## Instructions\n`;
+    prompt += `1. Read PROJECT_SUMMARY.md to understand the project context\n`;
+    prompt += `2. Work through each acceptance criterion\n`;
+    prompt += `3. Implement or verify each requirement\n`;
+    prompt += `4. When complete, write the completion files as specified below\n\n`;
 
-  // Role assignment
-  prompt += `## Your Role: ${agentRole?.name || 'Developer'}\n`;
-  prompt += `Responsibilities:\n`;
-  (agentRole?.responsibilities || ['Complete the assigned work']).forEach(r => {
-    prompt += `- ${r}\n`;
-  });
-  prompt += `\n`;
+    // CRITICAL: Tell Claude how to signal completion
+    prompt += `## IMPORTANT: Completion Protocol\n\n`;
+    prompt += `When you have completed (or verified) ALL acceptance criteria, you MUST write TWO files:\n\n`;
 
-  // Phase-specific instructions
-  prompt += `## Phase Objectives\n`;
-  prompt += `${phaseConfig.description}\n\n`;
-
-  prompt += `## Quality Criteria\n`;
-  for (const [criterion, config] of Object.entries(phaseConfig.criteria)) {
-    prompt += `- **${criterion}** (${config.weight}%): ${config.description}\n`;
-  }
-  prompt += `\n`;
-
-  // Improvement guidance if needed
-  if (improvements) {
-    prompt += `## Required Improvements\n`;
-    prompt += `The previous iteration did not meet quality standards. Focus on:\n\n`;
-    prompt += improvements;
-    prompt += `\n`;
-  }
-
-  // Execution instructions
-  prompt += `## Execution Instructions\n\n`;
-  prompt += `**IMPORTANT**: You are running in AUTONOMOUS mode. Do NOT ask questions - execute the task directly.\n\n`;
-  prompt += `1. **First**: Run \`/session-init\` to load project context\n`;
-  prompt += `2. **Then**: Immediately begin working on the task - do NOT ask for confirmation\n`;
-  prompt += `3. **Execute**: Complete ALL acceptance criteria without human intervention\n`;
-  prompt += `4. **Use TodoWrite**: Track your progress with todo items\n`;
-  prompt += `5. **Save Progress**: Update dev-docs files as you work\n`;
-  prompt += `6. **Create Completion File**: When done, write the task-completion.json and quality-scores.json\n\n`;
-
-  // Multi-agent validation
-  prompt += `## Multi-Agent Validation\n\n`;
-  prompt += `Before considering your work complete, mentally assume these roles:\n\n`;
-  prompt += `### As Quality Reviewer:\n`;
-  prompt += `- Does the work meet all quality criteria?\n`;
-  prompt += `- Are there any gaps in the deliverables?\n`;
-  prompt += `- Score each criterion honestly\n\n`;
-
-  prompt += `### As Technical Critic:\n`;
-  prompt += `- Challenge your own assumptions\n`;
-  prompt += `- Identify weaknesses or oversights\n`;
-  prompt += `- Consider edge cases and risks\n\n`;
-
-  // Exit criteria
-  prompt += `## Exit Criteria\n\n`;
-  prompt += `When you believe the ${task ? 'task' : 'phase'} is complete:\n\n`;
-
-  // Task-specific completion instructions
-  if (task) {
-    prompt += `### Task Completion\n`;
-    prompt += `1. Verify ALL acceptance criteria are met\n`;
-    prompt += `2. Create/update \`.claude/dev-docs/task-completion.json\` with:\n`;
-    prompt += `\`\`\`json\n{\n`;
+    prompt += `### 1. Task Completion File\n`;
+    prompt += `Write to \`.claude/dev-docs/task-completion.json\`:\n`;
+    prompt += `\`\`\`json\n`;
+    prompt += `{\n`;
     prompt += `  "taskId": "${task.id}",\n`;
     prompt += `  "status": "completed",\n`;
-    prompt += `  "acceptanceMet": [true/false for each criterion],\n`;
+    prompt += `  "acceptanceMet": [${task.acceptance.map(() => 'true').join(', ')}],\n`;
     prompt += `  "deliverables": ["list of files created/modified"],\n`;
-    prompt += `  "notes": "any relevant completion notes"\n`;
-    prompt += `}\n\`\`\`\n\n`;
-  }
+    prompt += `  "notes": "brief summary of what was done",\n`;
+    prompt += `  "completedAt": "<current ISO timestamp>"\n`;
+    prompt += `}\n`;
+    prompt += `\`\`\`\n\n`;
 
-  prompt += `### Quality Scoring\n`;
-  prompt += `Create/update \`.claude/dev-docs/quality-scores.json\` with:\n`;
-  prompt += `\`\`\`json\n{\n`;
-  prompt += `  "phase": "${phase}",\n`;
-  prompt += `  "iteration": ${iteration},\n`;
-  if (task) {
+    prompt += `### 2. Quality Scores File\n`;
+    prompt += `Write to \`.claude/dev-docs/quality-scores.json\`:\n`;
+    prompt += `\`\`\`json\n`;
+    prompt += `{\n`;
+    prompt += `  "phase": "${phase}",\n`;
     prompt += `  "taskId": "${task.id}",\n`;
+    prompt += `  "scores": {\n`;
+    phaseConfig.criteria.forEach((criterion, i) => {
+      prompt += `    "${criterion.id}": <score 0-100>${i < phaseConfig.criteria.length - 1 ? ',' : ''}\n`;
+    });
+    prompt += `  },\n`;
+    prompt += `  "recommendation": "proceed",\n`;
+    prompt += `  "improvements": [],\n`;
+    prompt += `  "evaluatedAt": "<current ISO timestamp>"\n`;
+    prompt += `}\n`;
+    prompt += `\`\`\`\n\n`;
+
+    prompt += `**Scoring criteria for ${phaseConfig.name} phase**:\n`;
+    phaseConfig.criteria.forEach(criterion => {
+      prompt += `- **${criterion.id}** (weight: ${criterion.weight}): ${criterion.description}\n`;
+    });
+    prompt += `\nMinimum score to proceed: ${phaseConfig.minScore}/100\n`;
+
+  } else if (state.task) {
+    // Fallback for --task CLI argument (no structured task)
+    prompt += `Execute this task: ${state.task}\n\n`;
+    prompt += `Start by reading PROJECT_SUMMARY.md to understand the project context.\n\n`;
+    prompt += `When complete, write a summary of what was accomplished.`;
   }
-  prompt += `  "scores": {\n`;
-
-  const criteria = Object.keys(phaseConfig.criteria);
-  criteria.forEach((c, i) => {
-    prompt += `    "${c}": <your honest score 0-100>${i < criteria.length - 1 ? ',' : ''}\n`;
-  });
-
-  prompt += `  },\n`;
-  prompt += `  "totalScore": <calculated weighted score>,\n`;
-  prompt += `  "improvements": ["list of any remaining gaps"],\n`;
-  prompt += `  "recommendation": "proceed" | "iterate"\n`;
-  prompt += `}\n\`\`\`\n\n`;
-
-  prompt += `### Next Steps\n`;
-  prompt += `- If totalScore >= ${phaseConfig.minScore} and recommendation is "proceed":\n`;
-  prompt += `   - Update tasks.md with completion status\n`;
-  prompt += `   - The orchestrator will automatically ${task ? 'pick the next task or ' : ''}advance to the next phase\n\n`;
-
-  prompt += `- If totalScore < ${phaseConfig.minScore}:\n`;
-  prompt += `   - List specific improvements needed\n`;
-  prompt += `   - The orchestrator will run another iteration\n\n`;
-
-  prompt += `**Remember**: Be honest in your self-assessment. Quality over speed.\n`;
 
   return prompt;
 }
@@ -491,11 +429,11 @@ function runSession(prompt) {
     // Pass prompt as argument (without -p flag which is print-and-exit mode)
     // The prompt is passed as the last argument for interactive mode
     //
-    // CRITICAL FIX: Use 'ignore' for stdout/stderr to prevent context pollution
-    // When stdio is 'inherit', all child process output gets captured by the
-    // parent session's context, causing exponential context bloat across sessions.
+    // Output handling options:
+    // - 'inherit': Shows output in terminal (good for debugging, but pollutes context if nested)
+    // - 'pipe': Captures output for logging to file
     //
-    // Output is logged to file instead for debugging purposes.
+    // We use 'pipe' and manually stream to both console and log file
     const logPath = path.join(CONFIG.projectPath, '.claude', 'logs', `session-${state.totalSessions}.log`);
     const logDir = path.dirname(logPath);
     if (!fs.existsSync(logDir)) {
@@ -503,38 +441,46 @@ function runSession(prompt) {
     }
     const logStream = fs.createWriteStream(logPath, { flags: 'a' });
 
-    claudeProcess = spawn('claude', [
-      '--dangerously-skip-permissions',
-      prompt,
-    ], {
-      stdio: ['inherit', logStream, logStream],  // stdin inherit, stdout/stderr to log file
+    console.log(`[LOG] Session output being written to: ${logPath}`);
+    console.log(`[PROMPT] ${prompt.length} chars`);
+
+    // Write prompt to temp file (avoids all escaping issues)
+    const promptFile = path.join(CONFIG.projectPath, '.claude', 'logs', `prompt-${state.totalSessions}.txt`);
+    fs.writeFileSync(promptFile, prompt, 'utf8');
+
+    // Use input redirection on Windows, cat pipe on Unix
+    const cmd = process.platform === 'win32'
+      ? `claude -p --dangerously-skip-permissions < "${promptFile}"`
+      : `cat "${promptFile}" | claude -p --dangerously-skip-permissions`;
+    console.log(`[CMD] ${cmd}`);
+
+    claudeProcess = exec(cmd, {
       cwd: CONFIG.projectPath,
-      shell: true,
+      maxBuffer: 50 * 1024 * 1024,
     });
 
-    console.log(`[LOG] Session output being written to: ${logPath}`);
+    // Stream stdout to console and log
+    claudeProcess.stdout.on('data', (data) => {
+      process.stdout.write(data);
+      logStream.write(data);
+    });
+
+    // Stream stderr to console and log
+    claudeProcess.stderr.on('data', (data) => {
+      process.stderr.write(data);
+      logStream.write(data);
+    });
 
     claudeProcess.on('error', (err) => {
-      console.error('\n[ERROR] Failed to start Claude:', err.message);
+      console.error('[ERROR]', err.message);
+      logStream.end();
       currentSessionData.exitReason = 'error';
       resolve(1);
     });
 
-    claudeProcess.on('exit', (code, signal) => {
-      if (signal === 'SIGTERM') {
-        currentSessionData.exitReason = 'threshold';
-        console.log('\n[ORCHESTRATOR] Session terminated due to context threshold.');
-      } else if (code === 0) {
-        currentSessionData.exitReason = thresholdReached ? 'threshold' : 'complete';
-      } else {
-        currentSessionData.exitReason = 'error';
-      }
-
-      // CRITICAL FIX: Close log stream to prevent resource leak
-      if (logStream) {
-        logStream.end();
-      }
-
+    claudeProcess.on('close', (code) => {
+      logStream.end();
+      currentSessionData.exitReason = code === 0 ? 'complete' : 'error';
       claudeProcess = null;
       resolve(code || 0);
     });
@@ -704,6 +650,19 @@ async function main() {
     console.log('[MODE] Phase-driven execution (using --task argument)\n');
   }
 
+  // Initialize Notification Service for phase completion alerts
+  try {
+    notificationService = new NotificationService();
+    const notifStatus = await notificationService.initialize();
+    console.log('[NOTIFICATIONS] Initialized:', {
+      sms: notifStatus.sms.available ? 'Available' : 'Unavailable',
+      email: notifStatus.email.available ? 'Available' : 'Unavailable'
+    });
+  } catch (err) {
+    console.log('[NOTIFICATIONS] Not configured:', err.message);
+    notificationService = null;
+  }
+
   connectToDashboard();
   await postToDashboard('/api/series/start', {});
 
@@ -739,7 +698,7 @@ async function main() {
         }
 
         // Advance to next phase
-        advancePhase();
+        await advancePhase();
         continue;
       }
 
@@ -762,7 +721,7 @@ async function main() {
       if (state.phaseIteration > CONFIG.maxIterationsPerPhase) {
         console.log(`\n[LIMIT] Max iterations for ${state.currentPhase} phase reached.`);
         console.log('[ADVANCING] Moving to next phase despite score...');
-        advancePhase();
+        await advancePhase();
         continue;
       }
     }
@@ -858,7 +817,7 @@ async function main() {
         if (phaseEval.complete) {
           console.log(`[SUCCESS] ${state.currentPhase} phase complete!`);
           state.phaseScores[state.currentPhase] = phaseEval.score;
-          advancePhase();
+          await advancePhase();
         } else {
           console.log(`[ITERATE] Score ${phaseEval.score} below threshold. Will iterate.`);
           console.log(`[REASON] ${phaseEval.reason}`);
@@ -880,9 +839,29 @@ async function main() {
   printSummary();
 }
 
-function advancePhase() {
+async function advancePhase() {
+  const completedPhase = state.currentPhase;
   const nextPhase = getNextPhase(state.currentPhase);
-  console.log(`\n[PHASE] Advancing: ${state.currentPhase} → ${nextPhase || 'COMPLETE'}`);
+  const score = state.phaseScores[completedPhase] || 0;
+  const iterations = state.phaseIteration;
+
+  console.log(`\n[PHASE] Advancing: ${completedPhase} → ${nextPhase || 'COMPLETE'}`);
+
+  // Send phase completion notification
+  if (notificationService) {
+    try {
+      await notificationService.alertPhaseCompletion({
+        phase: completedPhase,
+        score,
+        iterations,
+        nextPhase: nextPhase || null
+      });
+      console.log(`[NOTIFICATION] Phase completion alert sent for: ${completedPhase}`);
+    } catch (err) {
+      console.error(`[NOTIFICATION] Failed to send phase completion alert:`, err.message);
+    }
+  }
+
   state.currentPhase = nextPhase || 'complete';
   state.phaseIteration = 0;
 }

@@ -91,3 +91,9 @@ __tests__/integration/test-otlp-*.db
 __tests__/core/test-*.db
 *.db-shm
 *.db-wal
+
+# Database files
+.claude/data/
+
+# Windows artifacts
+nul

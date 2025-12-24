@@ -2,9 +2,10 @@
  * CostCalculator - Calculate costs for AI model token usage
  *
  * Handles:
- * - Multi-model pricing (Claude Sonnet 4.5, Sonnet 4, Opus 4, GPT-4o, o1-preview)
+ * - Multi-model pricing (Claude, GPT-4o, GPT-5.2, o1-preview, Gemini 3)
  * - Cache token pricing and savings calculation
  * - Cost projections and comparisons
+ * - Configurable default model for unknown models
  * - Currency conversion (future enhancement)
  *
  * @module .claude/core/cost-calculator
@@ -20,9 +21,15 @@ class CostCalculator {
    * @param {Object} [options.customPricing] - Custom pricing overrides
    * @param {string} [options.currency='USD'] - Currency for costs
    * @param {Object} [options.exchangeRates] - Currency exchange rates
+   * @param {string} [options.defaultModel] - Default model for unknown model fallback pricing
+   * @param {boolean} [options.useDefaultForUnknown=false] - Use default model pricing for unknown models
    */
   constructor(options = {}) {
     this.logger = createComponentLogger('CostCalculator');
+
+    // Configurable default model for fallback pricing
+    this.defaultModel = options.defaultModel || null;
+    this.useDefaultForUnknown = options.useDefaultForUnknown || false;
 
     // Model pricing (USD per million tokens)
     // Source: Anthropic/OpenAI pricing pages (as of Nov 2025)
@@ -93,6 +100,38 @@ class CostCalculator {
         output: 60.00,
         cacheCreation: 0,
         cacheRead: 0
+      },
+      // GPT-5.2 models (OpenAI)
+      'gpt-5.2': {
+        input: 10.00,
+        output: 30.00,
+        cacheCreation: 0,  // GPT-5.2 cache support TBD
+        cacheRead: 0
+      },
+      'gpt-5.2-mini': {
+        input: 3.00,
+        output: 12.00,
+        cacheCreation: 0,
+        cacheRead: 0
+      },
+      // Gemini 3 models (Google)
+      'gemini-3-ultra': {
+        input: 12.50,
+        output: 37.50,
+        cacheCreation: 0,  // Gemini cache support TBD
+        cacheRead: 0
+      },
+      'gemini-3-pro': {
+        input: 3.50,
+        output: 10.50,
+        cacheCreation: 0,
+        cacheRead: 0
+      },
+      'gemini-3-flash': {
+        input: 0.50,
+        output: 1.50,
+        cacheCreation: 0,
+        cacheRead: 0
       }
     };
 
@@ -106,7 +145,9 @@ class CostCalculator {
     this.logger.info('CostCalculator initialized', {
       modelsSupported: Object.keys(this.pricing).length,
       currency: this.currency,
-      hasCustomPricing: Object.keys(this.customPricing).length > 0
+      hasCustomPricing: Object.keys(this.customPricing).length > 0,
+      defaultModel: this.defaultModel,
+      useDefaultForUnknown: this.useDefaultForUnknown
     });
   }
 
@@ -131,7 +172,20 @@ class CostCalculator {
     } = usage;
 
     // Get pricing (custom overrides or defaults)
-    const pricing = this.customPricing[model] || this.pricing[model];
+    let pricing = this.customPricing[model] || this.pricing[model];
+    let usedFallback = false;
+
+    // If no pricing found and fallback is enabled, use default model pricing
+    if (!pricing && this.useDefaultForUnknown && this.defaultModel) {
+      pricing = this.customPricing[this.defaultModel] || this.pricing[this.defaultModel];
+      if (pricing) {
+        usedFallback = true;
+        this.logger.info('Using fallback pricing for unknown model', {
+          model,
+          fallbackModel: this.defaultModel
+        });
+      }
+    }
 
     if (!pricing) {
       this.logger.warn('Unknown model pricing', { model });
@@ -177,7 +231,7 @@ class CostCalculator {
       cacheSavings = costWithoutCache - (inputCost + cacheReadCost + cacheCreationCost);
     }
 
-    return {
+    const result = {
       totalCost,
       breakdown: {
         input: inputCost,
@@ -201,6 +255,14 @@ class CostCalculator {
       currency: this.currency,
       model
     };
+
+    // Add fallback information if applicable
+    if (usedFallback) {
+      result.usedFallback = true;
+      result.fallbackModel = this.defaultModel;
+    }
+
+    return result;
   }
 
   /**
@@ -226,6 +288,33 @@ class CostCalculator {
   updatePricing(model, pricing) {
     this.customPricing[model] = pricing;
     this.logger.info('Updated pricing for model', { model, pricing });
+  }
+
+  /**
+   * Set default model for unknown model fallback
+   *
+   * @param {string} model - Model identifier to use as default
+   * @param {boolean} [enableFallback=true] - Enable using default for unknown models
+   */
+  setDefaultModel(model, enableFallback = true) {
+    this.defaultModel = model;
+    this.useDefaultForUnknown = enableFallback;
+    this.logger.info('Set default model for unknown models', {
+      defaultModel: model,
+      useDefaultForUnknown: enableFallback
+    });
+  }
+
+  /**
+   * Get current default model configuration
+   *
+   * @returns {Object} Default model configuration
+   */
+  getDefaultModelConfig() {
+    return {
+      defaultModel: this.defaultModel,
+      useDefaultForUnknown: this.useDefaultForUnknown
+    };
   }
 
   /**

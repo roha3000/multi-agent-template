@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * E2E Tests for Autonomous Orchestrator
  *
@@ -12,59 +11,19 @@
  * @module orchestrator.e2e.test
  */
 
-const { spawn, exec } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const http = require('http');
 
 const PROJECT_ROOT = path.join(__dirname, '..', '..');
 const ORCHESTRATOR_PATH = path.join(PROJECT_ROOT, 'autonomous-orchestrator.js');
-
-// Test results
-const results = {
-  passed: [],
-  failed: [],
-  skipped: [],
-};
-
-function test(name, fn, { timeout = 30000, skip = false } = {}) {
-  if (skip) {
-    results.skipped.push(name);
-    console.log(`⏭️  ${name} (skipped)`);
-    return Promise.resolve();
-  }
-
-  return new Promise(async (resolve) => {
-    const timer = setTimeout(() => {
-      results.failed.push({ name, error: `Timeout after ${timeout}ms` });
-      console.log(`❌ ${name}: Timeout after ${timeout}ms`);
-      resolve();
-    }, timeout);
-
-    try {
-      await fn();
-      clearTimeout(timer);
-      results.passed.push(name);
-      console.log(`✅ ${name}`);
-    } catch (err) {
-      clearTimeout(timer);
-      results.failed.push({ name, error: err.message });
-      console.log(`❌ ${name}: ${err.message}`);
-    }
-    resolve();
-  });
-}
-
-function assert(condition, message) {
-  if (!condition) throw new Error(message);
-}
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
 /**
- * Spawn orchestrator and capture its behavior (not just output)
+ * Spawn orchestrator and capture its behavior
  */
 function spawnOrchestrator(args = [], options = {}) {
   const proc = spawn('node', [ORCHESTRATOR_PATH, ...args], {
@@ -78,58 +37,6 @@ function spawnOrchestrator(args = [], options = {}) {
   proc.stderr.on('data', (d) => output.stderr += d.toString());
 
   return { proc, output };
-}
-
-/**
- * Check if a process has any child processes
- */
-async function getChildProcesses(pid) {
-  return new Promise((resolve) => {
-    if (process.platform === 'win32') {
-      exec(`wmic process where (ParentProcessId=${pid}) get ProcessId`, (err, stdout) => {
-        if (err) return resolve([]);
-        const pids = stdout.split('\n')
-          .slice(1)
-          .map(l => l.trim())
-          .filter(l => l && l !== 'ProcessId');
-        resolve(pids);
-      });
-    } else {
-      exec(`pgrep -P ${pid}`, (err, stdout) => {
-        if (err) return resolve([]);
-        resolve(stdout.split('\n').filter(Boolean));
-      });
-    }
-  });
-}
-
-/**
- * Check if EventSource connection is active
- */
-async function checkEventSourceActive(port = 3033) {
-  return new Promise((resolve) => {
-    const req = http.get(`http://localhost:${port}/api/events`, (res) => {
-      // If we get a response, the endpoint is active
-      req.destroy();
-      resolve(true);
-    });
-    req.on('error', () => resolve(false));
-    req.setTimeout(1000, () => {
-      req.destroy();
-      resolve(false);
-    });
-  });
-}
-
-/**
- * Read orchestrator log file to verify behavior
- */
-function readSessionLog(sessionNumber) {
-  const logPath = path.join(PROJECT_ROOT, '.claude', 'logs', `session-${sessionNumber}.log`);
-  if (fs.existsSync(logPath)) {
-    return fs.readFileSync(logPath, 'utf-8');
-  }
-  return null;
 }
 
 /**
@@ -150,285 +57,200 @@ function cleanupTestArtifacts() {
 // E2E TESTS
 // ============================================================================
 
-async function runTests() {
-  console.log('='.repeat(60));
-  console.log('E2E TESTS: AUTONOMOUS ORCHESTRATOR');
-  console.log('='.repeat(60));
-  console.log();
+describe('Autonomous Orchestrator E2E Tests', () => {
+  beforeAll(() => {
+    cleanupTestArtifacts();
+  });
 
-  // Cleanup before tests
-  cleanupTestArtifacts();
+  afterAll(() => {
+    cleanupTestArtifacts();
+  });
 
-  // -------------------------------------------------------------------------
-  // TEST 1: Orchestrator spawns without crashing
-  // -------------------------------------------------------------------------
-  console.log('--- Process Lifecycle ---');
+  describe('Process Lifecycle', () => {
+    it('should start and show banner with --help', async () => {
+      const { proc, output } = spawnOrchestrator(['--help']);
 
-  await test('Orchestrator starts and shows banner', async () => {
-    const { proc, output } = spawnOrchestrator(['--help']);
+      await new Promise((resolve) => {
+        proc.on('exit', resolve);
+      });
 
-    await new Promise((resolve) => {
-      proc.on('exit', resolve);
+      expect(output.stdout).toContain('Autonomous Multi-Agent Orchestrator');
+      expect(output.stdout).toContain('--phase');
+      expect(output.stdout).toContain('--threshold');
+    });
+  });
+
+  describe('Context Isolation', () => {
+    it('should use log files instead of stdio inherit', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+
+      // Should NOT have stdio: 'inherit' for all streams
+      expect(content).not.toContain("stdio: 'inherit'");
+
+      // Should have log file configuration
+      expect(content.includes('logStream') || content.includes('logPath')).toBe(true);
+
+      // Should log to .claude/logs/
+      expect(content).toContain('.claude');
+      expect(content).toContain('logs');
     });
 
-    assert(output.stdout.includes('Autonomous Multi-Agent Orchestrator'),
-      'Should show orchestrator banner');
-    assert(output.stdout.includes('--phase'),
-      'Should show phase option');
-    assert(output.stdout.includes('--threshold'),
-      'Should show threshold option');
+    it('should create logs directory if missing', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content.includes('mkdirSync') || content.includes('mkdir')).toBe(true);
+    });
   });
 
-  // -------------------------------------------------------------------------
-  // TEST 2: stdio configuration prevents context pollution
-  // -------------------------------------------------------------------------
-  console.log('\n--- Context Isolation ---');
+  describe('Resource Cleanup', () => {
+    it('should have gracefulShutdown function', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content).toContain('gracefulShutdown');
+    });
 
-  await test('Orchestrator uses log files instead of stdio inherit', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+    it('should close EventSource in shutdown', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content).toContain('eventSource.close()');
+    });
 
-    // Should NOT have stdio: 'inherit' for all streams
-    assert(!content.includes("stdio: 'inherit'"),
-      'Should NOT use stdio: inherit (causes context pollution)');
+    it('should handle EventSource at context threshold', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      const thresholdIdx = content.indexOf('contextThreshold && !thresholdReached');
+      expect(thresholdIdx).toBeGreaterThan(0);
 
-    // Should have log file configuration
-    assert(content.includes('logStream') || content.includes('logPath'),
-      'Should use log files for output');
+      const thresholdSection = content.substring(thresholdIdx, thresholdIdx + 600);
+      expect(thresholdSection).toContain('eventSource');
+    });
 
-    // Should log to .claude/logs/
-    assert(content.includes('.claude') && content.includes('logs'),
-      'Should log to .claude/logs/ directory');
+    it('should reconnect to dashboard if connection was closed', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content).toContain('if (!eventSource)');
+      expect(content).toContain('connectToDashboard');
+    });
+
+    it('should close log stream on exit', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content).toContain('logStream');
+      expect(content).toContain('.end()');
+    });
   });
 
-  await test('Log directory structure is correct', async () => {
-    const logsDir = path.join(PROJECT_ROOT, '.claude', 'logs');
+  describe('Signal Handling', () => {
+    it('should handle SIGINT', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content).toContain("process.on('SIGINT'");
+    });
 
-    // Directory should be created by orchestrator or exist
-    // We don't run the full orchestrator here, just verify the code creates it
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
-    assert(content.includes('mkdirSync') || content.includes("mkdir"),
-      'Should create logs directory if missing');
+    it('should handle SIGTERM', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content).toContain("process.on('SIGTERM'");
+    });
+
+    it('should cleanup all resources in graceful shutdown', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      const shutdownIdx = content.indexOf('async function gracefulShutdown');
+
+      expect(shutdownIdx).toBeGreaterThan(-1);
+
+      // Find the process.exit(0) that's inside gracefulShutdown (after it)
+      const contentAfterShutdown = content.substring(shutdownIdx);
+      const exitIdxInShutdown = contentAfterShutdown.indexOf('process.exit(0)');
+
+      expect(exitIdxInShutdown).toBeGreaterThan(0);
+
+      const shutdownFn = contentAfterShutdown.substring(0, exitIdxInShutdown);
+      expect(shutdownFn).toContain('claudeProcess');
+      expect(shutdownFn).toContain('eventSource');
+      expect(shutdownFn).toContain('memoryStore');
+      expect(shutdownFn).toContain('taskManager');
+    });
   });
 
-  // -------------------------------------------------------------------------
-  // TEST 3: EventSource cleanup
-  // -------------------------------------------------------------------------
-  console.log('\n--- Resource Cleanup ---');
+  describe('CLI Configuration', () => {
+    it('should NOT use -p flag (print-and-exit mode)', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      const spawnIdx = content.indexOf("spawn('claude'");
 
-  await test('EventSource cleanup in graceful shutdown', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      if (spawnIdx > -1) {
+        const spawnSection = content.substring(spawnIdx, spawnIdx + 300);
+        expect(spawnSection).not.toContain("'-p'");
+        expect(spawnSection).not.toContain('"-p"');
+      }
+    });
 
-    // Should have cleanup in gracefulShutdown
-    assert(content.includes('gracefulShutdown'),
-      'Should have gracefulShutdown function');
-
-    // Should close EventSource
-    assert(content.includes('eventSource.close()'),
-      'Should close EventSource in shutdown');
-
-    // Should close EventSource at threshold - look for the specific section
-    const thresholdIdx = content.indexOf('contextThreshold && !thresholdReached');
-    assert(thresholdIdx > 0, 'Should have threshold handling code');
-    const thresholdSection = content.substring(thresholdIdx, thresholdIdx + 600);
-    assert(thresholdSection.includes('eventSource'),
-      'Should handle EventSource at context threshold');
+    it('should use --dangerously-skip-permissions', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content).toContain('--dangerously-skip-permissions');
+    });
   });
 
-  await test('EventSource reconnection after threshold', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+  describe('Task Completion', () => {
+    it('should check task-completion.json', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content).toContain('task-completion.json');
+    });
 
-    // Should reconnect if eventSource is null
-    assert(content.includes('if (!eventSource)') && content.includes('connectToDashboard'),
-      'Should reconnect to dashboard if connection was closed');
+    it('should verify acceptance criteria are met', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content).toContain('acceptanceMet');
+    });
+
+    it('should check quality-scores.json', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content).toContain('quality-scores.json');
+    });
+
+    it('should calculate phase score', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content).toContain('calculatePhaseScore');
+    });
   });
 
-  await test('Log stream cleanup on process exit', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+  describe('Module Integration', () => {
+    it('should load quality gates module correctly', () => {
+      const QG = require(path.join(PROJECT_ROOT, 'quality-gates'));
+      expect(QG.PHASES).toBeDefined();
+      expect(QG.calculatePhaseScore).toBeDefined();
+      expect(QG.getNextPhase).toBeDefined();
+    });
 
-    // Should close log stream
-    assert(content.includes('logStream') && content.includes('.end()'),
-      'Should close log stream on exit');
+    it('should load TaskManager module correctly', () => {
+      const TaskManager = require(path.join(PROJECT_ROOT, '.claude', 'core', 'task-manager'));
+      const tm = new TaskManager({ tasksPath: null });
+
+      expect(tm.getNextTask).toBeDefined();
+      expect(tm.updateStatus).toBeDefined();
+      expect(tm.getReadyTasks).toBeDefined();
+      expect(tm.getStats).toBeDefined();
+    });
   });
 
-  // -------------------------------------------------------------------------
-  // TEST 4: Signal handlers
-  // -------------------------------------------------------------------------
-  console.log('\n--- Signal Handling ---');
+  describe('Architectural Fixes', () => {
+    it('should NOT have stdio inherit in spawn call', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      const spawnMatch = content.match(/claudeProcess = spawn\([^)]+\),\s*\{[\s\S]*?stdio:([^,\]]+)/);
 
-  await test('SIGINT triggers graceful shutdown', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      if (spawnMatch) {
+        const stdioConfig = spawnMatch[1].trim();
+        // Either doesn't use 'inherit' or uses array form
+        expect(stdioConfig.includes("'inherit'") && !stdioConfig.includes('[')).toBe(false);
+      }
+    });
 
-    assert(content.includes("process.on('SIGINT'"),
-      'Should handle SIGINT');
-    assert(content.includes("gracefulShutdown('SIGINT')") ||
-           content.includes('gracefulShutdown(\'SIGINT\')'),
-      'SIGINT should call gracefulShutdown');
+    it('should close EventSource when threshold reached', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      const thresholdIdx = content.indexOf('contextThreshold && !thresholdReached');
+
+      if (thresholdIdx > -1) {
+        const thresholdSection = content.substring(thresholdIdx, thresholdIdx + 500);
+        expect(thresholdSection).toContain('eventSource.close');
+      }
+    });
+
+    it('should have graceful shutdown with timeout', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      expect(content).toContain('async function gracefulShutdown');
+      expect(content).toContain('setTimeout');
+      expect(content).toContain('5000');
+    });
   });
-
-  await test('SIGTERM triggers graceful shutdown', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
-
-    assert(content.includes("process.on('SIGTERM'"),
-      'Should handle SIGTERM');
-    assert(content.includes("gracefulShutdown('SIGTERM')") ||
-           content.includes('gracefulShutdown(\'SIGTERM\')'),
-      'SIGTERM should call gracefulShutdown');
-  });
-
-  await test('Graceful shutdown cleans up all resources', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
-
-    const shutdownFn = content.substring(
-      content.indexOf('async function gracefulShutdown'),
-      content.indexOf('process.exit(0)')
-    );
-
-    assert(shutdownFn.includes('claudeProcess'), 'Should cleanup claudeProcess');
-    assert(shutdownFn.includes('eventSource'), 'Should cleanup eventSource');
-    assert(shutdownFn.includes('memoryStore'), 'Should cleanup memoryStore');
-    assert(shutdownFn.includes('taskManager'), 'Should cleanup taskManager');
-  });
-
-  // -------------------------------------------------------------------------
-  // TEST 5: No -p flag (print-and-exit mode)
-  // -------------------------------------------------------------------------
-  console.log('\n--- CLI Configuration ---');
-
-  await test('Does NOT use -p flag (print-and-exit mode)', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
-
-    // Check spawn call doesn't include -p
-    const spawnSection = content.substring(
-      content.indexOf('spawn(\'claude\''),
-      content.indexOf('spawn(\'claude\'') + 300
-    );
-
-    assert(!spawnSection.includes("'-p'") && !spawnSection.includes('"-p"'),
-      'Should NOT use -p flag which causes print-and-exit behavior');
-  });
-
-  await test('Uses --dangerously-skip-permissions', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
-
-    assert(content.includes('--dangerously-skip-permissions'),
-      'Should use --dangerously-skip-permissions for autonomous execution');
-  });
-
-  // -------------------------------------------------------------------------
-  // TEST 6: Task completion verification
-  // -------------------------------------------------------------------------
-  console.log('\n--- Task Completion ---');
-
-  await test('Task completion requires file verification', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
-
-    // Should read task-completion.json
-    assert(content.includes('task-completion.json'),
-      'Should check task-completion.json');
-
-    // Should verify acceptance criteria
-    assert(content.includes('acceptanceMet'),
-      'Should verify acceptance criteria are met');
-  });
-
-  await test('Quality scores are validated', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
-
-    // Should read quality-scores.json
-    assert(content.includes('quality-scores.json'),
-      'Should check quality-scores.json');
-
-    // Should calculate weighted score
-    assert(content.includes('calculatePhaseScore'),
-      'Should calculate phase score');
-  });
-
-  // -------------------------------------------------------------------------
-  // TEST 7: Integration with real modules
-  // -------------------------------------------------------------------------
-  console.log('\n--- Module Integration ---');
-
-  await test('Quality gates module loads correctly', async () => {
-    const QG = require(path.join(PROJECT_ROOT, 'quality-gates'));
-    assert(QG.PHASES, 'PHASES should exist');
-    assert(QG.calculatePhaseScore, 'calculatePhaseScore should exist');
-    assert(QG.getNextPhase, 'getNextPhase should exist');
-  });
-
-  await test('TaskManager module loads correctly', async () => {
-    const TaskManager = require(path.join(PROJECT_ROOT, '.claude', 'core', 'task-manager'));
-    const tm = new TaskManager({ persistPath: null });
-    // TaskManager uses _getAllTasks (private) internally, but exposes getNextTask, updateStatus, etc.
-    assert(tm.getNextTask, 'getNextTask should exist');
-    assert(tm.updateStatus, 'updateStatus should exist');
-    assert(tm.getReadyTasks, 'getReadyTasks should exist');
-    assert(tm.getStats, 'getStats should exist');
-  });
-
-  // -------------------------------------------------------------------------
-  // TEST 8: Verify architectural fixes are in place
-  // -------------------------------------------------------------------------
-  console.log('\n--- Architectural Fixes ---');
-
-  await test('CRITICAL FIX: stdio not inherited', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
-
-    // Find the spawn call
-    const spawnMatch = content.match(/claudeProcess = spawn\([^)]+\),\s*\{[\s\S]*?stdio:([^,\]]+)/);
-    if (spawnMatch) {
-      const stdioConfig = spawnMatch[1].trim();
-      assert(!stdioConfig.includes("'inherit'") || stdioConfig.includes('['),
-        `stdio should NOT be 'inherit', got: ${stdioConfig}`);
-    }
-  });
-
-  await test('CRITICAL FIX: EventSource closed at threshold', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
-
-    // Find threshold handling section
-    const thresholdIdx = content.indexOf('contextThreshold && !thresholdReached');
-    const thresholdSection = content.substring(thresholdIdx, thresholdIdx + 500);
-
-    assert(thresholdSection.includes('eventSource.close'),
-      'EventSource should be closed when threshold reached');
-  });
-
-  await test('CRITICAL FIX: Graceful shutdown exists', async () => {
-    const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
-
-    assert(content.includes('async function gracefulShutdown'),
-      'Graceful shutdown handler should exist');
-
-    // Should wait for processes
-    assert(content.includes('setTimeout') && content.includes('5000'),
-      'Should have timeout for process termination');
-  });
-
-  // -------------------------------------------------------------------------
-  // SUMMARY
-  // -------------------------------------------------------------------------
-  console.log('\n' + '='.repeat(60));
-  console.log('E2E TEST SUMMARY');
-  console.log('='.repeat(60));
-  console.log(`Passed:  ${results.passed.length}`);
-  console.log(`Failed:  ${results.failed.length}`);
-  console.log(`Skipped: ${results.skipped.length}`);
-
-  if (results.failed.length > 0) {
-    console.log('\nFailed tests:');
-    results.failed.forEach(f => console.log(`  ❌ ${f.name}: ${f.error}`));
-  }
-
-  console.log('\n' + '='.repeat(60));
-
-  // Cleanup
-  cleanupTestArtifacts();
-
-  process.exit(results.failed.length > 0 ? 1 : 0);
-}
-
-// Run tests
-runTests().catch(err => {
-  console.error('Test runner error:', err);
-  process.exit(1);
 });

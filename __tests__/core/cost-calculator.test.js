@@ -42,6 +42,16 @@ describe('CostCalculator', () => {
 
       expect(customCalc.currency).toBe('EUR');
     });
+
+    test('should accept default model configuration', () => {
+      const customCalc = new CostCalculator({
+        defaultModel: 'gpt-5.2',
+        useDefaultForUnknown: true
+      });
+
+      expect(customCalc.defaultModel).toBe('gpt-5.2');
+      expect(customCalc.useDefaultForUnknown).toBe(true);
+    });
   });
 
   describe('calculateCost', () => {
@@ -161,6 +171,66 @@ describe('CostCalculator', () => {
       // o1-preview: $15 input, $60 output per million
       // $15.00 for 1M input + $30.00 for 500k output = $45.00
       expect(result.totalCost).toBeCloseTo(45.00, 2);
+    });
+
+    test('should calculate cost for GPT-5.2', () => {
+      const result = calculator.calculateCost({
+        model: 'gpt-5.2',
+        inputTokens: 1_000_000,
+        outputTokens: 500_000
+      });
+
+      // GPT-5.2: $10 input, $30 output per million
+      // $10.00 for 1M input + $15.00 for 500k output = $25.00
+      expect(result.totalCost).toBeCloseTo(25.00, 2);
+    });
+
+    test('should calculate cost for GPT-5.2-mini', () => {
+      const result = calculator.calculateCost({
+        model: 'gpt-5.2-mini',
+        inputTokens: 1_000_000,
+        outputTokens: 500_000
+      });
+
+      // GPT-5.2-mini: $3 input, $12 output per million
+      // $3.00 for 1M input + $6.00 for 500k output = $9.00
+      expect(result.totalCost).toBeCloseTo(9.00, 2);
+    });
+
+    test('should calculate cost for Gemini 3 Ultra', () => {
+      const result = calculator.calculateCost({
+        model: 'gemini-3-ultra',
+        inputTokens: 1_000_000,
+        outputTokens: 500_000
+      });
+
+      // Gemini 3 Ultra: $12.50 input, $37.50 output per million
+      // $12.50 for 1M input + $18.75 for 500k output = $31.25
+      expect(result.totalCost).toBeCloseTo(31.25, 2);
+    });
+
+    test('should calculate cost for Gemini 3 Pro', () => {
+      const result = calculator.calculateCost({
+        model: 'gemini-3-pro',
+        inputTokens: 1_000_000,
+        outputTokens: 500_000
+      });
+
+      // Gemini 3 Pro: $3.50 input, $10.50 output per million
+      // $3.50 for 1M input + $5.25 for 500k output = $8.75
+      expect(result.totalCost).toBeCloseTo(8.75, 2);
+    });
+
+    test('should calculate cost for Gemini 3 Flash', () => {
+      const result = calculator.calculateCost({
+        model: 'gemini-3-flash',
+        inputTokens: 1_000_000,
+        outputTokens: 500_000
+      });
+
+      // Gemini 3 Flash: $0.50 input, $1.50 output per million
+      // $0.50 for 1M input + $0.75 for 500k output = $1.25
+      expect(result.totalCost).toBeCloseTo(1.25, 2);
     });
   });
 
@@ -368,6 +438,97 @@ describe('CostCalculator', () => {
       expect(models).toContain('claude-sonnet-4.5');
       expect(models).toContain('gpt-4o');
       expect(models).toContain('o1-preview');
+      expect(models).toContain('gpt-5.2');
+      expect(models).toContain('gemini-3-ultra');
+      expect(models).toContain('gemini-3-pro');
+      expect(models).toContain('gemini-3-flash');
+    });
+  });
+
+  describe('setDefaultModel', () => {
+    test('should set default model for fallback', () => {
+      calculator.setDefaultModel('gpt-5.2');
+
+      const config = calculator.getDefaultModelConfig();
+      expect(config.defaultModel).toBe('gpt-5.2');
+      expect(config.useDefaultForUnknown).toBe(true);
+    });
+
+    test('should allow disabling fallback', () => {
+      calculator.setDefaultModel('gemini-3-pro', false);
+
+      const config = calculator.getDefaultModelConfig();
+      expect(config.defaultModel).toBe('gemini-3-pro');
+      expect(config.useDefaultForUnknown).toBe(false);
+    });
+  });
+
+  describe('fallback pricing', () => {
+    test('should use fallback pricing for unknown model when enabled', () => {
+      const customCalc = new CostCalculator({
+        defaultModel: 'gpt-5.2',
+        useDefaultForUnknown: true
+      });
+
+      const result = customCalc.calculateCost({
+        model: 'future-model-xyz',
+        inputTokens: 1_000_000,
+        outputTokens: 500_000
+      });
+
+      // Should use GPT-5.2 pricing: $10 input, $30 output per million
+      expect(result.totalCost).toBeCloseTo(25.00, 2);
+      expect(result.usedFallback).toBe(true);
+      expect(result.fallbackModel).toBe('gpt-5.2');
+    });
+
+    test('should not use fallback when disabled', () => {
+      const customCalc = new CostCalculator({
+        defaultModel: 'gpt-5.2',
+        useDefaultForUnknown: false
+      });
+
+      const result = customCalc.calculateCost({
+        model: 'future-model-xyz',
+        inputTokens: 1_000_000,
+        outputTokens: 500_000
+      });
+
+      expect(result.totalCost).toBe(0);
+      expect(result.error).toBe('Unknown model');
+      expect(result.usedFallback).toBeUndefined();
+    });
+
+    test('should use Gemini 3 Pro as fallback', () => {
+      const customCalc = new CostCalculator({
+        defaultModel: 'gemini-3-pro',
+        useDefaultForUnknown: true
+      });
+
+      const result = customCalc.calculateCost({
+        model: 'some-unknown-model',
+        inputTokens: 1_000_000,
+        outputTokens: 500_000
+      });
+
+      // Should use Gemini 3 Pro pricing: $3.50 input, $10.50 output per million
+      expect(result.totalCost).toBeCloseTo(8.75, 2);
+      expect(result.usedFallback).toBe(true);
+      expect(result.fallbackModel).toBe('gemini-3-pro');
+    });
+
+    test('should dynamically enable fallback via setDefaultModel', () => {
+      calculator.setDefaultModel('gemini-3-flash');
+
+      const result = calculator.calculateCost({
+        model: 'mystery-model',
+        inputTokens: 1_000_000,
+        outputTokens: 500_000
+      });
+
+      // Should use Gemini 3 Flash pricing: $0.50 input, $1.50 output per million
+      expect(result.totalCost).toBeCloseTo(1.25, 2);
+      expect(result.usedFallback).toBe(true);
     });
   });
 

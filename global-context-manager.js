@@ -25,6 +25,7 @@ const GlobalContextTracker = require('./.claude/core/global-context-tracker');
 const PredictiveAnalytics = require('./.claude/core/predictive-analytics');
 const TaskManager = require('./.claude/core/task-manager');
 const TaskGraph = require('./.claude/core/task-graph');
+const NotificationService = require('./.claude/core/notification-service');
 
 const app = express();
 app.use(cors());
@@ -33,18 +34,52 @@ app.use(express.json());
 // Serve static files (dashboard)
 app.use(express.static(__dirname));
 
-// Initialize Global Context Tracker
+// Initialize Global Context Tracker with thresholds from env
 const tracker = new GlobalContextTracker({
   thresholds: {
-    warning: 0.50,    // 50% - early warning
-    critical: 0.65,   // 65% - should clear soon
-    emergency: 0.75   // 75% - MUST clear now (before 77.5% auto-compact)
+    warning: parseFloat(process.env.CONTEXT_ALERT_THRESHOLD_WARNING || 70) / 100,
+    critical: parseFloat(process.env.CONTEXT_ALERT_THRESHOLD_CRITICAL || 85) / 100,
+    emergency: parseFloat(process.env.CONTEXT_ALERT_THRESHOLD_EMERGENCY || 95) / 100
   }
 });
 
 // Store recent alerts for dashboard
 const recentAlerts = [];
 const MAX_ALERTS = 50;
+
+// Initialize Notification Service for SMS/Email alerts
+const notificationService = new NotificationService();
+let notificationStatus = { sms: { available: false }, email: { available: false } };
+
+// Initialize notification service asynchronously
+(async () => {
+  try {
+    notificationStatus = await notificationService.initialize();
+    console.log('[NOTIFICATIONS] Initialized:', {
+      sms: notificationStatus.sms.available ? 'Available' : `Unavailable (${notificationStatus.sms.error})`,
+      email: notificationStatus.email.available ? 'Available' : `Unavailable (${notificationStatus.email.error})`
+    });
+
+    // Set up notification preferences from environment
+    if (process.env.NOTIFICATIONS_ENABLED === 'true') {
+      notificationService.savePreferences({
+        enabled: true,
+        channels: {
+          sms: {
+            enabled: !!process.env.NOTIFICATION_PHONE_NUMBER,
+            phoneNumber: process.env.NOTIFICATION_PHONE_NUMBER || ''
+          },
+          email: {
+            enabled: !!process.env.NOTIFICATION_EMAIL_ADDRESS,
+            address: process.env.NOTIFICATION_EMAIL_ADDRESS || ''
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[NOTIFICATIONS] Failed to initialize:', err.message);
+  }
+})();
 
 // Initialize Predictive Analytics
 const analytics = new PredictiveAnalytics({
@@ -135,21 +170,35 @@ tracker.on('usage:update', (data) => {
   }
 });
 
-tracker.on('alert:warning', (data) => {
+tracker.on('alert:warning', async (data) => {
+  const contextPercent = (data.utilization * 100);
   console.log('\n' + '*'.repeat(70));
-  console.log(`*** WARNING: ${data.projectName} at ${(data.utilization * 100).toFixed(1)}% ***`);
+  console.log(`*** WARNING: ${data.projectName} at ${contextPercent.toFixed(1)}% ***`);
   console.log('*'.repeat(70) + '\n');
   addAlert({
     level: 'warning',
     project: data.projectName,
     path: data.projectPath,
-    message: `Context at ${(data.utilization * 100).toFixed(1)}% - State auto-saved`
+    message: `Context at ${contextPercent.toFixed(1)}% - State auto-saved`
   });
+
+  // Send SMS/Email notification for 70% threshold
+  try {
+    await notificationService.alertContextThreshold({
+      projectId: data.projectPath,
+      projectName: data.projectName,
+      contextPercent,
+      threshold: 70
+    });
+  } catch (err) {
+    console.error('[NOTIFICATION] Failed to send warning alert:', err.message);
+  }
 });
 
-tracker.on('alert:critical', (data) => {
+tracker.on('alert:critical', async (data) => {
+  const contextPercent = (data.utilization * 100);
   console.log('\n' + '!'.repeat(70));
-  console.log(`!!! CRITICAL: ${data.projectName} at ${(data.utilization * 100).toFixed(1)}% !!!`);
+  console.log(`!!! CRITICAL: ${data.projectName} at ${contextPercent.toFixed(1)}% !!!`);
   console.log(`!!! Path: ${data.projectPath}`);
   console.log(`!!! Action: Consider running /clear soon`);
   console.log('!'.repeat(70) + '\n');
@@ -157,14 +206,27 @@ tracker.on('alert:critical', (data) => {
     level: 'critical',
     project: data.projectName,
     path: data.projectPath,
-    message: `Context at ${(data.utilization * 100).toFixed(1)}% - Run /clear soon!`
+    message: `Context at ${contextPercent.toFixed(1)}% - Run /clear soon!`
   });
+
+  // Send SMS/Email notification for 85% threshold
+  try {
+    await notificationService.alertContextThreshold({
+      projectId: data.projectPath,
+      projectName: data.projectName,
+      contextPercent,
+      threshold: 85
+    });
+  } catch (err) {
+    console.error('[NOTIFICATION] Failed to send critical alert:', err.message);
+  }
 });
 
-tracker.on('alert:emergency', (data) => {
+tracker.on('alert:emergency', async (data) => {
+  const contextPercent = (data.utilization * 100);
   console.log('\n' + '!'.repeat(70));
   console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-  console.log(`!!! EMERGENCY: ${data.projectName} at ${(data.utilization * 100).toFixed(1)}% !!!`);
+  console.log(`!!! EMERGENCY: ${data.projectName} at ${contextPercent.toFixed(1)}% !!!`);
   console.log(`!!! Path: ${data.projectPath}`);
   console.log(`!!! Action: Run /clear NOW, then /session-init`);
   console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
@@ -173,8 +235,20 @@ tracker.on('alert:emergency', (data) => {
     level: 'emergency',
     project: data.projectName,
     path: data.projectPath,
-    message: `Context at ${(data.utilization * 100).toFixed(1)}% - Run /clear NOW!`
+    message: `Context at ${contextPercent.toFixed(1)}% - Run /clear NOW!`
   });
+
+  // Send SMS/Email notification for 95% threshold (emergency bypasses quiet hours)
+  try {
+    await notificationService.alertContextThreshold({
+      projectId: data.projectPath,
+      projectName: data.projectName,
+      contextPercent,
+      threshold: 95
+    });
+  } catch (err) {
+    console.error('[NOTIFICATION] Failed to send emergency alert:', err.message);
+  }
 });
 
 tracker.on('error', (error) => {
@@ -546,7 +620,7 @@ app.get('/api/tasks', (req, res) => {
     return res.status(503).json({ error: 'TaskManager not initialized' });
   }
   res.json({
-    tasks: taskManager.getAllTasks(),
+    tasks: taskManager.getReadyTasks({ backlog: 'all' }),
     stats: taskManager.getStats(),
   });
 });
@@ -613,6 +687,120 @@ app.get('/', (req, res) => {
 });
 
 // ============================================================================
+// NOTIFICATION API ENDPOINTS
+// ============================================================================
+
+// Get notification service status
+app.get('/api/notifications/status', (req, res) => {
+  res.json(notificationService.getStatus());
+});
+
+// Get notification preferences
+app.get('/api/notifications/preferences', (req, res) => {
+  res.json(notificationService.getPreferences());
+});
+
+// Update notification preferences
+app.post('/api/notifications/preferences', (req, res) => {
+  try {
+    const updated = notificationService.savePreferences(req.body);
+    res.json({ success: true, preferences: updated });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get notification statistics
+app.get('/api/notifications/stats', (req, res) => {
+  res.json(notificationService.getStats());
+});
+
+// Send test notification
+app.post('/api/notifications/test', async (req, res) => {
+  const { channel } = req.body; // 'sms', 'email', or 'both'
+
+  const testNotification = {
+    type: 'test',
+    title: 'Test Notification',
+    message: 'This is a test notification from the Multi-Agent System.',
+    level: 'info',
+    data: { test: true, timestamp: new Date().toISOString() }
+  };
+
+  try {
+    // Temporarily enable the service for testing
+    const prefs = notificationService.getPreferences();
+    const originalEnabled = prefs.enabled;
+
+    if (!originalEnabled) {
+      notificationService.savePreferences({ enabled: true });
+    }
+
+    const result = await notificationService.notify(testNotification);
+
+    // Restore original enabled state
+    if (!originalEnabled) {
+      notificationService.savePreferences({ enabled: originalEnabled });
+    }
+
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trigger a context threshold alert manually (for testing)
+app.post('/api/notifications/alert/context', async (req, res) => {
+  const { projectName, contextPercent, threshold } = req.body;
+
+  try {
+    const result = await notificationService.alertContextThreshold({
+      projectId: 'manual-test',
+      projectName: projectName || 'Test Project',
+      contextPercent: contextPercent || 85,
+      threshold: threshold || 85
+    });
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trigger a phase completion alert manually (for testing/integration)
+app.post('/api/notifications/alert/phase', async (req, res) => {
+  const { phase, score, iterations, nextPhase } = req.body;
+
+  try {
+    const result = await notificationService.alertPhaseCompletion({
+      phase: phase || 'research',
+      score: score || 85,
+      iterations: iterations || 1,
+      nextPhase: nextPhase || 'design'
+    });
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trigger a task group completion alert (for testing/integration)
+app.post('/api/notifications/alert/taskgroup', async (req, res) => {
+  const { groupName, tasksCompleted, totalTasks, averageScore } = req.body;
+
+  try {
+    const result = await notificationService.alertTaskGroupCompletion({
+      groupName: groupName || 'Sprint 1',
+      tasksCompleted: tasksCompleted || 5,
+      totalTasks: totalTasks || 5,
+      averageScore: averageScore || 92
+    });
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================================
 // START SERVER
 // ============================================================================
 
@@ -654,6 +842,15 @@ app.listen(PORT, async () => {
   console.log('  GET  /api/execution     - Current phase, scores, todos');
   console.log('  GET  /api/execution/scores - Quality scores only');
   console.log('  GET  /api/execution/todos  - Todo list only');
+  console.log('');
+  console.log('Notifications (SMS/Email):');
+  console.log('  GET  /api/notifications/status      - Service status');
+  console.log('  GET  /api/notifications/preferences - Get preferences');
+  console.log('  POST /api/notifications/preferences - Update preferences');
+  console.log('  GET  /api/notifications/stats       - Send statistics');
+  console.log('  POST /api/notifications/test        - Send test notification');
+  console.log('  POST /api/notifications/alert/*     - Trigger alerts');
+  console.log('  VIEW /notification-preferences.html - Preferences UI');
   console.log('='.repeat(70) + '\n');
 
   // Start dev-docs file watcher
