@@ -8,6 +8,11 @@
  * - Human-in-loop guardrails
  * - Cost budget monitoring
  * - Real-time dashboard
+ * - Task complexity analysis
+ * - Competitive planning for complex tasks
+ * - Plan evaluation and comparison
+ * - Execution confidence monitoring
+ * - Security validation
  *
  * Features:
  * - Automatic checkpoint before limits
@@ -16,6 +21,9 @@
  * - Learning from experience
  * - Compaction detection and recovery
  * - Multi-level safety checks
+ * - Multi-plan generation for complex tasks
+ * - Confidence-based execution tracking
+ * - Security-hardened input validation
  *
  * @module continuous-loop-orchestrator
  */
@@ -74,7 +82,12 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         optimizer: !!this.optimizer,
         hilDetector: !!this.hilDetector,
         dashboard: !!this.dashboard,
-        claudeCodeParser: !!this.claudeCodeParser
+        claudeCodeParser: !!this.claudeCodeParser,
+        complexityAnalyzer: !!this.complexityAnalyzer,
+        competitivePlanner: !!this.competitivePlanner,
+        planEvaluator: !!this.planEvaluator,
+        confidenceMonitor: !!this.confidenceMonitor,
+        securityValidator: !!this.securityValidator
       }
     });
   }
@@ -171,6 +184,79 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       });
       this.logger.info('ClaudeCodeUsageParser initialized');
     }
+
+    // 6. Security Validator (Input validation and threat detection)
+    if (this.options.securityValidation?.enabled !== false) {
+      const SecurityValidator = require('./security-validator');
+      this.securityValidator = new SecurityValidator({
+        mode: this.options.securityValidation?.mode || 'audit',
+        logThreats: this.options.securityValidation?.logThreats !== false,
+        maxDescriptionLength: this.options.securityValidation?.maxDescriptionLength || 5000
+      });
+      this.logger.info('SecurityValidator initialized', {
+        mode: this.securityValidator.getMode()
+      });
+    }
+
+    // 7. Complexity Analyzer (Task complexity scoring)
+    if (this.options.complexityAnalysis?.enabled !== false) {
+      const ComplexityAnalyzer = require('./complexity-analyzer');
+      this.complexityAnalyzer = new ComplexityAnalyzer({
+        memoryStore: this.memoryStore,
+        taskManager: null // Will be set if task manager is available
+      });
+      this.logger.info('ComplexityAnalyzer initialized');
+    }
+
+    // 8. Plan Evaluator (Plan scoring and comparison)
+    if (this.options.planEvaluation?.enabled !== false) {
+      const { PlanEvaluator } = require('./plan-evaluator');
+      this.planEvaluator = new PlanEvaluator({
+        criteria: this.options.planEvaluation?.criteria
+      });
+      this.logger.info('PlanEvaluator initialized');
+    }
+
+    // 9. Competitive Planner (Multi-plan generation)
+    if (this.options.competitivePlanning?.enabled !== false) {
+      const CompetitivePlanner = require('./competitive-planner');
+      this.competitivePlanner = new CompetitivePlanner({
+        complexityAnalyzer: this.complexityAnalyzer,
+        planEvaluator: this.planEvaluator,
+        complexityThreshold: this.options.competitivePlanning?.complexityThreshold || 40
+      });
+      this.logger.info('CompetitivePlanner initialized', {
+        complexityThreshold: this.competitivePlanner.getComplexityThreshold()
+      });
+    }
+
+    // 10. Confidence Monitor (Execution confidence tracking)
+    if (this.options.confidenceMonitoring?.enabled !== false) {
+      const ConfidenceMonitor = require('./confidence-monitor');
+      this.confidenceMonitor = new ConfidenceMonitor();
+
+      // Configure thresholds if provided
+      if (this.options.confidenceMonitoring?.thresholds) {
+        const t = this.options.confidenceMonitoring.thresholds;
+        if (t.warning) this.confidenceMonitor.setThreshold('warning', t.warning);
+        if (t.critical) this.confidenceMonitor.setThreshold('critical', t.critical);
+        if (t.emergency) this.confidenceMonitor.setThreshold('emergency', t.emergency);
+      }
+
+      // Wire confidence events to orchestrator
+      this.confidenceMonitor.on('confidence:warning', (data) => {
+        this.emit('confidence:warning', data);
+        this.logger.warn('Confidence warning', data);
+      });
+      this.confidenceMonitor.on('confidence:critical', (data) => {
+        this.emit('confidence:critical', data);
+        this.logger.error('Confidence critical', data);
+      });
+
+      this.logger.info('ConfidenceMonitor initialized', {
+        thresholds: this.confidenceMonitor.getThresholds()
+      });
+    }
   }
 
   /**
@@ -264,6 +350,180 @@ class ContinuousLoopOrchestrator extends EventEmitter {
   }
 
   /**
+   * Validate input for security threats
+   * @param {string} input - Input to validate
+   * @param {string} type - Type of input (description, taskId, phase, path, command)
+   * @returns {Object} Validation result
+   */
+  validateInput(input, type = 'description') {
+    if (!this.securityValidator) {
+      return { valid: true, threats: [], sanitized: input };
+    }
+
+    const result = this.securityValidator.validate(input, type);
+
+    if (!result.valid && this.options.securityValidation.mode === 'enforce') {
+      this.logger.warn('Security validation failed', {
+        type,
+        threats: result.threats.map(t => t.type)
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Analyze task complexity and determine execution strategy
+   * @param {Object} task - Task to analyze
+   * @returns {Promise<Object>} Complexity analysis with strategy
+   */
+  async analyzeTaskComplexity(task) {
+    if (!this.complexityAnalyzer) {
+      return { score: 50, strategy: 'standard', breakdown: {} };
+    }
+
+    const analysis = await this.complexityAnalyzer.analyze(task);
+
+    this.logger.info('Task complexity analyzed', {
+      taskId: task.id,
+      score: analysis.score,
+      strategy: analysis.strategy
+    });
+
+    // Update confidence monitor with complexity
+    if (this.confidenceMonitor) {
+      this.confidenceMonitor.update('qualityScore', Math.max(0, 100 - analysis.score));
+    }
+
+    return analysis;
+  }
+
+  /**
+   * Generate competing plans for a complex task
+   * @param {Object} task - Task to plan for
+   * @param {Object} options - Planning options
+   * @returns {Promise<Object>} Generated plans with comparison
+   */
+  async generateCompetingPlans(task, options = {}) {
+    if (!this.competitivePlanner) {
+      return { plans: [], winner: null, needsHumanReview: false };
+    }
+
+    // First analyze complexity if not provided
+    let complexity = options.complexity;
+    if (!complexity && this.complexityAnalyzer) {
+      const analysis = await this.complexityAnalyzer.analyze(task);
+      complexity = analysis.score;
+    }
+
+    const result = await this.competitivePlanner.generatePlans(task, {
+      ...options,
+      complexity
+    });
+
+    this.logger.info('Competing plans generated', {
+      taskId: task.id,
+      planCount: result.plans.length,
+      strategies: result.strategies,
+      needsReview: result.needsHumanReview
+    });
+
+    // If plans need human review, add to dashboard queue
+    if (result.needsHumanReview && this.dashboard) {
+      this.dashboard.addHumanReview({
+        id: `plan-review-${task.id}`,
+        task: task.title || task.id,
+        reason: 'Multiple plans with similar scores - human selection recommended',
+        confidence: 0.5,
+        pattern: 'plan-comparison',
+        context: {
+          planCount: result.plans.length,
+          strategies: result.strategies
+        }
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Evaluate and compare plans
+   * @param {Array} plans - Plans to compare
+   * @returns {Object} Comparison result with winner
+   */
+  comparePlans(plans) {
+    if (!this.planEvaluator) {
+      return { winner: plans[0], rankings: [], needsReview: false };
+    }
+
+    const result = this.planEvaluator.comparePlans(plans);
+
+    this.logger.info('Plans compared', {
+      planCount: plans.length,
+      winnerId: result.winner?.planId,
+      margin: result.margin,
+      needsReview: result.needsReview
+    });
+
+    return result;
+  }
+
+  /**
+   * Track execution progress and update confidence
+   * @param {Object} progress - Progress update
+   * @param {number} progress.completed - Completed items
+   * @param {number} progress.total - Total items
+   * @param {number} progress.iteration - Current iteration
+   * @param {number} progress.errors - Error count
+   * @param {number} progress.qualityScore - Quality score (0-100)
+   */
+  trackProgress(progress) {
+    if (!this.confidenceMonitor) {
+      return;
+    }
+
+    if (progress.completed !== undefined && progress.total !== undefined) {
+      this.confidenceMonitor.trackProgress(progress.completed, progress.total);
+    }
+
+    if (progress.iteration !== undefined) {
+      this.confidenceMonitor.trackIteration(progress.iteration);
+    }
+
+    if (progress.errors !== undefined) {
+      this.confidenceMonitor.update('errorRate', progress.errors);
+    }
+
+    if (progress.qualityScore !== undefined) {
+      this.confidenceMonitor.update('qualityScore', progress.qualityScore);
+    }
+
+    // Emit confidence update
+    const state = this.confidenceMonitor.getState();
+    this.emit('confidence:updated', state);
+
+    // Update dashboard if available
+    if (this.dashboard && state.thresholdState !== 'normal') {
+      this.dashboard.state.events.unshift({
+        timestamp: Date.now(),
+        type: state.thresholdState === 'emergency' ? 'error' : 'warning',
+        message: `Confidence ${state.thresholdState}: ${state.confidence.toFixed(1)}%`
+      });
+    }
+  }
+
+  /**
+   * Get current confidence state
+   * @returns {Object} Confidence state
+   */
+  getConfidenceState() {
+    if (!this.confidenceMonitor) {
+      return { confidence: 100, thresholdState: 'normal', signals: {} };
+    }
+    return this.confidenceMonitor.getState();
+  }
+
+  /**
    * Check safety before operation (MAIN ORCHESTRATION POINT)
    *
    * This is called before each operation to ensure it's safe to proceed
@@ -290,11 +550,18 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     }
 
     const checks = {
+      security: null,
       context: null,
       apiLimits: null,
       costBudget: null,
-      humanReview: null
+      humanReview: null,
+      confidence: null
     };
+
+    // 0. Security validation (if enabled)
+    if (this.options.securityValidation?.enabled && this.securityValidator) {
+      checks.security = this._checkSecurityValidation(operation);
+    }
 
     // 1. Check context window
     if (this.options.contextMonitoring.enabled && this.optimizer) {
@@ -314,6 +581,11 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     // 4. Check human-in-loop guardrails
     if (this.options.humanInLoop.enabled && this.hilDetector) {
       checks.humanReview = await this._checkHumanReview(operation);
+    }
+
+    // 5. Check confidence level
+    if (this.options.confidenceMonitoring?.enabled && this.confidenceMonitor) {
+      checks.confidence = this._checkConfidence(operation);
     }
 
     // Aggregate results
@@ -339,6 +611,94 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     this.state.operations++;
 
     return result;
+  }
+
+  /**
+   * Check security validation
+   * @private
+   */
+  _checkSecurityValidation(operation) {
+    const inputs = [
+      { value: operation.task, type: 'description' },
+      { value: operation.phase, type: 'phase' }
+    ];
+
+    const threats = [];
+    for (const input of inputs) {
+      if (input.value) {
+        const result = this.securityValidator.validate(input.value, input.type);
+        if (!result.valid) {
+          threats.push(...result.threats);
+        }
+      }
+    }
+
+    if (threats.length > 0) {
+      const isEnforce = this.options.securityValidation.mode === 'enforce';
+      return {
+        safe: !isEnforce,
+        level: isEnforce ? 'CRITICAL' : 'WARNING',
+        action: isEnforce ? 'BLOCK' : 'CONTINUE',
+        threats,
+        message: `Security threats detected: ${threats.map(t => t.type).join(', ')}`
+      };
+    }
+
+    return {
+      safe: true,
+      level: 'OK',
+      action: 'CONTINUE',
+      message: 'Security validation passed'
+    };
+  }
+
+  /**
+   * Check confidence level
+   * @private
+   */
+  _checkConfidence(operation) {
+    const state = this.confidenceMonitor.getState();
+    const thresholdState = state.thresholdState;
+
+    if (thresholdState === 'emergency') {
+      return {
+        safe: false,
+        level: 'EMERGENCY',
+        action: 'HALT_IMMEDIATELY',
+        confidence: state.confidence,
+        message: `Emergency: Confidence at ${state.confidence.toFixed(1)}%`
+      };
+    }
+
+    if (thresholdState === 'critical') {
+      return {
+        safe: false,
+        level: 'CRITICAL',
+        action: 'WAIT_FOR_APPROVAL',
+        confidence: state.confidence,
+        requiresHuman: true,
+        reason: 'Low execution confidence',
+        message: `Critical: Confidence at ${state.confidence.toFixed(1)}%`
+      };
+    }
+
+    if (thresholdState === 'warning') {
+      return {
+        safe: true,
+        level: 'WARNING',
+        action: 'CONTINUE',
+        confidence: state.confidence,
+        message: `Warning: Confidence at ${state.confidence.toFixed(1)}%`
+      };
+    }
+
+    return {
+      safe: true,
+      level: 'OK',
+      action: 'CONTINUE',
+      confidence: state.confidence,
+      message: 'Confidence OK'
+    };
   }
 
   /**
@@ -911,6 +1271,11 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     const optimizerStats = this.optimizer ? this.optimizer.getStatistics() : null;
     const limitTrackerStats = this.limitTracker ? this.limitTracker.getStatus() : null;
 
+    // Get new component stats
+    const confidenceState = this.confidenceMonitor ? this.confidenceMonitor.getState() : null;
+    const securityStats = this.securityValidator ? this.securityValidator.getStats() : null;
+    const complexityCache = this.complexityAnalyzer ? this.complexityAnalyzer.getCacheStats() : null;
+
     return {
       // Flatten state properties to top level for test compatibility
       sessionId: this.state.sessionId,
@@ -927,12 +1292,21 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       components: {
         limitTracker: limitTrackerStats,
         optimizer: optimizerStats,
-        hilDetector: hilStats
+        hilDetector: hilStats,
+        // New claude-swarm components
+        complexityAnalyzer: complexityCache,
+        competitivePlanner: this.competitivePlanner ? { enabled: true } : null,
+        planEvaluator: this.planEvaluator ? { enabled: true } : null,
+        confidenceMonitor: confidenceState,
+        securityValidator: securityStats
       },
       // Convenience aliases for common access patterns
       humanInLoop: hilStats,
       checkpointOptimizer: optimizerStats,
       apiLimits: limitTrackerStats,
+      // New component aliases
+      confidence: confidenceState,
+      security: securityStats,
       // Usage and cost information
       usage,
       costs: {
@@ -999,6 +1373,40 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         enableTerminal: options.dashboard?.enableTerminal !== false,
         webPort: options.dashboard?.webPort || 3030,
         updateInterval: options.dashboard?.updateInterval || 2000
+      },
+
+      // Claude-swarm integration components
+      securityValidation: {
+        enabled: options.securityValidation?.enabled !== false,
+        mode: options.securityValidation?.mode || 'audit', // 'audit' or 'enforce'
+        logThreats: options.securityValidation?.logThreats !== false,
+        maxDescriptionLength: options.securityValidation?.maxDescriptionLength || 5000
+      },
+
+      complexityAnalysis: {
+        enabled: options.complexityAnalysis?.enabled !== false,
+        fastPathThreshold: options.complexityAnalysis?.fastPathThreshold || 40,
+        competitiveThreshold: options.complexityAnalysis?.competitiveThreshold || 70
+      },
+
+      planEvaluation: {
+        enabled: options.planEvaluation?.enabled !== false,
+        criteria: options.planEvaluation?.criteria || null // Use defaults if null
+      },
+
+      competitivePlanning: {
+        enabled: options.competitivePlanning?.enabled !== false,
+        complexityThreshold: options.competitivePlanning?.complexityThreshold || 40,
+        maxPlans: options.competitivePlanning?.maxPlans || 3
+      },
+
+      confidenceMonitoring: {
+        enabled: options.confidenceMonitoring?.enabled !== false,
+        thresholds: {
+          warning: options.confidenceMonitoring?.thresholds?.warning || 60,
+          critical: options.confidenceMonitoring?.thresholds?.critical || 40,
+          emergency: options.confidenceMonitoring?.thresholds?.emergency || 25
+        }
       }
     };
   }
