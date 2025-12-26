@@ -783,6 +783,20 @@ app.get('/api/events', (req, res) => {
   });
 
   const sendUpdate = () => {
+    // Get fresh task data from tasks.json
+    let taskData = null;
+    try {
+      if (taskManager) {
+        taskData = {
+          inProgress: taskManager.getReadyTasks({ backlog: 'now' }).filter(t => t.status === 'in_progress'),
+          ready: taskManager.getReadyTasks({ backlog: 'now' }).filter(t => t.status === 'ready'),
+          stats: taskManager.getStats()
+        };
+      }
+    } catch (err) {
+      // Ignore errors, taskData will be null
+    }
+
     const data = {
       type: 'update',
       projects: tracker.getAllProjects(),
@@ -793,6 +807,7 @@ app.get('/api/events', (req, res) => {
       confidenceState: confidenceState,
       planComparison: planComparison,
       complexity: complexity,
+      taskData: taskData,
       timestamp: new Date().toISOString()
     };
     res.write(`data: ${JSON.stringify(data)}\n\n`);

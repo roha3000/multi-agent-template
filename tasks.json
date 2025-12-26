@@ -676,10 +676,11 @@
         "15+ tests passing",
         "Migration runs on startup"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "assignee": null,
       "created": "2025-12-25T17:30:00.000Z",
-      "updated": "2025-12-26T14:35:00.000Z"
+      "updated": "2025-12-26T23:01:12.058Z",
+      "started": "2025-12-26T23:01:12.058Z"
     },
     "swarm-performance-testing": {
       "id": "swarm-performance-testing",

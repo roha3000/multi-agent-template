@@ -860,6 +860,439 @@ class MemoryStore {
   }
 
   // ============================================================================
+  // Swarm Feature Methods
+  // ============================================================================
+
+  /**
+   * Initialize swarm schema
+   * @private
+   */
+  _initializeSwarmSchema() {
+    const schemaPath = path.join(__dirname, 'schema-swarm.sql');
+
+    if (!fs.existsSync(schemaPath)) {
+      this.logger.warn('Swarm schema file not found', { schemaPath });
+      return;
+    }
+
+    const schema = fs.readFileSync(schemaPath, 'utf8');
+
+    try {
+      this.db.exec(schema);
+      this.logger.info('Swarm schema initialized successfully');
+    } catch (error) {
+      this.logger.error('Swarm schema initialization failed', {
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Ensure swarm schema is initialized
+   * @private
+   */
+  _ensureSwarmSchema() {
+    // Check if confidence_history table exists
+    const stmt = this.db.prepare(`
+      SELECT name FROM sqlite_master
+      WHERE type='table' AND name='confidence_history'
+    `);
+
+    if (!stmt.get()) {
+      this._initializeSwarmSchema();
+    }
+  }
+
+  /**
+   * Record confidence history entry
+   *
+   * @param {Object} data - Confidence data
+   * @param {string} [data.taskId] - Associated task ID
+   * @param {string} [data.sessionId] - Work session ID
+   * @param {string} [data.phase] - Current phase
+   * @param {number} [data.iteration=0] - Iteration number
+   * @param {number} data.confidenceScore - Overall confidence (0-100)
+   * @param {string} [data.thresholdState='normal'] - Threshold state
+   * @param {Object} [data.signals={}] - Signal breakdown
+   * @param {Object} [data.weights={}] - Signal weights
+   * @param {string} [data.trigger='update'] - What triggered the update
+   * @param {number} [data.previousConfidence] - Previous confidence value
+   * @param {Object} [data.metadata={}] - Additional metadata
+   * @returns {number} Record ID
+   */
+  recordConfidenceHistory(data) {
+    this._ensureSwarmSchema();
+
+    const stmt = this.db.prepare(`
+      INSERT INTO confidence_history (
+        task_id, session_id, phase, iteration,
+        confidence_score, threshold_state,
+        signals, signal_weights,
+        trigger, previous_confidence, confidence_delta,
+        metadata
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const delta = data.previousConfidence !== undefined
+      ? data.confidenceScore - data.previousConfidence
+      : null;
+
+    const result = stmt.run(
+      data.taskId || null,
+      data.sessionId || null,
+      data.phase || null,
+      data.iteration || 0,
+      data.confidenceScore,
+      data.thresholdState || 'normal',
+      JSON.stringify(data.signals || {}),
+      JSON.stringify(data.weights || {}),
+      data.trigger || 'update',
+      data.previousConfidence ?? null,
+      delta,
+      JSON.stringify(data.metadata || {})
+    );
+
+    this.logger.info('Confidence history recorded', {
+      id: result.lastInsertRowid,
+      confidenceScore: data.confidenceScore,
+      thresholdState: data.thresholdState
+    });
+
+    return result.lastInsertRowid;
+  }
+
+  /**
+   * Get confidence history with filters
+   *
+   * @param {Object} filters - Query filters
+   * @param {string} [filters.taskId] - Filter by task ID
+   * @param {string} [filters.sessionId] - Filter by session ID
+   * @param {string} [filters.phase] - Filter by phase
+   * @param {string} [filters.thresholdState] - Filter by threshold state
+   * @param {number} [filters.minScore] - Minimum confidence score
+   * @param {number} [filters.maxScore] - Maximum confidence score
+   * @param {number} [filters.limit=50] - Maximum results
+   * @param {number} [filters.offset=0] - Result offset
+   * @returns {Array<Object>} Confidence history records
+   */
+  getConfidenceHistory(filters = {}) {
+    this._ensureSwarmSchema();
+
+    const conditions = [];
+    const params = [];
+
+    if (filters.taskId) {
+      conditions.push('task_id = ?');
+      params.push(filters.taskId);
+    }
+
+    if (filters.sessionId) {
+      conditions.push('session_id = ?');
+      params.push(filters.sessionId);
+    }
+
+    if (filters.phase) {
+      conditions.push('phase = ?');
+      params.push(filters.phase);
+    }
+
+    if (filters.thresholdState) {
+      conditions.push('threshold_state = ?');
+      params.push(filters.thresholdState);
+    }
+
+    if (filters.minScore !== undefined) {
+      conditions.push('confidence_score >= ?');
+      params.push(filters.minScore);
+    }
+
+    if (filters.maxScore !== undefined) {
+      conditions.push('confidence_score <= ?');
+      params.push(filters.maxScore);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const limit = filters.limit || 50;
+    const offset = filters.offset || 0;
+
+    const query = `
+      SELECT * FROM confidence_history
+      ${whereClause}
+      ORDER BY recorded_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    params.push(limit, offset);
+
+    const stmt = this.db.prepare(query);
+    const results = stmt.all(...params);
+
+    return results.map(r => ({
+      ...r,
+      signals: JSON.parse(r.signals || '{}'),
+      signal_weights: JSON.parse(r.signal_weights || '{}'),
+      metadata: JSON.parse(r.metadata || '{}')
+    }));
+  }
+
+  /**
+   * Record complexity analysis result
+   *
+   * @param {Object} data - Complexity analysis data
+   * @param {string} data.taskId - Task ID
+   * @param {string} [data.taskTitle] - Task title
+   * @param {string} [data.taskPhase] - Task phase
+   * @param {number} data.complexityScore - Complexity score (0-100)
+   * @param {string} data.strategy - Strategy ('fast-path', 'standard', 'competitive')
+   * @param {Object} data.breakdown - Dimension breakdown
+   * @param {Object} [data.weights] - Weights used
+   * @param {boolean} [data.fromCache=false] - Whether from cache
+   * @param {string} data.analyzedAt - ISO timestamp
+   * @param {Object} [data.metadata={}] - Additional metadata
+   * @returns {number} Record ID
+   */
+  recordComplexityAnalysis(data) {
+    this._ensureSwarmSchema();
+
+    const stmt = this.db.prepare(`
+      INSERT INTO complexity_analysis (
+        task_id, task_title, task_phase,
+        complexity_score, strategy,
+        breakdown, weights,
+        from_cache,
+        analyzed_at, metadata
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const result = stmt.run(
+      data.taskId,
+      data.taskTitle || null,
+      data.taskPhase || null,
+      data.complexityScore,
+      data.strategy,
+      JSON.stringify(data.breakdown),
+      JSON.stringify(data.weights || {}),
+      data.fromCache ? 1 : 0,
+      data.analyzedAt,
+      JSON.stringify(data.metadata || {})
+    );
+
+    this.logger.info('Complexity analysis recorded', {
+      id: result.lastInsertRowid,
+      taskId: data.taskId,
+      score: data.complexityScore,
+      strategy: data.strategy
+    });
+
+    return result.lastInsertRowid;
+  }
+
+  /**
+   * Get complexity analysis for a task
+   *
+   * @param {string} taskId - Task ID
+   * @returns {Object|null} Most recent complexity analysis
+   */
+  getComplexityAnalysis(taskId) {
+    this._ensureSwarmSchema();
+
+    const stmt = this.db.prepare(`
+      SELECT * FROM complexity_analysis
+      WHERE task_id = ?
+      ORDER BY recorded_at DESC, id DESC
+      LIMIT 1
+    `);
+
+    const result = stmt.get(taskId);
+
+    if (!result) return null;
+
+    return {
+      ...result,
+      breakdown: JSON.parse(result.breakdown || '{}'),
+      weights: JSON.parse(result.weights || '{}'),
+      metadata: JSON.parse(result.metadata || '{}')
+    };
+  }
+
+  /**
+   * Update complexity analysis with actual results
+   *
+   * @param {number} id - Record ID
+   * @param {Object} data - Validation data
+   * @param {number} [data.actualDuration] - Actual duration in hours
+   * @param {string} [data.actualComplexity] - Manual complexity classification
+   * @param {number} [data.accuracyScore] - Prediction accuracy (0-100)
+   * @returns {boolean} Update success
+   */
+  updateComplexityValidation(id, data) {
+    this._ensureSwarmSchema();
+
+    const stmt = this.db.prepare(`
+      UPDATE complexity_analysis
+      SET actual_duration = ?,
+          actual_complexity = ?,
+          accuracy_score = ?
+      WHERE id = ?
+    `);
+
+    const result = stmt.run(
+      data.actualDuration ?? null,
+      data.actualComplexity ?? null,
+      data.accuracyScore ?? null,
+      id
+    );
+
+    return result.changes > 0;
+  }
+
+  /**
+   * Record plan comparison result
+   *
+   * @param {Object} data - Plan comparison data
+   * @param {string} data.taskId - Task ID
+   * @param {string} data.comparisonId - Unique comparison ID
+   * @param {number} data.totalPlans - Number of plans compared
+   * @param {string} [data.winnerPlanId] - Winning plan ID
+   * @param {string} [data.winnerTitle] - Winning plan title
+   * @param {number} [data.winnerScore] - Winning plan score
+   * @param {boolean} [data.isTie=false] - Whether result was a tie
+   * @param {string} [data.tieReason] - Reason for tie
+   * @param {Array<Object>} data.evaluations - Plan evaluations
+   * @param {Object} data.criteria - Criteria weights used
+   * @param {Array<Object>} data.rankings - Plan rankings
+   * @param {string} data.comparedAt - ISO timestamp
+   * @param {Object} [data.metadata={}] - Additional metadata
+   * @returns {number} Record ID
+   */
+  recordPlanComparison(data) {
+    this._ensureSwarmSchema();
+
+    const stmt = this.db.prepare(`
+      INSERT INTO plan_comparisons (
+        task_id, comparison_id,
+        total_plans, winner_plan_id, winner_title, winner_score,
+        is_tie, tie_reason,
+        evaluations, criteria, rankings,
+        compared_at, metadata
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const result = stmt.run(
+      data.taskId,
+      data.comparisonId,
+      data.totalPlans,
+      data.winnerPlanId || null,
+      data.winnerTitle || null,
+      data.winnerScore || null,
+      data.isTie ? 1 : 0,
+      data.tieReason || null,
+      JSON.stringify(data.evaluations),
+      JSON.stringify(data.criteria),
+      JSON.stringify(data.rankings),
+      data.comparedAt,
+      JSON.stringify(data.metadata || {})
+    );
+
+    this.logger.info('Plan comparison recorded', {
+      id: result.lastInsertRowid,
+      taskId: data.taskId,
+      totalPlans: data.totalPlans,
+      winner: data.winnerPlanId
+    });
+
+    return result.lastInsertRowid;
+  }
+
+  /**
+   * Get plan comparisons for a task
+   *
+   * @param {string} taskId - Task ID
+   * @param {Object} [options] - Query options
+   * @param {number} [options.limit=10] - Maximum results
+   * @returns {Array<Object>} Plan comparison records
+   */
+  getPlanComparisons(taskId, options = {}) {
+    this._ensureSwarmSchema();
+
+    const limit = options.limit || 10;
+
+    const stmt = this.db.prepare(`
+      SELECT * FROM plan_comparisons
+      WHERE task_id = ?
+      ORDER BY recorded_at DESC, id DESC
+      LIMIT ?
+    `);
+
+    const results = stmt.all(taskId, limit);
+
+    return results.map(r => ({
+      ...r,
+      evaluations: JSON.parse(r.evaluations || '[]'),
+      criteria: JSON.parse(r.criteria || '{}'),
+      rankings: JSON.parse(r.rankings || '[]'),
+      metadata: JSON.parse(r.metadata || '{}')
+    }));
+  }
+
+  /**
+   * Update plan comparison with actual results
+   *
+   * @param {number} id - Record ID
+   * @param {Object} data - Validation data
+   * @param {string} [data.selectedPlanId] - Which plan was actually selected
+   * @param {boolean} [data.planSucceeded] - Did the selected plan succeed?
+   * @param {number} [data.accuracyScore] - Prediction accuracy (0-100)
+   * @returns {boolean} Update success
+   */
+  updatePlanComparisonValidation(id, data) {
+    this._ensureSwarmSchema();
+
+    const stmt = this.db.prepare(`
+      UPDATE plan_comparisons
+      SET selected_plan_id = ?,
+          plan_succeeded = ?,
+          accuracy_score = ?
+      WHERE id = ?
+    `);
+
+    const result = stmt.run(
+      data.selectedPlanId ?? null,
+      data.planSucceeded !== undefined ? (data.planSucceeded ? 1 : 0) : null,
+      data.accuracyScore ?? null,
+      id
+    );
+
+    return result.changes > 0;
+  }
+
+  /**
+   * Get swarm analytics summary
+   *
+   * @returns {Object} Swarm analytics
+   */
+  getSwarmStats() {
+    this._ensureSwarmSchema();
+
+    const stmt = this.db.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM confidence_history) as total_confidence_records,
+        (SELECT AVG(confidence_score) FROM confidence_history) as avg_confidence,
+        (SELECT COUNT(*) FROM confidence_history WHERE threshold_state != 'normal') as alert_count,
+        (SELECT COUNT(*) FROM complexity_analysis) as total_complexity_analyses,
+        (SELECT AVG(complexity_score) FROM complexity_analysis) as avg_complexity,
+        (SELECT COUNT(*) FROM complexity_analysis WHERE strategy = 'fast-path') as fast_path_count,
+        (SELECT COUNT(*) FROM complexity_analysis WHERE strategy = 'standard') as standard_count,
+        (SELECT COUNT(*) FROM complexity_analysis WHERE strategy = 'competitive') as competitive_count,
+        (SELECT COUNT(*) FROM plan_comparisons) as total_plan_comparisons,
+        (SELECT SUM(total_plans) FROM plan_comparisons) as total_plans_evaluated,
+        (SELECT COUNT(*) FROM plan_comparisons WHERE is_tie = 1) as tie_count
+    `);
+
+    return stmt.get();
+  }
+
+  // ============================================================================
   // Utility Methods
   // ============================================================================
 

@@ -702,6 +702,122 @@
             text-decoration: line-through;
         }
 
+        /* Backlog Tasks Panel */
+        .backlog-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .backlog-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .backlog-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .backlog-stats {
+            display: flex;
+            gap: 12px;
+        }
+
+        .backlog-stat {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+
+        .backlog-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .backlog-task {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            border-left: 3px solid var(--border);
+        }
+
+        .backlog-task.in_progress {
+            border-left-color: var(--info);
+            background: rgba(88, 166, 255, 0.1);
+        }
+
+        .backlog-task.ready {
+            border-left-color: var(--success);
+        }
+
+        .backlog-task-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .backlog-task.in_progress .backlog-task-status {
+            background: var(--info);
+            animation: pulse-dot 1.5s infinite;
+        }
+
+        .backlog-task.ready .backlog-task-status {
+            background: var(--success);
+        }
+
+        .backlog-task-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .backlog-task-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .backlog-task-phase {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .backlog-task-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .backlog-task.in_progress .backlog-task-badge {
+            background: var(--info);
+            color: #000;
+        }
+
+        .backlog-task.ready .backlog-task-badge {
+            background: rgba(63, 185, 80, 0.2);
+            color: var(--success);
+        }
+
         /* Phase History */
         .phase-history {
             display: flex;
@@ -1243,6 +1359,20 @@
             </div>
             <div class="todos-list" id="todosList">
                 <!-- Todo items will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Backlog Tasks Panel (from tasks.json) -->
+        <div class="backlog-panel" id="backlogPanel" style="display: none;">
+            <div class="backlog-header">
+                <span class="backlog-title">📋 Backlog Tasks</span>
+                <div class="backlog-stats">
+                    <span class="backlog-stat" id="backlogInProgress">0 in progress</span>
+                    <span class="backlog-stat" id="backlogReady">0 ready</span>
+                </div>
+            </div>
+            <div class="backlog-list" id="backlogList">
+                <!-- Tasks will be rendered here -->
             </div>
         </div>
 
@@ -1797,8 +1927,44 @@
             }
         }
 
+        function updateBacklogPanel(taskData) {
+            const backlogPanel = document.getElementById('backlogPanel');
+
+            if (!taskData) {
+                backlogPanel.style.display = 'none';
+                return;
+            }
+
+            const { inProgress, ready, stats } = taskData;
+            const allTasks = [...(inProgress || []), ...(ready || [])];
+
+            if (allTasks.length === 0) {
+                backlogPanel.style.display = 'none';
+                return;
+            }
+
+            backlogPanel.style.display = 'block';
+
+            // Update stats
+            document.getElementById('backlogInProgress').textContent = `${(inProgress || []).length} in progress`;
+            document.getElementById('backlogReady').textContent = `${(ready || []).length} ready`;
+
+            // Render task list (in_progress first, then ready)
+            const backlogList = document.getElementById('backlogList');
+            backlogList.innerHTML = allTasks.map(task => `
+                <div class="backlog-task ${task.status}">
+                    <div class="backlog-task-status"></div>
+                    <div class="backlog-task-info">
+                        <div class="backlog-task-title">${task.title || task.id}</div>
+                        <div class="backlog-task-phase">${task.phase || ''} ${task.estimate ? '• ' + task.estimate : ''}</div>
+                    </div>
+                    <span class="backlog-task-badge">${task.status === 'in_progress' ? 'Running' : 'Ready'}</span>
+                </div>
+            `).join('');
+        }
+
         function updateDisplay(data) {
-            const { projects, sessionSeries, executionState, confidenceState, planComparison, complexity } = data;
+            const { projects, sessionSeries, executionState, confidenceState, planComparison, complexity, taskData } = data;
 
             // Update session series panel
             updateSessionSeries(sessionSeries);
@@ -1811,6 +1977,9 @@
 
             // Update competitive planning panel
             updatePlanningPanel(planComparison, complexity);
+
+            // Update backlog tasks panel
+            updateBacklogPanel(taskData);
 
             if (!projects || projects.length === 0) {
                 document.getElementById('activeSessionsContainer').innerHTML = `
