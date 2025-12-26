@@ -30,6 +30,7 @@
 
 const { createComponentLogger } = require('./logger');
 const EventEmitter = require('events');
+const featureFlags = require('./feature-flags');
 
 class ContinuousLoopOrchestrator extends EventEmitter {
   /**
@@ -88,7 +89,8 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         planEvaluator: !!this.planEvaluator,
         confidenceMonitor: !!this.confidenceMonitor,
         securityValidator: !!this.securityValidator
-      }
+      },
+      featureFlags: featureFlags.getSummary()
     });
   }
 
@@ -186,7 +188,10 @@ class ContinuousLoopOrchestrator extends EventEmitter {
     }
 
     // 6. Security Validator (Input validation and threat detection)
-    if (this.options.securityValidation?.enabled !== false) {
+    // Check both options AND feature flag
+    const securityEnabled = this.options.securityValidation?.enabled !== false &&
+      featureFlags.isEnabled('securityValidation');
+    if (securityEnabled) {
       const SecurityValidator = require('./security-validator');
       this.securityValidator = new SecurityValidator({
         mode: this.options.securityValidation?.mode || 'audit',
@@ -196,29 +201,44 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       this.logger.info('SecurityValidator initialized', {
         mode: this.securityValidator.getMode()
       });
+    } else if (!featureFlags.isEnabled('securityValidation')) {
+      this.logger.info('SecurityValidator disabled via feature flag');
     }
 
     // 7. Complexity Analyzer (Task complexity scoring)
-    if (this.options.complexityAnalysis?.enabled !== false) {
+    // Check both options AND feature flag
+    const complexityEnabled = this.options.complexityAnalysis?.enabled !== false &&
+      featureFlags.isEnabled('complexityDetection');
+    if (complexityEnabled) {
       const ComplexityAnalyzer = require('./complexity-analyzer');
       this.complexityAnalyzer = new ComplexityAnalyzer({
         memoryStore: this.memoryStore,
         taskManager: null // Will be set if task manager is available
       });
       this.logger.info('ComplexityAnalyzer initialized');
+    } else if (!featureFlags.isEnabled('complexityDetection')) {
+      this.logger.info('ComplexityAnalyzer disabled via feature flag');
     }
 
     // 8. Plan Evaluator (Plan scoring and comparison)
-    if (this.options.planEvaluation?.enabled !== false) {
+    // Check both options AND feature flag (shares flag with competitive planning)
+    const planEvalEnabled = this.options.planEvaluation?.enabled !== false &&
+      featureFlags.isEnabled('competitivePlanning');
+    if (planEvalEnabled) {
       const { PlanEvaluator } = require('./plan-evaluator');
       this.planEvaluator = new PlanEvaluator({
         criteria: this.options.planEvaluation?.criteria
       });
       this.logger.info('PlanEvaluator initialized');
+    } else if (!featureFlags.isEnabled('competitivePlanning')) {
+      this.logger.info('PlanEvaluator disabled via feature flag');
     }
 
     // 9. Competitive Planner (Multi-plan generation)
-    if (this.options.competitivePlanning?.enabled !== false) {
+    // Check both options AND feature flag
+    const competitiveEnabled = this.options.competitivePlanning?.enabled !== false &&
+      featureFlags.isEnabled('competitivePlanning');
+    if (competitiveEnabled) {
       const CompetitivePlanner = require('./competitive-planner');
       this.competitivePlanner = new CompetitivePlanner({
         complexityAnalyzer: this.complexityAnalyzer,
@@ -228,10 +248,15 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       this.logger.info('CompetitivePlanner initialized', {
         complexityThreshold: this.competitivePlanner.getComplexityThreshold()
       });
+    } else if (!featureFlags.isEnabled('competitivePlanning')) {
+      this.logger.info('CompetitivePlanner disabled via feature flag');
     }
 
     // 10. Confidence Monitor (Execution confidence tracking)
-    if (this.options.confidenceMonitoring?.enabled !== false) {
+    // Check both options AND feature flag
+    const confidenceEnabled = this.options.confidenceMonitoring?.enabled !== false &&
+      featureFlags.isEnabled('confidenceMonitoring');
+    if (confidenceEnabled) {
       const ConfidenceMonitor = require('./confidence-monitor');
       this.confidenceMonitor = new ConfidenceMonitor();
 
@@ -256,6 +281,8 @@ class ContinuousLoopOrchestrator extends EventEmitter {
       this.logger.info('ConfidenceMonitor initialized', {
         thresholds: this.confidenceMonitor.getThresholds()
       });
+    } else if (!featureFlags.isEnabled('confidenceMonitoring')) {
+      this.logger.info('ConfidenceMonitor disabled via feature flag');
     }
   }
 
@@ -1314,8 +1341,27 @@ class ContinuousLoopOrchestrator extends EventEmitter {
         sessionCost: usage.totalCost || 0,
         cacheSavings: usage.cacheSavings || 0
       },
-      duration: Date.now() - this.state.startTime
+      duration: Date.now() - this.state.startTime,
+      // Feature flags status
+      featureFlags: featureFlags.getSummary()
     };
+  }
+
+  /**
+   * Get feature flags status
+   * @returns {Object} Feature flags summary
+   */
+  getFeatureFlags() {
+    return featureFlags.getSummary();
+  }
+
+  /**
+   * Check if a specific feature is enabled
+   * @param {string} feature - Feature name
+   * @returns {boolean} Whether the feature is enabled
+   */
+  isFeatureEnabled(feature) {
+    return featureFlags.isEnabled(feature);
   }
 
   /**

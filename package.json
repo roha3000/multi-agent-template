@@ -48,7 +48,8 @@
     "test:e2e:lifecycle": "node tests/e2e/session-lifecycle.e2e.test.js",
     "test:e2e:all": "node tests/e2e/orchestrator.e2e.test.js && node tests/e2e/context-tracking.e2e.test.js && node tests/e2e/session-lifecycle.e2e.test.js",
     "test:validate": "node scripts/validate-orchestrator.js",
-    "test:all": "npm test && npm run test:e2e:all && npm run test:validate"
+    "test:all": "npm test && npm run test:e2e:all && npm run test:validate",
+    "autonomous:full": "start cmd /c \"npm run monitor:global\" && timeout /t 3 && npm run autonomous"
   },
   "keywords": [
     "multi-agent",

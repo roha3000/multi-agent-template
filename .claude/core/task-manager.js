@@ -380,13 +380,17 @@ class TaskManager extends EventEmitter {
    */
   getBacklogSummary() {
     const summary = {
-      now: { total: 0, ready: 0, blocked: 0, in_progress: 0, completed: 0, review: 0 },
-      next: { total: 0, ready: 0, blocked: 0, in_progress: 0, completed: 0, review: 0 },
-      later: { total: 0, ready: 0, blocked: 0, in_progress: 0, completed: 0, review: 0 },
-      someday: { total: 0, ready: 0, blocked: 0, in_progress: 0, completed: 0, review: 0 },
+      now: { total: 0, ready: 0, blocked: 0, in_progress: 0, completed: 0, review: 0, pending: 0 },
+      next: { total: 0, ready: 0, blocked: 0, in_progress: 0, completed: 0, review: 0, pending: 0 },
+      later: { total: 0, ready: 0, blocked: 0, in_progress: 0, completed: 0, review: 0, pending: 0 },
+      someday: { total: 0, ready: 0, blocked: 0, in_progress: 0, completed: 0, review: 0, pending: 0 },
+      completed: { total: 0, ready: 0, blocked: 0, in_progress: 0, completed: 0, review: 0, pending: 0 },
     };
 
     for (const [tier, config] of Object.entries(this.tasks.backlog)) {
+      if (!summary[tier]) {
+        summary[tier] = { total: 0, ready: 0, blocked: 0, in_progress: 0, completed: 0, review: 0, pending: 0 };
+      }
       summary[tier].total = config.tasks.length;
 
       for (const taskId of config.tasks) {
