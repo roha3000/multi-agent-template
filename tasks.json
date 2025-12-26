@@ -15,7 +15,6 @@
     "now": {
       "description": "Active tasks for current sprint/iteration",
       "tasks": [
-        "swarm-feature-flags",
         "swarm-database-schema",
         "swarm-performance-testing",
         "swarm-documentation"
@@ -50,6 +49,7 @@
         "swarm-confidence-monitor",
         "swarm-orchestrator-integration",
         "swarm-dashboard-ui",
+        "swarm-feature-flags",
         "add-health-endpoint"
       ]
     }
@@ -633,10 +633,20 @@
         "8+ tests passing",
         ".env.example updated"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-25T17:30:00.000Z",
-      "updated": "2025-12-26T00:35:40.640Z"
+      "updated": "2025-12-26T14:30:00.000Z",
+      "started": "2025-12-26T14:00:00.000Z",
+      "completed": "2025-12-26T14:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/feature-flags.js (194 lines)",
+        "__tests__/core/feature-flags.test.js (32 tests)",
+        ".claude/core/continuous-loop-orchestrator.js (feature flag integration)",
+        ".env.template (swarm feature flags section)"
+      ],
+      "notes": "Feature flags allow runtime toggling of swarm components via env vars. Defaults to all enabled for backward compatibility."
     },
     "swarm-database-schema": {
       "id": "swarm-database-schema",
@@ -666,10 +676,10 @@
         "15+ tests passing",
         "Migration runs on startup"
       ],
-      "status": "pending",
+      "status": "ready",
       "assignee": null,
       "created": "2025-12-25T17:30:00.000Z",
-      "updated": "2025-12-25T17:30:00.000Z"
+      "updated": "2025-12-26T14:35:00.000Z"
     },
     "swarm-performance-testing": {
       "id": "swarm-performance-testing",

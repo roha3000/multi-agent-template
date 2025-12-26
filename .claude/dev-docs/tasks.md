@@ -10,8 +10,7 @@
 ### NOW (Active Sprint)
 | Task ID | Title | Status | Priority | Phase |
 |---------|-------|--------|----------|-------|
-| swarm-feature-flags | Implement Feature Flags for Swarm Components | in_progress | high | implementation |
-| swarm-database-schema | Create Database Schema for Swarm History | pending | high | implementation |
+| swarm-database-schema | Create Database Schema for Swarm History | ready | high | implementation |
 | swarm-performance-testing | Implement Performance Benchmarks and Load Tests | pending | medium | testing |
 | swarm-documentation | Write Swarm Feature Documentation | pending | medium | validation |
 
@@ -20,72 +19,57 @@
 |---------|-------|--------|----------|-------|
 | add-model-pricing | Add GPT-5.2 and Gemini 3 Pricing | blocked | low | implementation |
 
-### COMPLETED (Recent)
+### COMPLETED
 | Task ID | Title | Score | Completed |
 |---------|-------|-------|-----------|
-| swarm-dashboard-ui | Swarm Dashboard UI Panels | 95/100 | 2025-12-25 |
-| swarm-orchestrator-integration | Integrate Claude-Swarm into Orchestrator | 98/100 | 2025-12-25 |
-| swarm-complexity-analyzer | Complexity Analyzer Component | 98/100 | 2025-12-25 |
-| swarm-competitive-planner | Competitive Planner Component | 98/100 | 2025-12-25 |
-| swarm-plan-evaluator | Plan Evaluator Component | 98/100 | 2025-12-25 |
-| swarm-security-validator | Security Validation Layer | 98/100 | 2025-12-25 |
-| swarm-confidence-monitor | Confidence Monitoring System | 98/100 | 2025-12-25 |
-| add-health-endpoint | Add Health Check Endpoint | 95/100 | 2025-12-24 |
-| option-d-sms-email-notifications | Option D: SMS/Email Notifications | 95/100 | 2025-12-24 |
-| manual-test-continuous-loop | Fully Test Continuous Loop Framework | 95/100 | 2025-12-24 |
 | option-a-test-autonomous | Option A: Test Autonomous Loop | 98/100 | 2025-12-22 |
 | option-b-predictive-analytics | Option B: Predictive Analytics | 92/100 | 2025-12-22 |
 | option-c-task-visualization | Option C: Task Dependency Graph Visualization | 91/100 | 2025-12-22 |
+| option-d-sms-email-notifications | Option D: SMS/Email Notifications | 95/100 | 2025-12-24 |
+| manual-test-continuous-loop | Fully Test Continuous Loop Framework | 95/100 | 2025-12-24 |
+| swarm-complexity-analyzer | Complexity Analyzer Component | - | 2025-12-25 |
+| swarm-competitive-planner | Competitive Planner Component | - | 2025-12-25 |
+| swarm-plan-evaluator | Plan Evaluator Component | - | 2025-12-25 |
+| swarm-security-validator | Security Validation Layer | - | 2025-12-25 |
+| swarm-confidence-monitor | Confidence Monitoring System | - | 2025-12-25 |
+| swarm-orchestrator-integration | Integrate Claude-Swarm Components into ContinuousLoopOrchestrator | 98/100 | 2025-12-25 |
+| swarm-dashboard-ui | Swarm Dashboard UI Panels | 95/100 | 2025-12-25 |
+| swarm-feature-flags | Implement Feature Flags for Swarm Components | 95/100 | 2025-12-26 |
+| add-health-endpoint | Add Health Check Endpoint | - | 2025-12-24 |
 
 ---
 
-## In Progress Tasks
-
-### swarm-feature-flags (IN PROGRESS)
-**Title**: Implement Feature Flags for Swarm Components
-**Phase**: implementation
-**Priority**: high
-**Estimate**: 1h
-
-**Description**: Add environment variable toggles to enable/disable swarm features: ENABLE_COMPETITIVE_PLANNING, ENABLE_COMPLEXITY_DETECTION, ENABLE_CONFIDENCE_MONITORING, ENABLE_SECURITY_VALIDATION
-
-**Acceptance Criteria**:
-- [x] feature-flags.js module created
-- [ ] 4 feature flags configurable via env vars
-- [ ] ContinuousLoopOrchestrator uses feature flags
-- [ ] 8+ tests passing
-- [ ] .env.example updated
-
-**Progress**:
-- Created `.claude/core/feature-flags.js` with FeatureFlags class
-- Supports env var loading with smart boolean parsing
-- Emits events on flag changes
-- Pending: orchestrator integration, tests
-
----
-
-## Pending Tasks
+## Task Details
 
 ### swarm-database-schema
 **Title**: Create Database Schema for Swarm History
 **Phase**: implementation
-**Priority**: high
 **Estimate**: 2h
-**Requires**: swarm-feature-flags
+**Priority**: high
+**Status**: ready
+
+**Description**: Add confidence_history, complexity_analysis, and plan_comparisons tables to MemoryStore with migration script
 
 **Acceptance Criteria**:
-- [ ] schema-swarm.sql created with 3 tables (confidence_history, complexity_analysis, plan_comparisons)
+- [ ] schema-swarm.sql created with 3 tables
 - [ ] migrations/001-swarm-features.js created
 - [ ] MemoryStore extended with 5 new methods
 - [ ] 15+ tests passing
 - [ ] Migration runs on startup
 
+**Requires**: swarm-feature-flags
+**Blocks**: swarm-performance-testing
+
+---
+
 ### swarm-performance-testing
 **Title**: Implement Performance Benchmarks and Load Tests
 **Phase**: testing
-**Priority**: medium
 **Estimate**: 2h
-**Requires**: swarm-database-schema
+**Priority**: medium
+**Status**: pending
+
+**Description**: Create benchmark-swarm.js for latency testing and load-test-swarm.js for stress testing swarm components
 
 **Acceptance Criteria**:
 - [ ] benchmark-swarm.js measures latency for all components
@@ -94,22 +78,29 @@
 - [ ] No memory leaks after 5 minutes
 - [ ] Results printed in tabular format
 
-### swarm-documentation
-**Title**: Write Swarm Feature Documentation
-**Phase**: validation
-**Priority**: medium
-**Estimate**: 3h
-**Requires**: swarm-performance-testing
-
-**Acceptance Criteria**:
-- [ ] docs/COMPETITIVE_PLANNING.md created
-- [ ] docs/CONFIDENCE_MONITORING.md created
-- [ ] docs/SECURITY_GUIDE.md created
-- [ ] .env.example updated with all swarm env vars
+**Requires**: swarm-database-schema
+**Blocks**: swarm-documentation
 
 ---
 
-## Blocked Tasks
+### swarm-documentation
+**Title**: Write Swarm Feature Documentation
+**Phase**: validation
+**Estimate**: 3h
+**Priority**: medium
+**Status**: pending
+
+**Description**: Create user guides for COMPETITIVE_PLANNING.md, CONFIDENCE_MONITORING.md, and SECURITY_GUIDE.md
+
+**Acceptance Criteria**:
+- [ ] docs/COMPETITIVE_PLANNING.md created with overview, config, API, examples
+- [ ] docs/CONFIDENCE_MONITORING.md created with signals, thresholds, integration
+- [ ] docs/SECURITY_GUIDE.md created with threats, modes, best practices
+- [ ] .env.example updated with all swarm env vars
+
+**Requires**: swarm-performance-testing
+
+---
 
 ### add-model-pricing
 **Title**: Add GPT-5.2 and Gemini 3 Pricing
@@ -118,7 +109,13 @@
 **Priority**: low
 **Status**: blocked
 
-**Blocked By**: Waiting for official pricing data from OpenAI and Google
+**Description**: Add pricing configuration for GPT-5.2 and Gemini 3 models to the cost calculator and fix hardcoded Claude defaults
+
+**Acceptance Criteria**:
+- [ ] GPT-5.2 pricing added
+- [ ] Gemini 3 pricing added
+- [ ] Claude defaults configurable
+- [ ] Tests pass
 
 ---
 
@@ -126,18 +123,6 @@
 
 - **Total Tasks**: 18
 - **Completed**: 14
-- **In Progress**: 1
-- **Pending**: 3
+- **In Progress**: 0
+- **Ready**: 1
 - **Blocked**: 1
-- **Completion Rate**: 78%
-
----
-
-## Dependency Graph
-
-```
-swarm-feature-flags (in_progress)
-    └── swarm-database-schema (pending)
-            └── swarm-performance-testing (pending)
-                    └── swarm-documentation (pending)
-```
