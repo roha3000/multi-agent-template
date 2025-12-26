@@ -137,6 +137,35 @@ let executionState = {
   lastUpdate: null,
 };
 
+// Confidence monitoring state (from ConfidenceMonitor)
+let confidenceState = {
+  confidence: null,
+  level: 'healthy',
+  signals: {
+    qualityScore: 0,
+    velocity: 0,
+    iterations: 0,
+    errorRate: 0,
+    historical: 0
+  },
+  lastUpdate: null
+};
+
+// Competitive planning state (from CompetitivePlanner + PlanEvaluator)
+let planComparison = {
+  plans: [],
+  winner: null,
+  lastUpdate: null
+};
+
+// Task complexity state (from ComplexityAnalyzer)
+let complexity = {
+  score: null,
+  strategy: null,
+  dimensions: {},
+  lastUpdate: null
+};
+
 // File watchers for dev-docs
 let devDocsWatcher = null;
 
@@ -573,6 +602,96 @@ app.get('/api/execution/todos', (req, res) => {
 });
 
 // ============================================================================
+// SWARM INTEGRATION ENDPOINTS (Confidence, Planning, Complexity)
+// ============================================================================
+
+// Get confidence state
+app.get('/api/confidence', (req, res) => {
+  res.json(confidenceState);
+});
+
+// Update confidence state (called by ConfidenceMonitor)
+app.post('/api/confidence', (req, res) => {
+  const { confidence, level, signals } = req.body;
+
+  if (confidence !== undefined) confidenceState.confidence = confidence;
+  if (level) confidenceState.level = level;
+  if (signals) {
+    confidenceState.signals = {
+      ...confidenceState.signals,
+      ...signals
+    };
+  }
+  confidenceState.lastUpdate = new Date().toISOString();
+
+  console.log(`[CONFIDENCE] Updated: ${confidence}% (${level})`);
+  res.json({ success: true, confidenceState });
+});
+
+// Get plan comparison state
+app.get('/api/plans', (req, res) => {
+  res.json(planComparison);
+});
+
+// Update plan comparison (called by CompetitivePlanner + PlanEvaluator)
+app.post('/api/plans', (req, res) => {
+  const { plans, winner } = req.body;
+
+  if (plans) planComparison.plans = plans;
+  if (winner) planComparison.winner = winner;
+  planComparison.lastUpdate = new Date().toISOString();
+
+  console.log(`[PLANNING] Updated: ${plans?.length || 0} plans, winner: ${winner?.strategy || 'none'}`);
+  res.json({ success: true, planComparison });
+});
+
+// Get complexity state
+app.get('/api/complexity', (req, res) => {
+  res.json(complexity);
+});
+
+// Update complexity state (called by ComplexityAnalyzer)
+app.post('/api/complexity', (req, res) => {
+  const { score, strategy, dimensions } = req.body;
+
+  if (score !== undefined) complexity.score = score;
+  if (strategy) complexity.strategy = strategy;
+  if (dimensions) complexity.dimensions = dimensions;
+  complexity.lastUpdate = new Date().toISOString();
+
+  console.log(`[COMPLEXITY] Updated: ${score}/100 (${strategy})`);
+  res.json({ success: true, complexity });
+});
+
+// Bulk update all swarm states (convenience endpoint)
+app.post('/api/swarm/state', (req, res) => {
+  const { confidence: confData, plans: planData, complexity: compData } = req.body;
+
+  if (confData) {
+    if (confData.confidence !== undefined) confidenceState.confidence = confData.confidence;
+    if (confData.level) confidenceState.level = confData.level;
+    if (confData.signals) confidenceState.signals = { ...confidenceState.signals, ...confData.signals };
+    confidenceState.lastUpdate = new Date().toISOString();
+  }
+
+  if (planData) {
+    if (planData.plans) planComparison.plans = planData.plans;
+    if (planData.winner) planComparison.winner = planData.winner;
+    planComparison.lastUpdate = new Date().toISOString();
+  }
+
+  if (compData) {
+    if (compData.score !== undefined) complexity.score = compData.score;
+    if (compData.strategy) complexity.strategy = compData.strategy;
+    if (compData.dimensions) complexity.dimensions = compData.dimensions;
+    complexity.lastUpdate = new Date().toISOString();
+  }
+
+  console.log(`[SWARM] Bulk state update received`);
+  res.json({ success: true, confidenceState, planComparison, complexity });
+});
+
+// ============================================================================
 // PREDICTIVE ANALYTICS ENDPOINTS
 // ============================================================================
 
@@ -671,6 +790,9 @@ app.get('/api/events', (req, res) => {
       alerts: recentAlerts.slice(0, 10),
       sessionSeries: sessionSeries,
       executionState: executionState,
+      confidenceState: confidenceState,
+      planComparison: planComparison,
+      complexity: complexity,
       timestamp: new Date().toISOString()
     };
     res.write(`data: ${JSON.stringify(data)}\n\n`);

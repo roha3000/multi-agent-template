@@ -719,6 +719,432 @@
         .phase-history-dot.passing { background: var(--success); }
         .phase-history-dot.failing { background: var(--danger); }
         .phase-history-dot.current { background: var(--info); animation: pulse-dot 1.5s infinite; }
+
+        /* ========== COMPETITIVE PLANNING PANEL ========== */
+        .planning-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .planning-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .planning-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .planning-title-icon {
+            font-size: 16px;
+        }
+
+        .planning-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .planning-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .plan-card {
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .plan-card:hover {
+            border-color: var(--info);
+            transform: translateY(-2px);
+        }
+
+        .plan-card.winner {
+            border-color: var(--success);
+            box-shadow: 0 0 20px rgba(63, 185, 80, 0.2);
+        }
+
+        .plan-card.winner::before {
+            content: '👑 WINNER';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--success);
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .plan-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .plan-strategy {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .plan-strategy.conservative { color: var(--info); }
+        .plan-strategy.balanced { color: #a371f7; }
+        .plan-strategy.aggressive { color: var(--warning); }
+
+        .plan-score {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .plan-criteria {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .plan-criterion {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+        }
+
+        .plan-criterion-name {
+            width: 80px;
+            color: var(--text-secondary);
+        }
+
+        .plan-criterion-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--bg-primary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .plan-criterion-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .plan-criterion-fill.high { background: var(--success); }
+        .plan-criterion-fill.medium { background: var(--warning); }
+        .plan-criterion-fill.low { background: var(--danger); }
+
+        .plan-criterion-value {
+            width: 24px;
+            text-align: right;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* ========== CONFIDENCE GAUGE ========== */
+        .confidence-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .confidence-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .confidence-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .confidence-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .confidence-status.healthy { background: rgba(63, 185, 80, 0.15); color: var(--success); }
+        .confidence-status.warning { background: rgba(210, 153, 34, 0.15); color: var(--warning); }
+        .confidence-status.critical { background: rgba(248, 81, 73, 0.15); color: var(--danger); }
+        .confidence-status.emergency { background: rgba(255, 0, 0, 0.15); color: var(--critical); }
+
+        .confidence-content {
+            display: grid;
+            grid-template-columns: 160px 1fr 200px;
+            gap: 24px;
+            align-items: center;
+        }
+
+        @media (max-width: 900px) {
+            .confidence-content {
+                grid-template-columns: 1fr;
+                justify-items: center;
+            }
+        }
+
+        .confidence-gauge {
+            position: relative;
+            width: 140px;
+            height: 140px;
+        }
+
+        .confidence-gauge svg {
+            transform: rotate(-90deg);
+        }
+
+        .confidence-gauge-bg {
+            fill: none;
+            stroke: var(--bg-tertiary);
+            stroke-width: 12;
+        }
+
+        .confidence-gauge-fill {
+            fill: none;
+            stroke-width: 12;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;
+        }
+
+        .confidence-gauge-fill.healthy { stroke: var(--success); }
+        .confidence-gauge-fill.warning { stroke: var(--warning); }
+        .confidence-gauge-fill.critical { stroke: var(--danger); }
+        .confidence-gauge-fill.emergency { stroke: var(--critical); }
+
+        .confidence-gauge-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .confidence-gauge-number {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .confidence-gauge-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .confidence-signals {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .confidence-signal {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .signal-icon {
+            width: 24px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .signal-info {
+            flex: 1;
+        }
+
+        .signal-name {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .signal-bar {
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+
+        .signal-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .signal-value {
+            font-size: 12px;
+            font-weight: 600;
+            width: 32px;
+            text-align: right;
+        }
+
+        .confidence-trend {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px;
+            height: 120px;
+        }
+
+        .trend-title {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .trend-chart {
+            width: 100%;
+            height: 80px;
+        }
+
+        .trend-line {
+            fill: none;
+            stroke: var(--info);
+            stroke-width: 2;
+        }
+
+        .trend-area {
+            fill: url(#trendGradient);
+            opacity: 0.3;
+        }
+
+        .trend-point {
+            fill: var(--info);
+        }
+
+        /* ========== COMPLEXITY INDICATORS ========== */
+        .complexity-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: help;
+            position: relative;
+        }
+
+        .complexity-badge.fast-path {
+            background: rgba(63, 185, 80, 0.15);
+            color: var(--success);
+        }
+
+        .complexity-badge.standard {
+            background: rgba(88, 166, 255, 0.15);
+            color: var(--info);
+        }
+
+        .complexity-badge.competitive {
+            background: rgba(210, 153, 34, 0.15);
+            color: var(--warning);
+        }
+
+        .complexity-stars {
+            display: flex;
+            gap: 2px;
+        }
+
+        .complexity-star {
+            font-size: 10px;
+        }
+
+        .complexity-star.filled { color: var(--warning); }
+        .complexity-star.empty { color: var(--border); }
+
+        .complexity-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            min-width: 200px;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .complexity-badge:hover .complexity-tooltip {
+            display: block;
+        }
+
+        .complexity-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: var(--border);
+        }
+
+        .tooltip-title {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .tooltip-dimensions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .tooltip-dimension {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+        }
+
+        .tooltip-dim-name {
+            color: var(--text-secondary);
+        }
+
+        .tooltip-dim-value {
+            font-weight: 600;
+        }
+
+        /* Task card complexity integration */
+        .task-complexity {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
@@ -817,6 +1243,111 @@
             </div>
             <div class="todos-list" id="todosList">
                 <!-- Todo items will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Confidence Monitor Panel -->
+        <div class="confidence-panel" id="confidencePanel" style="display: none;">
+            <div class="confidence-header">
+                <span class="confidence-title">🎯 Agent Confidence</span>
+                <span class="confidence-status" id="confidenceStatus">Healthy</span>
+            </div>
+            <div class="confidence-content">
+                <!-- Circular Gauge -->
+                <div class="confidence-gauge">
+                    <svg width="140" height="140" viewBox="0 0 140 140">
+                        <circle class="confidence-gauge-bg" cx="70" cy="70" r="58"></circle>
+                        <circle class="confidence-gauge-fill healthy" id="confidenceGaugeFill" cx="70" cy="70" r="58"
+                            stroke-dasharray="364.4" stroke-dashoffset="364.4"></circle>
+                    </svg>
+                    <div class="confidence-gauge-value">
+                        <div class="confidence-gauge-number" id="confidenceValue">--</div>
+                        <div class="confidence-gauge-label">confidence</div>
+                    </div>
+                </div>
+
+                <!-- Signal Breakdown -->
+                <div class="confidence-signals" id="confidenceSignals">
+                    <div class="confidence-signal">
+                        <span class="signal-icon">📊</span>
+                        <div class="signal-info">
+                            <div class="signal-name">Quality Score</div>
+                            <div class="signal-bar"><div class="signal-fill" id="signalQuality" style="width: 0%; background: var(--success);"></div></div>
+                        </div>
+                        <span class="signal-value" id="signalQualityValue">--</span>
+                    </div>
+                    <div class="confidence-signal">
+                        <span class="signal-icon">⚡</span>
+                        <div class="signal-info">
+                            <div class="signal-name">Velocity</div>
+                            <div class="signal-bar"><div class="signal-fill" id="signalVelocity" style="width: 0%; background: var(--info);"></div></div>
+                        </div>
+                        <span class="signal-value" id="signalVelocityValue">--</span>
+                    </div>
+                    <div class="confidence-signal">
+                        <span class="signal-icon">🔄</span>
+                        <div class="signal-info">
+                            <div class="signal-name">Iterations</div>
+                            <div class="signal-bar"><div class="signal-fill" id="signalIterations" style="width: 0%; background: var(--warning);"></div></div>
+                        </div>
+                        <span class="signal-value" id="signalIterationsValue">--</span>
+                    </div>
+                    <div class="confidence-signal">
+                        <span class="signal-icon">❌</span>
+                        <div class="signal-info">
+                            <div class="signal-name">Error Rate</div>
+                            <div class="signal-bar"><div class="signal-fill" id="signalErrorRate" style="width: 0%; background: var(--danger);"></div></div>
+                        </div>
+                        <span class="signal-value" id="signalErrorRateValue">--</span>
+                    </div>
+                    <div class="confidence-signal">
+                        <span class="signal-icon">📈</span>
+                        <div class="signal-info">
+                            <div class="signal-name">Historical</div>
+                            <div class="signal-bar"><div class="signal-fill" id="signalHistorical" style="width: 0%; background: #a371f7;"></div></div>
+                        </div>
+                        <span class="signal-value" id="signalHistoricalValue">--</span>
+                    </div>
+                </div>
+
+                <!-- Trend Line -->
+                <div class="confidence-trend">
+                    <div class="trend-title">Confidence Trend (Last 10)</div>
+                    <svg class="trend-chart" viewBox="0 0 180 70" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="trendGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color: var(--info); stop-opacity: 0.4"/>
+                                <stop offset="100%" style="stop-color: var(--info); stop-opacity: 0"/>
+                            </linearGradient>
+                        </defs>
+                        <path class="trend-area" id="trendArea" d=""></path>
+                        <polyline class="trend-line" id="trendLine" points=""></polyline>
+                        <g id="trendPoints"></g>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Competitive Planning Panel -->
+        <div class="planning-panel" id="planningPanel" style="display: none;">
+            <div class="planning-header">
+                <span class="planning-title">
+                    <span class="planning-title-icon">🏆</span>
+                    Plan Strategies
+                </span>
+                <span class="complexity-badge" id="taskComplexityBadge">
+                    <span class="complexity-stars" id="complexityStars"></span>
+                    <span id="complexityStrategy">--</span>
+                    <div class="complexity-tooltip" id="complexityTooltip">
+                        <div class="tooltip-title">Complexity Breakdown</div>
+                        <div class="tooltip-dimensions" id="complexityDimensions">
+                            <!-- Dimensions will be rendered here -->
+                        </div>
+                    </div>
+                </span>
+            </div>
+            <div class="planning-cards" id="planningCards">
+                <!-- Plan cards will be rendered here -->
             </div>
         </div>
 
@@ -985,6 +1516,195 @@
             complete: 100
         };
 
+        // Confidence history for trend line
+        let confidenceHistory = [];
+        const MAX_CONFIDENCE_HISTORY = 10;
+
+        function updateConfidencePanel(confidenceState) {
+            const panel = document.getElementById('confidencePanel');
+
+            if (!confidenceState || confidenceState.confidence === undefined) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            panel.style.display = 'block';
+
+            const confidence = confidenceState.confidence || 0;
+            const level = confidenceState.level || 'healthy';
+            const signals = confidenceState.signals || {};
+
+            // Update gauge
+            const gaugeFill = document.getElementById('confidenceGaugeFill');
+            const gaugeValue = document.getElementById('confidenceValue');
+            const circumference = 2 * Math.PI * 58; // r=58
+            const offset = circumference - (confidence / 100) * circumference;
+
+            gaugeFill.style.strokeDashoffset = offset;
+            gaugeFill.className = `confidence-gauge-fill ${level}`;
+            gaugeValue.textContent = Math.round(confidence);
+            gaugeValue.className = `confidence-gauge-number`;
+            gaugeValue.style.color = level === 'healthy' ? 'var(--success)' :
+                                     level === 'warning' ? 'var(--warning)' :
+                                     level === 'critical' ? 'var(--danger)' : 'var(--critical)';
+
+            // Update status badge
+            const statusBadge = document.getElementById('confidenceStatus');
+            statusBadge.textContent = level.charAt(0).toUpperCase() + level.slice(1);
+            statusBadge.className = `confidence-status ${level}`;
+
+            // Update signals
+            const signalMap = {
+                qualityScore: { fill: 'signalQuality', value: 'signalQualityValue' },
+                velocity: { fill: 'signalVelocity', value: 'signalVelocityValue' },
+                iterations: { fill: 'signalIterations', value: 'signalIterationsValue' },
+                errorRate: { fill: 'signalErrorRate', value: 'signalErrorRateValue' },
+                historical: { fill: 'signalHistorical', value: 'signalHistoricalValue' }
+            };
+
+            Object.entries(signalMap).forEach(([key, ids]) => {
+                const signalValue = signals[key] !== undefined ? signals[key] : 0;
+                const fillEl = document.getElementById(ids.fill);
+                const valueEl = document.getElementById(ids.value);
+                if (fillEl) fillEl.style.width = `${signalValue}%`;
+                if (valueEl) valueEl.textContent = Math.round(signalValue);
+            });
+
+            // Update trend line
+            confidenceHistory.push(confidence);
+            if (confidenceHistory.length > MAX_CONFIDENCE_HISTORY) {
+                confidenceHistory.shift();
+            }
+
+            if (confidenceHistory.length >= 2) {
+                const width = 180;
+                const height = 70;
+                const padding = 5;
+                const points = confidenceHistory.map((val, i) => {
+                    const x = padding + (i / (MAX_CONFIDENCE_HISTORY - 1)) * (width - padding * 2);
+                    const y = height - padding - (val / 100) * (height - padding * 2);
+                    return `${x},${y}`;
+                });
+
+                document.getElementById('trendLine').setAttribute('points', points.join(' '));
+
+                // Area path
+                const areaPath = `M ${padding},${height - padding} ` +
+                    points.map((p, i) => (i === 0 ? `L ${p}` : `L ${p}`)).join(' ') +
+                    ` L ${padding + ((confidenceHistory.length - 1) / (MAX_CONFIDENCE_HISTORY - 1)) * (width - padding * 2)},${height - padding} Z`;
+                document.getElementById('trendArea').setAttribute('d', areaPath);
+
+                // Points
+                const pointsContainer = document.getElementById('trendPoints');
+                pointsContainer.innerHTML = points.map(p => {
+                    const [x, y] = p.split(',');
+                    return `<circle class="trend-point" cx="${x}" cy="${y}" r="3"/>`;
+                }).join('');
+            }
+        }
+
+        function updatePlanningPanel(planComparison, complexity) {
+            const panel = document.getElementById('planningPanel');
+
+            if (!planComparison || !planComparison.plans || planComparison.plans.length === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            panel.style.display = 'block';
+
+            const plans = planComparison.plans;
+            const winner = planComparison.winner;
+
+            // Update complexity badge
+            if (complexity) {
+                updateComplexityBadge(complexity);
+            }
+
+            // Render plan cards
+            const cardsContainer = document.getElementById('planningCards');
+            cardsContainer.innerHTML = plans.map(plan => {
+                const isWinner = winner && plan.strategy === winner.strategy;
+                const scores = plan.scores || {};
+                const criteria = ['completeness', 'feasibility', 'risk', 'clarity', 'efficiency'];
+
+                return `
+                    <div class="plan-card ${isWinner ? 'winner' : ''}">
+                        <div class="plan-card-header">
+                            <span class="plan-strategy ${plan.strategy}">${plan.strategy}</span>
+                            <span class="plan-score">${Math.round(plan.totalScore || 0)}</span>
+                        </div>
+                        <div class="plan-criteria">
+                            ${criteria.map(c => {
+                                const score = scores[c] || 0;
+                                const fillClass = score >= 80 ? 'high' : score >= 60 ? 'medium' : 'low';
+                                return `
+                                    <div class="plan-criterion">
+                                        <span class="plan-criterion-name">${c}</span>
+                                        <div class="plan-criterion-bar">
+                                            <div class="plan-criterion-fill ${fillClass}" style="width: ${score}%"></div>
+                                        </div>
+                                        <span class="plan-criterion-value">${Math.round(score)}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateComplexityBadge(complexity) {
+            const badge = document.getElementById('taskComplexityBadge');
+            const starsContainer = document.getElementById('complexityStars');
+            const strategyLabel = document.getElementById('complexityStrategy');
+            const dimensionsContainer = document.getElementById('complexityDimensions');
+
+            if (!complexity) {
+                badge.style.display = 'none';
+                return;
+            }
+
+            badge.style.display = 'inline-flex';
+
+            const score = complexity.score || 0;
+            const strategy = complexity.strategy || 'standard';
+            const dimensions = complexity.dimensions || {};
+
+            // Update badge class
+            badge.className = `complexity-badge ${strategy.replace('-', '')}`;
+
+            // Update stars (1-5 based on score)
+            const starCount = Math.min(5, Math.max(1, Math.ceil(score / 20)));
+            starsContainer.innerHTML = Array(5).fill(0).map((_, i) =>
+                `<span class="complexity-star ${i < starCount ? 'filled' : 'empty'}">★</span>`
+            ).join('');
+
+            // Update strategy label
+            const strategyLabels = {
+                'fast-path': 'Simple',
+                'standard': 'Standard',
+                'competitive': 'Complex'
+            };
+            strategyLabel.textContent = strategyLabels[strategy] || strategy;
+
+            // Update tooltip dimensions
+            const dimNames = {
+                dependencyDepth: 'Dependencies',
+                acceptanceCriteria: 'Acceptance',
+                effortEstimate: 'Effort',
+                technicalKeywords: 'Technical',
+                historicalSuccess: 'Historical'
+            };
+
+            dimensionsContainer.innerHTML = Object.entries(dimensions).map(([key, value]) => `
+                <div class="tooltip-dimension">
+                    <span class="tooltip-dim-name">${dimNames[key] || key}</span>
+                    <span class="tooltip-dim-value">${Math.round(value || 0)}</span>
+                </div>
+            `).join('');
+        }
+
         function updateExecutionState(execState) {
             const panel = document.getElementById('executionPanel');
             const todosPanel = document.getElementById('todosPanel');
@@ -1078,13 +1798,19 @@
         }
 
         function updateDisplay(data) {
-            const { projects, sessionSeries, executionState } = data;
+            const { projects, sessionSeries, executionState, confidenceState, planComparison, complexity } = data;
 
             // Update session series panel
             updateSessionSeries(sessionSeries);
 
             // Update execution state panel
             updateExecutionState(executionState);
+
+            // Update confidence monitor panel
+            updateConfidencePanel(confidenceState);
+
+            // Update competitive planning panel
+            updatePlanningPanel(planComparison, complexity);
 
             if (!projects || projects.length === 0) {
                 document.getElementById('activeSessionsContainer').innerHTML = `
