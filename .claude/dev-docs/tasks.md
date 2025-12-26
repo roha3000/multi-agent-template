@@ -10,7 +10,7 @@
 ### NOW (Active Sprint)
 | Task ID | Title | Status | Priority | Phase |
 |---------|-------|--------|----------|-------|
-| swarm-database-schema | Create Database Schema for Swarm History | ready | high | implementation |
+| swarm-database-schema | Create Database Schema for Swarm History | completed | high | implementation |
 | swarm-performance-testing | Implement Performance Benchmarks and Load Tests | pending | medium | testing |
 | swarm-documentation | Write Swarm Feature Documentation | pending | medium | validation |
 
@@ -46,16 +46,16 @@
 **Phase**: implementation
 **Estimate**: 2h
 **Priority**: high
-**Status**: ready
+**Status**: completed
 
 **Description**: Add confidence_history, complexity_analysis, and plan_comparisons tables to MemoryStore with migration script
 
 **Acceptance Criteria**:
-- [ ] schema-swarm.sql created with 3 tables
-- [ ] migrations/001-swarm-features.js created
-- [ ] MemoryStore extended with 5 new methods
-- [ ] 15+ tests passing
-- [ ] Migration runs on startup
+- [x] schema-swarm.sql created with 3 tables
+- [x] migrations/001-swarm-features.js created
+- [x] MemoryStore extended with 5 new methods
+- [x] 15+ tests passing
+- [x] Migration runs on startup
 
 **Requires**: swarm-feature-flags
 **Blocks**: swarm-performance-testing
@@ -122,7 +122,7 @@
 ## Statistics
 
 - **Total Tasks**: 18
-- **Completed**: 14
+- **Completed**: 15
 - **In Progress**: 0
-- **Ready**: 1
+- **Ready**: 0
 - **Blocked**: 1
