@@ -70,6 +70,11 @@ class MemoryStore {
       // Create schema if needed
       this._createSchema();
 
+      // Run migrations if not in readonly mode
+      if (!this.options.readonly) {
+        this._runMigrations();
+      }
+
     } catch (error) {
       this.logger.error('Database initialization failed', {
         error: error.message,
@@ -101,6 +106,53 @@ class MemoryStore {
         error: error.message
       });
       throw error;
+    }
+  }
+
+  /**
+   * Run database migrations
+   * @private
+   */
+  _runMigrations() {
+    const migrationsDir = path.join(__dirname, 'migrations');
+
+    if (!fs.existsSync(migrationsDir)) {
+      this.logger.info('No migrations directory found');
+      return;
+    }
+
+    // Get all migration files sorted by name
+    const migrationFiles = fs.readdirSync(migrationsDir)
+      .filter(file => file.endsWith('.js'))
+      .sort();
+
+    for (const file of migrationFiles) {
+      const migrationPath = path.join(migrationsDir, file);
+
+      try {
+        const migration = require(migrationPath);
+
+        if (typeof migration.up === 'function') {
+          const result = migration.up(this.db, { logger: this.logger });
+
+          if (result.skipped) {
+            this.logger.info(`Migration ${file} already applied, skipping`);
+          } else if (result.success) {
+            this.logger.info(`Migration ${file} applied successfully`, {
+              tablesCreated: result.tablesCreated,
+              viewsCreated: result.viewsCreated
+            });
+          } else {
+            this.logger.error(`Migration ${file} failed`, {
+              error: result.error
+            });
+          }
+        }
+      } catch (error) {
+        this.logger.error(`Error loading migration ${file}`, {
+          error: error.message
+        });
+      }
     }
   }
 
