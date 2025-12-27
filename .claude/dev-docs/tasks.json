@@ -13,15 +13,15 @@
   },
   "backlog": {
     "now": {
-      "description": "Remaining maintenance tasks",
-      "tasks": []
-    },
-    "next": {
-      "description": "Next priority after now is complete",
+      "description": "Current sprint tasks",
       "tasks": [
         "dashboard-v2-polish",
         "add-model-pricing"
       ]
+    },
+    "next": {
+      "description": "Next priority after now is complete",
+      "tasks": []
     },
     "later": {
       "description": "Future work, not yet prioritized",
