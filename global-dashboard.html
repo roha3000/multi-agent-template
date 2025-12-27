@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Context Monitor</title>
+    <title>Command Center</title>
     <style>
         :root {
             --bg-primary: #0d1117;
@@ -1395,6 +1395,287 @@
         }
 
         /* ======================================
+           COMMAND CENTER - Level 1 UI Components
+           ====================================== */
+
+        /* Global Metrics Bar */
+        .global-metrics-bar {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            padding: 20px 30px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: center;
+        }
+
+        .metric-card-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+
+        .metric-card-value.with-trend {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .metric-trend {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .metric-trend.up { color: var(--danger); }
+        .metric-trend.down { color: var(--success); }
+
+        .metric-card-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        .metric-card.alert .metric-card-value {
+            color: var(--danger);
+        }
+
+        .alert-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            background: var(--danger);
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 0 8px;
+        }
+
+        /* Usage Limits Panel */
+        .usage-limits-panel {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            padding: 20px 30px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .usage-limit-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+        }
+
+        .usage-limit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .usage-limit-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .usage-limit-percent {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .usage-limit-bar {
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .usage-limit-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+
+        .usage-limit-fill.safe { background: var(--success); }
+        .usage-limit-fill.caution { background: var(--warning); }
+        .usage-limit-fill.warning { background: #f0883e; }
+        .usage-limit-fill.critical { background: var(--danger); }
+
+        .usage-limit-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .usage-limit-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .usage-limit-row .value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .usage-pace {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+
+        .pace-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .pace-indicator.safe { background: var(--success); }
+        .pace-indicator.warning { background: var(--warning); }
+        .pace-indicator.critical { background: var(--danger); }
+
+        /* Recent Completions Table */
+        .recent-completions-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-top: 24px;
+            overflow: hidden;
+        }
+
+        .recent-completions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-tertiary);
+        }
+
+        .recent-completions-title {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .recent-completions-link {
+            font-size: 13px;
+            color: var(--info);
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .recent-completions-link:hover {
+            text-decoration: underline;
+        }
+
+        .recent-completions-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .recent-completions-table th,
+        .recent-completions-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .recent-completions-table th {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: var(--bg-secondary);
+        }
+
+        .recent-completions-table td {
+            font-size: 13px;
+        }
+
+        .recent-completions-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .recent-completions-table tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .completion-score {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 24px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .completion-score.high {
+            background: rgba(63, 185, 80, 0.15);
+            color: var(--success);
+        }
+
+        .completion-score.medium {
+            background: rgba(210, 153, 34, 0.15);
+            color: var(--warning);
+        }
+
+        .completion-score.low {
+            background: rgba(248, 81, 73, 0.15);
+            color: var(--danger);
+        }
+
+        .empty-completions {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        /* Usage Limit Alert Banner */
+        .usage-alert-banner {
+            display: none;
+            padding: 12px 20px;
+            background: linear-gradient(90deg, var(--danger), #ff6b6b);
+            color: white;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .usage-alert-banner.visible {
+            display: block;
+        }
+
+        /* ======================================
            RESPONSIVE DESIGN - Phase 4 Polish
            ====================================== */
 
@@ -1422,6 +1703,15 @@
 
             #activeSessionsContainer {
                 grid-template-columns: repeat(2, 1fr);
+            }
+
+            .global-metrics-bar {
+                grid-template-columns: repeat(3, 1fr);
+                padding: 16px 20px;
+            }
+
+            .usage-limits-panel {
+                padding: 16px 20px;
             }
         }
 
@@ -1455,6 +1745,22 @@
             .session-card {
                 padding: 16px;
             }
+
+            .global-metrics-bar {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 12px;
+                padding: 16px;
+            }
+
+            .metric-card-value {
+                font-size: 24px;
+            }
+
+            .usage-limits-panel {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                padding: 16px;
+            }
         }
 
         /* Small tablets (768px) - enhance existing */
@@ -1477,6 +1783,15 @@
             .action-btn {
                 width: 100%;
                 min-height: 44px;
+            }
+
+            .global-metrics-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .recent-completions-table th:nth-child(4),
+            .recent-completions-table td:nth-child(4) {
+                display: none;
             }
         }
 
@@ -1514,6 +1829,40 @@
 
             .series-stat-label {
                 font-size: 10px;
+            }
+
+            .global-metrics-bar {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                padding: 12px;
+            }
+
+            .metric-card {
+                padding: 12px;
+            }
+
+            .metric-card-value {
+                font-size: 20px;
+            }
+
+            .metric-card-label {
+                font-size: 10px;
+            }
+
+            .usage-limits-panel {
+                padding: 12px;
+                gap: 8px;
+            }
+
+            .usage-limit-card {
+                padding: 12px;
+            }
+
+            .recent-completions-table th:nth-child(3),
+            .recent-completions-table td:nth-child(3),
+            .recent-completions-table th:nth-child(4),
+            .recent-completions-table td:nth-child(4) {
+                display: none;
             }
 
             .session-card {
@@ -1593,13 +1942,118 @@
     <header class="header">
         <h1>
             <span class="status-dot" id="statusDot"></span>
-            Context Monitor
+            COMMAND CENTER
         </h1>
         <div class="sound-toggle">
             <input type="checkbox" id="soundEnabled" checked>
             <label for="soundEnabled">Sound Alerts</label>
         </div>
     </header>
+
+    <!-- Usage Limit Alert Banner -->
+    <div class="usage-alert-banner" id="usageAlertBanner">
+        ⚠️ Usage limit approaching 90% - Consider pausing sessions
+    </div>
+
+    <!-- Global Metrics Bar (5 Stat Cards) -->
+    <div class="global-metrics-bar" id="globalMetricsBar">
+        <div class="metric-card">
+            <div class="metric-card-value" id="metricActiveSessions">0</div>
+            <div class="metric-card-label">Active Sessions</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-card-value" id="metricTasksDone">0 / 0</div>
+            <div class="metric-card-label">Tasks Done Today</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-card-value" id="metricHealthScore">--%</div>
+            <div class="metric-card-label">Avg Health Score</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-card-value with-trend" id="metricCostToday">
+                <span>$0.00</span>
+            </div>
+            <div class="metric-card-label">Cost Today</div>
+        </div>
+        <div class="metric-card" id="metricAlertsCard">
+            <div class="metric-card-value" id="metricAlerts">0</div>
+            <div class="metric-card-label">Active Alerts</div>
+        </div>
+    </div>
+
+    <!-- Usage Limits Panel (5h/Daily/Weekly) -->
+    <div class="usage-limits-panel" id="usageLimitsPanel">
+        <!-- 5-Hour Window -->
+        <div class="usage-limit-card" id="usageLimit5h">
+            <div class="usage-limit-header">
+                <span class="usage-limit-title">5-Hour Window</span>
+                <span class="usage-limit-percent safe" id="usage5hPercent">0%</span>
+            </div>
+            <div class="usage-limit-bar">
+                <div class="usage-limit-fill safe" id="usage5hFill" style="width: 0%"></div>
+            </div>
+            <div class="usage-limit-details">
+                <div class="usage-limit-row">
+                    <span>Used</span>
+                    <span class="value" id="usage5hUsed">0 / 0 messages</span>
+                </div>
+                <div class="usage-limit-row">
+                    <span>Resets in</span>
+                    <span class="value" id="usage5hReset">--</span>
+                </div>
+            </div>
+            <div class="usage-pace" id="usage5hPace">
+                <span class="pace-indicator safe"></span>
+                <span>Pace: -- msg/hr</span>
+            </div>
+        </div>
+
+        <!-- Daily Limit -->
+        <div class="usage-limit-card" id="usageLimitDaily">
+            <div class="usage-limit-header">
+                <span class="usage-limit-title">Daily Limit</span>
+                <span class="usage-limit-percent safe" id="usageDailyPercent">0%</span>
+            </div>
+            <div class="usage-limit-bar">
+                <div class="usage-limit-fill safe" id="usageDailyFill" style="width: 0%"></div>
+            </div>
+            <div class="usage-limit-details">
+                <div class="usage-limit-row">
+                    <span>Used</span>
+                    <span class="value" id="usageDailyUsed">0 / 0 messages</span>
+                </div>
+                <div class="usage-limit-row">
+                    <span>Resets in</span>
+                    <span class="value" id="usageDailyReset">--</span>
+                </div>
+                <div class="usage-limit-row">
+                    <span>Projected</span>
+                    <span class="value" id="usageDailyProjected">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weekly Limit -->
+        <div class="usage-limit-card" id="usageLimitWeekly">
+            <div class="usage-limit-header">
+                <span class="usage-limit-title">Weekly Limit</span>
+                <span class="usage-limit-percent safe" id="usageWeeklyPercent">0%</span>
+            </div>
+            <div class="usage-limit-bar">
+                <div class="usage-limit-fill safe" id="usageWeeklyFill" style="width: 0%"></div>
+            </div>
+            <div class="usage-limit-details">
+                <div class="usage-limit-row">
+                    <span>Used</span>
+                    <span class="value" id="usageWeeklyUsed">0 / 0</span>
+                </div>
+                <div class="usage-limit-row">
+                    <span>Resets</span>
+                    <span class="value" id="usageWeeklyReset">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <!-- Session Series Panel (shown when continuous loop is active) -->
@@ -1804,6 +2258,32 @@
                 <div class="empty-state-icon">📭</div>
                 <div class="empty-state-text">No active sessions</div>
                 <div class="empty-state-sub">Start a Claude Code session to begin monitoring</div>
+            </div>
+        </div>
+
+        <!-- Recent Completions Table -->
+        <div class="recent-completions-panel" id="recentCompletionsPanel">
+            <div class="recent-completions-header">
+                <span class="recent-completions-title">Recent Completions</span>
+                <span class="recent-completions-link" onclick="viewAllHistory()">View All History</span>
+            </div>
+            <div id="recentCompletionsBody">
+                <table class="recent-completions-table">
+                    <thead>
+                        <tr>
+                            <th>Project</th>
+                            <th>Task</th>
+                            <th>Score</th>
+                            <th>Cost</th>
+                            <th>Completed</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentCompletionsList">
+                        <tr>
+                            <td colspan="5" class="empty-completions">No recent completions</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -3217,6 +3697,248 @@
             if (hours < 24) return `${hours}h ago`;
             const days = Math.floor(hours / 24);
             return `${days}d ago`;
+        }
+
+        // ======================================
+        // COMMAND CENTER - Global Metrics & Usage Limits
+        // ======================================
+
+        let usageLimitsInterval = null;
+        let globalMetricsData = null;
+        let usageLimitsData = null;
+
+        function getUsageLimitClass(percent) {
+            if (percent >= 90) return 'critical';
+            if (percent >= 75) return 'warning';
+            if (percent >= 50) return 'caution';
+            return 'safe';
+        }
+
+        function getUsageLimitColor(percent) {
+            if (percent >= 90) return 'var(--danger)';
+            if (percent >= 75) return '#f0883e';
+            if (percent >= 50) return 'var(--warning)';
+            return 'var(--success)';
+        }
+
+        async function fetchGlobalMetrics() {
+            try {
+                const response = await fetch(`${API_URL}/api/sessions/summary`);
+                if (response.ok) {
+                    const data = await response.json();
+                    globalMetricsData = data;
+                    updateGlobalMetricsUI(data);
+                    updateRecentCompletions(data.recentCompletions || []);
+                }
+            } catch (err) {
+                console.error('Failed to fetch global metrics:', err);
+            }
+        }
+
+        async function fetchUsageLimits() {
+            try {
+                const response = await fetch(`${API_URL}/api/usage/limits`);
+                if (response.ok) {
+                    const data = await response.json();
+                    usageLimitsData = data;
+                    updateUsageLimitsUI(data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch usage limits:', err);
+            }
+        }
+
+        function updateGlobalMetricsUI(data) {
+            const metrics = data.globalMetrics || {};
+            const sessions = data.sessions || [];
+
+            // Active Sessions count
+            const activeCount = sessions.filter(s => s.status === 'active').length;
+            document.getElementById('metricActiveSessions').textContent = activeCount;
+
+            // Tasks Done Today
+            const tasksCompleted = metrics.tasksCompletedToday || 0;
+            const totalTasks = metrics.totalTasksToday || tasksCompleted;
+            document.getElementById('metricTasksDone').textContent = `${tasksCompleted} / ${totalTasks}`;
+
+            // Avg Health Score
+            const healthScore = metrics.avgHealthScore || 0;
+            document.getElementById('metricHealthScore').textContent = `${Math.round(healthScore)}%`;
+
+            // Cost Today with trend
+            const costToday = metrics.totalCostToday || 0;
+            const costTrend = metrics.costTrend || 0;
+            const costEl = document.getElementById('metricCostToday');
+            let trendHtml = '';
+            if (costTrend > 0) {
+                trendHtml = `<span class="metric-trend up">↑ $${costTrend.toFixed(2)}</span>`;
+            } else if (costTrend < 0) {
+                trendHtml = `<span class="metric-trend down">↓ $${Math.abs(costTrend).toFixed(2)}</span>`;
+            }
+            costEl.innerHTML = `<span>$${costToday.toFixed(2)}</span>${trendHtml}`;
+
+            // Active Alerts
+            const alertCount = metrics.alertCount || 0;
+            const alertsEl = document.getElementById('metricAlerts');
+            const alertsCard = document.getElementById('metricAlertsCard');
+            if (alertCount > 0) {
+                alertsEl.innerHTML = `<span class="alert-badge">${alertCount}</span>`;
+                alertsCard.classList.add('alert');
+            } else {
+                alertsEl.textContent = '0';
+                alertsCard.classList.remove('alert');
+            }
+        }
+
+        function updateUsageLimitsUI(data) {
+            // Check if any limit needs alert banner
+            const alertBanner = document.getElementById('usageAlertBanner');
+            let showAlert = false;
+            let alertMessage = '';
+
+            // 5-Hour Window
+            if (data.fiveHour) {
+                const fh = data.fiveHour;
+                const percent = fh.percent || 0;
+                const limitClass = getUsageLimitClass(percent);
+
+                document.getElementById('usage5hPercent').textContent = `${Math.round(percent)}%`;
+                document.getElementById('usage5hPercent').className = `usage-limit-percent ${limitClass}`;
+                document.getElementById('usage5hPercent').style.color = getUsageLimitColor(percent);
+
+                document.getElementById('usage5hFill').style.width = `${Math.min(percent, 100)}%`;
+                document.getElementById('usage5hFill').className = `usage-limit-fill ${limitClass}`;
+
+                document.getElementById('usage5hUsed').textContent = `${fh.used || 0} / ${fh.limit || 0} messages`;
+                document.getElementById('usage5hReset').textContent = fh.resetIn || '--';
+
+                // Pace indicator
+                const paceEl = document.getElementById('usage5hPace');
+                if (fh.pace) {
+                    const paceClass = fh.pace.status || 'safe';
+                    paceEl.innerHTML = `
+                        <span class="pace-indicator ${paceClass}"></span>
+                        <span>Pace: ${fh.pace.current || '--'} msg/hr (safe: ${fh.pace.safe || '--'}/hr)</span>
+                    `;
+                }
+
+                if (percent >= 90) {
+                    showAlert = true;
+                    alertMessage = `5-hour usage at ${Math.round(percent)}% - Resets in ${fh.resetIn || 'soon'}`;
+                }
+            }
+
+            // Daily Limit
+            if (data.daily) {
+                const d = data.daily;
+                const percent = d.percent || 0;
+                const limitClass = getUsageLimitClass(percent);
+
+                document.getElementById('usageDailyPercent').textContent = `${Math.round(percent)}%`;
+                document.getElementById('usageDailyPercent').className = `usage-limit-percent ${limitClass}`;
+                document.getElementById('usageDailyPercent').style.color = getUsageLimitColor(percent);
+
+                document.getElementById('usageDailyFill').style.width = `${Math.min(percent, 100)}%`;
+                document.getElementById('usageDailyFill').className = `usage-limit-fill ${limitClass}`;
+
+                document.getElementById('usageDailyUsed').textContent = `${d.used || 0} / ${d.limit || 0} messages`;
+                document.getElementById('usageDailyReset').textContent = d.resetIn || '--';
+
+                // Projected usage
+                if (d.projected) {
+                    document.getElementById('usageDailyProjected').textContent =
+                        `${d.projected.endOfDay || '--'} (${d.projected.percentOfLimit || '--'}% of limit)`;
+                }
+
+                if (percent >= 90 && !showAlert) {
+                    showAlert = true;
+                    alertMessage = `Daily usage at ${Math.round(percent)}% - Resets in ${d.resetIn || 'soon'}`;
+                }
+            }
+
+            // Weekly Limit
+            if (data.weekly) {
+                const w = data.weekly;
+                const percent = w.percent || 0;
+                const limitClass = getUsageLimitClass(percent);
+
+                document.getElementById('usageWeeklyPercent').textContent = `${Math.round(percent)}%`;
+                document.getElementById('usageWeeklyPercent').className = `usage-limit-percent ${limitClass}`;
+                document.getElementById('usageWeeklyPercent').style.color = getUsageLimitColor(percent);
+
+                document.getElementById('usageWeeklyFill').style.width = `${Math.min(percent, 100)}%`;
+                document.getElementById('usageWeeklyFill').className = `usage-limit-fill ${limitClass}`;
+
+                const usedDisplay = w.used >= 1000 ? `${(w.used / 1000).toFixed(1)}K` : w.used;
+                const limitDisplay = w.limit >= 1000 ? `${(w.limit / 1000).toFixed(1)}K` : w.limit;
+                document.getElementById('usageWeeklyUsed').textContent = `${usedDisplay} / ${limitDisplay}`;
+                document.getElementById('usageWeeklyReset').textContent = w.resetDay || '--';
+
+                if (percent >= 90 && !showAlert) {
+                    showAlert = true;
+                    alertMessage = `Weekly usage at ${Math.round(percent)}% - Resets on ${w.resetDay || 'Monday'}`;
+                }
+            }
+
+            // Show/hide alert banner
+            if (showAlert) {
+                alertBanner.textContent = `⚠️ ${alertMessage}`;
+                alertBanner.classList.add('visible');
+            } else {
+                alertBanner.classList.remove('visible');
+            }
+        }
+
+        function updateRecentCompletions(completions) {
+            const tbody = document.getElementById('recentCompletionsList');
+
+            if (!completions || completions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="empty-completions">No recent completions</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Show last 5-10 completions
+            const displayCompletions = completions.slice(0, 10);
+
+            tbody.innerHTML = displayCompletions.map(c => {
+                const score = c.score || c.qualityScore || 0;
+                const scoreClass = score >= 90 ? 'high' : score >= 75 ? 'medium' : 'low';
+                const cost = c.cost || 0;
+                const completedAt = c.completedAt ? timeAgo(new Date(c.completedAt).getTime()) : '--';
+
+                return `
+                    <tr>
+                        <td>${c.project || '--'}</td>
+                        <td>${c.task || c.title || '--'}</td>
+                        <td><span class="completion-score ${scoreClass}">${score}</span></td>
+                        <td>$${cost.toFixed(2)}</td>
+                        <td>${completedAt}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function viewAllHistory() {
+            // TODO: Implement full history view modal or page
+            alert('Full task history view coming soon!');
+        }
+
+        function startUsageLimitsRefresh() {
+            // Fetch immediately
+            fetchUsageLimits();
+            // Then refresh every 1 minute (not 3 seconds to reduce API calls)
+            usageLimitsInterval = setInterval(fetchUsageLimits, 60000);
+        }
+
+        function startGlobalMetricsRefresh() {
+            // Fetch immediately
+            fetchGlobalMetrics();
+            // Refresh every 3 seconds along with SSE updates
+            // (This is also updated via SSE, but this ensures initial load)
         }
 
         function formatDuration(ms) {
@@ -4718,6 +5440,10 @@
                 Notification.requestPermission();
             }
 
+            // Initialize Command Center components
+            startGlobalMetricsRefresh();
+            startUsageLimitsRefresh();
+
             eventSource = new EventSource(`${API_URL}/api/events`);
 
             eventSource.onopen = () => {
@@ -4729,6 +5455,13 @@
                 try {
                     const data = JSON.parse(event.data);
                     updateDisplay(data);
+                    // Also update global metrics from SSE data if available
+                    if (data.globalMetrics) {
+                        updateGlobalMetricsUI({ globalMetrics: data.globalMetrics, sessions: data.projects || [] });
+                    }
+                    if (data.recentCompletions) {
+                        updateRecentCompletions(data.recentCompletions);
+                    }
                 } catch (e) {
                     console.error('Parse error:', e);
                 }
