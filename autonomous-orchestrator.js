@@ -30,6 +30,8 @@ const {
 const TaskManager = require('./.claude/core/task-manager');
 const MemoryStore = require('./.claude/core/memory-store');
 const NotificationService = require('./.claude/core/notification-service');
+const { getSessionRegistry } = require('./.claude/core/session-registry');
+const { getUsageLimitTracker } = require('./.claude/core/usage-limit-tracker');
 
 // Phase name mapping (tasks.json uses longer names, quality-gates uses shorter)
 const PHASE_MAP = {
@@ -43,8 +45,21 @@ const PHASE_MAP = {
   'validation': 'test',  // Map validation to test phase
 };
 
+// Reverse mapping: orchestrator phase -> tasks.json phase names
+const TASK_PHASE_MAP = {
+  'research': ['research', 'planning'],
+  'design': ['design'],
+  'implement': ['implementation', 'implement'],
+  'test': ['testing', 'test', 'validation'],
+};
+
 function normalizePhase(phase) {
   return PHASE_MAP[phase] || phase;
+}
+
+// Get all task.json phase names that match an orchestrator phase
+function getTaskPhases(orchestratorPhase) {
+  return TASK_PHASE_MAP[orchestratorPhase] || [orchestratorPhase];
 }
 
 // ============================================================================
@@ -120,6 +135,11 @@ let memoryStore = null;
 
 // Notification Service (initialized in main)
 let notificationService = null;
+
+// Command Center Integration (Session Registry + Usage Tracking)
+let sessionRegistry = null;
+let usageLimitTracker = null;
+let registeredSessionId = null;
 
 // ============================================================================
 // PROMPT GENERATION
@@ -332,7 +352,16 @@ function evaluateTaskCompletion() {
 
   if (completion.status === 'completed') {
     // Check if all acceptance criteria are met
-    const allMet = completion.acceptanceMet?.every(m => m === true) ?? true;
+    // CRITICAL: Default to false if no acceptance criteria provided
+    // This prevents tasks from being marked complete without verification
+    const acceptanceMet = completion.acceptanceMet;
+    if (!acceptanceMet || !Array.isArray(acceptanceMet) || acceptanceMet.length === 0) {
+      return {
+        complete: false,
+        reason: 'No acceptance criteria verification provided. Task must explicitly verify each acceptance criterion.'
+      };
+    }
+    const allMet = acceptanceMet.every(m => m === true);
 
     if (allMet) {
       return {
@@ -378,6 +407,9 @@ function handleTaskCompletion(taskCompletion, qualityScore) {
 
     state.tasksCompleted++;
     console.log(`[TASK] Completed: ${task.title} (${task.id})`);
+
+    // Record completion in Command Center
+    recordTaskCompletionToCommandCenter(task, qualityScore, 0);
     console.log(`[TASK] Duration: ${durationHours.toFixed(1)}h, Quality: ${qualityScore}/100`);
 
     // Clear completion file for next task
@@ -396,7 +428,19 @@ function getNextTaskFromManager() {
   if (!taskManager) return null;
 
   try {
-    const nextTask = taskManager.getNextTask(state.currentPhase);
+    // Try all phase names that match the current orchestrator phase
+    const taskPhases = getTaskPhases(state.currentPhase);
+    let nextTask = null;
+
+    for (const phase of taskPhases) {
+      nextTask = taskManager.getNextTask(phase);
+      if (nextTask) break;
+    }
+
+    // Also try without phase filter as fallback
+    if (!nextTask) {
+      nextTask = taskManager.getNextTask(null);
+    }
 
     if (nextTask) {
       // Mark as in_progress
@@ -534,6 +578,9 @@ function handleDashboardUpdate(data) {
     }
   }
 
+  // Update Command Center with context percent
+  updateCommandCenter({ contextPercent: contextUsed });
+
   if (contextUsed >= CONFIG.contextThreshold && !thresholdReached && claudeProcess) {
     thresholdReached = true;
     console.log(`\n[ORCHESTRATOR] Context threshold reached: ${contextUsed.toFixed(1)}%`);
@@ -579,6 +626,125 @@ function postToDashboard(endpoint, data) {
       resolve({ success: false });
     }
   });
+}
+
+// ============================================================================
+// COMMAND CENTER INTEGRATION (Session Registry + Usage Tracking)
+// ============================================================================
+
+/**
+ * Initialize Command Center integration
+ * Registers session and sets up usage tracking
+ */
+function initializeCommandCenter() {
+  try {
+    // Initialize singletons
+    sessionRegistry = getSessionRegistry();
+    usageLimitTracker = getUsageLimitTracker();
+
+    // Register this orchestrator session
+    registeredSessionId = sessionRegistry.register({
+      project: path.basename(CONFIG.projectPath),
+      path: CONFIG.projectPath,
+      status: 'active',
+      currentTask: state.currentTask ? {
+        id: state.currentTask.id,
+        title: state.currentTask.title,
+        phase: state.currentPhase,
+      } : null,
+      nextTask: null,
+      contextPercent: 0,
+      qualityScore: 0,
+      confidenceScore: 100,
+      tokens: 0,
+      cost: 0,
+      iteration: state.phaseIteration,
+    });
+
+    console.log(`[COMMAND CENTER] Session registered: ${registeredSessionId}`);
+    return true;
+  } catch (err) {
+    console.error('[COMMAND CENTER] Failed to initialize:', err.message);
+    return false;
+  }
+}
+
+/**
+ * Update Command Center with current session state
+ */
+function updateCommandCenter(updates = {}) {
+  if (!sessionRegistry || !registeredSessionId) return;
+
+  try {
+    const sessionUpdates = {
+      status: 'active',
+      currentTask: state.currentTask ? {
+        id: state.currentTask.id,
+        title: state.currentTask.title,
+        phase: state.currentPhase,
+      } : null,
+      iteration: state.phaseIteration,
+      ...updates,
+    };
+
+    sessionRegistry.update(registeredSessionId, sessionUpdates);
+  } catch (err) {
+    // Silently handle errors - dashboard integration is non-critical
+  }
+}
+
+/**
+ * Record message usage for limit tracking
+ */
+function recordMessageUsage() {
+  if (!usageLimitTracker) return null;
+
+  try {
+    const status = usageLimitTracker.recordMessage();
+
+    // Check for usage alerts
+    const alerts = usageLimitTracker.getAlerts();
+    if (alerts.length > 0) {
+      console.log('[USAGE] Limit alerts:', alerts.map(a => a.message).join(', '));
+    }
+
+    return status;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * Record task completion in Command Center
+ */
+function recordTaskCompletionToCommandCenter(task, score, cost = 0) {
+  if (!sessionRegistry) return;
+
+  try {
+    sessionRegistry.recordCompletion(
+      path.basename(CONFIG.projectPath),
+      task,
+      score,
+      cost
+    );
+  } catch (err) {
+    // Silently handle
+  }
+}
+
+/**
+ * Deregister session from Command Center
+ */
+function deregisterFromCommandCenter() {
+  if (!sessionRegistry || !registeredSessionId) return;
+
+  try {
+    sessionRegistry.deregister(registeredSessionId);
+    console.log(`[COMMAND CENTER] Session deregistered: ${registeredSessionId}`);
+    registeredSessionId = null;
+  } catch (err) {
+    // Silently handle
+  }
 }
 
 // ============================================================================
@@ -664,6 +830,12 @@ async function main() {
     notificationService = null;
   }
 
+  // Initialize Command Center (Session Registry + Usage Tracking)
+  const commandCenterEnabled = initializeCommandCenter();
+  if (commandCenterEnabled) {
+    console.log('[COMMAND CENTER] Enabled - session tracking active\n');
+  }
+
   connectToDashboard();
   await postToDashboard('/api/series/start', {});
 
@@ -704,6 +876,15 @@ async function main() {
       }
 
       state.currentTask = currentTask;
+
+      // Update Command Center with current task
+      updateCommandCenter({
+        currentTask: {
+          id: currentTask.id,
+          title: currentTask.title,
+          phase: state.currentPhase,
+        },
+      });
 
       // Track iterations per task (not just per phase)
       const taskId = currentTask.id;
@@ -756,6 +937,15 @@ async function main() {
       exitReason: 'unknown',
       taskId: currentTask?.id || null,
     };
+
+    // Record message usage for limit tracking
+    const usageStatus = recordMessageUsage();
+    if (usageStatus) {
+      updateCommandCenter({
+        fiveHourUsage: usageStatus.fiveHour.percent,
+        dailyUsage: usageStatus.daily.percent,
+      });
+    }
 
     // CRITICAL FIX: Reconnect to dashboard if connection was closed
     // (happens when context threshold was reached in previous session)
@@ -1034,11 +1224,14 @@ async function gracefulShutdown(signal) {
     }
   }
 
-  // 5. Wait for pending HTTP requests
+  // 5. Deregister from Command Center
+  deregisterFromCommandCenter();
+
+  // 6. Wait for pending HTTP requests
   console.log('[SHUTDOWN] Waiting for pending requests...');
   await new Promise(r => setTimeout(r, 1000));
 
-  // 6. Print final summary
+  // 7. Print final summary
   printSummary();
 
   console.log('[SHUTDOWN] Cleanup complete.');

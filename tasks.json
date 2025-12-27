@@ -13,11 +13,12 @@
   },
   "backlog": {
     "now": {
-      "description": "Active tasks for current sprint/iteration",
+      "description": "Dashboard Command Center Implementation",
       "tasks": [
-        "swarm-database-schema",
-        "swarm-performance-testing",
-        "swarm-documentation"
+        "dashboard-command-center",
+        "dashboard-autonomous-tracking",
+        "dashboard-live-task-refresh",
+        "dashboard-log-viewer"
       ]
     },
     "next": {
@@ -50,6 +51,9 @@
         "swarm-orchestrator-integration",
         "swarm-dashboard-ui",
         "swarm-feature-flags",
+        "swarm-database-schema",
+        "swarm-performance-testing",
+        "swarm-documentation",
         "add-health-endpoint"
       ]
     }
@@ -711,10 +715,12 @@
         "No memory leaks after 5 minutes",
         "Results printed in tabular format"
       ],
-      "status": "pending",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-25T17:30:00.000Z",
-      "updated": "2025-12-25T17:30:00.000Z"
+      "updated": "2025-12-27T01:05:00.388Z",
+      "started": "2025-12-27T00:56:40.643Z",
+      "completed": "2025-12-27T01:05:00.388Z"
     },
     "swarm-documentation": {
       "id": "swarm-documentation",
@@ -740,10 +746,124 @@
         "docs/SECURITY_GUIDE.md created with threats, modes, best practices",
         ".env.example updated with all swarm env vars"
       ],
-      "status": "pending",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-25T17:30:00.000Z",
-      "updated": "2025-12-25T17:30:00.000Z"
+      "updated": "2025-12-27T01:19:54.743Z",
+      "started": "2025-12-27T01:12:51.400Z",
+      "completed": "2025-12-27T01:19:54.743Z"
+    },
+    "dashboard-log-viewer": {
+      "id": "dashboard-log-viewer",
+      "title": "Add Real-Time Log Viewer Button to Dashboard",
+      "description": "Add a button to the dashboard that opens a real-time tail view of the session log file (.claude/logs/session-N.log) so users can monitor orchestrator output live",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "ui",
+        "logging",
+        "real-time"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Dashboard shows 'View Log' button for active/recent sessions",
+        "API endpoint streams log file content via SSE (tail -f behavior)",
+        "Log viewer panel shows real-time updates with auto-scroll",
+        "Supports viewing historical session logs",
+        "Clear visual indicator when log is actively streaming"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-27T01:05:00.000Z",
+      "updated": "2025-12-27T01:12:46.372Z",
+      "started": "2025-12-27T01:10:19.870Z",
+      "completed": "2025-12-27T01:12:46.372Z"
+    },
+    "dashboard-autonomous-tracking": {
+      "id": "dashboard-autonomous-tracking",
+      "title": "Track Autonomous Orchestrator Sessions in Dashboard",
+      "description": "The dashboard should display real-time status of autonomous orchestrator sessions including current phase, active task, iteration count, quality scores, and session progress. The orchestrator must POST execution state updates to the dashboard.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "3h",
+      "tags": ["dashboard", "autonomous", "orchestrator", "real-time"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["dashboard-log-viewer"]
+      },
+      "acceptance": [
+        "Orchestrator POSTs execution state to /api/execution-state on phase/task changes",
+        "Dashboard shows dedicated 'Autonomous Sessions' panel",
+        "Panel displays: current task, phase, iteration, quality score",
+        "Real-time updates via SSE when orchestrator state changes",
+        "Visual distinction between autonomous and interactive Claude sessions",
+        "Session history shows completed autonomous tasks with scores"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-27T01:20:00.000Z",
+      "updated": "2025-12-27T01:20:00.000Z"
+    },
+    "dashboard-live-task-refresh": {
+      "id": "dashboard-live-task-refresh",
+      "title": "Fix Dashboard Task List Live Refresh",
+      "description": "The backlog tasks panel should automatically refresh when tasks.json changes or when task status updates occur. Currently it may not be updating in real-time.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "1h",
+      "tags": ["dashboard", "tasks", "real-time", "sse"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Task list updates within 1 second of tasks.json change",
+        "SSE events include fresh taskData on every broadcast",
+        "Dashboard re-renders backlog panel on taskData change",
+        "File watcher monitors tasks.json for external changes",
+        "In-progress/ready/completed counts update live"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-27T01:20:00.000Z",
+      "updated": "2025-12-27T01:20:00.000Z"
+    },
+    "dashboard-command-center": {
+      "id": "dashboard-command-center",
+      "title": "Cross-Session Summary Dashboard (Command Center)",
+      "description": "A top-level summary view that aggregates information across ALL active sessions, showing usage, current/next tasks with status, and key metrics. Users can drill down into specific projects/sessions for details.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "4h",
+      "tags": ["dashboard", "summary", "multi-session", "command-center"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["dashboard-autonomous-tracking", "dashboard-live-task-refresh"]
+      },
+      "acceptance": [
+        "Summary panel shows aggregated metrics across all active sessions",
+        "Displays current task per session with status indicator",
+        "Shows next task queued for each session",
+        "Usage metrics: total tokens, cost, context utilization",
+        "Key metrics: tasks completed today, success rate, avg quality score",
+        "Click on any session row to drill down to detailed view",
+        "Auto-refresh every 3 seconds via SSE",
+        "Drill-down shows full task details with acceptance criteria progress",
+        "Session controls: View Log, Pause, Skip Task, End Session"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-26T12:00:00.000Z",
+      "updated": "2025-12-26T12:00:00.000Z"
     }
   }
 }

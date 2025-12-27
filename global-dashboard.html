@@ -315,6 +315,17 @@
 
         .action-btn.primary:hover { background: #4a8fd9; }
 
+        .action-btn.view-details {
+            background: transparent;
+            border-color: var(--info);
+            color: var(--info);
+        }
+
+        .action-btn.view-details:hover {
+            background: var(--info);
+            color: #fff;
+        }
+
         .action-btn.danger {
             background: var(--danger);
             border-color: var(--danger);
@@ -1499,12 +1510,752 @@
         </div>
     </div>
 
+    <!-- Session Detail View (hidden by default) -->
+    <div id="detailView" class="detail-view" style="display: none;">
+        <header class="detail-header">
+            <button class="back-btn" onclick="hideDetailView()">← Back to Command Center</button>
+            <div class="detail-controls">
+                <button class="control-btn pause" id="detailPauseBtn" onclick="togglePauseSession()">Pause</button>
+                <button class="control-btn danger" onclick="endSession()">End Session</button>
+            </div>
+        </header>
+
+        <div class="detail-project-info">
+            <h1 id="detailProjectName">Project Name</h1>
+            <span class="detail-status" id="detailStatus">● RUNNING</span>
+            <div class="detail-path" id="detailPath">C:\path\to\project</div>
+        </div>
+
+        <!-- 3-Column Metrics Header -->
+        <div class="detail-metrics-row">
+            <div class="detail-metric-card">
+                <div class="metric-title">CONTEXT</div>
+                <div class="metric-progress">
+                    <div class="metric-progress-bar">
+                        <div class="metric-progress-fill" id="detailContextFill" style="width: 0%"></div>
+                    </div>
+                    <span class="metric-percent" id="detailContextPercent">0%</span>
+                </div>
+                <div class="metric-details">
+                    <span id="detailTokensUsed">0 / 200K tokens</span>
+                    <span id="detailTokensRemaining">~200K until compact</span>
+                </div>
+            </div>
+
+            <div class="detail-metric-card">
+                <div class="metric-title">SESSION</div>
+                <div class="metric-main" id="detailRuntime">0m 0s</div>
+                <div class="metric-details">
+                    <span id="detailIteration">Iteration: 1 of 10</span>
+                    <span id="detailPhase">Phase: implement</span>
+                </div>
+            </div>
+
+            <div class="detail-metric-card">
+                <div class="metric-title">COST</div>
+                <div class="metric-main">
+                    <span id="detailCost">$0.00</span>
+                    <span class="metric-budget">/ $10.00</span>
+                </div>
+                <div class="metric-progress">
+                    <div class="metric-progress-bar">
+                        <div class="metric-progress-fill cost" id="detailCostFill" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="metric-details">
+                    <span id="detailTokenBreakdown">In: 0 / Out: 0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Task + Quality/Confidence Split -->
+        <div class="detail-split-panel">
+            <div class="detail-task-panel">
+                <div class="panel-header">
+                    <span class="panel-title">CURRENT TASK</span>
+                    <span class="phase-badge" id="detailTaskPhase">implement</span>
+                </div>
+                <h2 id="detailTaskTitle">Loading...</h2>
+                <div class="task-meta">
+                    <span id="detailTaskPriority">Priority: high</span>
+                    <span id="detailTaskEstimate">Estimate: 2h</span>
+                </div>
+
+                <div class="acceptance-section">
+                    <div class="acceptance-header">
+                        <span>ACCEPTANCE CRITERIA</span>
+                        <span class="acceptance-progress" id="acceptanceProgress">0/0</span>
+                    </div>
+                    <div class="acceptance-list" id="acceptanceCriteriaList">
+                        <!-- Criteria items will be rendered here -->
+                    </div>
+                    <div class="acceptance-bar">
+                        <div class="acceptance-bar-fill" id="acceptanceBarFill" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-quality-panel">
+                <div class="panel-header">
+                    <span class="panel-title">QUALITY & CONFIDENCE</span>
+                </div>
+
+                <div class="quality-score-box">
+                    <span class="quality-score-value" id="detailQualityScore">--</span>
+                    <span class="quality-score-label">Quality Score</span>
+                </div>
+
+                <div class="confidence-mini-gauge">
+                    <div class="confidence-mini-circle">
+                        <svg width="80" height="80" viewBox="0 0 80 80">
+                            <circle class="confidence-mini-bg" cx="40" cy="40" r="32"></circle>
+                            <circle class="confidence-mini-fill" id="detailConfidenceFill" cx="40" cy="40" r="32"
+                                stroke-dasharray="201" stroke-dashoffset="201"></circle>
+                        </svg>
+                        <div class="confidence-mini-value" id="detailConfidenceValue">--</div>
+                    </div>
+                    <span class="confidence-mini-label">Confidence</span>
+                </div>
+
+                <div class="signals-list" id="detailSignalsList">
+                    <div class="signal-row">
+                        <span class="signal-name">Quality</span>
+                        <div class="signal-bar"><div class="signal-fill" id="detailSignalQuality" style="width: 0%"></div></div>
+                        <span class="signal-value" id="detailSignalQualityVal">--</span>
+                    </div>
+                    <div class="signal-row">
+                        <span class="signal-name">Velocity</span>
+                        <div class="signal-bar"><div class="signal-fill velocity" id="detailSignalVelocity" style="width: 0%"></div></div>
+                        <span class="signal-value" id="detailSignalVelocityVal">--</span>
+                    </div>
+                    <div class="signal-row">
+                        <span class="signal-name">Iterations</span>
+                        <div class="signal-bar"><div class="signal-fill iterations" id="detailSignalIterations" style="width: 0%"></div></div>
+                        <span class="signal-value" id="detailSignalIterationsVal">--</span>
+                    </div>
+                    <div class="signal-row">
+                        <span class="signal-name">Error Rate</span>
+                        <div class="signal-bar"><div class="signal-fill error" id="detailSignalErrorRate" style="width: 0%"></div></div>
+                        <span class="signal-value" id="detailSignalErrorRateVal">--</span>
+                    </div>
+                    <div class="signal-row">
+                        <span class="signal-name">Historical</span>
+                        <div class="signal-bar"><div class="signal-fill historical" id="detailSignalHistorical" style="width: 0%"></div></div>
+                        <span class="signal-value" id="detailSignalHistoricalVal">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task Queue -->
+        <div class="detail-queue-panel">
+            <div class="panel-header">
+                <span class="panel-title">TASK QUEUE</span>
+                <span class="queue-count" id="queueCount">0 tasks</span>
+            </div>
+            <table class="queue-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Task</th>
+                        <th>Priority</th>
+                        <th>Phase</th>
+                        <th>Estimate</th>
+                    </tr>
+                </thead>
+                <tbody id="taskQueueBody">
+                    <!-- Task rows will be rendered here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Log Viewer Placeholder (Phase 3) -->
+        <div class="detail-log-panel collapsed">
+            <div class="log-header" onclick="toggleLogPanel()">
+                <span class="panel-title">📋 LIVE LOG</span>
+                <span class="log-expand-icon">▼</span>
+            </div>
+            <div class="log-content" id="logContent" style="display: none;">
+                <div class="log-placeholder">
+                    <p>Live log streaming will be implemented in Phase 3.</p>
+                    <p>For now, use: <code>tail -f .claude/logs/session-*.log</code></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* ========== SESSION DETAIL VIEW STYLES ========== */
+        .detail-view {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-primary);
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .back-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--info);
+            color: var(--info);
+        }
+
+        .detail-controls {
+            display: flex;
+            gap: 12px;
+        }
+
+        .control-btn {
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .control-btn.pause {
+            background: var(--warning);
+            border: none;
+            color: #000;
+        }
+
+        .control-btn.pause:hover {
+            background: #e8a832;
+        }
+
+        .control-btn.pause.paused {
+            background: var(--success);
+        }
+
+        .control-btn.danger {
+            background: transparent;
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+
+        .control-btn.danger:hover {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .detail-project-info {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .detail-project-info h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .detail-status {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 12px;
+            background: rgba(63, 185, 80, 0.15);
+            color: var(--success);
+        }
+
+        .detail-status.paused {
+            background: rgba(210, 153, 34, 0.15);
+            color: var(--warning);
+        }
+
+        .detail-path {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: 'SF Mono', Monaco, monospace;
+            margin-top: 4px;
+        }
+
+        /* 3-Column Metrics Row */
+        .detail-metrics-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        @media (max-width: 900px) {
+            .detail-metrics-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .detail-metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .metric-title {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .metric-main {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .metric-budget {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .metric-progress {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .metric-progress-bar {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .metric-progress-fill {
+            height: 100%;
+            background: var(--success);
+            border-radius: 4px;
+            transition: width 0.3s, background 0.3s;
+        }
+
+        .metric-progress-fill.warning { background: var(--warning); }
+        .metric-progress-fill.critical { background: var(--danger); }
+        .metric-progress-fill.cost { background: var(--info); }
+
+        .metric-percent {
+            font-size: 20px;
+            font-weight: 700;
+            min-width: 50px;
+        }
+
+        .metric-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Split Panel */
+        .detail-split-panel {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            padding: 20px 24px;
+        }
+
+        @media (max-width: 900px) {
+            .detail-split-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .detail-task-panel, .detail-quality-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .panel-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .detail-task-panel h2 {
+            font-size: 20px;
+            margin-bottom: 12px;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        /* Acceptance Criteria */
+        .acceptance-section {
+            border-top: 1px solid var(--border);
+            padding-top: 16px;
+        }
+
+        .acceptance-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .acceptance-progress {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .acceptance-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .acceptance-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .acceptance-item.met {
+            opacity: 0.7;
+        }
+
+        .acceptance-checkbox {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .acceptance-checkbox.checked {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        .acceptance-checkbox.checked::after {
+            content: '✓';
+            color: #fff;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .acceptance-item.met .acceptance-text {
+            text-decoration: line-through;
+        }
+
+        .acceptance-bar {
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .acceptance-bar-fill {
+            height: 100%;
+            background: var(--success);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        /* Quality Panel */
+        .quality-score-box {
+            text-align: center;
+            padding: 20px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .quality-score-value {
+            font-size: 42px;
+            font-weight: 700;
+            display: block;
+            color: var(--success);
+        }
+
+        .quality-score-value.close { color: var(--warning); }
+        .quality-score-value.failing { color: var(--danger); }
+
+        .quality-score-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .confidence-mini-gauge {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .confidence-mini-circle {
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+
+        .confidence-mini-circle svg {
+            transform: rotate(-90deg);
+        }
+
+        .confidence-mini-bg {
+            fill: none;
+            stroke: var(--bg-tertiary);
+            stroke-width: 8;
+        }
+
+        .confidence-mini-fill {
+            fill: none;
+            stroke: var(--success);
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s;
+        }
+
+        .confidence-mini-fill.warning { stroke: var(--warning); }
+        .confidence-mini-fill.critical { stroke: var(--danger); }
+
+        .confidence-mini-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .confidence-mini-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .signals-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .signal-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .signal-row .signal-name {
+            width: 70px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .signal-row .signal-bar {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .signal-row .signal-fill {
+            height: 100%;
+            background: var(--success);
+            border-radius: 2px;
+        }
+
+        .signal-row .signal-fill.velocity { background: var(--info); }
+        .signal-row .signal-fill.iterations { background: var(--warning); }
+        .signal-row .signal-fill.error { background: var(--danger); }
+        .signal-row .signal-fill.historical { background: #a371f7; }
+
+        .signal-row .signal-value {
+            width: 28px;
+            font-size: 11px;
+            font-weight: 600;
+            text-align: right;
+        }
+
+        /* Task Queue Panel */
+        .detail-queue-panel {
+            margin: 0 24px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .queue-count {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .queue-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .queue-table th {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .queue-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .queue-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .queue-table tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .queue-table .next-badge {
+            background: var(--info);
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+
+        .queue-table .priority-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .priority-badge.critical { background: rgba(248, 81, 73, 0.2); color: var(--danger); }
+        .priority-badge.high { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+        .priority-badge.medium { background: rgba(88, 166, 255, 0.2); color: var(--info); }
+        .priority-badge.low { background: rgba(139, 148, 158, 0.2); color: var(--text-secondary); }
+
+        /* Log Panel (Placeholder) */
+        .detail-log-panel {
+            margin: 0 24px 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .log-header:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .log-expand-icon {
+            color: var(--text-secondary);
+            transition: transform 0.3s;
+        }
+
+        .detail-log-panel.expanded .log-expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .log-content {
+            border-top: 1px solid var(--border);
+            padding: 20px;
+            background: #0a0c10;
+        }
+
+        .log-placeholder {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 40px 20px;
+        }
+
+        .log-placeholder code {
+            display: inline-block;
+            background: var(--bg-tertiary);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, monospace;
+            margin-top: 8px;
+        }
+    </style>
+
     <script>
         const API_URL = 'http://localhost:3033';
         let soundEnabled = true;
         let audioContext = null;
         let lastAlertLevel = null;
         let eventSource = null;
+        let currentDetailSessionId = null;
+        let detailRefreshInterval = null;
 
         function initAudio() {
             if (!audioContext) {
@@ -2068,8 +2819,11 @@
                                 </div>
                             </div>
 
-                            ${statusClass !== 'ok' ? `
-                                <div class="session-actions">
+                            <div class="session-actions">
+                                <button class="action-btn view-details" onclick="viewProjectDetails('${project.path}')">
+                                    View Details
+                                </button>
+                                ${statusClass !== 'ok' ? `
                                     <button class="action-btn ${statusClass === 'emergency' ? 'danger' : 'primary'}"
                                             onclick="copyCommand('/clear')">
                                         Copy /clear
@@ -2077,8 +2831,8 @@
                                     <button class="action-btn" onclick="copyCommand('/session-init')">
                                         Copy /session-init
                                     </button>
-                                </div>
-                            ` : ''}
+                                ` : ''}
+                            </div>
                         </div>
                     `;
                 }).join('');
@@ -2143,6 +2897,289 @@
             if ('Notification' in window && Notification.permission === 'granted') {
                 new Notification(`Claude: ${title}`, { body });
             }
+        }
+
+        // ========== SESSION DETAIL VIEW FUNCTIONS ==========
+
+        function showDetailView(sessionId) {
+            currentDetailSessionId = sessionId;
+            document.getElementById('detailView').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+
+            // Re-enable pause button for real sessions
+            const pauseBtn = document.getElementById('detailPauseBtn');
+            pauseBtn.disabled = false;
+            pauseBtn.style.opacity = '1';
+            pauseBtn.title = '';
+
+            // Fetch and display session details
+            fetchSessionDetail(sessionId);
+
+            // Start periodic refresh
+            detailRefreshInterval = setInterval(() => {
+                if (currentDetailSessionId) {
+                    fetchSessionDetail(currentDetailSessionId);
+                }
+            }, 3000);
+        }
+
+        function hideDetailView() {
+            currentDetailSessionId = null;
+            document.getElementById('detailView').style.display = 'none';
+            document.body.style.overflow = 'auto';
+
+            // Stop refresh
+            if (detailRefreshInterval) {
+                clearInterval(detailRefreshInterval);
+                detailRefreshInterval = null;
+            }
+        }
+
+        async function fetchSessionDetail(sessionId) {
+            try {
+                const response = await fetch(`${API_URL}/api/sessions/${sessionId}`);
+                if (!response.ok) {
+                    console.error('Session not found');
+                    return;
+                }
+                const session = await response.json();
+                updateDetailView(session);
+            } catch (err) {
+                console.error('Failed to fetch session details:', err);
+            }
+        }
+
+        function updateDetailView(session) {
+            // Project info
+            document.getElementById('detailProjectName').textContent = session.project || 'Unknown Project';
+            document.getElementById('detailPath').textContent = session.path || '';
+
+            const statusEl = document.getElementById('detailStatus');
+            const isPaused = session.status === 'paused';
+            statusEl.textContent = isPaused ? '○ PAUSED' : '● RUNNING';
+            statusEl.className = `detail-status ${isPaused ? 'paused' : ''}`;
+
+            // Update pause button
+            const pauseBtn = document.getElementById('detailPauseBtn');
+            pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
+            pauseBtn.className = `control-btn pause ${isPaused ? 'paused' : ''}`;
+
+            // Context metrics
+            const contextPercent = session.contextPercent || 0;
+            const contextUsed = 100 - contextPercent;
+            const tokensUsed = Math.round((contextUsed / 100) * 200000);
+            const tokensRemaining = 200000 - tokensUsed;
+            const tokensUntilCompact = Math.max(0, tokensRemaining - 45000);
+
+            document.getElementById('detailContextPercent').textContent = `${contextPercent.toFixed(0)}%`;
+            document.getElementById('detailTokensUsed').textContent = `${formatTokens(tokensUsed)} / 200K tokens`;
+            document.getElementById('detailTokensRemaining').textContent = `~${formatTokens(tokensUntilCompact)} until compact`;
+
+            const contextFill = document.getElementById('detailContextFill');
+            contextFill.style.width = `${contextUsed}%`;
+            contextFill.className = `metric-progress-fill ${getStatusClass(contextUsed)}`;
+
+            // Session metrics
+            document.getElementById('detailRuntime').textContent = formatDuration((session.runtime || 0) * 1000);
+            document.getElementById('detailIteration').textContent = `Iteration: ${session.iteration || 1} of 10`;
+            document.getElementById('detailPhase').textContent = `Phase: ${session.phase || session.currentTask?.phase || 'idle'}`;
+
+            // Cost metrics
+            const cost = session.cost || 0;
+            const budget = 10.00;
+            document.getElementById('detailCost').textContent = `$${cost.toFixed(2)}`;
+            document.getElementById('detailCostFill').style.width = `${Math.min(100, (cost / budget) * 100)}%`;
+            document.getElementById('detailTokenBreakdown').textContent = `In: ${formatTokens(session.tokensIn || session.tokens || 0)} / Out: ${formatTokens(session.tokensOut || 0)}`;
+
+            // Current task
+            const task = session.currentTask || {};
+            document.getElementById('detailTaskTitle').textContent = task.title || task.id || 'No active task';
+            document.getElementById('detailTaskPhase').textContent = task.phase || 'idle';
+            document.getElementById('detailTaskPhase').className = `phase-badge ${task.phase || 'idle'}`;
+            document.getElementById('detailTaskPriority').textContent = `Priority: ${task.priority || 'medium'}`;
+            document.getElementById('detailTaskEstimate').textContent = `Estimate: ${task.estimate || '--'}`;
+
+            // Acceptance criteria
+            const criteria = session.acceptanceCriteria || task.acceptanceCriteria || [];
+            renderAcceptanceCriteria(criteria);
+
+            // Quality score
+            const qualityScore = session.qualityScore || 0;
+            const qualityEl = document.getElementById('detailQualityScore');
+            qualityEl.textContent = qualityScore;
+            qualityEl.className = `quality-score-value ${qualityScore >= 85 ? '' : qualityScore >= 75 ? 'close' : 'failing'}`;
+
+            // Confidence
+            const confidence = session.confidenceScore || session.confidence || 0;
+            const circumference = 2 * Math.PI * 32;
+            const offset = circumference - (confidence / 100) * circumference;
+
+            document.getElementById('detailConfidenceValue').textContent = Math.round(confidence);
+            const confFill = document.getElementById('detailConfidenceFill');
+            confFill.style.strokeDashoffset = offset;
+            confFill.className = `confidence-mini-fill ${confidence >= 70 ? '' : confidence >= 50 ? 'warning' : 'critical'}`;
+
+            // Confidence signals
+            const signals = session.confidenceSignals || {};
+            updateDetailSignal('detailSignalQuality', 'detailSignalQualityVal', signals.quality || signals.qualityScore || qualityScore);
+            updateDetailSignal('detailSignalVelocity', 'detailSignalVelocityVal', signals.velocity || 50);
+            updateDetailSignal('detailSignalIterations', 'detailSignalIterationsVal', signals.iterations || 50);
+            updateDetailSignal('detailSignalErrorRate', 'detailSignalErrorRateVal', signals.errorRate || 10);
+            updateDetailSignal('detailSignalHistorical', 'detailSignalHistoricalVal', signals.historical || 70);
+
+            // Task queue
+            const queue = session.taskQueue || [];
+            renderTaskQueue(queue);
+        }
+
+        function updateDetailSignal(fillId, valId, value) {
+            document.getElementById(fillId).style.width = `${value}%`;
+            document.getElementById(valId).textContent = Math.round(value);
+        }
+
+        function renderAcceptanceCriteria(criteria) {
+            const list = document.getElementById('acceptanceCriteriaList');
+            const metCount = criteria.filter(c => c.met).length;
+            const total = criteria.length;
+
+            document.getElementById('acceptanceProgress').textContent = `${metCount}/${total}`;
+            document.getElementById('acceptanceBarFill').style.width = total > 0 ? `${(metCount / total) * 100}%` : '0%';
+
+            if (criteria.length === 0) {
+                list.innerHTML = '<div class="acceptance-item"><span class="acceptance-text" style="color: var(--text-secondary);">No acceptance criteria defined</span></div>';
+                return;
+            }
+
+            list.innerHTML = criteria.map(c => `
+                <div class="acceptance-item ${c.met ? 'met' : ''}">
+                    <div class="acceptance-checkbox ${c.met ? 'checked' : ''}"></div>
+                    <span class="acceptance-text">${c.text}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderTaskQueue(queue) {
+            const tbody = document.getElementById('taskQueueBody');
+            document.getElementById('queueCount').textContent = `${queue.length} tasks`;
+
+            if (queue.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-secondary);">No tasks in queue</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = queue.map((task, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${task.title || task.id}${i === 0 ? '<span class="next-badge">NEXT</span>' : ''}</td>
+                    <td><span class="priority-badge ${task.priority || 'medium'}">${task.priority || 'medium'}</span></td>
+                    <td>${task.phase || '--'}</td>
+                    <td>${task.estimate || '--'}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function togglePauseSession() {
+            if (!currentDetailSessionId) return;
+
+            const session = await fetch(`${API_URL}/api/sessions/${currentDetailSessionId}`).then(r => r.json()).catch(() => null);
+            if (!session) return;
+
+            const endpoint = session.status === 'paused' ? 'resume' : 'pause';
+
+            try {
+                await fetch(`${API_URL}/api/sessions/${currentDetailSessionId}/${endpoint}`, { method: 'POST' });
+                fetchSessionDetail(currentDetailSessionId);
+            } catch (err) {
+                console.error('Failed to toggle session:', err);
+            }
+        }
+
+        async function endSession() {
+            if (!currentDetailSessionId) return;
+
+            if (!confirm('Are you sure you want to end this session?')) return;
+
+            try {
+                await fetch(`${API_URL}/api/sessions/${currentDetailSessionId}/end`, { method: 'POST' });
+                hideDetailView();
+            } catch (err) {
+                console.error('Failed to end session:', err);
+            }
+        }
+
+        function toggleLogPanel() {
+            const panel = document.querySelector('.detail-log-panel');
+            const content = document.getElementById('logContent');
+            panel.classList.toggle('expanded');
+            content.style.display = panel.classList.contains('expanded') ? 'block' : 'none';
+        }
+
+        // Navigate from session card to detail view
+        function viewSessionDetails(sessionId) {
+            showDetailView(sessionId);
+        }
+
+        // View details for a project (by path)
+        async function viewProjectDetails(projectPath) {
+            try {
+                // Try to find a registered session for this project
+                const response = await fetch(`${API_URL}/api/sessions/summary`);
+                const data = await response.json();
+
+                // Find session matching the project path
+                const session = data.sessions?.find(s => s.path === projectPath || s.project === projectPath);
+
+                if (session) {
+                    showDetailView(session.id);
+                } else {
+                    // No registered session - create a temporary view with project info
+                    const projectResponse = await fetch(`${API_URL}/api/projects/${encodeURIComponent(projectPath.split('/').pop() || projectPath.split('\\').pop())}`);
+                    if (projectResponse.ok) {
+                        const project = await projectResponse.json();
+                        showProjectDetailFallback(project, projectPath);
+                    } else {
+                        alert('Session details not available. The orchestrator may not be running for this project.');
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to fetch project details:', err);
+                alert('Failed to load session details.');
+            }
+        }
+
+        // Fallback: Show project info when no session is registered
+        function showProjectDetailFallback(project, projectPath) {
+            // Create a mock session object from project data
+            const mockSession = {
+                id: null,
+                project: project.name || 'Unknown Project',
+                path: projectPath,
+                status: 'idle',
+                contextPercent: project.metrics?.contextPercent || 0,
+                tokens: project.metrics?.totalTokens || 0,
+                tokensIn: project.metrics?.inputTokens || 0,
+                tokensOut: project.metrics?.outputTokens || 0,
+                cost: project.metrics?.cost || 0,
+                runtime: 0,
+                iteration: 0,
+                qualityScore: 0,
+                confidenceScore: 100,
+                currentTask: null,
+                acceptanceCriteria: [],
+                taskQueue: []
+            };
+
+            currentDetailSessionId = null; // Mark as non-session view
+            document.getElementById('detailView').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+
+            // Disable pause/resume for non-session view
+            const pauseBtn = document.getElementById('detailPauseBtn');
+            pauseBtn.disabled = true;
+            pauseBtn.style.opacity = '0.5';
+            pauseBtn.title = 'No active session';
+
+            updateDetailView(mockSession);
         }
 
         function connect() {

@@ -199,6 +199,10 @@ class TaskManager extends EventEmitter {
       // Unblock dependent tasks
       this._updateBlockedTasks(taskId);
 
+      // Move task to completed backlog tier
+      // This ensures completed tasks are archived and don't clutter active tiers
+      this._moveToCompletedTier(taskId);
+
       this.emit('task:completed', { task, metadata });
     }
 
@@ -339,7 +343,7 @@ class TaskManager extends EventEmitter {
    * @param {string} toTier - now|next|later|someday
    */
   moveToBacklog(taskId, toTier) {
-    if (!['now', 'next', 'later', 'someday'].includes(toTier)) {
+    if (!['now', 'next', 'later', 'someday', 'completed'].includes(toTier)) {
       throw new Error(`Invalid backlog tier: ${toTier}`);
     }
 
@@ -350,8 +354,8 @@ class TaskManager extends EventEmitter {
 
     let fromTier = null;
 
-    // Remove from current tier
-    for (const tier of ['now', 'next', 'later', 'someday']) {
+    // Remove from current tier (check all tiers including completed)
+    for (const tier of ['now', 'next', 'later', 'someday', 'completed']) {
       const index = this.tasks.backlog[tier].tasks.indexOf(taskId);
       if (index !== -1) {
         this.tasks.backlog[tier].tasks.splice(index, 1);
@@ -576,6 +580,37 @@ class TaskManager extends EventEmitter {
     }
 
     this.save();
+  }
+
+  /**
+   * Move task to completed backlog tier
+   * @private
+   */
+  _moveToCompletedTier(taskId) {
+    // Safety check: ensure backlog structure exists
+    if (!this.tasks?.backlog) {
+      return;
+    }
+
+    // Remove from all active tiers
+    for (const tier of ['now', 'next', 'later', 'someday']) {
+      const tierData = this.tasks.backlog[tier];
+      if (tierData?.tasks) {
+        const index = tierData.tasks.indexOf(taskId);
+        if (index !== -1) {
+          tierData.tasks.splice(index, 1);
+          break;
+        }
+      }
+    }
+
+    // Add to completed tier if it exists
+    if (this.tasks.backlog.completed?.tasks) {
+      if (!this.tasks.backlog.completed.tasks.includes(taskId)) {
+        this.tasks.backlog.completed.tasks.push(taskId);
+      }
+    }
+    // Note: save() is called by the parent updateStatus() method
   }
 
   /**

@@ -1,8 +1,186 @@
 # PROJECT SUMMARY - Multi-Agent Template with Production Telemetry
-**Last Updated**: 2025-12-26 (Session 19)
+**Last Updated**: 2025-12-26 (Session 22)
 
-**Current Phase**: ENHANCEMENT
-**Status**: PRODUCTION READY - Feature flags + dashboard backlog panel
+**Current Phase**: DASHBOARD COMMAND CENTER
+**Status**: PHASE 2 COMPLETE - Ready for Phase 3 (Live Log Viewer)
+
+---
+
+## Session 22: Dashboard Session Detail View ✅ COMPLETE
+
+### What Was Done
+
+1. **Session Detail View UI** (`global-dashboard.html`)
+   - Full-page overlay with back navigation
+   - 3-column metrics header (Context/Session/Cost)
+   - Acceptance criteria checklist with progress bar
+   - Confidence gauge (mini circular) with 5 signal breakdown bars
+   - Task queue table with priority badges, NEXT indicator
+   - Session controls (Pause/Resume/End)
+   - Live log panel placeholder (Phase 3)
+
+2. **Navigation System**
+   - View Details button on all project cards
+   - `viewProjectDetails(projectPath)` - finds session by path
+   - `showDetailView(sessionId)` - displays detail overlay
+   - `hideDetailView()` - returns to Command Center
+   - Fallback for non-registered sessions (shows project metrics)
+
+3. **Session Registry Enhancement** (`.claude/core/session-registry.js`)
+   - Added `acceptanceCriteria` array
+   - Added `taskQueue` array
+   - Added `confidenceSignals` object (quality, velocity, iterations, errorRate, historical)
+   - Added `phaseHistory` array
+   - Added `tokensIn`/`tokensOut` fields
+   - Added `phase` field
+
+4. **Detail View Features**
+   - Auto-refresh every 3 seconds when viewing
+   - Pause/Resume toggle button (changes text based on state)
+   - End Session with confirmation dialog
+   - Responsive layout for mobile
+
+### Files Modified
+| File | Changes | Purpose |
+|------|---------|---------|
+| `global-dashboard.html` | +500 lines | Session Detail View UI + JS |
+| `.claude/core/session-registry.js` | +20 lines | Additional session fields |
+
+### Test Results
+- **1291 tests passing** - No regressions
+
+### Phase 2 Acceptance Criteria ✅
+- [x] Back navigation to Command Center
+- [x] 3-column metrics header (Context/Session/Cost)
+- [x] Acceptance criteria checklist with progress
+- [x] Confidence gauge with 5 signals
+- [x] Task queue table with priorities
+- [x] Pause/Resume/End session controls work
+
+---
+
+## Session 21: Dashboard Command Center Phase 1 ✅ COMPLETE
+
+### What Was Done
+
+1. **Session Registry Service** (`.claude/core/session-registry.js`)
+   - Multi-session tracking with EventEmitter pattern
+   - Auto-expiry of stale sessions (30 min timeout)
+   - Session registration, update, deregistration
+   - Task completion recording with metrics
+   - Global summary aggregation for Command Center
+
+2. **Usage Limit Tracker** (`.claude/core/usage-limit-tracker.js`)
+   - Tracks 5-hour rolling window (Claude Code primary limit)
+   - Daily and weekly limit tracking
+   - Pace calculation (messages/hour) vs safe rate
+   - End-of-day usage projection
+   - JSON persistence to `.claude/data/usage-limits.json`
+   - Alerts at 70%/90% thresholds
+
+3. **API Endpoints** (added to `global-context-manager.js`)
+   - `GET /api/sessions/summary` - Global metrics + all sessions
+   - `GET /api/sessions/:id` - Single session detail
+   - `POST /api/sessions/register` - Orchestrator registers on start
+   - `POST /api/sessions/:id/update` - Orchestrator updates state
+   - `POST /api/sessions/:id/pause` - Pause session
+   - `POST /api/sessions/:id/resume` - Resume session
+   - `POST /api/sessions/:id/end` - End session
+   - `GET /api/usage/limits` - 5h/daily/weekly usage with reset times
+   - `GET /api/usage/alerts` - Active usage limit alerts
+   - `POST /api/usage/record` - Record message usage
+   - `GET /api/sse/command-center` - SSE stream for Command Center
+
+4. **Dashboard Refactor** (`global-dashboard.html`)
+   - Complete UI overhaul to Command Center layout
+   - Global Metrics Bar (5 stat cards)
+   - Usage Limits Panel (3-column with progress bars)
+   - Session Cards Grid (multi-session view)
+   - Recent Completions Table
+   - Color-coded thresholds (ok/warning/critical/emergency)
+
+5. **Orchestrator Integration** (`autonomous-orchestrator.js`)
+   - Registers session on startup
+   - Updates state on phase/task changes
+   - Records task completions to Command Center
+   - Updates context percent from dashboard updates
+   - Deregisters on graceful shutdown
+
+### Files Created/Modified
+| File | Lines | Purpose |
+|------|-------|---------|
+| `.claude/core/session-registry.js` | ~270 | Multi-session tracking |
+| `.claude/core/usage-limit-tracker.js` | ~300 | Track Claude Code limits |
+| `global-context-manager.js` | +280 | Session + usage API endpoints |
+| `global-dashboard.html` | Refactored | Command Center UI |
+| `autonomous-orchestrator.js` | +120 | Dashboard integration |
+
+### Test Results
+- **1291 tests passing** - No regressions
+- All new services validated
+
+### Phase 1 Acceptance Criteria ✅
+- [x] Shows all active sessions in grid layout
+- [x] Displays 5 global metrics (active, tasks done, health, cost, alerts)
+- [x] Context % progress bar with color coding per session
+- [x] Current and next task visible per session
+- [x] Click session card navigates to detail view
+- [x] Auto-refresh via SSE
+- [x] Recent completions table at bottom
+- [x] 5-hour window: shows used/limit with progress bar and reset countdown
+- [x] Daily limit: shows used/limit with projected end-of-day usage
+- [x] Weekly limit: shows used/limit with reset day
+- [x] Color coding at 50%/75%/90% thresholds
+- [x] Alert banner when any limit exceeds 90%
+
+---
+
+## Session 20: Dashboard UX Redesign ✅ DESIGN COMPLETE
+
+### What Was Done
+
+1. **Fixed Critical Orchestrator Bugs** (Session 19b)
+   - Bug 1: Tasks marked complete without verification (`?? true` default) - FIXED
+   - Bug 2: Tasks not moved to completed tier when finished - FIXED
+   - Added `_moveToCompletedTier()` method to TaskManager
+   - All 1291 tests passing
+
+2. **UX Research & Analysis**
+   - Analyzed current `global-dashboard.html` (2186 lines)
+   - Reviewed orchestrator and framework capabilities
+   - Identified all monitorable metrics and data sources
+   - Researched dashboard UX best practices
+
+3. **Created Comprehensive UX Design Document**
+   - `docs/DASHBOARD-UX-REDESIGN.md` (~800 lines)
+   - 3-level information hierarchy (Command Center → Session → Detail)
+   - Full wireframes for all views
+   - API specifications for new endpoints
+   - Component specifications
+   - Implementation phases defined
+
+### Key Design Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Layout | Grid of session cards | Compare sessions side-by-side |
+| Primary Metric | Context % remaining | Most critical for preventing auto-compaction |
+| Navigation | Breadcrumb + back button | Clear hierarchy |
+| Log Viewer | Collapsible panel + modal | Available but not overwhelming |
+| Updates | SSE every 3 seconds | Real-time without polling overhead |
+
+### Files Created
+| File | Lines | Purpose |
+|------|-------|---------|
+| `docs/DASHBOARD-UX-REDESIGN.md` | ~800 | Full UX specification with wireframes |
+| `docs/DASHBOARD-ENHANCEMENTS-DESIGN.md` | ~516 | Previous feature requirements |
+
+### Next Steps: Implementation
+Ready for implementation in 4 phases:
+1. Command Center Core (session registry, grid view)
+2. Session Detail View (drill-down, controls)
+3. Live Log Viewer (SSE streaming, filters)
+4. Polish (responsive, keyboard nav, search)
 
 ---
 

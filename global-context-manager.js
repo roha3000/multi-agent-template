@@ -26,6 +26,8 @@ const PredictiveAnalytics = require('./.claude/core/predictive-analytics');
 const TaskManager = require('./.claude/core/task-manager');
 const TaskGraph = require('./.claude/core/task-graph');
 const NotificationService = require('./.claude/core/notification-service');
+const { getSessionRegistry } = require('./.claude/core/session-registry');
+const { getUsageLimitTracker } = require('./.claude/core/usage-limit-tracker');
 
 const app = express();
 app.use(cors());
@@ -114,6 +116,11 @@ try {
 } catch (err) {
   console.log('[TASKS] TaskManager not available:', err.message);
 }
+
+// Initialize Session Registry and Usage Limit Tracker
+const sessionRegistry = getSessionRegistry();
+const usageLimitTracker = getUsageLimitTracker();
+console.log('[COMMAND CENTER] Session Registry and Usage Limit Tracker initialized');
 
 // Session series tracking for continuous loop
 let sessionSeries = {
@@ -951,6 +958,286 @@ app.post('/api/notifications/alert/taskgroup', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ============================================================================
+// COMMAND CENTER API ENDPOINTS (Session Registry + Usage Limits)
+// ============================================================================
+
+// Get all sessions summary (Command Center main data)
+app.get('/api/sessions/summary', (req, res) => {
+  const summary = sessionRegistry.getSummary();
+  res.json({
+    globalMetrics: {
+      activeCount: summary.metrics.activeCount,
+      tasksCompletedToday: summary.metrics.tasksCompletedToday,
+      avgHealthScore: summary.metrics.avgHealthScore,
+      totalCostToday: summary.metrics.totalCostToday,
+      alertCount: summary.metrics.alertCount
+    },
+    sessions: summary.sessions.map(s => ({
+      id: s.id,
+      project: s.project,
+      path: s.path,
+      status: s.status,
+      contextPercent: s.contextPercent,
+      currentTask: s.currentTask,
+      nextTask: s.nextTask,
+      qualityScore: s.qualityScore,
+      confidenceScore: s.confidenceScore,
+      tokens: s.tokens,
+      cost: s.cost,
+      runtime: s.runtime,
+      iteration: s.iteration
+    })),
+    recentCompletions: summary.recentCompletions
+  });
+});
+
+// Get single session detail
+app.get('/api/sessions/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const session = sessionRegistry.get(id);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  res.json(session);
+});
+
+// Register a new session (called by orchestrator on startup)
+app.post('/api/sessions/register', (req, res) => {
+  const { project, path: projectPath, currentTask, status } = req.body;
+
+  const id = sessionRegistry.register({
+    project: project || 'unknown',
+    path: projectPath || process.cwd(),
+    status: status || 'active',
+    currentTask: currentTask || null
+  });
+
+  console.log(`[COMMAND CENTER] Session registered: ${id} (${project})`);
+  res.json({ success: true, id });
+});
+
+// Update session state (called by orchestrator on phase/task changes)
+app.post('/api/sessions/:id/update', (req, res) => {
+  const id = parseInt(req.params.id);
+  const updates = req.body;
+
+  const session = sessionRegistry.update(id, updates);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  console.log(`[COMMAND CENTER] Session ${id} updated`);
+  res.json({ success: true, session });
+});
+
+// Pause session
+app.post('/api/sessions/:id/pause', (req, res) => {
+  const id = parseInt(req.params.id);
+  const session = sessionRegistry.update(id, { status: 'paused' });
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  console.log(`[COMMAND CENTER] Session ${id} paused`);
+  res.json({ success: true });
+});
+
+// Resume session
+app.post('/api/sessions/:id/resume', (req, res) => {
+  const id = parseInt(req.params.id);
+  const session = sessionRegistry.update(id, { status: 'active' });
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  console.log(`[COMMAND CENTER] Session ${id} resumed`);
+  res.json({ success: true });
+});
+
+// End session
+app.post('/api/sessions/:id/end', (req, res) => {
+  const id = parseInt(req.params.id);
+  const session = sessionRegistry.deregister(id);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  console.log(`[COMMAND CENTER] Session ${id} ended`);
+  res.json({ success: true, session });
+});
+
+// Record task completion
+app.post('/api/sessions/completion', (req, res) => {
+  const { project, task, score, cost } = req.body;
+
+  const completion = sessionRegistry.recordCompletion(project, task, score, cost);
+
+  // Also record a message in usage tracker
+  usageLimitTracker.recordMessage();
+
+  res.json({ success: true, completion });
+});
+
+// ============================================================================
+// USAGE LIMITS API ENDPOINTS
+// ============================================================================
+
+// Get usage limits status
+app.get('/api/usage/limits', (req, res) => {
+  const status = usageLimitTracker.getStatus();
+
+  res.json({
+    fiveHour: {
+      used: status.fiveHour.used,
+      limit: status.fiveHour.limit,
+      percent: status.fiveHour.percent,
+      resetAt: status.fiveHour.resetAt,
+      resetIn: status.fiveHour.resetIn,
+      pace: status.fiveHour.pace
+    },
+    daily: {
+      used: status.daily.used,
+      limit: status.daily.limit,
+      percent: status.daily.percent,
+      resetAt: status.daily.resetAt,
+      resetIn: status.daily.resetIn,
+      projected: status.daily.projected
+    },
+    weekly: {
+      used: status.weekly.used,
+      limit: status.weekly.limit,
+      percent: status.weekly.percent,
+      resetAt: status.weekly.resetAt,
+      resetDay: status.weekly.resetDay
+    },
+    lastUpdated: status.lastUpdated
+  });
+});
+
+// Get usage alerts
+app.get('/api/usage/alerts', (req, res) => {
+  res.json({
+    alerts: usageLimitTracker.getAlerts(),
+    nearLimit: usageLimitTracker.isNearLimit(70)
+  });
+});
+
+// Record a message (for manual tracking)
+app.post('/api/usage/record', (req, res) => {
+  const status = usageLimitTracker.recordMessage();
+  res.json({ success: true, status });
+});
+
+// Set usage limits (for configuration)
+app.post('/api/usage/limits', (req, res) => {
+  const { fiveHour, daily, weekly } = req.body;
+  usageLimitTracker.setLimits(fiveHour, daily, weekly);
+  res.json({ success: true, limits: { fiveHour, daily, weekly } });
+});
+
+// Reset usage window (for testing)
+app.post('/api/usage/reset', (req, res) => {
+  const { window } = req.body;
+  usageLimitTracker.reset(window || 'all');
+  res.json({ success: true });
+});
+
+// SSE for Command Center real-time updates
+app.get('/api/sse/command-center', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*'
+  });
+
+  const sendFullUpdate = () => {
+    const summary = sessionRegistry.getSummary();
+    const limits = usageLimitTracker.getStatus();
+
+    const data = {
+      type: 'full',
+      sessions: summary.sessions,
+      metrics: {
+        activeSessions: summary.metrics.activeCount,
+        tasksDone: summary.metrics.tasksCompletedToday,
+        tasksTotal: summary.sessions.length * 5, // Estimate
+        avgHealth: summary.metrics.avgHealthScore,
+        costToday: summary.metrics.totalCostToday,
+        costChange: 0,
+        alerts: summary.metrics.alertCount
+      },
+      limits: {
+        fiveHour: {
+          used: limits.fiveHour.used,
+          limit: limits.fiveHour.limit,
+          resetIn: Math.floor((new Date(limits.fiveHour.resetAt) - Date.now()) / 1000),
+          pace: limits.fiveHour.pace.current,
+          safeLimit: limits.fiveHour.pace.safe
+        },
+        daily: {
+          used: limits.daily.used,
+          limit: limits.daily.limit,
+          resetIn: Math.floor((new Date(limits.daily.resetAt) - Date.now()) / 1000),
+          projected: limits.daily.projected.endOfDay
+        },
+        weekly: {
+          used: limits.weekly.used,
+          limit: limits.weekly.limit,
+          resetDay: limits.weekly.resetDay
+        }
+      },
+      completions: summary.recentCompletions.map(c => ({
+        project: c.project,
+        task: c.taskTitle,
+        score: c.score,
+        cost: c.cost,
+        completed: formatTimeAgo(c.completedAt)
+      })),
+      timestamp: new Date().toISOString()
+    };
+
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // Send initial data
+  sendFullUpdate();
+
+  // Send updates periodically (every 3 seconds for sessions, every 60 seconds for limits)
+  const sessionInterval = setInterval(sendFullUpdate, 3000);
+
+  // Listen for session registry events
+  const onSessionChange = () => sendFullUpdate();
+  sessionRegistry.on('session:registered', onSessionChange);
+  sessionRegistry.on('session:updated', onSessionChange);
+  sessionRegistry.on('session:deregistered', onSessionChange);
+  sessionRegistry.on('task:completed', onSessionChange);
+
+  req.on('close', () => {
+    clearInterval(sessionInterval);
+    sessionRegistry.removeListener('session:registered', onSessionChange);
+    sessionRegistry.removeListener('session:updated', onSessionChange);
+    sessionRegistry.removeListener('session:deregistered', onSessionChange);
+    sessionRegistry.removeListener('task:completed', onSessionChange);
+  });
+});
+
+// Helper function for time ago formatting
+function formatTimeAgo(isoString) {
+  const seconds = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+  return `${Math.floor(seconds / 86400)} days ago`;
+}
 
 // ============================================================================
 // START SERVER

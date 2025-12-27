@@ -1,344 +1,244 @@
-# Current Plan - Claude-Swarm Integration Complete
+# Current Plan - Dashboard Command Center Implementation
 
-**Last Updated**: 2025-12-25 (Session 18)
-**Current Phase**: ENHANCEMENT
-**Status**: PRODUCTION READY - Claude-swarm features integrated
-**Priority**: DELIVERED
-
----
-
-## SESSION 18: Claude-Swarm Integration - COMPLETE ✅
-
-### Goal (ACHIEVED)
-Implement 5 features from claude-swarm MCP server and integrate into the autonomous agent continuous loop framework.
-
-### What Was Built
-
-1. **ComplexityAnalyzer** (`.claude/core/complexity-analyzer.js`)
-   - Scores tasks 0-100 using 5 weighted dimensions
-   - Dimensions: dependency depth (25%), acceptance criteria (20%), effort estimate (15%), technical keywords (25%), historical success (15%)
-   - Returns strategy: 'fast-path' (<40), 'standard' (40-70), 'competitive' (>=70)
-
-2. **CompetitivePlanner** (`.claude/core/competitive-planner.js`)
-   - Generates 2-3 competing implementation plans
-   - Strategies: conservative, balanced, aggressive
-   - Complexity threshold: 40 (configurable)
-
-3. **PlanEvaluator** (`.claude/core/plan-evaluator.js`)
-   - Scores plans on 5 weighted criteria
-   - Criteria: completeness (25%), feasibility (25%), risk (20%), clarity (15%), efficiency (15%)
-   - Compares plans and identifies winner
-
-4. **ConfidenceMonitor** (`.claude/core/confidence-monitor.js`)
-   - Tracks 5 signals: qualityScore (30%), velocity (25%), iterations (20%), errorRate (15%), historical (10%)
-   - Threshold alerts: warning (60), critical (40), emergency (25)
-
-5. **SecurityValidator** (`.claude/core/security-validator.js`)
-   - Prompt injection detection (15+ patterns)
-   - Path traversal blocking
-   - Command allowlist
-   - Audit/enforce modes
-
-### Integration with ContinuousLoopOrchestrator
-
-New orchestrator methods:
-```javascript
-orchestrator.validateInput(input, type)           // Security validation
-orchestrator.analyzeTaskComplexity(task)          // Complexity scoring
-orchestrator.generateCompetingPlans(task, opts)   // Multi-plan generation
-orchestrator.comparePlans(plans)                  // Plan comparison
-orchestrator.trackProgress(progress)              // Confidence tracking
-orchestrator.getConfidenceState()                 // Get confidence state
-```
-
-Safety checks extended:
-- Security validation check in `checkSafety()` pipeline
-- Confidence level check (warning/critical/emergency states)
-
-### Test Coverage
-- **184 new tests** for swarm components
-- **17 E2E integration tests**
-- **1189 total tests passing**
-
-### Branch & Commits
-- **Branch**: `claude/compare-mcp-features-DGH1S`
-- **Commits**: `d757f21` (components), `7c30569` (integration), `d8a8290` (tasks.json)
+**Last Updated**: 2025-12-26 (Session 20)
+**Current Phase**: IMPLEMENTATION
+**Status**: DESIGN APPROVED - Ready to build
+**Priority**: CRITICAL
 
 ---
 
-## SESSION 14: Merge & Integration - COMPLETE ✅
+## GOAL: Build Dashboard Command Center
 
-### Goal (ACHIEVED)
-Merge task-management-tests branch to main and integrate with autonomous orchestrator.
+Transform the single-session dashboard into a multi-project Command Center for monitoring all autonomous orchestrator sessions.
 
-### What Was Done
-
-1. **Merged `task-management-tests` to main**
-   - Fetched latest from origin (main was 30 commits behind)
-   - Merged task-management-tests (commit `78c7365`)
-   - Pushed to origin
-
-2. **Applied Stashed Changes** (commit `72b7263`)
-   - TaskManager integration with autonomous-orchestrator.js
-   - Task-driven execution mode via `tasks.json`
-   - Task completion tracking via `task-completion.json`
-   - Fixed EventSource import and spawn args
-
-### Current State
-- **Branch**: `main` (up to date with origin)
-- **All features merged**: Task management + orchestrator integration
-- **Tests**: 160+ task management tests passing
+### Design Document
+See `docs/DASHBOARD-UX-REDESIGN.md` for full wireframes and specifications.
 
 ---
 
-## SESSION 13: Task Management System Tests - COMPLETE ✅
+## Implementation Phases
 
-### Goal (ACHIEVED)
-Implement comprehensive tests for the Intelligent Task Management System to ensure all code is fully working as expected.
+### Phase 1: Command Center Core (CRITICAL - Start Here)
 
-### Approach
-Used expert testing agents to create optimal test suites covering:
-- TaskManager CRUD, queries, and scoring
-- Dependency resolution and auto-unblocking
-- MemoryStore task history integration
+**Goal**: Create the birds-eye view of all sessions + usage limit tracking
 
-### Implementation Complete ✅
+**Tasks**:
+1. **Create Session Registry Service** (`session-registry.js`)
+   - Track all active orchestrator sessions
+   - Store session metadata (project, path, start time, current task)
+   - Expose registration/deregistration API
+   - Persist to memory (lost on restart is OK for v1)
 
-#### ✅ Test Files Created
-| File | Tests | Coverage |
-|------|-------|----------|
-| `task-manager.test.js` | 75 | CRUD, queries, backlog, scoring, events |
-| `task-manager.dependency.test.js` | 44 | Dependency graph, auto-unblocking, edge cases |
-| `memory-store.tasks.test.js` | 41 | Task history, pattern success, stats |
+2. **Create Usage Limit Tracker** (`usage-limit-tracker.js`)
+   - Track 5-hour rolling window usage (messages)
+   - Track daily and weekly usage limits
+   - Calculate reset countdowns
+   - Compute pace (messages/hour) vs safe rate
+   - Project end-of-day usage at current pace
 
-#### ✅ Key Fixes Applied
-1. **Bidirectional dependency setup** - Tests updated to use both `blocks` and `requires`
-2. **`getNextTask` fallback behavior** - Tests updated to match implementation
-3. **`_getAncestors` duplicates** - Test updated to accept implementation behavior
+3. **Add API Endpoints** (in `global-context-manager.js`)
+   ```javascript
+   GET /api/sessions/summary   // Global metrics + all sessions
+   GET /api/sessions/:id       // Single session detail
+   POST /api/sessions/register // Orchestrator registers on start
+   POST /api/sessions/:id/update // Orchestrator updates state
+   GET /api/usage/limits       // 5h/daily/weekly usage with reset times
+   ```
 
-### Branch & Commit
-- **Branch**: `task-management-tests`
-- **Based on**: `claude/intelligent-task-management-Wsmcx`
-- **Commit**: `f491808`
-- **PR**: https://github.com/roha3000/multi-agent-template/pull/new/task-management-tests
+4. **Create Command Center UI** (refactor `global-dashboard.html`)
+   - Global metrics bar (5 stats: active, tasks done, health, cost, alerts)
+   - **Usage Limits panel** (5h window, daily, weekly with progress bars)
+   - Session cards grid (context %, current task, quality, actions)
+   - Recent completions table
+   - Navigation to session detail view
 
-### Success Criteria - ALL MET ✅
-- [x] 160 tests passing
-- [x] TaskManager CRUD operations tested
-- [x] Dependency resolution tested (chain, diamond, circular)
-- [x] Auto-unblocking cascade tested
-- [x] MemoryStore task history integration tested
-- [x] Edge cases covered (missing deps, empty database, null values)
+5. **Wire Orchestrator to Dashboard**
+   - Orchestrator POSTs state on startup
+   - Orchestrator POSTs updates on phase/task changes
+   - Handle dashboard being offline gracefully
+
+**Acceptance Criteria**:
+- [ ] All active sessions visible in grid
+- [ ] Context % per session with color coding
+- [ ] Current task and phase per session
+- [ ] Global metrics aggregated correctly
+- [ ] Auto-refresh via SSE
+- [ ] **Usage Limits panel shows 5h/daily/weekly usage**
+- [ ] **Reset countdowns displayed**
+- [ ] **Pace indicator with warning when unsustainable**
+- [ ] **Color coding at 50%/75%/90% thresholds**
 
 ---
 
-## SESSION 12: Autonomous Execution System - COMPLETE ✅
+### Phase 2: Session Detail View (HIGH)
 
-### Goal (ACHIEVED)
-Build an external orchestrator that automatically cycles Claude CLI sessions when context threshold is reached, with phase-based execution, quality gates, and multi-agent validation.
+**Goal**: Drill-down into individual session metrics
 
-### Architecture (IMPLEMENTED)
+**Tasks**:
+1. **Add Detail View Route**
+   - URL: `/session/:id` or modal overlay
+   - Back navigation to Command Center
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│         autonomous-orchestrator.js (Main Orchestrator)      │
-├─────────────────────────────────────────────────────────────┤
-│  1. Spawn: claude --dangerously-skip-permissions            │
-│  2. Monitor: Listen to dashboard SSE for context alerts     │
-│  3. Quality Gates: Enforce minimum scores per phase         │
-│  4. Phase Cycling: research → design → implement → test     │
-│  5. Auto-restart: New session picks up state via dev-docs   │
-└─────────────────────────────────────────────────────────────┘
-          │                              ▲
-          │ stdio: inherit               │ SSE alerts + quality scores
-          ▼                              │
-┌─────────────────────┐    ┌─────────────────────────────────┐
-│   Claude CLI        │    │  Dashboard (localhost:3033)     │
-│   (visible output)  │    │  - Phase & iteration display    │
-│   --dangerously-    │    │  - Quality scores panel         │
-│   skip-permissions  │    │  - Todo progress tracking       │
-└─────────────────────┘    └─────────────────────────────────┘
-```
+2. **Build Detail Panels**
+   - 3-column header: Context / Session / Cost
+   - Current task with acceptance criteria checklist
+   - Confidence gauge with 5 signals
+   - Task queue table
 
-### Implementation Complete ✅
+3. **Add Session Controls**
+   - Pause/Resume button
+   - Skip Task button
+   - End Session button
 
-#### ✅ Step 1: Built Orchestrators
-- `continuous-loop.js` - Basic session cycling
-- `autonomous-orchestrator.js` - Full phase-based execution
-- Spawn Claude CLI with `stdio: 'inherit'` for visibility
-- Connect to dashboard SSE for context alerts
-- `--dangerously-skip-permissions` for autonomous execution
+**Acceptance Criteria**:
+- [ ] Click session card opens detail view
+- [ ] Acceptance criteria checklist visible
+- [ ] Confidence signals updating
+- [ ] Controls work (pause/resume/end)
 
-#### ✅ Step 2: Quality Gates System
-- `quality-gates.js` - Scoring system with phase criteria
-- Minimum scores: research=80, design=85, implement=90, test=90
-- Multi-agent validation (Reviewer + Critic roles)
-- Improvement guidance when thresholds not met
+---
 
-#### ✅ Step 3: Multi-Agent Phase Prompts
-- `.claude/prompts/research-phase.md`
-- `.claude/prompts/design-phase.md`
-- `.claude/prompts/implement-phase.md`
-- `.claude/prompts/test-phase.md`
+### Phase 3: Live Log Viewer (HIGH)
 
-#### ✅ Step 4: Dashboard Enhancements
-- Phase display with iteration counter
-- Quality scores panel with criteria bars
-- Todo progress with checklist
-- Session series tracking
+**Goal**: Stream orchestrator logs in real-time
 
-#### ✅ Step 5: Launch Scripts
-- `start-autonomous.bat` - Windows launcher
-- `start-autonomous.sh` - Unix/Mac launcher
-- `handoff-to-loop.js` - CLI handoff script
+**Tasks**:
+1. **Create Log Streaming Endpoint**
+   ```javascript
+   GET /api/logs/:sessionId  // SSE stream
+   ```
+   - Use `fs.watch` for tail -f behavior
+   - Stream new lines via SSE
+   - Support pause/resume
 
-### Files Created/Modified
+2. **Build Log Viewer Component**
+   - Monospace dark theme
+   - Auto-scroll toggle
+   - Session selector dropdown
+   - Log level color coding
+   - Line count in footer
+
+3. **Integrate into Detail View**
+   - Collapsible panel at bottom
+   - "View Log" button in session card
+
+**Acceptance Criteria**:
+- [ ] Logs stream in real-time
+- [ ] Auto-scroll follows new entries
+- [ ] Pause stops stream
+- [ ] Green pulsing dot when streaming
+- [ ] Log level colors (INFO=blue, WARN=yellow, ERROR=red)
+
+---
+
+### Phase 4: Polish (MEDIUM)
+
+**Goal**: Responsive design and refinements
+
+**Tasks**:
+1. Responsive breakpoints (tablet, mobile)
+2. Keyboard navigation
+3. Search in logs
+4. Historical data views
+5. Export capabilities
+
+---
+
+## Key Files to Modify/Create
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `continuous-loop.js` | CREATED | Basic session cycling |
-| `autonomous-orchestrator.js` | CREATED | Full phase orchestrator |
-| `quality-gates.js` | CREATED | Scoring system |
-| `handoff-to-loop.js` | CREATED | CLI handoff |
-| `start-autonomous.bat` | CREATED | Windows launcher |
-| `start-autonomous.sh` | CREATED | Unix launcher |
-| `.claude/prompts/*.md` | CREATED | 4 phase prompts |
-| `global-context-manager.js` | MODIFIED | Execution state tracking |
-| `global-dashboard.html` | MODIFIED | Phase/score/todo panels |
-| `package.json` | MODIFIED | NPM scripts added |
-
-### Success Criteria - ALL MET ✅
-- [x] Claude output visible in terminal during execution
-- [x] Automatic session cycling at context threshold
-- [x] New session loads state via /session-init (dev-docs pattern)
-- [x] Dashboard shows phase, quality scores, todos
-- [x] Multi-agent validation enforces quality gates
-- [x] External launchers (bat/sh) for autonomous start
-- [x] CLI handoff for starting from within session
+| `session-registry.js` | CREATE | Multi-session management |
+| `usage-limit-tracker.js` | CREATE | Track 5h/daily/weekly Claude usage limits |
+| `log-streamer.js` | CREATE | Log file watching and SSE |
+| `global-context-manager.js` | MODIFY | Add new API endpoints (sessions + usage) |
+| `global-dashboard.html` | REFACTOR | Command Center UI + Usage Limits panel |
+| `autonomous-orchestrator.js` | MODIFY | POST state to dashboard |
 
 ---
 
-## PREVIOUS: SESSION 11 REFINEMENTS - ACCURACY IMPROVEMENTS
+## API Specifications
 
-Refined the context calculation and dashboard display for better accuracy.
-
-### Changes Made
-
-1. **System Overhead Calibration**
-   - Adjusted from 45k to 38k tokens based on `/context` validation
-   - Now matches `/context` output within ~2%
-
-2. **Dashboard Display Updates**
-   - Shows "context remaining" (100% - used%) as main metric
-   - Shows "X tokens until auto-compact" (remaining - 45k buffer)
-   - Updated threshold markers on progress bar
-
-3. **Threshold Adjustments**
-   - ≤25% remaining = EMERGENCY
-   - ≤35% remaining = CRITICAL
-   - ≤50% remaining = WARNING
-   - >50% remaining = OK
-
-### Key Understanding
-
-- `/context` "Free space" = usable space before auto-compact triggers
-- Autocompact buffer (45k/22.5%) is reserved and never usable
-- Auto-compact triggers when "Free space" reaches 0%
-
----
-
-## SESSION 10 ACHIEVEMENT - GLOBAL CONTEXT MONITOR
-
-Built a real-time context monitoring dashboard that tracks ALL active Claude Code sessions across all projects.
-
-### What Was Built
-
-1. **Global Context Tracker** (`.claude/core/global-context-tracker.js`)
-   - Watches all projects in `~/.claude/projects/`
-   - Real-time JSONL file monitoring with chokidar
-   - Windows-compatible polling for reliability
-   - Automatic session detection (active within 5 min)
-   - Cost estimation per session
-
-2. **Global Context Manager** (`global-context-manager.js`)
-   - Express server on port 3033
-   - SSE real-time updates to dashboard
-   - REST API for project/account data
-   - Alert event emission
-
-3. **Simplified Dashboard** (`global-dashboard.html`)
-   - Shows **context remaining** (not used) - more actionable
-   - Big percentage display with token count
-   - Progress bar with threshold markers (50%, 65%, 75%)
-   - Audio alerts and browser notifications
-   - Copy buttons for /clear and /session-init
-   - Inactive projects collapsed at bottom
-
-### Key Fixes Applied
-
-1. **Token Calculation** - Fixed to use LATEST API response, not cumulative sum
-   - Context = `input_tokens + cache_read + cache_creation + output_tokens`
-   - Added 20k system overhead (prompts, tools, memory)
-
-2. **Windows File Watching** - Fixed unreliable glob patterns
-   - Now watches each project directory explicitly
-   - Uses polling on Windows for reliability
-
-3. **Threshold Adjustment** - Aligned with auto-compact at ~77.5%
-   - 50% Warning
-   - 65% Critical
-   - 75% Emergency (before 77.5% auto-compact)
-
----
-
-## How to Use
-
-### Start the Monitor
-```bash
-npm run monitor:global
-# Opens dashboard + starts server on port 3033
+### GET /api/usage/limits
+```json
+{
+  "fiveHour": {
+    "used": 186,
+    "limit": 300,
+    "percent": 62,
+    "resetAt": "2025-12-26T18:45:00Z",
+    "resetIn": "2h 14m",
+    "pace": {
+      "current": 45,
+      "safe": 60,
+      "status": "warning"
+    }
+  },
+  "daily": {
+    "used": 465,
+    "limit": 1500,
+    "percent": 31,
+    "resetAt": "2025-12-27T00:00:00Z",
+    "resetIn": "8h 32m",
+    "projected": { "endOfDay": 720, "percentOfLimit": 48 }
+  },
+  "weekly": {
+    "used": 1200,
+    "limit": 7000,
+    "percent": 17,
+    "resetAt": "2025-12-30T00:00:00Z",
+    "resetDay": "Monday"
+  },
+  "lastUpdated": "2025-12-26T16:31:00Z"
+}
 ```
 
-### Or manually:
-```bash
-node global-context-manager.js
-# Then open http://localhost:3033/global-dashboard.html
+### GET /api/sessions/summary
+```json
+{
+  "globalMetrics": {
+    "activeCount": 3,
+    "tasksCompletedToday": 7,
+    "avgHealthScore": 89,
+    "totalCostToday": 12.47,
+    "alertCount": 0
+  },
+  "sessions": [
+    {
+      "id": 5,
+      "project": "multi-agent-template",
+      "status": "active",
+      "contextPercent": 72,
+      "currentTask": { "id": "...", "title": "...", "phase": "implement" },
+      "qualityScore": 85,
+      "tokens": 156432,
+      "cost": 3.21
+    }
+  ],
+  "recentCompletions": [...]
+}
 ```
 
-### Dashboard Features
-- Real-time updates every 500ms
-- Sound alerts at threshold crossings
-- Browser notifications (requires permission)
-- Copy /clear command with one click
+### GET /api/logs/:sessionId (SSE)
+```
+event: log
+data: {"line": "14:32:05 [orchestrator] Starting...", "level": "INFO"}
+```
 
 ---
 
-## Files Created/Modified
+## Success Metrics
 
-| File | Purpose |
-|------|---------|
-| `.claude/core/global-context-tracker.js` | Multi-project JSONL watcher |
-| `global-context-manager.js` | Express server + SSE |
-| `global-dashboard.html` | Simplified UI (context remaining focus) |
-| `package.json` | Added npm scripts |
+1. **Command Center**: All active sessions visible at a glance
+2. **Drill-Down**: Full details accessible in 1 click
+3. **Live Logs**: Real-time streaming with <1s latency
+4. **Multi-Project**: Works with 5+ concurrent sessions
 
 ---
 
-## Known Limitations
+## Reference Documents
 
-1. **~10% accuracy variance** - JSONL doesn't capture exact system tokens
-2. **5-minute active window** - Sessions go inactive after 5 min of no API calls
-3. **Polling overhead** - Windows uses 500ms polling (slight CPU usage)
-
----
-
-## Next Steps (Optional)
-
-- [ ] Add historical context trends
-- [ ] Integrate with notification services (Slack, Discord)
-- [ ] Add cost projections based on velocity
-- [ ] Create system tray app for always-on monitoring
-
----
-
-**Status**: COMPLETE - Dashboard is operational at http://localhost:3033
+- `docs/DASHBOARD-UX-REDESIGN.md` - Full wireframes and specs
+- `docs/DASHBOARD-ENHANCEMENTS-DESIGN.md` - Feature requirements
+- `global-dashboard.html` - Current implementation to refactor
+- `global-context-manager.js` - Backend to extend
