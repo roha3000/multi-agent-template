@@ -1,9 +1,9 @@
 # Current Plan - Dashboard Command Center Implementation
 
-**Last Updated**: 2025-12-26 (Session 20)
+**Last Updated**: 2025-12-26 (Session 22)
 **Current Phase**: IMPLEMENTATION
-**Status**: DESIGN APPROVED - Ready to build
-**Priority**: CRITICAL
+**Status**: PHASE 1 & 2 COMPLETE - Ready for Phase 3
+**Priority**: HIGH
 
 ---
 
@@ -18,83 +18,49 @@ See `docs/DASHBOARD-UX-REDESIGN.md` for full wireframes and specifications.
 
 ## Implementation Phases
 
-### Phase 1: Command Center Core (CRITICAL - Start Here)
+### Phase 1: Command Center Core ✅ COMPLETE (Session 21)
 
 **Goal**: Create the birds-eye view of all sessions + usage limit tracking
 
-**Tasks**:
-1. **Create Session Registry Service** (`session-registry.js`)
-   - Track all active orchestrator sessions
-   - Store session metadata (project, path, start time, current task)
-   - Expose registration/deregistration API
-   - Persist to memory (lost on restart is OK for v1)
+**Completed**:
+- ✅ Session Registry Service (`session-registry.js`)
+- ✅ Usage Limit Tracker (`usage-limit-tracker.js`)
+- ✅ 10+ API endpoints for sessions and usage
+- ✅ Command Center UI with grid view
+- ✅ Usage Limits panel (5h/daily/weekly)
+- ✅ Orchestrator integration
 
-2. **Create Usage Limit Tracker** (`usage-limit-tracker.js`)
-   - Track 5-hour rolling window usage (messages)
-   - Track daily and weekly usage limits
-   - Calculate reset countdowns
-   - Compute pace (messages/hour) vs safe rate
-   - Project end-of-day usage at current pace
-
-3. **Add API Endpoints** (in `global-context-manager.js`)
-   ```javascript
-   GET /api/sessions/summary   // Global metrics + all sessions
-   GET /api/sessions/:id       // Single session detail
-   POST /api/sessions/register // Orchestrator registers on start
-   POST /api/sessions/:id/update // Orchestrator updates state
-   GET /api/usage/limits       // 5h/daily/weekly usage with reset times
-   ```
-
-4. **Create Command Center UI** (refactor `global-dashboard.html`)
-   - Global metrics bar (5 stats: active, tasks done, health, cost, alerts)
-   - **Usage Limits panel** (5h window, daily, weekly with progress bars)
-   - Session cards grid (context %, current task, quality, actions)
-   - Recent completions table
-   - Navigation to session detail view
-
-5. **Wire Orchestrator to Dashboard**
-   - Orchestrator POSTs state on startup
-   - Orchestrator POSTs updates on phase/task changes
-   - Handle dashboard being offline gracefully
-
-**Acceptance Criteria**:
-- [ ] All active sessions visible in grid
-- [ ] Context % per session with color coding
-- [ ] Current task and phase per session
-- [ ] Global metrics aggregated correctly
-- [ ] Auto-refresh via SSE
-- [ ] **Usage Limits panel shows 5h/daily/weekly usage**
-- [ ] **Reset countdowns displayed**
-- [ ] **Pace indicator with warning when unsustainable**
-- [ ] **Color coding at 50%/75%/90% thresholds**
+**Acceptance Criteria**: ✅ ALL MET
+- [x] All active sessions visible in grid
+- [x] Context % per session with color coding
+- [x] Current task and phase per session
+- [x] Global metrics aggregated correctly
+- [x] Auto-refresh via SSE
+- [x] Usage Limits panel shows 5h/daily/weekly usage
+- [x] Reset countdowns displayed
+- [x] Pace indicator with warning when unsustainable
+- [x] Color coding at 50%/75%/90% thresholds
 
 ---
 
-### Phase 2: Session Detail View (HIGH)
+### Phase 2: Session Detail View ✅ COMPLETE (Session 22)
 
 **Goal**: Drill-down into individual session metrics
 
-**Tasks**:
-1. **Add Detail View Route**
-   - URL: `/session/:id` or modal overlay
-   - Back navigation to Command Center
+**Completed**:
+- ✅ Full-page detail overlay with back navigation
+- ✅ 3-column metrics header (Context/Session/Cost)
+- ✅ Acceptance criteria checklist with progress bar
+- ✅ Confidence gauge with 5 signal bars
+- ✅ Task queue table with priorities
+- ✅ Session controls (Pause/Resume/End)
+- ✅ View Details button on all project cards
 
-2. **Build Detail Panels**
-   - 3-column header: Context / Session / Cost
-   - Current task with acceptance criteria checklist
-   - Confidence gauge with 5 signals
-   - Task queue table
-
-3. **Add Session Controls**
-   - Pause/Resume button
-   - Skip Task button
-   - End Session button
-
-**Acceptance Criteria**:
-- [ ] Click session card opens detail view
-- [ ] Acceptance criteria checklist visible
-- [ ] Confidence signals updating
-- [ ] Controls work (pause/resume/end)
+**Acceptance Criteria**: ✅ ALL MET
+- [x] Click session card opens detail view
+- [x] Acceptance criteria checklist visible
+- [x] Confidence signals updating
+- [x] Controls work (pause/resume/end)
 
 ---
 
