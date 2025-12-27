@@ -1669,16 +1669,50 @@
             </table>
         </div>
 
-        <!-- Log Viewer Placeholder (Phase 3) -->
-        <div class="detail-log-panel collapsed">
+        <!-- Live Log Viewer -->
+        <div class="detail-log-panel collapsed" id="logPanel">
             <div class="log-header" onclick="toggleLogPanel()">
-                <span class="panel-title">📋 LIVE LOG</span>
+                <div class="log-header-left">
+                    <span class="log-streaming-dot" id="logStreamingDot"></span>
+                    <span class="panel-title">LIVE LOG</span>
+                    <span class="log-status-text" id="logStatusText">Click to expand</span>
+                </div>
                 <span class="log-expand-icon">▼</span>
             </div>
             <div class="log-content" id="logContent" style="display: none;">
-                <div class="log-placeholder">
-                    <p>Live log streaming will be implemented in Phase 3.</p>
-                    <p>For now, use: <code>tail -f .claude/logs/session-*.log</code></p>
+                <div class="log-controls">
+                    <div class="log-controls-left">
+                        <label class="log-checkbox-label">
+                            <input type="checkbox" id="logAutoScroll" checked />
+                            Auto-scroll
+                        </label>
+                        <select id="logLevelFilter" class="log-select">
+                            <option value="all">All Levels</option>
+                            <option value="ERROR">Errors Only</option>
+                            <option value="WARN">Warnings+</option>
+                            <option value="INFO">Info+</option>
+                            <option value="DEBUG">Debug+</option>
+                        </select>
+                    </div>
+                    <div class="log-controls-right">
+                        <button class="log-control-btn" id="logPauseBtn" onclick="toggleLogPause()">
+                            <span id="logPauseIcon">⏸</span> <span id="logPauseText">Pause</span>
+                        </button>
+                        <button class="log-control-btn" onclick="clearLogDisplay()">Clear</button>
+                    </div>
+                </div>
+                <div class="log-output-container">
+                    <div class="log-output" id="logOutput">
+                        <div class="log-empty-message">Connecting to log stream...</div>
+                    </div>
+                </div>
+                <div class="log-footer">
+                    <span class="log-line-count" id="logLineCount">Lines: 0</span>
+                    <span class="log-level-counts" id="logLevelCounts">
+                        <span class="log-count-error" id="logErrorCount">E: 0</span>
+                        <span class="log-count-warn" id="logWarnCount">W: 0</span>
+                    </span>
+                    <span class="log-session-info" id="logSessionInfo">Session: -</span>
                 </div>
             </div>
         </div>
@@ -2195,7 +2229,7 @@
         .priority-badge.medium { background: rgba(88, 166, 255, 0.2); color: var(--info); }
         .priority-badge.low { background: rgba(139, 148, 158, 0.2); color: var(--text-secondary); }
 
-        /* Log Panel (Placeholder) */
+        /* Live Log Viewer */
         .detail-log-panel {
             margin: 0 24px 24px;
             background: var(--bg-card);
@@ -2217,6 +2251,42 @@
             background: var(--bg-tertiary);
         }
 
+        .log-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .log-streaming-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+        }
+
+        .log-streaming-dot.streaming {
+            background: var(--success);
+            animation: pulse-stream 1.5s infinite;
+        }
+
+        .log-streaming-dot.paused {
+            background: var(--warning);
+        }
+
+        .log-streaming-dot.disconnected {
+            background: var(--danger);
+        }
+
+        @keyframes pulse-stream {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.4); }
+            50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(63, 185, 80, 0); }
+        }
+
+        .log-status-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
         .log-expand-icon {
             color: var(--text-secondary);
             transition: transform 0.3s;
@@ -2228,24 +2298,143 @@
 
         .log-content {
             border-top: 1px solid var(--border);
-            padding: 20px;
             background: #0a0c10;
         }
 
-        .log-placeholder {
-            text-align: center;
+        .log-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .log-controls-left, .log-controls-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .log-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
             color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .log-checkbox-label input {
+            width: 14px;
+            height: 14px;
+        }
+
+        .log-select {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .log-control-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            padding: 4px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .log-control-btn:hover {
+            background: var(--border);
+        }
+
+        .log-control-btn.paused {
+            background: var(--warning);
+            color: #000;
+            border-color: var(--warning);
+        }
+
+        .log-output-container {
+            height: 300px;
+            overflow: hidden;
+        }
+
+        .log-output {
+            height: 100%;
+            overflow-y: auto;
+            padding: 12px 16px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .log-empty-message {
+            color: var(--text-secondary);
+            text-align: center;
             padding: 40px 20px;
         }
 
-        .log-placeholder code {
-            display: inline-block;
-            background: var(--bg-tertiary);
-            padding: 4px 12px;
-            border-radius: 4px;
-            font-family: 'SF Mono', Monaco, monospace;
-            margin-top: 8px;
+        .log-entry {
+            display: flex;
+            gap: 8px;
+            padding: 2px 0;
+            white-space: pre-wrap;
+            word-break: break-all;
         }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .log-timestamp {
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .log-level {
+            font-weight: 600;
+            flex-shrink: 0;
+            min-width: 50px;
+        }
+
+        .log-level.INFO { color: var(--info); }
+        .log-level.WARN { color: var(--warning); }
+        .log-level.ERROR { color: var(--danger); }
+        .log-level.DEBUG { color: var(--text-secondary); }
+
+        .log-message {
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .log-entry.ERROR .log-message { color: var(--danger); }
+        .log-entry.WARN .log-message { color: var(--warning); }
+
+        .log-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: var(--bg-tertiary);
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .log-level-counts {
+            display: flex;
+            gap: 12px;
+        }
+
+        .log-count-error { color: var(--danger); }
+        .log-count-warn { color: var(--warning); }
     </style>
 
     <script>
@@ -2933,6 +3122,18 @@
                 clearInterval(detailRefreshInterval);
                 detailRefreshInterval = null;
             }
+
+            // Stop log stream and reset log panel
+            stopLogStream();
+            const logPanel = document.getElementById('logPanel');
+            const logContent = document.getElementById('logContent');
+            if (logPanel) {
+                logPanel.classList.remove('expanded');
+                if (logContent) logContent.style.display = 'none';
+            }
+            logPaused = false;
+            const pauseBtn = document.getElementById('logPauseBtn');
+            if (pauseBtn) pauseBtn.classList.remove('paused');
         }
 
         async function fetchSessionDetail(sessionId) {
@@ -3107,12 +3308,247 @@
             }
         }
 
+        // ============================================================================
+        // LOG STREAMING FUNCTIONALITY
+        // ============================================================================
+
+        let logEventSource = null;
+        let logPaused = false;
+        let logLineCount = 0;
+        let logErrorCount = 0;
+        let logWarnCount = 0;
+        let logCurrentFilter = 'all';
+        const logMaxLines = 500;
+
         function toggleLogPanel() {
-            const panel = document.querySelector('.detail-log-panel');
+            const panel = document.getElementById('logPanel');
             const content = document.getElementById('logContent');
+            const isExpanded = panel.classList.contains('expanded');
+
             panel.classList.toggle('expanded');
-            content.style.display = panel.classList.contains('expanded') ? 'block' : 'none';
+            content.style.display = isExpanded ? 'none' : 'block';
+
+            if (!isExpanded && currentDetailSessionId) {
+                // Panel is being expanded - start log stream
+                startLogStream(currentDetailSessionId);
+            } else if (isExpanded) {
+                // Panel is being collapsed - stop log stream
+                stopLogStream();
+            }
         }
+
+        function startLogStream(sessionId) {
+            // Close any existing stream
+            stopLogStream();
+
+            // Reset counts
+            logLineCount = 0;
+            logErrorCount = 0;
+            logWarnCount = 0;
+            updateLogCounts();
+
+            // Update status
+            updateLogStatus('connecting');
+            document.getElementById('logSessionInfo').textContent = `Session: ${sessionId}`;
+            document.getElementById('logOutput').innerHTML = '<div class="log-empty-message">Connecting to log stream...</div>';
+
+            // Create SSE connection
+            logEventSource = new EventSource(`${API_URL}/api/logs/${sessionId}/stream`);
+
+            logEventSource.addEventListener('connected', (event) => {
+                const data = JSON.parse(event.data);
+                console.log('[LOG] Connected to stream:', data);
+                updateLogStatus('streaming');
+                document.getElementById('logOutput').innerHTML = '';
+            });
+
+            logEventSource.addEventListener('history', (event) => {
+                const data = JSON.parse(event.data);
+                console.log('[LOG] Received history:', data.entries?.length, 'entries');
+                if (data.entries && data.entries.length > 0) {
+                    document.getElementById('logOutput').innerHTML = '';
+                    data.entries.forEach(entry => addLogEntry(entry));
+                } else {
+                    document.getElementById('logOutput').innerHTML = '<div class="log-empty-message">No log entries yet. Waiting for new logs...</div>';
+                }
+            });
+
+            logEventSource.addEventListener('log', (event) => {
+                const entry = JSON.parse(event.data);
+                if (!logPaused) {
+                    addLogEntry(entry);
+                }
+            });
+
+            logEventSource.addEventListener('status', (event) => {
+                const data = JSON.parse(event.data);
+                if (data.paused !== undefined) {
+                    updateLogStatus(data.paused ? 'paused' : 'streaming');
+                }
+            });
+
+            logEventSource.addEventListener('cleared', (event) => {
+                clearLogDisplay();
+            });
+
+            logEventSource.onerror = (error) => {
+                console.error('[LOG] Stream error:', error);
+                updateLogStatus('disconnected');
+            };
+        }
+
+        function stopLogStream() {
+            if (logEventSource) {
+                logEventSource.close();
+                logEventSource = null;
+            }
+            updateLogStatus('disconnected');
+        }
+
+        function updateLogStatus(status) {
+            const dot = document.getElementById('logStreamingDot');
+            const text = document.getElementById('logStatusText');
+
+            dot.className = 'log-streaming-dot';
+
+            switch (status) {
+                case 'streaming':
+                    dot.classList.add('streaming');
+                    text.textContent = 'Streaming...';
+                    break;
+                case 'paused':
+                    dot.classList.add('paused');
+                    text.textContent = 'Paused';
+                    break;
+                case 'connecting':
+                    text.textContent = 'Connecting...';
+                    break;
+                case 'disconnected':
+                default:
+                    dot.classList.add('disconnected');
+                    text.textContent = 'Disconnected';
+                    break;
+            }
+        }
+
+        function addLogEntry(entry) {
+            const output = document.getElementById('logOutput');
+            const autoScroll = document.getElementById('logAutoScroll').checked;
+            const filter = document.getElementById('logLevelFilter').value;
+
+            // Remove empty message if present
+            const emptyMsg = output.querySelector('.log-empty-message');
+            if (emptyMsg) emptyMsg.remove();
+
+            // Check filter
+            if (!shouldShowLogEntry(entry.level, filter)) {
+                return;
+            }
+
+            // Create log entry element
+            const entryEl = document.createElement('div');
+            entryEl.className = `log-entry ${entry.level}`;
+            entryEl.innerHTML = `
+                <span class="log-timestamp">${entry.timestamp || ''}</span>
+                <span class="log-level ${entry.level}">[${entry.level}]</span>
+                <span class="log-message">${escapeHtml(entry.line.replace(/^\d{2}:\d{2}:\d{2}\s*\[?\w+\]?\s*\[?\w+\]?\s*/i, ''))}</span>
+            `;
+
+            output.appendChild(entryEl);
+
+            // Update counts
+            logLineCount++;
+            if (entry.level === 'ERROR') logErrorCount++;
+            if (entry.level === 'WARN') logWarnCount++;
+            updateLogCounts();
+
+            // Trim old entries
+            while (output.children.length > logMaxLines) {
+                output.removeChild(output.firstChild);
+            }
+
+            // Auto-scroll
+            if (autoScroll) {
+                output.scrollTop = output.scrollHeight;
+            }
+        }
+
+        function shouldShowLogEntry(level, filter) {
+            if (filter === 'all') return true;
+
+            const levelPriority = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
+            const entryPriority = levelPriority[level] || 1;
+            const filterPriority = levelPriority[filter] || 0;
+
+            return entryPriority >= filterPriority;
+        }
+
+        function updateLogCounts() {
+            document.getElementById('logLineCount').textContent = `Lines: ${logLineCount}`;
+            document.getElementById('logErrorCount').textContent = `E: ${logErrorCount}`;
+            document.getElementById('logWarnCount').textContent = `W: ${logWarnCount}`;
+        }
+
+        function toggleLogPause() {
+            logPaused = !logPaused;
+
+            const btn = document.getElementById('logPauseBtn');
+            const icon = document.getElementById('logPauseIcon');
+            const text = document.getElementById('logPauseText');
+
+            if (logPaused) {
+                btn.classList.add('paused');
+                icon.textContent = '▶';
+                text.textContent = 'Resume';
+                updateLogStatus('paused');
+
+                // Notify server
+                if (currentDetailSessionId) {
+                    fetch(`${API_URL}/api/logs/${currentDetailSessionId}/pause`, { method: 'POST' });
+                }
+            } else {
+                btn.classList.remove('paused');
+                icon.textContent = '⏸';
+                text.textContent = 'Pause';
+                updateLogStatus('streaming');
+
+                // Notify server
+                if (currentDetailSessionId) {
+                    fetch(`${API_URL}/api/logs/${currentDetailSessionId}/resume`, { method: 'POST' });
+                }
+            }
+        }
+
+        function clearLogDisplay() {
+            const output = document.getElementById('logOutput');
+            output.innerHTML = '<div class="log-empty-message">Log cleared. Waiting for new entries...</div>';
+            logLineCount = 0;
+            logErrorCount = 0;
+            logWarnCount = 0;
+            updateLogCounts();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Filter change handler
+        document.addEventListener('DOMContentLoaded', () => {
+            const filterSelect = document.getElementById('logLevelFilter');
+            if (filterSelect) {
+                filterSelect.addEventListener('change', () => {
+                    logCurrentFilter = filterSelect.value;
+                    // Re-filter would require keeping all entries in memory
+                    // For simplicity, filter only applies to new entries
+                });
+            }
+        });
+
+        // ============================================================================
+        // END LOG STREAMING FUNCTIONALITY
+        // ============================================================================
 
         // Navigate from session card to detail view
         function viewSessionDetails(sessionId) {

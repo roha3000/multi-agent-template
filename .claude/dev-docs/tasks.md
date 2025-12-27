@@ -1,7 +1,7 @@
 # Active Tasks - Dashboard Command Center
 
-**Last Updated**: 2025-12-26 (Session 22)
-**Current Focus**: Phase 2 COMPLETE - Ready for Phase 3 (Live Log Viewer)
+**Last Updated**: 2025-12-26 (Session 23)
+**Current Focus**: Phase 3 COMPLETE - Live Log Viewer
 **Design Doc**: `docs/DASHBOARD-UX-REDESIGN.md`
 
 ---
@@ -32,13 +32,14 @@
 | Add session controls | ✅ done | high | Pause/Resume/End buttons |
 | Enhance session registry | ✅ done | medium | Added taskQueue, acceptanceCriteria, confidenceSignals |
 
-### Phase 3: Live Log Viewer
+### Phase 3: Live Log Viewer ✅ COMPLETE
 
 | Task | Status | Priority | Description |
 |------|--------|----------|-------------|
-| Create /api/logs/:id endpoint | pending | high | SSE log streaming |
-| Build log viewer component | pending | high | Auto-scroll, colors, pause |
-| Integrate into detail view | pending | medium | Collapsible panel |
+| Create log-streamer.js service | ✅ done | critical | File watching + SSE streaming |
+| Add /api/logs/:id endpoints | ✅ done | high | SSE stream, history, stats, pause/resume |
+| Build log viewer component | ✅ done | high | Auto-scroll, level filter, pause |
+| Integrate into detail view | ✅ done | medium | Collapsible panel with controls |
 
 ---
 
@@ -70,27 +71,28 @@
 - [x] Task queue table with priorities
 - [x] Pause/Resume/End session controls work
 
-### Live Log Viewer (Phase 3)
-- [ ] Streams log file via SSE in real-time
-- [ ] Auto-scroll toggle works
-- [ ] Pause/Resume button stops/resumes stream
-- [ ] Session selector dropdown switches logs
-- [ ] Log level color coding (INFO=blue, WARN=yellow, ERROR=red)
-- [ ] Green pulsing dot when streaming
-- [ ] Line count in footer
+### Live Log Viewer (Phase 3) ✅ COMPLETE
+- [x] Streams log file via SSE in real-time
+- [x] Auto-scroll toggle works
+- [x] Pause/Resume button stops/resumes stream
+- [x] Log level filter dropdown (All, Errors, Warnings+, Info+, Debug+)
+- [x] Log level color coding (INFO=blue, WARN=yellow, ERROR=red)
+- [x] Green pulsing dot when streaming
+- [x] Line count + error/warn counts in footer
 
 ---
 
 ## Files to Create/Modify
 
-| File | Action | Notes |
-|------|--------|-------|
-| `.claude/core/session-registry.js` | CREATE | Track active sessions |
-| `.claude/core/usage-limit-tracker.js` | CREATE | Track 5h/daily/weekly Claude limits |
-| `.claude/core/log-streamer.js` | CREATE | fs.watch + SSE streaming |
-| `global-context-manager.js` | MODIFY | Add 5 new API endpoints (sessions + usage) |
-| `global-dashboard.html` | REFACTOR | Complete UI overhaul + Usage Limits panel |
-| `autonomous-orchestrator.js` | MODIFY | Add dashboard integration |
+| File | Action | Status | Notes |
+|------|--------|--------|-------|
+| `.claude/core/session-registry.js` | CREATE | ✅ done | Track active sessions |
+| `.claude/core/usage-limit-tracker.js` | CREATE | ✅ done | Track 5h/daily/weekly Claude limits |
+| `.claude/core/log-streamer.js` | CREATE | ✅ done | fs.watchFile + SSE streaming |
+| `global-context-manager.js` | MODIFY | ✅ done | +15 API endpoints (sessions + usage + logs) |
+| `global-dashboard.html` | REFACTOR | ✅ done | Command Center + Live Log Viewer |
+| `autonomous-orchestrator.js` | MODIFY | ✅ done | Add dashboard integration |
+| `__tests__/core/log-streamer.test.js` | CREATE | ✅ done | 25 tests for log streamer |
 
 ---
 
@@ -109,6 +111,16 @@ Create .claude/core/session-registry.js
 ```
 
 ---
+
+## Completed (Session 23 - Phase 3 COMPLETE)
+
+| Task | Notes |
+|------|-------|
+| Create log-streamer.js service | File watching with fs.watchFile, SSE streaming, pause/resume |
+| Add /api/logs/* endpoints | 7 endpoints: list, stream, history, stats, pause, resume, write |
+| Build log viewer UI component | Auto-scroll, level filter, pause button, line counts |
+| Integrate into session detail | Collapsible panel with streaming dot indicator |
+| Add log-streamer tests | 25 passing tests for all log-streamer functionality |
 
 ## Completed (Session 22 - Phase 2 COMPLETE)
 

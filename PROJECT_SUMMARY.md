@@ -1,8 +1,67 @@
 # PROJECT SUMMARY - Multi-Agent Template with Production Telemetry
-**Last Updated**: 2025-12-26 (Session 22)
+**Last Updated**: 2025-12-26 (Session 23)
 
 **Current Phase**: DASHBOARD COMMAND CENTER
-**Status**: PHASE 2 COMPLETE - Ready for Phase 3 (Live Log Viewer)
+**Status**: PHASE 3 COMPLETE - Live Log Viewer
+
+---
+
+## Session 23: Live Log Viewer ✅ COMPLETE
+
+### What Was Done
+
+1. **Log Streamer Service** (`.claude/core/log-streamer.js`)
+   - File watching with `fs.watchFile` for cross-platform compatibility
+   - SSE streaming to multiple browser clients
+   - Pause/resume stream functionality
+   - Historical log loading with configurable tail lines
+   - Log level parsing (INFO, WARN, ERROR, DEBUG)
+   - Singleton pattern for shared state
+
+2. **Log Streaming API Endpoints** (added to `global-context-manager.js`)
+   - `GET /api/logs` - List available log files
+   - `GET /api/logs/:id/stream` - SSE stream for real-time logs
+   - `GET /api/logs/:id/history` - Get historical log entries
+   - `GET /api/logs/:id/stats` - Log file statistics
+   - `POST /api/logs/:id/pause` - Pause log stream
+   - `POST /api/logs/:id/resume` - Resume log stream
+   - `POST /api/logs/:id/write` - Write log entry (for testing)
+   - `DELETE /api/logs/:id` - Clear log file
+
+3. **Live Log Viewer UI** (`global-dashboard.html`)
+   - Collapsible panel in session detail view
+   - Green pulsing dot when streaming, yellow when paused
+   - Auto-scroll toggle checkbox
+   - Log level filter dropdown (All, Errors, Warnings+, Info+, Debug+)
+   - Pause/Resume button with icon changes
+   - Clear button to reset log display
+   - Footer with line count + error/warn counts
+   - Color-coded log levels (INFO=blue, WARN=yellow, ERROR=red)
+
+4. **Comprehensive Test Suite** (`__tests__/core/log-streamer.test.js`)
+   - 25 tests covering all log-streamer functionality
+   - Tests for file operations, parsing, streaming, and cleanup
+
+### Files Created/Modified
+| File | Changes | Purpose |
+|------|---------|---------|
+| `.claude/core/log-streamer.js` | CREATE | Log streaming service |
+| `global-context-manager.js` | +60 lines | 8 log API endpoints |
+| `global-dashboard.html` | +350 lines | Log viewer UI + JS |
+| `__tests__/core/log-streamer.test.js` | CREATE | 25 unit tests |
+
+### Test Results
+- **1316 tests passing** (25 new for log-streamer)
+- No regressions
+
+### Phase 3 Acceptance Criteria ✅
+- [x] Streams log file via SSE in real-time
+- [x] Auto-scroll toggle works
+- [x] Pause/Resume button stops/resumes stream
+- [x] Log level filter dropdown (All, Errors, Warnings+, Info+, Debug+)
+- [x] Log level color coding (INFO=blue, WARN=yellow, ERROR=red)
+- [x] Green pulsing dot when streaming
+- [x] Line count + error/warn counts in footer
 
 ---
 

@@ -28,6 +28,7 @@ const TaskGraph = require('./.claude/core/task-graph');
 const NotificationService = require('./.claude/core/notification-service');
 const { getSessionRegistry } = require('./.claude/core/session-registry');
 const { getUsageLimitTracker } = require('./.claude/core/usage-limit-tracker');
+const { getLogStreamer } = require('./.claude/core/log-streamer');
 
 const app = express();
 app.use(cors());
@@ -120,7 +121,8 @@ try {
 // Initialize Session Registry and Usage Limit Tracker
 const sessionRegistry = getSessionRegistry();
 const usageLimitTracker = getUsageLimitTracker();
-console.log('[COMMAND CENTER] Session Registry and Usage Limit Tracker initialized');
+const logStreamer = getLogStreamer();
+console.log('[COMMAND CENTER] Session Registry, Usage Limit Tracker, and Log Streamer initialized');
 
 // Session series tracking for continuous loop
 let sessionSeries = {
@@ -1150,6 +1152,67 @@ app.post('/api/usage/reset', (req, res) => {
   res.json({ success: true });
 });
 
+// ============================================================================
+// LOG STREAMING API ENDPOINTS
+// ============================================================================
+
+// List available log files
+app.get('/api/logs', (req, res) => {
+  const logs = logStreamer.getAvailableLogs();
+  res.json({ logs });
+});
+
+// Get log statistics for a session
+app.get('/api/logs/:sessionId/stats', async (req, res) => {
+  const stats = await logStreamer.getStats(req.params.sessionId);
+  res.json(stats);
+});
+
+// Get historical logs for a session
+app.get('/api/logs/:sessionId/history', async (req, res) => {
+  const lines = parseInt(req.query.lines) || 100;
+  const entries = await logStreamer.getHistoricalLogs(req.params.sessionId, lines);
+  res.json({ entries, count: entries.length });
+});
+
+// Stream logs via SSE (main log streaming endpoint)
+app.get('/api/logs/:sessionId/stream', (req, res) => {
+  const sessionId = req.params.sessionId;
+  const control = logStreamer.startStream(sessionId, res);
+
+  console.log(`[LOG STREAM] Client connected to session ${sessionId}`);
+
+  req.on('close', () => {
+    control.stop();
+    console.log(`[LOG STREAM] Client disconnected from session ${sessionId}`);
+  });
+});
+
+// Pause log streaming for a session
+app.post('/api/logs/:sessionId/pause', (req, res) => {
+  logStreamer.pauseStream(req.params.sessionId);
+  res.json({ success: true, paused: true });
+});
+
+// Resume log streaming for a session
+app.post('/api/logs/:sessionId/resume', (req, res) => {
+  logStreamer.resumeStream(req.params.sessionId);
+  res.json({ success: true, paused: false });
+});
+
+// Write a log entry (for testing/integration)
+app.post('/api/logs/:sessionId/write', (req, res) => {
+  const { message, level, source } = req.body;
+  logStreamer.writeLog(req.params.sessionId, message, level || 'INFO', source || 'api');
+  res.json({ success: true });
+});
+
+// Clear log file for a session
+app.delete('/api/logs/:sessionId', (req, res) => {
+  logStreamer.clearLog(req.params.sessionId);
+  res.json({ success: true });
+});
+
 // SSE for Command Center real-time updates
 app.get('/api/sse/command-center', (req, res) => {
   res.writeHead(200, {
@@ -1291,6 +1354,15 @@ app.listen(PORT, async () => {
   console.log('  POST /api/notifications/test        - Send test notification');
   console.log('  POST /api/notifications/alert/*     - Trigger alerts');
   console.log('  VIEW /notification-preferences.html - Preferences UI');
+  console.log('');
+  console.log('Log Streaming:');
+  console.log('  GET  /api/logs                      - List available log files');
+  console.log('  GET  /api/logs/:id/stream           - SSE stream for session logs');
+  console.log('  GET  /api/logs/:id/history          - Get historical logs');
+  console.log('  GET  /api/logs/:id/stats            - Log file statistics');
+  console.log('  POST /api/logs/:id/pause            - Pause log stream');
+  console.log('  POST /api/logs/:id/resume           - Resume log stream');
+  console.log('  POST /api/logs/:id/write            - Write log entry');
   console.log('='.repeat(70) + '\n');
 
   // Start dev-docs file watcher
@@ -1304,6 +1376,7 @@ app.listen(PORT, async () => {
 process.on('SIGINT', async () => {
   console.log('\nShutting down...');
   if (devDocsWatcher) await devDocsWatcher.close();
+  logStreamer.shutdown();
   await tracker.stop();
   process.exit(0);
 });
@@ -1311,6 +1384,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
   console.log('\nShutting down...');
   if (devDocsWatcher) await devDocsWatcher.close();
+  logStreamer.shutdown();
   await tracker.stop();
   process.exit(0);
 });
