@@ -1937,8 +1937,10 @@
       });
 
       // Start log streaming for selected session (only if session changed)
-      if (!logEventSource || logEventSource.sessionId !== session.id) {
-        startLogStream(session.id);
+      // Use logSessionId if available (maps to actual log file), fallback to session.id
+      const logId = session.logSessionId !== null ? session.logSessionId : session.id;
+      if (!logEventSource || logEventSource.sessionId !== logId) {
+        startLogStream(logId);
       }
     }
 
@@ -2086,8 +2088,9 @@
           updateLessonsUI([]);
           return;
         }
-        const lessons = await res.json();
-        updateLessonsUI(lessons);
+        const data = await res.json();
+        // API returns { projectId, lessons, count }
+        updateLessonsUI(data.lessons || []);
       } catch (err) {
         // Endpoint may not exist yet - show placeholder
         updateLessonsUI([]);

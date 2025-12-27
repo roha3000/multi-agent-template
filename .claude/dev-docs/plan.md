@@ -1,9 +1,33 @@
 # Current Plan - Post-Unification
 
-**Last Updated**: 2025-12-27 (Session 29)
+**Last Updated**: 2025-12-27 (Session 30)
 **Current Phase**: MAINTENANCE
-**Status**: Orchestrator unification complete, minor tasks remaining
+**Status**: NOW queue cleared, moving to NEXT queue tasks
 **Priority**: NORMAL
+
+---
+
+## Session 30: NOW Queue Tasks Complete ✅
+
+### Completed This Session
+
+| Task | Status | Description |
+|------|--------|-------------|
+| dashboard-log-session-id-fix | ✅ | Added logSessionId field for proper log streaming |
+| dashboard-v2-lessons-api | ✅ | Fixed API response format for dashboard compatibility |
+
+### Implementation Details
+
+**Log Session ID Fix:**
+- Added `logSessionId` field to session-registry.js
+- Orchestrator passes `state.totalSessions` when registering
+- Dashboard v2 uses `session.logSessionId` for log streaming
+- Fallback to `session.id` when logSessionId not available
+
+**Lessons API Fix:**
+- Updated GET /api/lessons/:project response format
+- Changed from `lessons[]` to `{ projectId, lessons, count }`
+- Dashboard fetchLessons() now extracts `data.lessons`
 
 ---
 
@@ -42,12 +66,9 @@ UNIFIED SYSTEM:
 
 ### NOW Queue
 
-| # | Task ID | Status | Title | Est |
-|---|---------|--------|-------|-----|
-| 1 | `dashboard-log-session-id-fix` | ready | Fix Multi-Session Log Streaming | 45m |
-| 2 | `dashboard-v2-lessons-api` | in_progress | Add Lessons Learned API | 1h |
+*Empty* - All NOW tasks completed!
 
-### NEXT Queue
+### NEXT Queue (Ready to Promote)
 
 | Task ID | Title | Est |
 |---------|-------|-----|

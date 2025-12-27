@@ -14,10 +14,7 @@
   "backlog": {
     "now": {
       "description": "Remaining maintenance tasks",
-      "tasks": [
-        "dashboard-log-session-id-fix",
-        "dashboard-v2-lessons-api"
-      ]
+      "tasks": []
     },
     "next": {
       "description": "Next priority after now is complete",
@@ -37,6 +34,8 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "dashboard-log-session-id-fix",
+        "dashboard-v2-lessons-api",
         "orchestrator-unification-implement",
         "dashboard-taskphase-tracking",
         "taskmanager-concurrent-write-fix",
@@ -140,11 +139,19 @@
         "Lessons stored in memory store or file",
         "Dashboard v2 displays lessons in collapsible panel"
       ],
-      "status": "in_progress",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-27T20:00:00.000Z",
-      "updated": "2025-12-27T18:47:04.740Z",
-      "started": "2025-12-27T18:47:04.740Z"
+      "updated": "2025-12-27T19:17:00.000Z",
+      "started": "2025-12-27T18:47:04.740Z",
+      "completed": "2025-12-27T19:17:00.000Z",
+      "qualityScore": 90,
+      "deliverables": [
+        "global-context-manager.js: Updated GET /api/lessons/:project to return wrapped response",
+        "global-dashboard-v2.html: Fixed fetchLessons() to handle new response format",
+        "Existing lessons API already had GET/POST/DELETE endpoints + task notes extraction"
+      ],
+      "notes": "Task was partially completed previously. Updated API response format to match dashboard expectations."
     },
     "dashboard-taskphase-tracking": {
       "id": "dashboard-taskphase-tracking",
@@ -1452,10 +1459,17 @@
         "CLI sessions (no orchestrator) fall back to combined.log or show 'No logs available'",
         "Log viewer shows correct content for each session when multiple orchestrators running"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-27T15:35:00.000Z",
-      "updated": "2025-12-27T19:00:00.000Z"
+      "updated": "2025-12-27T19:17:00.000Z",
+      "completed": "2025-12-27T19:17:00.000Z",
+      "qualityScore": 90,
+      "deliverables": [
+        "session-registry.js: Added logSessionId field to session schema",
+        "autonomous-orchestrator.js: Pass logSessionId when registering and updating",
+        "global-dashboard-v2.html: Use logSessionId for log streaming"
+      ]
     },
     "taskmanager-concurrent-write-fix": {
       "id": "taskmanager-concurrent-write-fix",

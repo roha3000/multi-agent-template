@@ -61,6 +61,9 @@ class SessionRegistry extends EventEmitter {
       runtime: 0,
       iteration: sessionData.iteration || 0,
       phase: sessionData.phase || 'idle',
+      // Log session ID - maps to the actual log file (session-N.log)
+      // This may differ from the registry ID when multiple orchestrators run
+      logSessionId: sessionData.logSessionId || null,
       // Detail view fields
       acceptanceCriteria: sessionData.acceptanceCriteria || [],
       taskQueue: sessionData.taskQueue || [],

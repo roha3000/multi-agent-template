@@ -1516,7 +1516,11 @@ app.get('/api/lessons/:project', (req, res) => {
     return true;
   });
 
-  res.json(uniqueLessons);
+  res.json({
+    projectId: project,
+    lessons: uniqueLessons,
+    count: uniqueLessons.length
+  });
 });
 
 // POST /api/lessons/:project - Add a new lesson

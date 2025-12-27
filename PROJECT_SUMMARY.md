@@ -1,8 +1,35 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-27 (Session 29)
+**Last Updated**: 2025-12-27 (Session 30)
 
-**Current Phase**: ORCHESTRATOR UNIFICATION - COMPLETE
-**Status**: Orchestrator unified with swarm integration, phase tracking, and concurrent write fix
+**Current Phase**: MAINTENANCE - NOW QUEUE CLEARED
+**Status**: All NOW tasks completed, NEXT queue ready for promotion
+
+---
+
+## Session 30: NOW Queue Cleared
+
+### Work Completed
+
+| Task | Status | Description |
+|------|--------|-------------|
+| dashboard-log-session-id-fix | ✅ | Added logSessionId for proper multi-session log streaming |
+| dashboard-v2-lessons-api | ✅ | Fixed API response format for dashboard compatibility |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `.claude/core/session-registry.js` | Added `logSessionId` field to session schema |
+| `autonomous-orchestrator.js` | Pass `state.totalSessions` as logSessionId |
+| `global-dashboard-v2.html` | Use `session.logSessionId` for log streaming |
+| `global-context-manager.js` | Updated lessons API response format |
+
+### Current Queue Status
+
+| Queue | Count | Tasks |
+|-------|-------|-------|
+| NOW | 0 | *Empty - all completed* |
+| NEXT | 2 | dashboard-v2-polish, add-model-pricing |
 
 ---
 
@@ -69,13 +96,14 @@ Unified `autonomous-orchestrator.js` with swarm integration via multi-agent para
 
 ## Current Task Queue (NOW)
 
-| # | Task ID | Status | Title | Est |
-|---|---------|--------|-------|-----|
-| 1 | `orchestrator-unification-implement` | in_progress | Implement Orchestrator Unification Plan | 14h |
-| 2 | `dashboard-log-session-id-fix` | ready | Fix Multi-Session Log Streaming | 45m |
-| 3 | `dashboard-v2-lessons-api` | in_progress | Add Lessons Learned API | 1h |
+*Empty - All NOW tasks completed!*
 
-### Recently Completed
+### Recently Completed (Session 30)
+- ✅ `dashboard-log-session-id-fix` - Log session ID for multi-session streaming
+- ✅ `dashboard-v2-lessons-api` - Lessons API response format fix
+
+### Recently Completed (Session 29)
+- ✅ `orchestrator-unification-implement` - Unified orchestrator with swarm integration
 - ✅ `dashboard-taskphase-tracking` - Phase progression UI in dashboard
 - ✅ `taskmanager-concurrent-write-fix` - Concurrent write race condition fixed
 

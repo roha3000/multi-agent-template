@@ -650,10 +650,12 @@ function initializeCommandCenter() {
     usageLimitTracker = getUsageLimitTracker();
 
     // Register this orchestrator session
+    // logSessionId maps to the actual log file (session-N.log)
     registeredSessionId = sessionRegistry.register({
       project: path.basename(CONFIG.projectPath),
       path: CONFIG.projectPath,
       status: 'active',
+      logSessionId: state.totalSessions, // Maps to session-N.log
       currentTask: state.currentTask ? {
         id: state.currentTask.id,
         title: state.currentTask.title,
@@ -685,6 +687,7 @@ function updateCommandCenter(updates = {}) {
   try {
     const sessionUpdates = {
       status: 'active',
+      logSessionId: state.totalSessions, // Keep dashboard synced with current log file
       currentTask: state.currentTask ? {
         id: state.currentTask.id,
         title: state.currentTask.title,
