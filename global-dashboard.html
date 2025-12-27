@@ -1272,6 +1272,313 @@
             gap: 8px;
             margin-top: 8px;
         }
+
+        /* ======================================
+           KEYBOARD SHORTCUTS MODAL - Phase 4 Polish
+           ====================================== */
+
+        .shortcuts-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .shortcuts-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .shortcuts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .shortcuts-header h2 {
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .shortcuts-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .shortcuts-close:hover {
+            color: var(--text-primary);
+        }
+
+        .shortcuts-body {
+            padding: 20px 24px;
+        }
+
+        .shortcuts-section {
+            margin-bottom: 24px;
+        }
+
+        .shortcuts-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .shortcuts-section h3 {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .shortcut-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .shortcut-row:last-child {
+            border-bottom: none;
+        }
+
+        .shortcut-row span {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        kbd {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            color: var(--text-primary);
+            box-shadow: 0 2px 0 var(--border);
+        }
+
+        .shortcuts-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Keyboard focus ring for session cards */
+        .session-card.keyboard-focus {
+            outline: 2px solid var(--info);
+            outline-offset: 2px;
+        }
+
+        .session-card:focus-visible {
+            outline: 2px solid var(--info);
+            outline-offset: 2px;
+        }
+
+        /* ======================================
+           RESPONSIVE DESIGN - Phase 4 Polish
+           ====================================== */
+
+        /* Session Cards Grid Layout */
+        #activeSessionsContainer {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        #activeSessionsContainer .empty-state {
+            grid-column: 1 / -1;
+        }
+
+        /* Large tablets / small laptops (1200px) */
+        @media (max-width: 1200px) {
+            .container {
+                max-width: 100%;
+                padding: 20px;
+            }
+
+            .series-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            #activeSessionsContainer {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Tablets (900px) - enhance existing */
+        @media (max-width: 900px) {
+            .header {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+                padding: 16px;
+                padding-top: 70px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .container {
+                padding: 16px;
+            }
+
+            .series-stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            #activeSessionsContainer {
+                grid-template-columns: 1fr;
+            }
+
+            .session-card {
+                padding: 16px;
+            }
+        }
+
+        /* Small tablets (768px) - enhance existing */
+        @media (max-width: 768px) {
+            .alert-banner {
+                flex-direction: column;
+                gap: 8px;
+                padding: 12px;
+            }
+
+            .copy-btn {
+                padding: 8px 20px;
+                min-height: 44px;
+            }
+
+            .session-actions {
+                flex-direction: column;
+            }
+
+            .action-btn {
+                width: 100%;
+                min-height: 44px;
+            }
+        }
+
+        /* Mobile phones (480px) */
+        @media (max-width: 480px) {
+            .header {
+                padding: 12px;
+                padding-top: 60px;
+            }
+
+            .header h1 {
+                font-size: 16px;
+            }
+
+            .container {
+                padding: 12px;
+            }
+
+            .section-title {
+                font-size: 12px;
+            }
+
+            .series-stats {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+
+            .series-stat {
+                padding: 8px;
+            }
+
+            .series-stat-value {
+                font-size: 18px;
+            }
+
+            .series-stat-label {
+                font-size: 10px;
+            }
+
+            .session-card {
+                padding: 12px;
+                border-radius: 12px;
+            }
+
+            .session-name {
+                font-size: 14px;
+            }
+
+            .remaining-value {
+                font-size: 32px;
+            }
+
+            .remaining-label {
+                font-size: 11px;
+            }
+
+            .progress-labels {
+                font-size: 10px;
+            }
+
+            .phase-card, .scores-card {
+                padding: 12px;
+            }
+
+            .todos-panel, .backlog-panel {
+                padding: 12px;
+            }
+
+            .confidence-gauge svg {
+                width: 100px;
+                height: 100px;
+            }
+
+            .confidence-signals {
+                gap: 8px;
+            }
+
+            .planning-cards {
+                gap: 12px;
+            }
+
+            .plan-card {
+                padding: 12px;
+            }
+
+            /* Touch-friendly targets */
+            button, .action-btn, .copy-btn, .control-btn {
+                min-height: 44px;
+                min-width: 44px;
+            }
+
+            input[type="checkbox"] {
+                width: 20px;
+                height: 20px;
+            }
+
+            /* Improve tap targets for interactive elements */
+            .inactive-header {
+                min-height: 44px;
+                padding: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1510,6 +1817,66 @@
         </div>
     </div>
 
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcutsModal" class="shortcuts-modal" style="display: none;">
+        <div class="shortcuts-content">
+            <div class="shortcuts-header">
+                <h2>Keyboard Shortcuts</h2>
+                <button class="shortcuts-close" onclick="hideShortcutsModal()">&times;</button>
+            </div>
+            <div class="shortcuts-body">
+                <div class="shortcuts-section">
+                    <h3>Navigation</h3>
+                    <div class="shortcut-row">
+                        <kbd>j</kbd> / <kbd>↓</kbd>
+                        <span>Next session card</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>k</kbd> / <kbd>↑</kbd>
+                        <span>Previous session card</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>Enter</kbd>
+                        <span>Open selected session</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>Esc</kbd>
+                        <span>Close modal / detail view</span>
+                    </div>
+                </div>
+                <div class="shortcuts-section">
+                    <h3>Log Viewer</h3>
+                    <div class="shortcut-row">
+                        <kbd>/</kbd>
+                        <span>Focus search</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>p</kbd>
+                        <span>Pause/Resume log stream</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>c</kbd>
+                        <span>Clear log display</span>
+                    </div>
+                    <div class="shortcut-row">
+                        <kbd>a</kbd>
+                        <span>Toggle auto-scroll</span>
+                    </div>
+                </div>
+                <div class="shortcuts-section">
+                    <h3>General</h3>
+                    <div class="shortcut-row">
+                        <kbd>?</kbd>
+                        <span>Show this help</span>
+                    </div>
+                </div>
+            </div>
+            <div class="shortcuts-footer">
+                Press <kbd>Esc</kbd> to close
+            </div>
+        </div>
+    </div>
+
     <!-- Session Detail View (hidden by default) -->
     <div id="detailView" class="detail-view" style="display: none;">
         <header class="detail-header">
@@ -1694,6 +2061,13 @@
                             <option value="DEBUG">Debug+</option>
                         </select>
                     </div>
+                    <div class="log-search-container">
+                        <input type="text" id="logSearchInput" class="log-search-input" placeholder="Search logs... (press /)" />
+                        <span class="log-search-count" id="logSearchCount"></span>
+                        <button class="log-search-btn" id="logSearchPrev" onclick="navigateSearch(-1)" title="Previous match (Shift+Enter)">↑</button>
+                        <button class="log-search-btn" id="logSearchNext" onclick="navigateSearch(1)" title="Next match (Enter)">↓</button>
+                        <button class="log-search-btn" id="logSearchClear" onclick="clearSearch()" title="Clear search (Esc)">×</button>
+                    </div>
                     <div class="log-controls-right">
                         <button class="log-control-btn" id="logPauseBtn" onclick="toggleLogPause()">
                             <span id="logPauseIcon">⏸</span> <span id="logPauseText">Pause</span>
@@ -1704,6 +2078,22 @@
                 <div class="log-output-container">
                     <div class="log-output" id="logOutput">
                         <div class="log-empty-message">Connecting to log stream...</div>
+                    </div>
+                </div>
+                <div class="log-history-nav">
+                    <div class="log-history-left">
+                        <button class="log-nav-btn" id="logOlderBtn" onclick="loadOlderLogs()" title="Load older logs">
+                            ← Older
+                        </button>
+                        <span class="log-time-range" id="logTimeRange">-</span>
+                        <button class="log-nav-btn" id="logNewerBtn" onclick="loadNewerLogs()" title="Load newer logs">
+                            Newer →
+                        </button>
+                    </div>
+                    <div class="log-history-right">
+                        <input type="datetime-local" id="logJumpTime" class="log-time-input" title="Jump to specific time" />
+                        <button class="log-nav-btn" onclick="jumpToTime()" title="Jump to time">Go</button>
+                        <button class="log-nav-btn" onclick="jumpToLatest()" title="Jump to latest (live)">Latest</button>
                     </div>
                 </div>
                 <div class="log-footer">
@@ -2355,6 +2745,157 @@
             background: var(--border);
         }
 
+        /* Log Search - Phase 4 Polish */
+        .log-search-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            max-width: 300px;
+            margin: 0 12px;
+        }
+
+        .log-search-input {
+            flex: 1;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            padding: 6px 10px;
+            font-size: 12px;
+            min-width: 120px;
+        }
+
+        .log-search-input:focus {
+            outline: none;
+            border-color: var(--info);
+            box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+        }
+
+        .log-search-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .log-search-count {
+            font-size: 11px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .log-search-count.has-matches {
+            color: var(--success);
+        }
+
+        .log-search-count.no-matches {
+            color: var(--danger);
+        }
+
+        .log-search-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .log-search-btn:hover {
+            background: var(--border);
+            color: var(--text-primary);
+        }
+
+        .log-search-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Search highlight styles */
+        .log-entry .search-highlight {
+            background: rgba(255, 213, 0, 0.4);
+            color: inherit;
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+
+        .log-entry.search-match {
+            background: rgba(88, 166, 255, 0.1);
+        }
+
+        .log-entry.search-current {
+            background: rgba(255, 213, 0, 0.2);
+            border-left: 3px solid var(--warning);
+        }
+
+        /* Historical Navigation - Phase 4 Polish */
+        .log-history-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+        }
+
+        .log-history-left, .log-history-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .log-nav-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .log-nav-btn:hover {
+            background: var(--border);
+            color: var(--text-primary);
+        }
+
+        .log-nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .log-nav-btn.active {
+            background: var(--info);
+            color: #000;
+            border-color: var(--info);
+        }
+
+        .log-time-range {
+            color: var(--text-secondary);
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .log-time-input {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            padding: 4px 8px;
+            font-size: 11px;
+        }
+
+        .log-time-input:focus {
+            outline: none;
+            border-color: var(--info);
+        }
+
         .log-control-btn.paused {
             background: var(--warning);
             color: #000;
@@ -2435,6 +2976,172 @@
 
         .log-count-error { color: var(--danger); }
         .log-count-warn { color: var(--warning); }
+
+        /* ======================================
+           DETAIL VIEW RESPONSIVE - Phase 4 Polish
+           ====================================== */
+
+        /* Tablets (900px) */
+        @media (max-width: 900px) {
+            .detail-header {
+                flex-direction: column;
+                gap: 12px;
+                padding: 12px 16px;
+            }
+
+            .back-btn {
+                align-self: flex-start;
+            }
+
+            .detail-controls {
+                width: 100%;
+                justify-content: flex-end;
+            }
+
+            .detail-project-info {
+                padding: 16px;
+            }
+
+            .detail-project-info h1 {
+                font-size: 20px;
+            }
+        }
+
+        /* Small tablets (768px) */
+        @media (max-width: 768px) {
+            .detail-controls {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .control-btn {
+                width: 100%;
+                min-height: 44px;
+            }
+
+            .log-controls {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .log-controls-left, .log-controls-right {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .log-search-container {
+                order: -1;
+                width: 100%;
+                max-width: none;
+                margin: 0 0 8px 0;
+            }
+
+            .log-history-nav {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .log-history-left, .log-history-right {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Mobile (480px) */
+        @media (max-width: 480px) {
+            .detail-header {
+                padding: 12px;
+            }
+
+            .back-btn {
+                font-size: 13px;
+                padding: 8px 12px;
+                min-height: 44px;
+            }
+
+            .detail-project-info {
+                padding: 12px;
+            }
+
+            .detail-project-info h1 {
+                font-size: 18px;
+            }
+
+            .detail-status {
+                font-size: 11px;
+            }
+
+            .detail-path {
+                font-size: 11px;
+            }
+
+            .detail-metrics-row {
+                padding: 12px;
+                gap: 12px;
+            }
+
+            .metric-card {
+                padding: 12px;
+            }
+
+            .metric-value {
+                font-size: 24px;
+            }
+
+            .metric-label {
+                font-size: 10px;
+            }
+
+            .detail-split-panel {
+                padding: 12px;
+                gap: 12px;
+            }
+
+            .detail-task-panel, .detail-quality-panel {
+                padding: 12px;
+            }
+
+            .acceptance-item {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+
+            .task-queue-table th,
+            .task-queue-table td {
+                padding: 8px 6px;
+                font-size: 11px;
+            }
+
+            /* Log viewer on mobile */
+            .log-output-container {
+                height: 200px;
+            }
+
+            .log-entry {
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+
+            .log-timestamp {
+                display: none;
+            }
+
+            .log-footer {
+                flex-direction: column;
+                gap: 4px;
+                text-align: center;
+            }
+
+            /* Confidence gauge smaller on mobile */
+            .detail-confidence-gauge svg {
+                width: 80px;
+                height: 80px;
+            }
+
+            .confidence-signal-bar {
+                height: 6px;
+            }
+        }
     </style>
 
     <script>
@@ -3534,6 +4241,394 @@
             return div.innerHTML;
         }
 
+        // ======================================
+        // LOG SEARCH FUNCTIONALITY - Phase 4 Polish
+        // ======================================
+
+        let searchMatches = [];
+        let currentSearchIndex = -1;
+        let searchQuery = '';
+
+        function performSearch(query) {
+            searchQuery = query.toLowerCase().trim();
+            searchMatches = [];
+            currentSearchIndex = -1;
+
+            const output = document.getElementById('logOutput');
+            const entries = output.querySelectorAll('.log-entry');
+            const countEl = document.getElementById('logSearchCount');
+
+            // Clear previous highlights
+            entries.forEach(entry => {
+                entry.classList.remove('search-match', 'search-current');
+                // Restore original text (remove highlights)
+                const messageEl = entry.querySelector('.log-message');
+                if (messageEl && messageEl.dataset.originalText) {
+                    messageEl.textContent = messageEl.dataset.originalText;
+                }
+            });
+
+            if (!searchQuery) {
+                countEl.textContent = '';
+                countEl.className = 'log-search-count';
+                updateSearchButtons();
+                return;
+            }
+
+            // Find matches and highlight
+            entries.forEach((entry, index) => {
+                const messageEl = entry.querySelector('.log-message');
+                if (!messageEl) return;
+
+                const text = messageEl.textContent;
+                // Store original text if not already stored
+                if (!messageEl.dataset.originalText) {
+                    messageEl.dataset.originalText = text;
+                }
+
+                if (text.toLowerCase().includes(searchQuery)) {
+                    searchMatches.push({ entry, index });
+                    entry.classList.add('search-match');
+
+                    // Highlight matching text
+                    const regex = new RegExp(`(${escapeRegex(searchQuery)})`, 'gi');
+                    messageEl.innerHTML = escapeHtml(text).replace(regex, '<mark class="search-highlight">$1</mark>');
+                }
+            });
+
+            // Update count display
+            if (searchMatches.length > 0) {
+                countEl.textContent = `${searchMatches.length} match${searchMatches.length !== 1 ? 'es' : ''}`;
+                countEl.className = 'log-search-count has-matches';
+                // Jump to first match
+                navigateSearch(1);
+            } else {
+                countEl.textContent = 'No matches';
+                countEl.className = 'log-search-count no-matches';
+            }
+
+            updateSearchButtons();
+        }
+
+        function navigateSearch(direction) {
+            if (searchMatches.length === 0) return;
+
+            // Remove current highlight
+            if (currentSearchIndex >= 0 && searchMatches[currentSearchIndex]) {
+                searchMatches[currentSearchIndex].entry.classList.remove('search-current');
+            }
+
+            // Calculate new index
+            currentSearchIndex += direction;
+            if (currentSearchIndex >= searchMatches.length) {
+                currentSearchIndex = 0; // Wrap to start
+            } else if (currentSearchIndex < 0) {
+                currentSearchIndex = searchMatches.length - 1; // Wrap to end
+            }
+
+            // Highlight current match and scroll to it
+            const match = searchMatches[currentSearchIndex];
+            if (match) {
+                match.entry.classList.add('search-current');
+                match.entry.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // Update count to show position
+                const countEl = document.getElementById('logSearchCount');
+                countEl.textContent = `${currentSearchIndex + 1}/${searchMatches.length}`;
+            }
+        }
+
+        function clearSearch() {
+            const searchInput = document.getElementById('logSearchInput');
+            searchInput.value = '';
+            performSearch('');
+            searchInput.focus();
+        }
+
+        function updateSearchButtons() {
+            const prevBtn = document.getElementById('logSearchPrev');
+            const nextBtn = document.getElementById('logSearchNext');
+            const clearBtn = document.getElementById('logSearchClear');
+
+            const hasMatches = searchMatches.length > 0;
+            prevBtn.disabled = !hasMatches;
+            nextBtn.disabled = !hasMatches;
+            clearBtn.style.visibility = searchQuery ? 'visible' : 'hidden';
+        }
+
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        // Search input event handlers
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('logSearchInput');
+            if (searchInput) {
+                // Search as you type (with debounce)
+                let searchTimeout;
+                searchInput.addEventListener('input', (e) => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        performSearch(e.target.value);
+                    }, 150);
+                });
+
+                // Handle Enter/Shift+Enter for navigation
+                searchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (e.shiftKey) {
+                            navigateSearch(-1);
+                        } else {
+                            navigateSearch(1);
+                        }
+                    } else if (e.key === 'Escape') {
+                        clearSearch();
+                        searchInput.blur();
+                    }
+                });
+            }
+
+            // Initialize search button visibility
+            updateSearchButtons();
+
+            // Initialize history navigation
+            initHistoryNavigation();
+        });
+
+        // ======================================
+        // HISTORICAL NAVIGATION - Phase 4 Polish
+        // ======================================
+
+        let isLiveMode = true;
+        let currentLogOffset = 0;
+        const logsPerPage = 100;
+        let oldestTimestamp = null;
+        let newestTimestamp = null;
+
+        function initHistoryNavigation() {
+            // Set default time to now
+            const jumpTimeInput = document.getElementById('logJumpTime');
+            if (jumpTimeInput) {
+                const now = new Date();
+                // Format for datetime-local: YYYY-MM-DDTHH:mm
+                jumpTimeInput.value = now.toISOString().slice(0, 16);
+            }
+            updateHistoryButtons();
+        }
+
+        function updateHistoryButtons() {
+            const olderBtn = document.getElementById('logOlderBtn');
+            const newerBtn = document.getElementById('logNewerBtn');
+            const latestBtn = document.querySelector('.log-nav-btn[onclick="jumpToLatest()"]');
+
+            if (olderBtn) olderBtn.disabled = false; // Always can load older
+            if (newerBtn) newerBtn.disabled = isLiveMode; // Can't go newer in live mode
+            if (latestBtn) {
+                if (isLiveMode) {
+                    latestBtn.classList.add('active');
+                } else {
+                    latestBtn.classList.remove('active');
+                }
+            }
+        }
+
+        function updateTimeRange() {
+            const rangeEl = document.getElementById('logTimeRange');
+            if (!rangeEl) return;
+
+            if (isLiveMode) {
+                rangeEl.textContent = 'Live';
+            } else if (oldestTimestamp && newestTimestamp) {
+                const formatTime = (ts) => {
+                    const d = new Date(ts);
+                    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                };
+                rangeEl.textContent = `${formatTime(oldestTimestamp)} - ${formatTime(newestTimestamp)}`;
+            } else {
+                rangeEl.textContent = 'Historical';
+            }
+        }
+
+        async function loadOlderLogs() {
+            if (!currentDetailSessionId) return;
+
+            isLiveMode = false;
+            currentLogOffset += logsPerPage;
+
+            // Pause streaming when viewing history
+            if (!logPaused) {
+                toggleLogPause();
+            }
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/api/logs/${currentDetailSessionId}/history?lines=${logsPerPage}&offset=${currentLogOffset}`
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.entries && data.entries.length > 0) {
+                        displayHistoricalLogs(data.entries, 'prepend');
+                        oldestTimestamp = data.entries[0].timestamp || oldestTimestamp;
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load older logs:', err);
+            }
+
+            updateHistoryButtons();
+            updateTimeRange();
+        }
+
+        async function loadNewerLogs() {
+            if (!currentDetailSessionId || currentLogOffset <= 0) return;
+
+            currentLogOffset = Math.max(0, currentLogOffset - logsPerPage);
+
+            if (currentLogOffset === 0) {
+                // Back to live mode
+                jumpToLatest();
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/api/logs/${currentDetailSessionId}/history?lines=${logsPerPage}&offset=${currentLogOffset}`
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.entries && data.entries.length > 0) {
+                        displayHistoricalLogs(data.entries, 'replace');
+                        newestTimestamp = data.entries[data.entries.length - 1].timestamp || newestTimestamp;
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load newer logs:', err);
+            }
+
+            updateHistoryButtons();
+            updateTimeRange();
+        }
+
+        async function jumpToTime() {
+            const jumpTimeInput = document.getElementById('logJumpTime');
+            if (!jumpTimeInput || !currentDetailSessionId) return;
+
+            const targetTime = new Date(jumpTimeInput.value);
+            if (isNaN(targetTime.getTime())) {
+                alert('Please enter a valid date and time');
+                return;
+            }
+
+            isLiveMode = false;
+
+            // Pause streaming
+            if (!logPaused) {
+                toggleLogPause();
+            }
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/api/logs/${currentDetailSessionId}/history?lines=${logsPerPage}&before=${targetTime.toISOString()}`
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.entries && data.entries.length > 0) {
+                        displayHistoricalLogs(data.entries, 'replace');
+                        oldestTimestamp = data.entries[0].timestamp;
+                        newestTimestamp = data.entries[data.entries.length - 1].timestamp;
+                    } else {
+                        const output = document.getElementById('logOutput');
+                        output.innerHTML = '<div class="log-empty-message">No logs found for this time period</div>';
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to jump to time:', err);
+            }
+
+            updateHistoryButtons();
+            updateTimeRange();
+        }
+
+        function jumpToLatest() {
+            isLiveMode = true;
+            currentLogOffset = 0;
+            oldestTimestamp = null;
+            newestTimestamp = null;
+
+            // Resume streaming if paused
+            if (logPaused) {
+                toggleLogPause();
+            }
+
+            // Clear and reconnect to live stream
+            const output = document.getElementById('logOutput');
+            output.innerHTML = '<div class="log-empty-message">Reconnecting to live stream...</div>';
+            logLineCount = 0;
+            logErrorCount = 0;
+            logWarnCount = 0;
+            updateLogCounts();
+
+            // Reconnect to log stream
+            if (logEventSource) {
+                logEventSource.close();
+            }
+            connectToLogStream(currentDetailSessionId);
+
+            updateHistoryButtons();
+            updateTimeRange();
+        }
+
+        function displayHistoricalLogs(entries, mode = 'replace') {
+            const output = document.getElementById('logOutput');
+
+            // Remove empty message
+            const emptyMsg = output.querySelector('.log-empty-message');
+            if (emptyMsg) emptyMsg.remove();
+
+            if (mode === 'replace') {
+                output.innerHTML = '';
+                logLineCount = 0;
+                logErrorCount = 0;
+                logWarnCount = 0;
+            }
+
+            entries.forEach(entry => {
+                const div = document.createElement('div');
+                div.className = `log-entry ${entry.level || 'INFO'}`;
+
+                const timestamp = entry.timestamp
+                    ? new Date(entry.timestamp).toLocaleTimeString()
+                    : '';
+
+                div.innerHTML = `
+                    <span class="log-timestamp">${escapeHtml(timestamp)}</span>
+                    <span class="log-level ${entry.level || 'INFO'}">${entry.level || 'INFO'}</span>
+                    <span class="log-message">${escapeHtml(entry.line || entry.raw || '')}</span>
+                `;
+
+                if (mode === 'prepend') {
+                    output.insertBefore(div, output.firstChild);
+                } else {
+                    output.appendChild(div);
+                }
+
+                logLineCount++;
+                if (entry.level === 'ERROR') logErrorCount++;
+                if (entry.level === 'WARN') logWarnCount++;
+            });
+
+            updateLogCounts();
+
+            // Re-apply search if active
+            if (searchQuery) {
+                performSearch(searchQuery);
+            }
+        }
+
         // Filter change handler
         document.addEventListener('DOMContentLoaded', () => {
             const filterSelect = document.getElementById('logLevelFilter');
@@ -3650,6 +4745,186 @@
         document.getElementById('soundEnabled').addEventListener('change', (e) => {
             soundEnabled = e.target.checked;
         });
+
+        // ======================================
+        // KEYBOARD NAVIGATION - Phase 4 Polish
+        // ======================================
+
+        let selectedCardIndex = -1;
+
+        function getSessionCards() {
+            return Array.from(document.querySelectorAll('#activeSessionsContainer .session-card'));
+        }
+
+        function updateCardFocus(newIndex) {
+            const cards = getSessionCards();
+            if (cards.length === 0) return;
+
+            // Remove focus from all cards
+            cards.forEach(card => card.classList.remove('keyboard-focus'));
+
+            // Clamp index to valid range
+            if (newIndex < 0) newIndex = 0;
+            if (newIndex >= cards.length) newIndex = cards.length - 1;
+
+            selectedCardIndex = newIndex;
+
+            // Add focus to selected card
+            if (cards[selectedCardIndex]) {
+                cards[selectedCardIndex].classList.add('keyboard-focus');
+                cards[selectedCardIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function showShortcutsModal() {
+            document.getElementById('shortcutsModal').style.display = 'flex';
+        }
+
+        function hideShortcutsModal() {
+            document.getElementById('shortcutsModal').style.display = 'none';
+        }
+
+        function isInputFocused() {
+            const active = document.activeElement;
+            return active && (
+                active.tagName === 'INPUT' ||
+                active.tagName === 'TEXTAREA' ||
+                active.tagName === 'SELECT' ||
+                active.isContentEditable
+            );
+        }
+
+        function isModalOpen() {
+            const shortcutsModal = document.getElementById('shortcutsModal');
+            const detailView = document.getElementById('detailView');
+            return (shortcutsModal && shortcutsModal.style.display !== 'none') ||
+                   (detailView && detailView.style.display !== 'none');
+        }
+
+        function isDetailViewOpen() {
+            const detailView = document.getElementById('detailView');
+            return detailView && detailView.style.display !== 'none';
+        }
+
+        function isShortcutsModalOpen() {
+            const shortcutsModal = document.getElementById('shortcutsModal');
+            return shortcutsModal && shortcutsModal.style.display !== 'none';
+        }
+
+        // Keyboard event handler
+        document.addEventListener('keydown', (e) => {
+            // Skip if typing in an input field
+            if (isInputFocused()) {
+                // Allow Escape to blur input
+                if (e.key === 'Escape') {
+                    document.activeElement.blur();
+                    e.preventDefault();
+                }
+                return;
+            }
+
+            const key = e.key.toLowerCase();
+
+            // Escape - close modals/views
+            if (e.key === 'Escape') {
+                if (isShortcutsModalOpen()) {
+                    hideShortcutsModal();
+                    e.preventDefault();
+                } else if (isDetailViewOpen()) {
+                    hideDetailView();
+                    e.preventDefault();
+                }
+                return;
+            }
+
+            // ? - show shortcuts modal
+            if (key === '?' || (e.shiftKey && key === '/')) {
+                showShortcutsModal();
+                e.preventDefault();
+                return;
+            }
+
+            // Commands that work in detail view
+            if (isDetailViewOpen()) {
+                switch (key) {
+                    case 'p':
+                        // Pause/Resume log stream
+                        if (typeof toggleLogPause === 'function') {
+                            toggleLogPause();
+                        }
+                        e.preventDefault();
+                        break;
+                    case 'c':
+                        // Clear log display
+                        if (typeof clearLogDisplay === 'function') {
+                            clearLogDisplay();
+                        }
+                        e.preventDefault();
+                        break;
+                    case 'a':
+                        // Toggle auto-scroll
+                        const autoScrollCheckbox = document.getElementById('logAutoScroll');
+                        if (autoScrollCheckbox) {
+                            autoScrollCheckbox.checked = !autoScrollCheckbox.checked;
+                        }
+                        e.preventDefault();
+                        break;
+                    case '/':
+                        // Focus search input (will be added in search feature)
+                        const searchInput = document.getElementById('logSearchInput');
+                        if (searchInput) {
+                            searchInput.focus();
+                            e.preventDefault();
+                        }
+                        break;
+                }
+                return;
+            }
+
+            // Commands for main view (Command Center)
+            if (!isModalOpen()) {
+                const cards = getSessionCards();
+
+                switch (key) {
+                    case 'j':
+                    case 'arrowdown':
+                        // Next card
+                        updateCardFocus(selectedCardIndex + 1);
+                        e.preventDefault();
+                        break;
+                    case 'k':
+                    case 'arrowup':
+                        // Previous card
+                        updateCardFocus(selectedCardIndex - 1);
+                        e.preventDefault();
+                        break;
+                    case 'enter':
+                        // Open selected session
+                        if (selectedCardIndex >= 0 && cards[selectedCardIndex]) {
+                            const viewBtn = cards[selectedCardIndex].querySelector('.view-details');
+                            if (viewBtn) {
+                                viewBtn.click();
+                            }
+                        }
+                        e.preventDefault();
+                        break;
+                }
+            }
+        });
+
+        // Reset card selection when cards are updated
+        const originalUpdateDisplay = updateDisplay;
+        updateDisplay = function(data) {
+            originalUpdateDisplay(data);
+            // Maintain selection if possible, otherwise reset
+            const cards = getSessionCards();
+            if (selectedCardIndex >= cards.length) {
+                selectedCardIndex = cards.length - 1;
+            }
+            if (selectedCardIndex >= 0 && cards[selectedCardIndex]) {
+                cards[selectedCardIndex].classList.add('keyboard-focus');
+            }
+        };
 
         // Initial connection
         connect();

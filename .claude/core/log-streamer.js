@@ -137,15 +137,21 @@ class LogStreamer extends EventEmitter {
    * @param {number} lines - Number of lines to read
    * @returns {Promise<Array>} Array of parsed log entries
    */
-  async getHistoricalLogs(sessionId, lines = 100) {
+  async getHistoricalLogs(sessionId, options = {}) {
+    const {
+      lines = 100,
+      offset = 0,
+      before = null  // ISO timestamp - get logs before this time
+    } = typeof options === 'number' ? { lines: options } : options;
+
     const logPath = this.getLogPath(sessionId);
 
     if (!fs.existsSync(logPath)) {
-      return [];
+      return { entries: [], total: 0 };
     }
 
     return new Promise((resolve, reject) => {
-      const entries = [];
+      const allEntries = [];
       const rl = readline.createInterface({
         input: fs.createReadStream(logPath),
         crlfDelay: Infinity
@@ -153,15 +159,31 @@ class LogStreamer extends EventEmitter {
 
       rl.on('line', (line) => {
         if (line.trim()) {
-          entries.push(this._parseLine(line));
-          // Keep only last N lines
-          if (entries.length > lines) {
-            entries.shift();
+          const entry = this._parseLine(line);
+
+          // Filter by before timestamp if provided
+          if (before) {
+            const beforeTime = new Date(before).getTime();
+            const entryTime = entry.timestamp ? new Date(entry.timestamp).getTime() : Date.now();
+            if (entryTime > beforeTime) {
+              return; // Skip entries after the 'before' time
+            }
           }
+
+          allEntries.push(entry);
         }
       });
 
-      rl.on('close', () => resolve(entries));
+      rl.on('close', () => {
+        const total = allEntries.length;
+
+        // Apply offset and limit (get last N entries, offset from end)
+        const start = Math.max(0, total - lines - offset);
+        const end = Math.max(0, total - offset);
+        const entries = allEntries.slice(start, end);
+
+        resolve({ entries, total, hasMore: start > 0 });
+      });
       rl.on('error', reject);
     });
   }

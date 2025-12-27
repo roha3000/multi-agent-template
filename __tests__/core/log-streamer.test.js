@@ -97,18 +97,19 @@ describe('LogStreamer', () => {
 
   describe('getHistoricalLogs', () => {
     it('should return empty array for non-existent log', async () => {
-      const entries = await logStreamer.getHistoricalLogs('nonexistent');
-      expect(entries).toEqual([]);
+      const result = await logStreamer.getHistoricalLogs('nonexistent');
+      expect(result.entries).toEqual([]);
+      expect(result.total).toBe(0);
     });
 
     it('should return parsed log entries', async () => {
       logStreamer.writeLog(4, 'Test entry 1', 'INFO', 'test');
       logStreamer.writeLog(4, 'Test entry 2', 'WARN', 'test');
 
-      const entries = await logStreamer.getHistoricalLogs(4);
-      expect(entries.length).toBe(2);
-      expect(entries[0].level).toBe('INFO');
-      expect(entries[1].level).toBe('WARN');
+      const result = await logStreamer.getHistoricalLogs(4);
+      expect(result.entries.length).toBe(2);
+      expect(result.entries[0].level).toBe('INFO');
+      expect(result.entries[1].level).toBe('WARN');
     });
 
     it('should respect line limit', async () => {
@@ -118,10 +119,12 @@ describe('LogStreamer', () => {
       }
 
       // Request only 5
-      const entries = await logStreamer.getHistoricalLogs(5, 5);
-      expect(entries.length).toBe(5);
-      expect(entries[0].line).toContain('Entry 5');
-      expect(entries[4].line).toContain('Entry 9');
+      const result = await logStreamer.getHistoricalLogs(5, { lines: 5 });
+      expect(result.entries.length).toBe(5);
+      expect(result.entries[0].line).toContain('Entry 5');
+      expect(result.entries[4].line).toContain('Entry 9');
+      expect(result.total).toBe(10);
+      expect(result.hasMore).toBe(true);
     });
   });
 

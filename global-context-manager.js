@@ -1168,11 +1168,21 @@ app.get('/api/logs/:sessionId/stats', async (req, res) => {
   res.json(stats);
 });
 
-// Get historical logs for a session
+// Get historical logs for a session (with pagination support)
 app.get('/api/logs/:sessionId/history', async (req, res) => {
-  const lines = parseInt(req.query.lines) || 100;
-  const entries = await logStreamer.getHistoricalLogs(req.params.sessionId, lines);
-  res.json({ entries, count: entries.length });
+  const options = {
+    lines: parseInt(req.query.lines) || 100,
+    offset: parseInt(req.query.offset) || 0,
+    before: req.query.before || null  // ISO timestamp
+  };
+
+  const result = await logStreamer.getHistoricalLogs(req.params.sessionId, options);
+  res.json({
+    entries: result.entries || result,  // Handle both old and new return format
+    count: result.entries?.length || result.length || 0,
+    total: result.total || 0,
+    hasMore: result.hasMore || false
+  });
 });
 
 // Stream logs via SSE (main log streaming endpoint)

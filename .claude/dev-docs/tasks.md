@@ -1,7 +1,7 @@
 # Active Tasks - Dashboard Command Center
 
-**Last Updated**: 2025-12-26 (Session 23)
-**Current Focus**: Phase 3 COMPLETE - Live Log Viewer
+**Last Updated**: 2025-12-27 (Session 24)
+**Current Focus**: Phase 4 COMPLETE - Polish
 **Design Doc**: `docs/DASHBOARD-UX-REDESIGN.md`
 
 ---
@@ -40,6 +40,15 @@
 | Add /api/logs/:id endpoints | ✅ done | high | SSE stream, history, stats, pause/resume |
 | Build log viewer component | ✅ done | high | Auto-scroll, level filter, pause |
 | Integrate into detail view | ✅ done | medium | Collapsible panel with controls |
+
+### Phase 4: Polish ✅ COMPLETE (Session 24)
+
+| Task | Status | Priority | Description |
+|------|--------|----------|-------------|
+| Add enhanced responsive breakpoints | ✅ done | high | 1200px, 900px, 768px, 480px breakpoints |
+| Implement keyboard navigation | ✅ done | high | j/k/Enter navigation, ? for shortcuts modal |
+| Add search-in-logs | ✅ done | high | Real-time search with highlighting, match count |
+| Add historical data views | ✅ done | medium | Date picker, older/newer pagination |
 
 ---
 
@@ -80,6 +89,22 @@
 - [x] Green pulsing dot when streaming
 - [x] Line count + error/warn counts in footer
 
+### Polish (Phase 4) ✅ COMPLETE
+- [x] Dashboard usable on 480px mobile screens
+- [x] Session cards grid layout (2 cols → 1 col responsive)
+- [x] Touch targets minimum 44px on mobile
+- [x] Esc closes modals/detail view
+- [x] j/k navigates session cards
+- [x] ? shows shortcuts modal
+- [x] / focuses search input
+- [x] Search input in log controls
+- [x] Real-time filtering as you type
+- [x] Match count displayed with prev/next navigation
+- [x] Matching text highlighted
+- [x] Date picker for historical logs
+- [x] Older/Newer pagination buttons
+- [x] Jump to Latest button returns to live mode
+
 ---
 
 ## Files to Create/Modify
@@ -111,6 +136,15 @@ Create .claude/core/session-registry.js
 ```
 
 ---
+
+## Completed (Session 24 - Phase 4 COMPLETE)
+
+| Task | Notes |
+|------|-------|
+| Add enhanced responsive breakpoints | 1200px, 900px, 768px, 480px with mobile grid layout |
+| Implement keyboard navigation | j/k nav, ? modal, Esc/Enter/p/c/a shortcuts |
+| Add search-in-logs | Real-time search, highlighting, match count, prev/next |
+| Add historical data views | Date picker, older/newer pagination, jump to time |
 
 ## Completed (Session 23 - Phase 3 COMPLETE)
 
