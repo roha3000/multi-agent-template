@@ -8,15 +8,15 @@ Multi-agent development system that combines specialized AI agent personas with 
 **At the start of every session**, automatically load project context by reading these 3 files:
 
 ```
-1. PROJECT_SUMMARY.md      # High-level project state and context
+1. PROJECT_SUMMARY.md           # High-level project state and context
 2. .claude/dev-docs/plan.md     # Current task breakdown and implementation plan
-3. .claude/dev-docs/tasks.md    # Active todo list with progress tracking
+3. .claude/dev-docs/tasks.json  # Structured task data with dependencies and status
 ```
 
 **Why 3 files?** This is the **Dev-Docs 3-File Pattern** that prevents context drift on long tasks:
 - `PROJECT_SUMMARY.md` - What we've built (project history, architecture, quality scores)
 - `plan.md` - What we're building (current task breakdown, implementation steps)
-- `tasks.md` - What's left to do (todo list, blockers, next actions)
+- `tasks.json` - Structured tasks with backlog tiers, dependencies, and status tracking
 
 **Token cost**: ~400 tokens total (cached via prompt caching = ~40 tokens effective)
 

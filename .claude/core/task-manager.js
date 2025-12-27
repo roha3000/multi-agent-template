@@ -14,15 +14,21 @@
 const fs = require('fs');
 const path = require('path');
 const EventEmitter = require('events');
+const crypto = require('crypto');
 
 class TaskManager extends EventEmitter {
   constructor(options = {}) {
     super();
 
-    this.tasksPath = options.tasksPath || path.join(process.cwd(), 'tasks.json');
+    this.tasksPath = options.tasksPath || path.join(process.cwd(), '.claude', 'dev-docs', 'tasks.json');
     this.memoryStore = options.memoryStore || null;
-    this.syncToDevDocs = options.syncToDevDocs || false; // Auto-sync to .claude/dev-docs/tasks.md
     this.tasks = null;
+
+    // Concurrency protection
+    this._lastFileHash = null;
+    this._lastFileMtime = null;
+    this._saveLock = false;
+    this._pendingSave = false;
 
     this.load();
   }
@@ -667,13 +673,40 @@ class TaskManager extends EventEmitter {
   }
 
   // ====================================================================
-  // PERSISTENCE
+  // PERSISTENCE (with concurrency protection)
   // ====================================================================
 
+  /**
+   * Calculate hash of file contents for change detection
+   */
+  _calculateHash(content) {
+    return crypto.createHash('md5').update(content).digest('hex');
+  }
+
+  /**
+   * Get file stats (mtime) for change detection
+   */
+  _getFileStats() {
+    try {
+      const stats = fs.statSync(this.tasksPath);
+      return { mtime: stats.mtimeMs, exists: true };
+    } catch (e) {
+      return { mtime: null, exists: false };
+    }
+  }
+
+  /**
+   * Load tasks from file with change tracking
+   */
   load() {
     try {
       const data = fs.readFileSync(this.tasksPath, 'utf8');
       this.tasks = JSON.parse(data);
+
+      // Track file state for concurrency detection
+      this._lastFileHash = this._calculateHash(data);
+      this._lastFileMtime = this._getFileStats().mtime;
+
       this.emit('tasks:loaded', { count: this._getAllTasks().length });
     } catch (error) {
       if (error.code === 'ENOENT') {
@@ -687,182 +720,125 @@ class TaskManager extends EventEmitter {
     }
   }
 
+  /**
+   * Reload file and detect external changes
+   * @returns {{ changed: boolean, diskTasks: Object|null }}
+   */
+  _checkForExternalChanges() {
+    const stats = this._getFileStats();
+    if (!stats.exists) {
+      return { changed: false, diskTasks: null };
+    }
+
+    // Quick check: mtime changed?
+    if (stats.mtime === this._lastFileMtime) {
+      return { changed: false, diskTasks: null };
+    }
+
+    // Read current file and compare hash
+    try {
+      const data = fs.readFileSync(this.tasksPath, 'utf8');
+      const currentHash = this._calculateHash(data);
+
+      if (currentHash !== this._lastFileHash) {
+        const diskTasks = JSON.parse(data);
+        return { changed: true, diskTasks, data };
+      }
+    } catch (e) {
+      // If we can't read, assume no changes
+    }
+
+    return { changed: false, diskTasks: null };
+  }
+
+  /**
+   * Merge external changes with in-memory changes
+   * Strategy: External task additions are preserved, in-memory status updates win
+   */
+  _mergeChanges(diskTasks) {
+    const merged = JSON.parse(JSON.stringify(diskTasks));
+
+    // Merge task definitions - in-memory updates win for existing tasks
+    for (const [id, task] of Object.entries(this.tasks.tasks || {})) {
+      if (merged.tasks[id]) {
+        // Task exists on disk - merge with in-memory updates winning for status/phase
+        merged.tasks[id] = {
+          ...merged.tasks[id],
+          status: task.status,
+          updated: task.updated,
+          started: task.started,
+          completed: task.completed,
+          qualityScore: task.qualityScore
+        };
+      } else {
+        // Task exists in memory but not on disk - might have been added
+        merged.tasks[id] = task;
+      }
+    }
+
+    // Merge backlog tiers - union of task IDs
+    for (const tier of ['now', 'next', 'later', 'someday', 'completed']) {
+      const diskIds = diskTasks.backlog?.[tier]?.tasks || [];
+      const memIds = this.tasks.backlog?.[tier]?.tasks || [];
+      const mergedIds = [...new Set([...diskIds, ...memIds])];
+      if (merged.backlog[tier]) {
+        merged.backlog[tier].tasks = mergedIds;
+      }
+    }
+
+    return merged;
+  }
+
+  /**
+   * Save tasks to file with concurrency protection
+   */
   save() {
-    const data = JSON.stringify(this.tasks, null, 2);
-    fs.writeFileSync(this.tasksPath, data, 'utf8');
-    this.emit('tasks:saved');
+    // Prevent concurrent saves
+    if (this._saveLock) {
+      this._pendingSave = true;
+      return;
+    }
 
-    // Auto-sync to dev-docs if enabled
-    if (this.syncToDevDocs) {
-      this.exportToMarkdown();
+    this._saveLock = true;
+
+    try {
+      // Check for external changes
+      const { changed, diskTasks, data: diskData } = this._checkForExternalChanges();
+
+      if (changed && diskTasks) {
+        console.warn('[TaskManager] External modification detected - merging changes');
+        this.emit('tasks:external-change', { diskTasks });
+
+        // Merge external changes with in-memory state
+        this.tasks = this._mergeChanges(diskTasks);
+      }
+
+      // Save merged state
+      const data = JSON.stringify(this.tasks, null, 2);
+      fs.writeFileSync(this.tasksPath, data, 'utf8');
+
+      // Update tracking state
+      this._lastFileHash = this._calculateHash(data);
+      this._lastFileMtime = this._getFileStats().mtime;
+
+      this.emit('tasks:saved');
+    } finally {
+      this._saveLock = false;
+
+      // Process pending save if one was requested during lock
+      if (this._pendingSave) {
+        this._pendingSave = false;
+        setImmediate(() => this.save());
+      }
     }
   }
 
-  // ====================================================================
-  // MARKDOWN EXPORT (Sync to dev-docs/tasks.md)
-  // ====================================================================
-
   /**
-   * Export tasks to markdown format for dev-docs/tasks.md
-   * This keeps the markdown file in sync with tasks.json
-   * @param {string} outputPath - Optional custom output path
-   * @returns {string} The generated markdown content
+   * Force reload from disk, discarding in-memory changes
    */
-  exportToMarkdown(outputPath = null) {
-    const devDocsPath = outputPath || path.join(path.dirname(this.tasksPath), '.claude', 'dev-docs', 'tasks.md');
-    const markdown = this._generateMarkdown();
-
-    // Ensure directory exists
-    const dir = path.dirname(devDocsPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    fs.writeFileSync(devDocsPath, markdown, 'utf8');
-    this.emit('tasks:exported', { path: devDocsPath });
-    return markdown;
-  }
-
-  /**
-   * Generate markdown content from tasks.json structure
-   * @private
-   */
-  _generateMarkdown() {
-    const lines = [];
-    const now = new Date().toISOString().split('T')[0];
-
-    // Header
-    lines.push('# Active Tasks');
-    lines.push('');
-    lines.push(`**Last Updated**: ${now} (auto-generated from tasks.json)`);
-    lines.push(`**Source of Truth**: \`tasks.json\` - Do not edit this file directly`);
-    lines.push('');
-    lines.push('---');
-    lines.push('');
-
-    // Current Backlog Summary
-    lines.push('## Current Backlog');
-    lines.push('');
-
-    const backlogTiers = ['now', 'next', 'later', 'someday'];
-    const tierLabels = {
-      now: 'NOW (Active Sprint)',
-      next: 'NEXT',
-      later: 'LATER',
-      someday: 'SOMEDAY'
-    };
-
-    for (const tier of backlogTiers) {
-      const taskIds = this.tasks.backlog[tier]?.tasks || [];
-      if (taskIds.length === 0) continue;
-
-      lines.push(`### ${tierLabels[tier]}`);
-      lines.push('| Task ID | Title | Status | Priority | Phase |');
-      lines.push('|---------|-------|--------|----------|-------|');
-
-      for (const taskId of taskIds) {
-        const task = this.tasks.tasks[taskId];
-        if (task) {
-          const status = task.status === 'in_progress' ? '**in_progress**' : task.status;
-          lines.push(`| ${task.id} | ${task.title} | ${status} | ${task.priority || 'medium'} | ${task.phase || '-'} |`);
-        }
-      }
-      lines.push('');
-    }
-
-    // Completed tasks (if exists in backlog)
-    const completedIds = this.tasks.backlog.completed?.tasks || [];
-    if (completedIds.length > 0) {
-      lines.push('### COMPLETED');
-      lines.push('| Task ID | Title | Score | Completed |');
-      lines.push('|---------|-------|-------|-----------|');
-
-      for (const taskId of completedIds) {
-        const task = this.tasks.tasks[taskId];
-        if (task) {
-          const score = task.qualityScore ? `${task.qualityScore}/100` : '-';
-          const completed = task.completed ? task.completed.split('T')[0] : '-';
-          lines.push(`| ${task.id} | ${task.title} | ${score} | ${completed} |`);
-        }
-      }
-      lines.push('');
-    }
-
-    lines.push('---');
-    lines.push('');
-
-    // Task Details for active tasks
-    lines.push('## Task Details');
-    lines.push('');
-
-    const activeTiers = ['now', 'next'];
-    for (const tier of activeTiers) {
-      const taskIds = this.tasks.backlog[tier]?.tasks || [];
-      for (const taskId of taskIds) {
-        const task = this.tasks.tasks[taskId];
-        if (!task) continue;
-
-        lines.push(`### ${task.id}`);
-        lines.push(`**Title**: ${task.title}`);
-        lines.push(`**Phase**: ${task.phase || 'unassigned'}`);
-        if (task.estimate) lines.push(`**Estimate**: ${task.estimate}`);
-        lines.push(`**Priority**: ${task.priority || 'medium'}`);
-        lines.push(`**Status**: ${task.status}`);
-        lines.push('');
-
-        if (task.description) {
-          lines.push(`**Description**: ${task.description}`);
-          lines.push('');
-        }
-
-        if (task.acceptance && task.acceptance.length > 0) {
-          lines.push('**Acceptance Criteria**:');
-          for (const criterion of task.acceptance) {
-            const checkbox = task.status === 'completed' ? '[x]' : '[ ]';
-            lines.push(`- ${checkbox} ${criterion}`);
-          }
-          lines.push('');
-        }
-
-        if (task.depends) {
-          const requires = task.depends.requires || [];
-          const blocks = task.depends.blocks || [];
-          if (requires.length > 0) {
-            lines.push(`**Requires**: ${requires.join(', ')}`);
-          }
-          if (blocks.length > 0) {
-            lines.push(`**Blocks**: ${blocks.join(', ')}`);
-          }
-          if (requires.length > 0 || blocks.length > 0) {
-            lines.push('');
-          }
-        }
-
-        if (task.deliverables && task.deliverables.length > 0) {
-          lines.push('**Deliverables**:');
-          for (const d of task.deliverables) {
-            lines.push(`- ${d}`);
-          }
-          lines.push('');
-        }
-
-        lines.push('---');
-        lines.push('');
-      }
-    }
-
-    // Stats summary
-    const stats = this.getStats();
-    lines.push('## Statistics');
-    lines.push('');
-    lines.push(`- **Total Tasks**: ${stats.total}`);
-    lines.push(`- **Completed**: ${stats.byStatus.completed || 0}`);
-    lines.push(`- **In Progress**: ${stats.byStatus.in_progress || 0}`);
-    lines.push(`- **Ready**: ${stats.byStatus.ready || 0}`);
-    lines.push(`- **Blocked**: ${stats.byStatus.blocked || 0}`);
-    lines.push('');
-
-    return lines.join('\n');
+  reload() {
+    this.load();
+    this.emit('tasks:reloaded');
   }
 
   _createDefaultStructure() {

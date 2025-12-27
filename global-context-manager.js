@@ -21,6 +21,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const chokidar = require('chokidar');
+const EventEmitter = require('events');
 const GlobalContextTracker = require('./.claude/core/global-context-tracker');
 const PredictiveAnalytics = require('./.claude/core/predictive-analytics');
 const TaskManager = require('./.claude/core/task-manager');
@@ -104,7 +105,7 @@ analytics.on('exhaustion-warning', (data) => {
 });
 
 // Initialize TaskManager and TaskGraph for visualization
-const tasksPath = path.join(__dirname, 'tasks.json');
+const tasksPath = path.join(__dirname, '.claude', 'dev-docs', 'tasks.json');
 let taskManager = null;
 let taskGraph = null;
 
@@ -144,6 +145,9 @@ let executionState = {
   todos: [],
   plan: null,
   lastUpdate: null,
+  // Task phase tracking: { taskId: { phases: ['research', 'design'], currentPhase: 'implement', scores: { research: 85 } } }
+  taskPhaseHistory: {},
+  currentTaskId: null,
 };
 
 // Confidence monitoring state (from ConfidenceMonitor)
@@ -177,6 +181,9 @@ let complexity = {
 
 // File watchers for dev-docs
 let devDocsWatcher = null;
+
+// Event emitter for task changes (used to trigger SSE broadcasts)
+const taskEvents = new EventEmitter();
 
 // ============================================================================
 // EVENT HANDLERS
@@ -321,11 +328,11 @@ function readQualityScores() {
 }
 
 function readTasksFile() {
-  const tasksPath = path.join(__dirname, '.claude', 'dev-docs', 'tasks.md');
+  const tasksJsonPath = path.join(__dirname, '.claude', 'dev-docs', 'tasks.json');
   try {
-    if (fs.existsSync(tasksPath)) {
-      const content = fs.readFileSync(tasksPath, 'utf-8');
-      return parseTasksMarkdown(content);
+    if (fs.existsSync(tasksJsonPath)) {
+      const content = fs.readFileSync(tasksJsonPath, 'utf-8');
+      return parseTasksJson(content);
     }
   } catch (err) {
     // Ignore read errors
@@ -333,28 +340,46 @@ function readTasksFile() {
   return { todos: [], phase: null };
 }
 
-function parseTasksMarkdown(content) {
+function parseTasksJson(content) {
   const todos = [];
   let currentPhase = null;
+  let status = null;
 
-  // Extract current phase from header
-  const phaseMatch = content.match(/Current Session[:\s]+([^\n]+)/i);
-  if (phaseMatch) {
-    currentPhase = phaseMatch[1].trim();
-  }
+  try {
+    const data = JSON.parse(content);
 
-  // Extract status
-  const statusMatch = content.match(/Status[:\s]+([^\n]+)/i);
-  const status = statusMatch ? statusMatch[1].trim() : null;
+    // Get tasks from the 'now' backlog tier
+    const nowTasks = data.backlog?.now?.tasks || [];
+    const allTasks = data.tasks || {};
 
-  // Parse checkbox items
-  const checkboxPattern = /- \[([ xX])\] \*?\*?([^*\n]+)\*?\*?/g;
-  let match;
-  while ((match = checkboxPattern.exec(content)) !== null) {
-    todos.push({
-      completed: match[1].toLowerCase() === 'x',
-      text: match[2].trim(),
-    });
+    // Convert tasks to todo format
+    for (const taskId of nowTasks) {
+      const task = allTasks[taskId];
+      if (task) {
+        todos.push({
+          completed: task.status === 'completed',
+          text: task.title || taskId,
+          phase: task.phase,
+          priority: task.priority,
+        });
+        // Use first in-progress task's phase as current phase
+        if (!currentPhase && task.status === 'in_progress') {
+          currentPhase = task.phase;
+        }
+      }
+    }
+
+    // Determine overall status
+    const completedCount = todos.filter(t => t.completed).length;
+    if (completedCount === todos.length && todos.length > 0) {
+      status = 'All tasks complete';
+    } else if (completedCount > 0) {
+      status = `${completedCount}/${todos.length} tasks complete`;
+    } else {
+      status = 'In progress';
+    }
+  } catch (err) {
+    // JSON parse error
   }
 
   return { todos, phase: currentPhase, status };
@@ -453,13 +478,35 @@ function startDevDocsWatcher() {
   });
 
   devDocsWatcher.on('change', (filePath) => {
-    console.log(`[DEV-DOCS] File changed: ${path.basename(filePath)}`);
+    const fileName = path.basename(filePath);
+    console.log(`[DEV-DOCS] File changed: ${fileName}`);
     updateExecutionState();
+
+    // Emit task change event when tasks.json is modified
+    if (fileName === 'tasks.json') {
+      console.log('[TASKS] tasks.json changed - broadcasting update');
+      // Reload taskManager to get fresh data
+      if (taskManager) {
+        try {
+          taskManager.load();
+        } catch (err) {
+          // Ignore reload errors
+        }
+      }
+      taskEvents.emit('tasks:changed');
+    }
   });
 
   devDocsWatcher.on('add', (filePath) => {
-    console.log(`[DEV-DOCS] File added: ${path.basename(filePath)}`);
+    const fileName = path.basename(filePath);
+    console.log(`[DEV-DOCS] File added: ${fileName}`);
     updateExecutionState();
+
+    // Emit task change event when tasks.json is added
+    if (fileName === 'tasks.json') {
+      console.log('[TASKS] tasks.json added - broadcasting update');
+      taskEvents.emit('tasks:changed');
+    }
   });
 
   console.log('[DEV-DOCS] Watching for changes in:', devDocsPath);
@@ -608,6 +655,83 @@ app.get('/api/execution/scores', (req, res) => {
 app.get('/api/execution/todos', (req, res) => {
   const tasks = readTasksFile();
   res.json(tasks);
+});
+
+// ============================================================================
+// TASK PHASE TRACKING ENDPOINTS
+// ============================================================================
+
+// Get task phase history for all tasks
+app.get('/api/execution/taskPhases', (req, res) => {
+  res.json({
+    taskPhaseHistory: executionState.taskPhaseHistory,
+    currentTaskId: executionState.currentTaskId,
+    currentPhase: executionState.currentPhase
+  });
+});
+
+// Get phase history for a specific task
+app.get('/api/execution/taskPhases/:taskId', (req, res) => {
+  const { taskId } = req.params;
+  const taskPhases = executionState.taskPhaseHistory[taskId] || {
+    phases: [],
+    currentPhase: null,
+    scores: {}
+  };
+  res.json(taskPhases);
+});
+
+// Update task phase progress (called by autonomous-orchestrator)
+app.post('/api/execution/taskPhases', (req, res) => {
+  const { taskId, taskTitle, phase, score, action } = req.body;
+
+  if (!taskId) {
+    return res.status(400).json({ error: 'taskId is required' });
+  }
+
+  // Initialize task entry if needed
+  if (!executionState.taskPhaseHistory[taskId]) {
+    executionState.taskPhaseHistory[taskId] = {
+      title: taskTitle || taskId,
+      phases: [],
+      currentPhase: null,
+      scores: {},
+      startTime: new Date().toISOString()
+    };
+  }
+
+  const taskEntry = executionState.taskPhaseHistory[taskId];
+
+  if (action === 'start') {
+    // Starting a new phase
+    taskEntry.currentPhase = phase;
+    executionState.currentTaskId = taskId;
+    executionState.currentPhase = phase;
+    console.log(`[TASK-PHASE] Task "${taskTitle || taskId}" starting ${phase} phase`);
+  } else if (action === 'complete') {
+    // Completing a phase
+    if (phase && !taskEntry.phases.includes(phase)) {
+      taskEntry.phases.push(phase);
+    }
+    if (score !== undefined) {
+      taskEntry.scores[phase] = score;
+    }
+    console.log(`[TASK-PHASE] Task "${taskTitle || taskId}" completed ${phase} (score: ${score || 'N/A'})`);
+  } else if (action === 'finish') {
+    // Task fully complete (all phases done)
+    taskEntry.currentPhase = null;
+    taskEntry.completedTime = new Date().toISOString();
+    executionState.currentTaskId = null;
+    console.log(`[TASK-PHASE] Task "${taskTitle || taskId}" finished all phases`);
+  }
+
+  taskEntry.lastUpdate = new Date().toISOString();
+  executionState.lastUpdate = new Date().toISOString();
+
+  // Emit event for SSE broadcast
+  taskEvents.emit('taskPhaseUpdate', { taskId, taskEntry });
+
+  res.json({ success: true, taskEntry });
 });
 
 // ============================================================================
@@ -831,6 +955,12 @@ app.get('/api/events', (req, res) => {
   tracker.on('alert', onUpdate);
   tracker.on('session:new', onUpdate);
 
+  // Also listen for task changes (when tasks.json is modified)
+  taskEvents.on('tasks:changed', onUpdate);
+
+  // Listen for task phase updates
+  taskEvents.on('taskPhaseUpdate', onUpdate);
+
   // Also send periodic updates
   const interval = setInterval(sendUpdate, 3000);
 
@@ -839,6 +969,7 @@ app.get('/api/events', (req, res) => {
     tracker.removeListener('usage:update', onUpdate);
     tracker.removeListener('alert', onUpdate);
     tracker.removeListener('session:new', onUpdate);
+    taskEvents.removeListener('tasks:changed', onUpdate);
   });
 });
 
@@ -1313,6 +1444,144 @@ function formatTimeAgo(isoString) {
 }
 
 // ============================================================================
+// LESSONS LEARNED API ENDPOINTS
+// ============================================================================
+
+// In-memory store for lessons learned per project
+// Each lesson: { id, taskId, text, type, timestamp, tags }
+const lessonsStore = new Map();
+
+// Helper to get lessons for a project
+function getLessonsForProject(project) {
+  if (!lessonsStore.has(project)) {
+    lessonsStore.set(project, []);
+  }
+  return lessonsStore.get(project);
+}
+
+// Helper to extract lessons from task notes in tasks.json
+function extractLessonsFromTasks(project) {
+  const lessons = [];
+
+  try {
+    // Read tasks.json and extract notes from completed tasks
+    const tasksJsonPath = path.join(__dirname, '.claude', 'dev-docs', 'tasks.json');
+    if (fs.existsSync(tasksJsonPath)) {
+      const content = fs.readFileSync(tasksJsonPath, 'utf-8');
+      const data = JSON.parse(content);
+
+      const allTasks = data.tasks || {};
+
+      // Get notes from completed tasks
+      for (const [taskId, task] of Object.entries(allTasks)) {
+        if (task.notes && task.status === 'completed') {
+          lessons.push({
+            id: `task-note-${taskId}`,
+            taskId: taskId,
+            text: task.notes,
+            type: task.qualityScore >= 90 ? 'success' : task.qualityScore >= 75 ? 'warning' : 'error',
+            timestamp: task.completed || task.updated || new Date().toISOString(),
+            tags: task.tags || []
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[LESSONS] Failed to extract from tasks.json:', err.message);
+  }
+
+  return lessons;
+}
+
+// GET /api/lessons/:project - Get all lessons for a project
+app.get('/api/lessons/:project', (req, res) => {
+  const project = req.params.project;
+
+  // Get stored lessons
+  const storedLessons = getLessonsForProject(project);
+
+  // Also extract lessons from task notes
+  const taskLessons = extractLessonsFromTasks(project);
+
+  // Combine and sort by timestamp (newest first)
+  const allLessons = [...storedLessons, ...taskLessons].sort((a, b) => {
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
+
+  // Deduplicate by id
+  const seen = new Set();
+  const uniqueLessons = allLessons.filter(lesson => {
+    if (seen.has(lesson.id)) return false;
+    seen.add(lesson.id);
+    return true;
+  });
+
+  res.json(uniqueLessons);
+});
+
+// POST /api/lessons/:project - Add a new lesson
+app.post('/api/lessons/:project', (req, res) => {
+  const project = req.params.project;
+  const { taskId, text, type, tags } = req.body;
+
+  if (!text || typeof text !== 'string' || text.trim().length === 0) {
+    return res.status(400).json({ error: 'Lesson text is required' });
+  }
+
+  const lesson = {
+    id: `lesson-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    taskId: taskId || null,
+    text: text.trim(),
+    type: ['success', 'warning', 'error', 'info'].includes(type) ? type : 'info',
+    timestamp: new Date().toISOString(),
+    tags: Array.isArray(tags) ? tags : []
+  };
+
+  const lessons = getLessonsForProject(project);
+  lessons.unshift(lesson); // Add to beginning (newest first)
+
+  // Keep only last 100 lessons per project in memory
+  if (lessons.length > 100) {
+    lessons.pop();
+  }
+
+  console.log(`[LESSONS] Added lesson for ${project}: "${text.substring(0, 50)}..."`);
+  res.json({ success: true, lesson });
+});
+
+// DELETE /api/lessons/:project/:id - Delete a lesson
+app.delete('/api/lessons/:project/:id', (req, res) => {
+  const project = req.params.project;
+  const lessonId = req.params.id;
+
+  const lessons = getLessonsForProject(project);
+  const index = lessons.findIndex(l => l.id === lessonId);
+
+  if (index === -1) {
+    return res.status(404).json({ error: 'Lesson not found' });
+  }
+
+  const removed = lessons.splice(index, 1);
+  console.log(`[LESSONS] Deleted lesson ${lessonId} from ${project}`);
+  res.json({ success: true, deleted: removed[0] });
+});
+
+// GET /api/lessons - Get lessons across all projects (summary)
+app.get('/api/lessons', (req, res) => {
+  const summary = {};
+  for (const [project, lessons] of lessonsStore.entries()) {
+    summary[project] = {
+      count: lessons.length,
+      recentCount: lessons.filter(l => {
+        const age = Date.now() - new Date(l.timestamp).getTime();
+        return age < 24 * 60 * 60 * 1000; // Last 24 hours
+      }).length
+    };
+  }
+  res.json(summary);
+});
+
+// ============================================================================
 // START SERVER
 // ============================================================================
 
@@ -1373,6 +1642,12 @@ app.listen(PORT, async () => {
   console.log('  POST /api/logs/:id/pause            - Pause log stream');
   console.log('  POST /api/logs/:id/resume           - Resume log stream');
   console.log('  POST /api/logs/:id/write            - Write log entry');
+  console.log('');
+  console.log('Lessons Learned:');
+  console.log('  GET  /api/lessons/:project          - Get lessons for a project');
+  console.log('  POST /api/lessons/:project          - Add a new lesson');
+  console.log('  DELETE /api/lessons/:project/:id    - Delete a lesson');
+  console.log('  GET  /api/lessons                   - Summary across all projects');
   console.log('='.repeat(70) + '\n');
 
   // Start dev-docs file watcher

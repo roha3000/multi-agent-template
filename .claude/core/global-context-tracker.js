@@ -630,7 +630,15 @@ class GlobalContextTracker extends EventEmitter {
 
     // Context used = LATEST entry's total + system overhead (not cumulative!)
     // The latest usage shows the current conversation context size
-    const currentSession = project.sessions.get(project.currentSessionId);
+    // FIX: Use the passed session (the one being updated), not currentSessionId
+    // This ensures context% updates when any session receives new data
+    const currentSession = session;
+
+    // Update currentSessionId to track the active session
+    if (session && session.id) {
+      project.currentSessionId = session.id;
+    }
+
     let contextUsed = 0;
     let messageTokens = 0;
     let latestUsage = null;

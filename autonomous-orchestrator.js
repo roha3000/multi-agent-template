@@ -32,6 +32,7 @@ const MemoryStore = require('./.claude/core/memory-store');
 const NotificationService = require('./.claude/core/notification-service');
 const { getSessionRegistry } = require('./.claude/core/session-registry');
 const { getUsageLimitTracker } = require('./.claude/core/usage-limit-tracker');
+const SwarmController = require('./.claude/core/swarm-controller');
 
 // Phase name mapping (tasks.json uses longer names, quality-gates uses shorter)
 const PHASE_MAP = {
@@ -121,6 +122,9 @@ const state = {
   currentTask: null,        // Current task from TaskManager
   tasksCompleted: 0,        // Tasks completed this session
   taskIterations: {},       // Track iterations per task
+  // Phase progression tracking (for multi-phase task execution)
+  taskPhaseHistory: {},     // Track which phases completed per task
+  continueWithCurrentTask: false,  // Flag to continue with same task for next phase
 };
 
 let claudeProcess = null;
@@ -135,6 +139,9 @@ let memoryStore = null;
 
 // Notification Service (initialized in main)
 let notificationService = null;
+
+// SwarmController (initialized in main)
+let swarmController = null;
 
 // Command Center Integration (Session Registry + Usage Tracking)
 let sessionRegistry = null;
@@ -755,11 +762,11 @@ function deregisterFromCommandCenter() {
  * Initialize TaskManager and MemoryStore
  */
 function initializeTaskManagement() {
-  const tasksPath = path.join(CONFIG.projectPath, 'tasks.json');
+  const tasksPath = path.join(CONFIG.projectPath, '.claude', 'dev-docs', 'tasks.json');
 
   // Check if tasks.json exists
   if (!fs.existsSync(tasksPath)) {
-    console.log('[TASK] No tasks.json found - using --task argument mode');
+    console.log('[TASK] No .claude/dev-docs/tasks.json found - using --task argument mode');
     return false;
   }
 
@@ -790,6 +797,19 @@ function initializeTaskManagement() {
     const stats = taskManager.getStats();
     console.log(`[TASK] TaskManager initialized: ${stats.total} tasks`);
     console.log(`[TASK] Ready: ${stats.byStatus.ready || 0}, In Progress: ${stats.byStatus.in_progress || 0}, Blocked: ${stats.byStatus.blocked || 0}`);
+
+    // Initialize SwarmController for safety checks and complexity analysis
+    try {
+      swarmController = new SwarmController({
+        verbose: false,
+        memoryStore: memoryStore
+      });
+      const swarmStatus = swarmController.getStatus();
+      console.log(`[SWARM] SwarmController initialized: ${swarmStatus.enabledCount} components enabled`);
+    } catch (swarmErr) {
+      console.warn(`[SWARM] SwarmController initialization warning: ${swarmErr.message}`);
+      // Continue without swarm - non-critical
+    }
 
     return true;
   } catch (err) {
@@ -856,8 +876,15 @@ async function main() {
     let currentTask = null;
 
     if (taskManagementEnabled) {
-      // Get next task from TaskManager
-      currentTask = getNextTaskFromManager();
+      // Check if we should continue with current task for next phase
+      if (state.continueWithCurrentTask && state.currentTask) {
+        currentTask = state.currentTask;
+        state.continueWithCurrentTask = false;
+        console.log(`[PHASE] Continuing task "${currentTask.title}" in ${state.currentPhase} phase`);
+      } else {
+        // Get next task from TaskManager
+        currentTask = getNextTaskFromManager();
+      }
 
       if (!currentTask) {
         // No more tasks in current phase - check if we should advance
@@ -886,6 +913,14 @@ async function main() {
         },
       });
 
+      // Post task phase start to dashboard
+      await postToDashboard('/api/execution/taskPhases', {
+        taskId: currentTask.id,
+        taskTitle: currentTask.title,
+        phase: state.currentPhase,
+        action: 'start'
+      });
+
       // Track iterations per task (not just per phase)
       const taskId = currentTask.id;
       state.taskIterations[taskId] = (state.taskIterations[taskId] || 0) + 1;
@@ -905,6 +940,36 @@ async function main() {
         console.log('[ADVANCING] Moving to next phase despite score...');
         await advancePhase();
         continue;
+      }
+    }
+
+    // ====================================================================
+    // SWARM SAFETY CHECK
+    // ====================================================================
+
+    if (swarmController && currentTask) {
+      const safetyResult = swarmController.checkSafety({
+        task: currentTask.title,
+        description: currentTask.description || '',
+        phase: state.currentPhase
+      });
+
+      if (!safetyResult.safe) {
+        console.log(`[SWARM] Safety check failed: ${safetyResult.errors.join(', ')}`);
+        if (safetyResult.action === 'HALT_IMMEDIATELY') {
+          console.log('[SWARM] HALTING due to critical safety concern');
+          shouldContinue = false;
+          break;
+        }
+        // Block task and continue to next
+        if (taskManagementEnabled && currentTask) {
+          taskManager.updateStatus(currentTask.id, 'blocked');
+        }
+        continue;
+      }
+
+      if (safetyResult.warnings && safetyResult.warnings.length > 0) {
+        console.log(`[SWARM] Warnings: ${safetyResult.warnings.join(', ')}`);
       }
     }
 
@@ -975,6 +1040,16 @@ async function main() {
       peakContext: currentSessionData.peakContext,
     });
 
+    // Track progress with SwarmController for confidence monitoring
+    if (swarmController) {
+      swarmController.trackProgress({
+        iteration: currentTask ? state.taskIterations[currentTask.id] : state.phaseIteration,
+        phase: state.currentPhase,
+        taskId: currentTask?.id || null,
+        exitReason: currentSessionData.exitReason
+      });
+    }
+
     // ====================================================================
     // COMPLETION EVALUATION (enhanced for tasks)
     // ====================================================================
@@ -988,13 +1063,60 @@ async function main() {
         const taskEval = evaluateTaskCompletion();
 
         if (taskEval.complete && phaseEval.complete) {
-          // Task completed successfully
-          handleTaskCompletion(taskEval, phaseEval.score);
+          // Phase passed quality gate - check if there's a next phase
           state.phaseScores[state.currentPhase] = phaseEval.score;
-          state.currentTask = null;
 
-          // Continue to next task (don't advance phase yet)
-          console.log('[CONTINUE] Looking for next task...');
+          const nextPhase = getNextPhase(state.currentPhase);
+          if (nextPhase) {
+            // Task needs to progress to next phase
+            console.log(`[PHASE] Task "${currentTask.title}" advancing: ${state.currentPhase} → ${nextPhase}`);
+
+            // Track phase completion for this task
+            if (!state.taskPhaseHistory) state.taskPhaseHistory = {};
+            if (!state.taskPhaseHistory[currentTask.id]) state.taskPhaseHistory[currentTask.id] = [];
+            state.taskPhaseHistory[currentTask.id].push(state.currentPhase);
+
+            // Post phase completion to dashboard
+            await postToDashboard('/api/execution/taskPhases', {
+              taskId: currentTask.id,
+              taskTitle: currentTask.title,
+              phase: state.currentPhase,
+              score: phaseEval.score,
+              action: 'complete'
+            });
+
+            // Advance to next phase (keep same task)
+            state.currentPhase = nextPhase;
+            state.phaseIteration = 0;
+            state.continueWithCurrentTask = true;
+
+            console.log(`[CONTINUE] Continuing with same task in ${nextPhase} phase...`);
+          } else {
+            // Final phase complete - task is done
+            console.log(`[COMPLETE] Task "${currentTask.title}" finished all phases!`);
+
+            // Post final phase completion to dashboard
+            await postToDashboard('/api/execution/taskPhases', {
+              taskId: currentTask.id,
+              taskTitle: currentTask.title,
+              phase: state.currentPhase,
+              score: phaseEval.score,
+              action: 'complete'
+            });
+
+            // Post task finished to dashboard
+            await postToDashboard('/api/execution/taskPhases', {
+              taskId: currentTask.id,
+              taskTitle: currentTask.title,
+              action: 'finish'
+            });
+
+            handleTaskCompletion(taskEval, phaseEval.score);
+            state.currentTask = null;
+            state.continueWithCurrentTask = false;
+
+            console.log('[CONTINUE] Looking for next task...');
+          }
         } else if (taskEval.complete && !phaseEval.complete) {
           // Task done but quality not met - iterate
           console.log(`[ITERATE] Task done but quality ${phaseEval.score} below threshold.`);

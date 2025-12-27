@@ -1,168 +1,125 @@
-# Current Plan - Dashboard Command Center Implementation
+# Current Plan - Post-Unification
 
-**Last Updated**: 2025-12-27 (Session 26)
-**Current Phase**: COMPLETE
-**Status**: All Level 1 and Level 2 UI components implemented
-**Priority**: DONE
-
----
-
-## GOAL: Build Dashboard Command Center
-
-Transform the single-session dashboard into a multi-project Command Center for monitoring all autonomous orchestrator sessions.
-
-### Design Document
-See `docs/DASHBOARD-UX-REDESIGN.md` for full wireframes and specifications.
+**Last Updated**: 2025-12-27 (Session 29)
+**Current Phase**: MAINTENANCE
+**Status**: Orchestrator unification complete, minor tasks remaining
+**Priority**: NORMAL
 
 ---
 
-## Session 26: All UI Components Implemented
+## Session 29: Orchestrator Unification Complete ✅
 
-All Level 1 UI components are now complete:
-- ✅ Backend services created and working
-- ✅ API endpoints functional
-- ✅ **Global Metrics Bar implemented** (5 stat cards)
-- ✅ **Usage Limits Panel implemented** (5h/daily/weekly with progress bars)
-- ✅ **Recent Completions Table implemented** (with score badges)
-- ✅ **Title changed to "COMMAND CENTER"**
+### Completed This Session
 
-The dashboard now matches the design specification.
+| Task | Status | Description |
+|------|--------|-------------|
+| Orchestrator Unification | ✅ | 8-phase implementation via multi-agent execution |
+| SwarmController | ✅ | Unified interface for 5 swarm components |
+| Phase Progression Fix | ✅ | Tasks progress through all phases |
+| CLI Hooks | ✅ | 4 hooks for interactive security/tracking |
+| Dashboard Phase Tracking | ✅ | Phase progression UI + API |
+| TaskManager Concurrent Write | ✅ | Hash/mtime tracking, merge-on-save |
 
----
+### Architecture Achieved
 
-## Implementation Phases
-
-### Phase 1: Command Center Core - ✅ COMPLETE
-
-**Goal**: Create the birds-eye view of all sessions + usage limit tracking
-
-**Backend (✅ COMPLETE)**:
-- ✅ Session Registry Service (`session-registry.js`) - 8538 bytes
-- ✅ Usage Limit Tracker (`usage-limit-tracker.js`) - 10159 bytes
-- ✅ 10+ API endpoints for sessions and usage
-- ✅ `/api/sessions/summary` returns globalMetrics
-- ✅ `/api/usage/limits` returns 5h/daily/weekly with reset times
-- ✅ Orchestrator integration
-
-**Frontend (✅ COMPLETE - Session 26)**:
-- ✅ Header title change: "Context Monitor" → "COMMAND CENTER"
-- ✅ Global Metrics Bar (5 stat cards)
-- ✅ Usage Limits Panel (5h/daily/weekly with progress bars)
-- ✅ Recent Completions Table
-
-**Acceptance Criteria Status**:
-- [x] All active sessions visible in grid
-- [x] Context % per session with color coding
-- [x] Current task and phase per session
-- [x] **Global metrics bar at top**
-- [x] Auto-refresh via SSE
-- [x] **Usage Limits panel shows 5h/daily/weekly**
-- [x] **Reset countdowns displayed**
-- [x] **Pace indicator**
-- [x] **Color coding at 50%/75%/90%**
-
----
-
-### Phase 2: Session Detail View ✅ COMPLETE (Session 22)
-
-**Goal**: Drill-down into individual session metrics
-
-**Completed**:
-- ✅ Full-page detail overlay with back navigation
-- ✅ 3-column metrics header (Context/Session/Cost)
-- ✅ Acceptance criteria checklist with progress bar
-- ✅ Confidence gauge with 5 signal bars
-- ✅ Task queue table with priorities
-- ✅ Session controls (Pause/Resume/End)
-- ✅ View Details button on all project cards
-
-**Acceptance Criteria**: ✅ ALL MET
-
----
-
-### Phase 3: Live Log Viewer ✅ COMPLETE (Session 23)
-
-**Goal**: Stream orchestrator logs in real-time
-
-**Completed**:
-- ✅ Log Streamer service (`log-streamer.js`) - 16227 bytes
-- ✅ 8 API endpoints for logs
-- ✅ Log viewer UI with auto-scroll, pause, level filter
-- ✅ SSE streaming to browser
-
----
-
-### Phase 4: Polish ✅ COMPLETE (Session 24)
-
-**Goal**: Responsive design and refinements
-
-**Completed**:
-- ✅ Enhanced responsive breakpoints (1200px, 900px, 768px, 480px)
-- ✅ Keyboard navigation (j/k/Enter, ?, Esc, /, p, c, a)
-- ✅ Search in logs (real-time filter, highlighting, match count)
-- ✅ Historical data views (date picker, pagination, jump to time)
+```
+UNIFIED SYSTEM:
+┌─────────────────────────────────────────────────────────────┐
+│ autonomous-orchestrator.js (enhanced)                       │
+│ ├─ Task execution + Phase gates (quality-gates.js)          │
+│ ├─ Phase progression: research → design → implement → test  │
+│ ├─ SwarmController integration (safety, complexity, plans)  │
+│ └─ Dashboard integration (phase tracking via API)           │
+└─────────────────────────────────────────────────────────────┘
+         ↓                              ↓
+    npm run autonomous           Claude CLI (via hooks)
+    (full orchestration)         (security audit mode)
+```
 
 ---
 
 ## Remaining Work
 
-### NOW Queue - EMPTY (All tasks complete)
+### NOW Queue
 
-All Dashboard Command Center tasks are complete:
-- ✅ `dashboard-title-rebrand` - Header changed to "COMMAND CENTER"
-- ✅ `dashboard-global-metrics-bar` - 5 stat cards implemented
-- ✅ `dashboard-usage-limits-panel` - 5h/daily/weekly panels implemented
-- ✅ `dashboard-recent-completions` - Completions table implemented
+| # | Task ID | Status | Title | Est |
+|---|---------|--------|-------|-----|
+| 1 | `dashboard-log-session-id-fix` | ready | Fix Multi-Session Log Streaming | 45m |
+| 2 | `dashboard-v2-lessons-api` | in_progress | Add Lessons Learned API | 1h |
 
 ### NEXT Queue
-| Task ID | Title | Estimate |
-|---------|-------|----------|
+
+| Task ID | Title | Est |
+|---------|-------|-----|
+| `dashboard-v2-polish` | Dashboard V2 Polish and Testing | 2h |
 | `add-model-pricing` | Add GPT-5.2 and Gemini 3 Pricing | 1h |
 
 ---
 
-## What Was Built (Session 26)
+## Recently Completed (Session 29)
 
-Final implementation matches design spec:
-```
-┌─────────────────────────────────────────────┐
-│ COMMAND CENTER                 [Sound ☑]   │
-├─────────────────────────────────────────────┤
-│ [3 Active][7/12 Tasks][89%][$12.47][0 ⚠]  │  ← GLOBAL METRICS BAR ✅
-├─────────────────────────────────────────────┤
-│ 5-HOUR      DAILY       WEEKLY              │  ← USAGE LIMITS PANEL ✅
-│ ████░░ 62%  ██░░░░ 31%  █░░░░ 18%          │
-│ 186/300     465/1500    1.2K/7K            │
-│ Resets:2h   Resets:8h   Resets:Mon         │
-├─────────────────────────────────────────────┤
-│ [existing panels: series, execution, etc.]  │
-├─────────────────────────────────────────────┤
-│ ┌──────────────┐ ┌──────────────┐          │
-│ │ template 47% │ │ focusApp 91% │          │  ← SESSION CARDS
-│ └──────────────┘ └──────────────┘          │
-├─────────────────────────────────────────────┤
-│ Project │ Task │ Score │ Cost │ Completed  │  ← RECENT COMPLETIONS ✅
-│ template│ swarm│  95   │$0.89 │ 8m ago     │
-└─────────────────────────────────────────────┘
-```
+### 1. Orchestrator Unification (All 8 Phases)
+
+**Components Created:**
+- `.claude/core/swarm-controller.js` - Unified swarm interface
+- `.claude/hooks/session-start.js` - Context loader
+- `.claude/hooks/validate-prompt.js` - Security audit
+- `.claude/hooks/pre-tool-check.js` - Dangerous command blocking
+- `.claude/hooks/track-progress.js` - Audit logging
+
+**Fixes Applied:**
+- Phase progression bug (`autonomous-orchestrator.js:1065-1119`)
+- SwarmController integration for safety checks
+- Progress tracking via dashboard API
+
+### 2. Dashboard Task Phase Tracking
+
+**API Endpoints:**
+- `GET /api/execution/taskPhases` - All task phase history
+- `GET /api/execution/taskPhases/:taskId` - Specific task phases
+- `POST /api/execution/taskPhases` - Update phase (start/complete/finish)
+
+**Dashboard UI:**
+- Phase progression indicator in task card
+- Visual: research ✓ → design ✓ → implement ● → test ○
+- Real-time SSE updates
+
+### 3. TaskManager Concurrent Write Fix
+
+**Implementation:**
+- MD5 hash tracking of file contents
+- Mtime tracking for quick change detection
+- `_checkForExternalChanges()` before save
+- `_mergeChanges()` preserves external additions
+- Save lock with pending queue
+- Warning logs for external modifications
 
 ---
 
-## API Specifications (Already Working)
+## Test Status
 
-### GET /api/usage/limits ✅
-Returns 5-hour, daily, weekly limits with reset countdowns.
-
-### GET /api/sessions/summary ✅
-Returns globalMetrics (activeCount, tasksCompletedToday, avgHealthScore, totalCostToday, alertCount) + session array + recentCompletions.
-
-### GET /api/logs/:id/stream ✅
-SSE stream for live logs.
+- **1329+ tests passing**
+- SwarmController: 15 tests
+- TaskManager: 119 tests
+- 1 pre-existing e2e failure
 
 ---
 
 ## Reference Documents
 
 - `docs/DASHBOARD-UX-REDESIGN.md` - Full wireframes and specs
-- `docs/DASHBOARD-ENHANCEMENTS-DESIGN.md` - Feature requirements
+- `.claude/dev-docs/orchestrator-unification-plan.md` - Unification implementation plan
 - `.claude/dev-docs/tasks.json` - Task definitions with acceptance criteria
+
+---
+
+## Key Architecture Files
+
+| File | Purpose |
+|------|---------|
+| `autonomous-orchestrator.js` | Main orchestrator (unified) |
+| `.claude/core/swarm-controller.js` | Swarm component interface |
+| `quality-gates.js` | Phase definitions, scoring |
+| `global-context-manager.js` | Dashboard API server |
+| `global-dashboard-v2.html` | Command Center UI |
+| `.claude/core/task-manager.js` | Task persistence (with concurrency protection) |

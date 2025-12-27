@@ -13,12 +13,17 @@
   },
   "backlog": {
     "now": {
-      "description": "All Level 1 UI components complete",
-      "tasks": []
+      "description": "Orchestrator unification implementation",
+      "tasks": [
+        "orchestrator-unification-implement",
+        "dashboard-log-session-id-fix",
+        "dashboard-v2-lessons-api"
+      ]
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
+        "dashboard-v2-polish",
         "add-model-pricing"
       ]
     },
@@ -33,6 +38,11 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "dashboard-taskphase-tracking",
+        "taskmanager-concurrent-write-fix",
+        "orchestrator-unification-analysis",
+        "orchestrator-phase-progression-fix",
+        "dashboard-v2-redesign",
         "option-a-test-autonomous",
         "option-b-predictive-analytics",
         "option-c-task-visualization",
@@ -56,11 +66,160 @@
         "dashboard-global-metrics-bar",
         "dashboard-usage-limits-panel",
         "dashboard-recent-completions",
-        "dashboard-title-rebrand"
+        "dashboard-title-rebrand",
+        "dashboard-autonomous-tracking",
+        "dashboard-live-task-refresh",
+        "dashboard-task-queue-management"
       ]
     }
   },
   "tasks": {
+    "dashboard-v2-redesign": {
+      "id": "dashboard-v2-redesign",
+      "title": "Dashboard V2 Split-Pane Redesign",
+      "description": "Complete redesign of the Command Center dashboard with Split-Pane layout, traffic light quality indicators, inline controls, and CLI session enrichment.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "dashboard",
+        "ui",
+        "ux",
+        "redesign"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-command-center"
+        ]
+      },
+      "acceptance": [
+        "Split-Pane layout: session list (left) + detail panel (right)",
+        "Traffic light quality bar at top",
+        "Inline controls (pause, skip, end) on every session",
+        "Settings modal for metric preferences",
+        "CLI session enrichment from tasks.json and execution state",
+        "Scroll position preserved on refresh",
+        "No quality score flickering"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-27T16:00:00.000Z",
+      "updated": "2025-12-27T20:00:00.000Z",
+      "started": "2025-12-27T16:00:00.000Z",
+      "completed": "2025-12-27T20:00:00.000Z",
+      "qualityScore": 90,
+      "deliverables": [
+        "global-dashboard-v2.html (1900+ lines)",
+        "docs/UX-REDESIGN-PROPOSAL-v2.md"
+      ]
+    },
+    "dashboard-v2-lessons-api": {
+      "id": "dashboard-v2-lessons-api",
+      "title": "Add Lessons Learned API Endpoint",
+      "description": "Create /api/lessons/:project endpoint to fetch lessons learned and notes captured per task for display in dashboard v2.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "1h",
+      "tags": [
+        "dashboard",
+        "api",
+        "lessons"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "dashboard-v2-redesign"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "GET /api/lessons/:project returns array of lessons",
+        "Each lesson has: taskId, text, type (success/warning/error), timestamp, tags",
+        "Lessons stored in memory store or file",
+        "Dashboard v2 displays lessons in collapsible panel"
+      ],
+      "status": "in_progress",
+      "assignee": null,
+      "created": "2025-12-27T20:00:00.000Z",
+      "updated": "2025-12-27T18:47:04.740Z",
+      "started": "2025-12-27T18:47:04.740Z"
+    },
+    "dashboard-taskphase-tracking": {
+      "id": "dashboard-taskphase-tracking",
+      "title": "Add Task Phase Tracking to Dashboard",
+      "description": "Incorporate taskPhaseHistory tracking from the unified orchestrator into the dashboard. Display which phases each task has completed (research → design → implement → test) with visual progress indicators.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "orchestrator",
+        "phase-tracking",
+        "ui"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "orchestrator-unification-implement"
+        ],
+        "related": [
+          "dashboard-v2-redesign"
+        ]
+      },
+      "acceptance": [
+        "API endpoint exposes taskPhaseHistory for each task",
+        "Dashboard shows phase progression indicator (e.g., research ✓ → design ✓ → implement → test)",
+        "Current phase highlighted visually",
+        "Completed phases show checkmarks or filled indicators",
+        "Pending phases shown as empty/greyed",
+        "Phase scores displayed when available",
+        "Real-time updates as tasks progress through phases"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-27T22:00:00.000Z",
+      "updated": "2025-12-27T23:00:00.000Z",
+      "completed": "2025-12-27T23:00:00.000Z",
+      "qualityScore": 90,
+      "deliverables": [
+        "API endpoint /api/execution/taskPhases",
+        "Dashboard phase progression UI component",
+        "Real-time SSE updates for phase changes"
+      ]
+    },
+    "dashboard-v2-polish": {
+      "id": "dashboard-v2-polish",
+      "title": "Dashboard V2 Polish and Testing",
+      "description": "Final polish for dashboard v2: responsive design testing, accessibility, autonomous orchestrator integration testing.",
+      "phase": "testing",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "testing",
+        "polish"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "dashboard-v2-redesign"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Responsive design works on tablet (768px) and mobile (480px)",
+        "Keyboard navigation fully functional",
+        "Works with autonomous orchestrator sessions",
+        "No console errors",
+        "Consider making v2 the default dashboard"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-27T20:00:00.000Z",
+      "updated": "2025-12-27T20:00:00.000Z"
+    },
     "add-health-endpoint": {
       "id": "add-health-endpoint",
       "title": "Add Health Check Endpoint",
@@ -794,11 +953,18 @@
       "phase": "implementation",
       "priority": "critical",
       "estimate": "3h",
-      "tags": ["dashboard", "autonomous", "orchestrator", "real-time"],
+      "tags": [
+        "dashboard",
+        "autonomous",
+        "orchestrator",
+        "real-time"
+      ],
       "depends": {
         "blocks": [],
         "requires": [],
-        "related": ["dashboard-log-viewer"]
+        "related": [
+          "dashboard-log-viewer"
+        ]
       },
       "acceptance": [
         "Orchestrator POSTs execution state to /api/execution-state on phase/task changes",
@@ -808,10 +974,12 @@
         "Visual distinction between autonomous and interactive Claude sessions",
         "Session history shows completed autonomous tasks with scores"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-27T01:20:00.000Z",
-      "updated": "2025-12-27T01:20:00.000Z"
+      "updated": "2025-12-27T18:34:56.290Z",
+      "started": "2025-12-27T18:30:02.477Z",
+      "completed": "2025-12-27T18:34:56.290Z"
     },
     "dashboard-live-task-refresh": {
       "id": "dashboard-live-task-refresh",
@@ -820,7 +988,12 @@
       "phase": "implementation",
       "priority": "high",
       "estimate": "1h",
-      "tags": ["dashboard", "tasks", "real-time", "sse"],
+      "tags": [
+        "dashboard",
+        "tasks",
+        "real-time",
+        "sse"
+      ],
       "depends": {
         "blocks": [],
         "requires": [],
@@ -833,10 +1006,50 @@
         "File watcher monitors tasks.json for external changes",
         "In-progress/ready/completed counts update live"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-27T01:20:00.000Z",
-      "updated": "2025-12-27T01:20:00.000Z"
+      "updated": "2025-12-27T18:43:05.863Z",
+      "started": "2025-12-27T18:35:01.365Z",
+      "completed": "2025-12-27T18:43:05.863Z"
+    },
+    "dashboard-task-queue-management": {
+      "id": "dashboard-task-queue-management",
+      "title": "Task Priority and Queue Management UI",
+      "description": "Enable users to manage task priority directly from the dashboard. Move tasks between backlog queues (now, next, later, someday) and reorder tasks within each queue by rank.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "3h",
+      "tags": [
+        "dashboard",
+        "tasks",
+        "priority",
+        "queue",
+        "drag-drop"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "dashboard-live-task-refresh"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Dropdown or drag-drop to move tasks between queues (now/next/later/someday)",
+        "Drag-drop or arrow buttons to reorder tasks within a queue",
+        "API endpoint POST /api/tasks/:id/queue to change queue and rank",
+        "TaskManager updated with moveToQueue(taskId, queue, rank) method",
+        "Changes persist to tasks.json immediately",
+        "Dashboard reflects changes in real-time via SSE",
+        "Confirmation for moving tasks to/from NOW queue",
+        "Visual indicators for queue (color-coded badges)"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-27T15:30:00.000Z",
+      "updated": "2025-12-27T18:46:59.680Z",
+      "started": "2025-12-27T18:43:10.917Z",
+      "completed": "2025-12-27T18:46:59.680Z"
     },
     "dashboard-command-center": {
       "id": "dashboard-command-center",
@@ -845,11 +1058,19 @@
       "phase": "implementation",
       "priority": "critical",
       "estimate": "4h",
-      "tags": ["dashboard", "summary", "multi-session", "command-center"],
+      "tags": [
+        "dashboard",
+        "summary",
+        "multi-session",
+        "command-center"
+      ],
       "depends": {
         "blocks": [],
         "requires": [],
-        "related": ["dashboard-autonomous-tracking", "dashboard-live-task-refresh"]
+        "related": [
+          "dashboard-autonomous-tracking",
+          "dashboard-live-task-refresh"
+        ]
       },
       "acceptance": [
         "Summary panel shows aggregated metrics across all active sessions",
@@ -875,7 +1096,11 @@
       "phase": "implementation",
       "priority": "critical",
       "estimate": "4h",
-      "tags": ["dashboard", "backend", "api"],
+      "tags": [
+        "dashboard",
+        "backend",
+        "api"
+      ],
       "depends": {
         "blocks": [],
         "requires": [],
@@ -908,10 +1133,16 @@
       "phase": "implementation",
       "priority": "critical",
       "estimate": "4h",
-      "tags": ["dashboard", "ui", "detail-view"],
+      "tags": [
+        "dashboard",
+        "ui",
+        "detail-view"
+      ],
       "depends": {
         "blocks": [],
-        "requires": ["dashboard-command-center-backend"],
+        "requires": [
+          "dashboard-command-center-backend"
+        ],
         "related": []
       },
       "acceptance": [
@@ -940,11 +1171,18 @@
       "phase": "implementation",
       "priority": "critical",
       "estimate": "2h",
-      "tags": ["dashboard", "ui", "metrics", "command-center"],
+      "tags": [
+        "dashboard",
+        "ui",
+        "metrics",
+        "command-center"
+      ],
       "depends": {
         "blocks": [],
         "requires": [],
-        "related": ["dashboard-usage-limits-panel"]
+        "related": [
+          "dashboard-usage-limits-panel"
+        ]
       },
       "acceptance": [
         "5 stat cards displayed horizontally below header",
@@ -972,10 +1210,17 @@
       "phase": "implementation",
       "priority": "critical",
       "estimate": "2h",
-      "tags": ["dashboard", "ui", "usage-limits", "command-center"],
+      "tags": [
+        "dashboard",
+        "ui",
+        "usage-limits",
+        "command-center"
+      ],
       "depends": {
         "blocks": [],
-        "requires": ["dashboard-global-metrics-bar"],
+        "requires": [
+          "dashboard-global-metrics-bar"
+        ],
         "related": []
       },
       "acceptance": [
@@ -1004,10 +1249,17 @@
       "phase": "implementation",
       "priority": "high",
       "estimate": "1h",
-      "tags": ["dashboard", "ui", "history", "command-center"],
+      "tags": [
+        "dashboard",
+        "ui",
+        "history",
+        "command-center"
+      ],
       "depends": {
         "blocks": [],
-        "requires": ["dashboard-usage-limits-panel"],
+        "requires": [
+          "dashboard-usage-limits-panel"
+        ],
         "related": []
       },
       "acceptance": [
@@ -1034,7 +1286,11 @@
       "phase": "implementation",
       "priority": "high",
       "estimate": "15m",
-      "tags": ["dashboard", "ui", "branding"],
+      "tags": [
+        "dashboard",
+        "ui",
+        "branding"
+      ],
       "depends": {
         "blocks": [],
         "requires": [],
@@ -1052,6 +1308,175 @@
       "completed": "2025-12-27T12:00:00.000Z",
       "deliverables": [
         "global-dashboard.html (title and page title changed)"
+      ]
+    },
+    "orchestrator-unification-implement": {
+      "id": "orchestrator-unification-implement",
+      "title": "Implement Orchestrator Unification Plan",
+      "description": "Implement the unified orchestrator system as designed in orchestrator-unification-plan.md. This task consolidates phase progression fix, swarm integration, and CLI hooks into a single implementation.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "14h",
+      "tags": ["orchestrator", "swarm", "cli-hooks", "phase-progression", "implementation"],
+      "depends": {
+        "blocks": ["dashboard-log-session-id-fix"],
+        "requires": ["orchestrator-unification-analysis"],
+        "related": ["orchestrator-phase-progression-fix"]
+      },
+      "acceptance": [
+        "Phase 1: Create SwarmController module (.claude/core/swarm-controller.js)",
+        "Phase 2: Fix phase progression bug (lines 990-997) - tasks progress through ALL phases",
+        "Phase 2: Add spawnPhaseTask() to auto-create phase tasks in tasks.json",
+        "Phase 2: Update printSummary() to show phase history per task",
+        "Phase 3: Integrate SwarmController into autonomous-orchestrator.js",
+        "Phase 3: Add safety checks before each session and phase transition",
+        "Phase 4: Create CLI hooks for interactive mode (4 hook scripts)",
+        "Phase 4: Update settings.local.json with hook configuration",
+        "Phase 5: Deprecate ContinuousLoopOrchestrator (move to deprecated folder)",
+        "All 22 acceptance criteria from orchestrator-unification-plan.md satisfied",
+        "Tests pass for SwarmController, phase progression, and CLI hooks"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-27T21:45:00.000Z",
+      "updated": "2025-12-27T21:45:00.000Z",
+      "planDocument": ".claude/dev-docs/orchestrator-unification-plan.md",
+      "notes": "Implementation order: (1) SwarmController 2h, (2) Phase progression fix 3h, (3) SwarmController integration 2h, (4) CLI hooks 3h, (5) Deprecate old orchestrator 30m, (6) Tests 2h"
+    },
+    "orchestrator-unification-analysis": {
+      "id": "orchestrator-unification-analysis",
+      "title": "Analysis: Unify Orchestrators and Enable Swarm Features in CLI",
+      "description": "Research task to determine the best architecture for: (1) Deprecating ContinuousLoopOrchestrator, (2) Moving all swarm features into autonomous-orchestrator.js, (3) Making swarm features available in normal Claude CLI interactive mode via hooks. Output: detailed implementation plan with file changes, hook integration points, and migration steps.",
+      "phase": "research",
+      "priority": "critical",
+      "estimate": "2h",
+      "tags": ["orchestrator", "architecture", "swarm", "cli-integration", "research"],
+      "depends": {
+        "blocks": ["orchestrator-phase-progression-fix"],
+        "requires": [],
+        "related": ["swarm-orchestrator-integration"]
+      },
+      "acceptance": [
+        "Document all features in ContinuousLoopOrchestrator that must be preserved",
+        "Document all swarm components: SecurityValidator, ConfidenceMonitor, ComplexityAnalyzer, CompetitivePlanner, PlanEvaluator",
+        "Identify which hooks can trigger swarm features in CLI mode (user-prompt-submit, after-execution, etc.)",
+        "Propose unified architecture: single orchestrator with swarm integration",
+        "Define how phase gates invoke swarm checks in autonomous mode",
+        "Define how CLI hooks invoke swarm checks in interactive mode",
+        "Define how phase transitions create new tasks in plan.md and tasks.json for the next phase",
+        "Design task spawning: when research completes, auto-create design task; when design completes, auto-create implementation task, etc.",
+        "List files to create, modify, and deprecate",
+        "Identify breaking changes and migration steps",
+        "Estimate implementation effort for each component",
+        "Output: .claude/dev-docs/orchestrator-unification-plan.md"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-27T20:00:00.000Z",
+      "updated": "2025-12-27T21:30:00.000Z",
+      "started": "2025-12-27T20:30:00.000Z",
+      "completed": "2025-12-27T21:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/dev-docs/orchestrator-unification-plan.md (comprehensive 500+ line plan)"
+      ],
+      "notes": "Complete analysis covering: (1) SwarmController unified module design, (2) Phase progression fix with spawnPhaseTask for auto-creating phase tasks, (3) CLI hooks for interactive swarm features, (4) 8-phase implementation plan with ~14h total effort"
+    },
+    "orchestrator-phase-progression-fix": {
+      "id": "orchestrator-phase-progression-fix",
+      "title": "Fix Orchestrator Phase Progression - Wire In ALL Existing Controls",
+      "description": "Critical bug: Tasks marked 'completed' after research phase only. autonomous-orchestrator.js must wire in EXISTING infrastructure: (1) quality-gates.js for phase progression, (2) swarm components for safety checks. ContinuousLoopOrchestrator already has checkSafety() with SecurityValidator, ConfidenceMonitor, ComplexityAnalyzer - reuse this, don't reinvent.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "2h",
+      "tags": ["orchestrator", "bug-fix", "critical", "phase-progression", "quality-gates", "swarm"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["swarm-orchestrator-integration"]
+      },
+      "acceptance": [
+        "USE EXISTING quality-gates.js: getNextPhase(), PHASES[].minScore, calculatePhaseScore()",
+        "USE EXISTING swarm components from .claude/core/: SecurityValidator, ConfidenceMonitor, ComplexityAnalyzer, CompetitivePlanner, PlanEvaluator",
+        "Wire in checkSafety() pattern from ContinuousLoopOrchestrator (lines 566-619)",
+        "SecurityValidator.validate() called before each phase transition",
+        "ConfidenceMonitor.getState() checked - block if emergency threshold",
+        "ComplexityAnalyzer.analyze() called on task start to determine if competitive planning needed",
+        "Task stays active through chain: research → design → implement → test → complete",
+        "handleTaskCompletion() only called when getNextPhase() returns null or 'complete'",
+        "state.currentTask preserved across phase transitions",
+        "Session history shows all phases per task",
+        "Feature flags (feature-flags.js) respected for enabling/disabling components",
+        "No new logic - wire in existing ContinuousLoopOrchestrator and quality-gates.js infrastructure"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-27T19:15:00.000Z",
+      "updated": "2025-12-27T21:45:00.000Z",
+      "completed": "2025-12-27T21:45:00.000Z",
+      "notes": "SUPERSEDED: All acceptance criteria merged into orchestrator-unification-implement task. See .claude/dev-docs/orchestrator-unification-plan.md for comprehensive implementation plan that includes all phase progression fixes plus swarm integration plus CLI hooks.",
+      "supersededBy": "orchestrator-unification-implement"
+    },
+    "dashboard-log-session-id-fix": {
+      "id": "dashboard-log-session-id-fix",
+      "title": "Fix Multi-Session Log Streaming",
+      "description": "Dashboard log viewer shows blank because session IDs don't match. Multiple orchestrator sessions can run in parallel (different projects), each writing to its own session-N.log. The dashboard needs to map each project's folder ID to its corresponding log session number.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "45m",
+      "tags": ["dashboard", "logs", "bug-fix", "orchestrator", "multi-session"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["dashboard-autonomous-tracking"]
+      },
+      "acceptance": [
+        "Each orchestrator registers with logSessionId matching its log file (session-N.log)",
+        "SessionRegistry tracks logSessionId per session, supports multiple concurrent sessions",
+        "Global context manager maintains mapping: projectPath -> logSessionId",
+        "/api/projects response includes logSessionId for each project with active orchestrator",
+        "Dashboard v2 uses per-session logSessionId for log streaming",
+        "Switching sessions in dashboard switches to correct log stream",
+        "CLI sessions (no orchestrator) fall back to combined.log or show 'No logs available'",
+        "Log viewer shows correct content for each session when multiple orchestrators running"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-27T15:35:00.000Z",
+      "updated": "2025-12-27T19:00:00.000Z"
+    },
+    "taskmanager-concurrent-write-fix": {
+      "id": "taskmanager-concurrent-write-fix",
+      "title": "Fix TaskManager Concurrent Write Race Condition",
+      "description": "Tasks added to tasks.json can be silently lost when multiple processes (orchestrators, dashboard, CLI) modify the file concurrently. Implement file locking or merge-on-save to prevent overwrites.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "1h",
+      "tags": ["taskmanager", "bug-fix", "concurrency", "data-integrity"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "TaskManager uses file locking (proper-lockfile or similar) during read-modify-write",
+        "Before saving, re-read file and merge changes if file was modified externally",
+        "Track file mtime/hash to detect external modifications",
+        "Log warning when external modification detected",
+        "Concurrent writes from multiple orchestrators don't lose tasks",
+        "Add test: simulate concurrent writes, verify no data loss"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-27T19:00:00.000Z",
+      "updated": "2025-12-27T23:00:00.000Z",
+      "completed": "2025-12-27T23:00:00.000Z",
+      "qualityScore": 90,
+      "deliverables": [
+        "File hash/mtime tracking for change detection",
+        "Merge-on-save with conflict resolution",
+        "Save lock to prevent concurrent writes",
+        "External change detection with warning logs"
       ]
     }
   }

@@ -1,0 +1,2230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Command Center v2</title>
+  <style>
+    :root {
+      /* Dark theme - GitHub style */
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --bg-hover: #30363d;
+      --border-color: #30363d;
+      --border-muted: #21262d;
+
+      /* Text colors */
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+
+      /* Status colors */
+      --color-success: #3fb950;
+      --color-warning: #d29922;
+      --color-danger: #f85149;
+      --color-info: #58a6ff;
+      --color-purple: #a371f7;
+
+      /* Quality thresholds */
+      --quality-excellent: #3fb950;  /* 85+ */
+      --quality-good: #3fb950;       /* 75-84 */
+      --quality-warning: #d29922;    /* 50-74 */
+      --quality-critical: #f85149;   /* <50 */
+      --quality-idle: #6e7681;
+
+      /* Layout */
+      --sidebar-width: 340px;
+      --header-height: 48px;
+      --status-bar-height: 40px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* ===== LAYOUT ===== */
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .header {
+      height: var(--header-height);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header h1 .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .header-btn {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* ===== TRAFFIC LIGHT STATUS BAR ===== */
+    .status-bar {
+      height: var(--status-bar-height);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .status-bar-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .traffic-lights {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .traffic-light {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      position: relative;
+    }
+
+    .traffic-light:hover {
+      transform: scale(1.2);
+    }
+
+    .traffic-light.excellent { background: var(--quality-excellent); box-shadow: 0 0 8px var(--quality-excellent); }
+    .traffic-light.good { background: var(--quality-good); }
+    .traffic-light.warning { background: var(--quality-warning); box-shadow: 0 0 8px var(--quality-warning); }
+    .traffic-light.critical { background: var(--quality-critical); box-shadow: 0 0 8px var(--quality-critical); animation: blink 1s infinite; }
+    .traffic-light.idle { background: var(--quality-idle); }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .traffic-light-tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      white-space: nowrap;
+      display: none;
+      z-index: 100;
+    }
+
+    .traffic-light:hover .traffic-light-tooltip {
+      display: block;
+    }
+
+    .status-summary {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-left: auto;
+    }
+
+    .usage-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-tertiary);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .usage-badge:hover {
+      background: var(--bg-hover);
+    }
+
+    .usage-badge .bar {
+      width: 60px;
+      height: 4px;
+      background: var(--bg-hover);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .usage-badge .bar-fill {
+      height: 100%;
+      background: var(--color-success);
+      transition: width 0.3s, background 0.3s;
+    }
+
+    .usage-badge .bar-fill.warning { background: var(--color-warning); }
+    .usage-badge .bar-fill.critical { background: var(--color-danger); }
+
+    /* ===== MAIN CONTENT (SPLIT PANE) ===== */
+    .main-content {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ===== SESSION LIST (LEFT PANE) ===== */
+    .session-list {
+      width: var(--sidebar-width);
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .session-list-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .session-list-header h2 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    .session-count {
+      font-size: 11px;
+      background: var(--bg-tertiary);
+      padding: 2px 8px;
+      border-radius: 10px;
+      color: var(--text-secondary);
+    }
+
+    .session-items {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .session-item {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .session-item:hover {
+      border-color: var(--color-info);
+      background: var(--bg-hover);
+    }
+
+    .session-item.selected {
+      border-color: var(--color-info);
+      background: rgba(88, 166, 255, 0.1);
+    }
+
+    .session-item.warning {
+      border-left: 3px solid var(--color-warning);
+    }
+
+    .session-item.critical {
+      border-left: 3px solid var(--color-danger);
+    }
+
+    .session-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .session-name {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .session-name .autonomous-badge {
+      font-size: 12px;
+    }
+
+    .quality-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      min-width: 36px;
+      text-align: center;
+    }
+
+    .quality-badge.excellent { background: rgba(63, 185, 80, 0.2); color: var(--quality-excellent); }
+    .quality-badge.good { background: rgba(63, 185, 80, 0.15); color: var(--quality-good); }
+    .quality-badge.warning { background: rgba(210, 153, 34, 0.2); color: var(--quality-warning); }
+    .quality-badge.critical { background: rgba(248, 81, 73, 0.2); color: var(--quality-critical); }
+    .quality-badge.idle { background: var(--bg-hover); color: var(--text-muted); }
+
+    .session-task {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .phase-badge {
+      font-size: 10px;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--bg-hover);
+      color: var(--text-muted);
+    }
+
+    .phase-badge.research { background: rgba(163, 113, 247, 0.2); color: var(--color-purple); }
+    .phase-badge.design { background: rgba(88, 166, 255, 0.2); color: var(--color-info); }
+    .phase-badge.implement { background: rgba(63, 185, 80, 0.2); color: var(--color-success); }
+    .phase-badge.test { background: rgba(210, 153, 34, 0.2); color: var(--color-warning); }
+
+    /* Phase Progression Indicator */
+    .phase-progression {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin: 8px 0;
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+    }
+
+    .phase-step {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .phase-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    .phase-dot.pending {
+      background: var(--bg-hover);
+      color: var(--text-muted);
+      border: 2px solid var(--border-color);
+    }
+
+    .phase-dot.current {
+      background: var(--color-info);
+      color: white;
+      border: 2px solid var(--color-info);
+      animation: pulse 2s infinite;
+    }
+
+    .phase-dot.completed {
+      background: var(--color-success);
+      color: white;
+      border: 2px solid var(--color-success);
+    }
+
+    .phase-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    .phase-label.current {
+      color: var(--color-info);
+      font-weight: 600;
+    }
+
+    .phase-label.completed {
+      color: var(--color-success);
+    }
+
+    .phase-connector {
+      width: 20px;
+      height: 2px;
+      background: var(--border-color);
+    }
+
+    .phase-connector.completed {
+      background: var(--color-success);
+    }
+
+    .phase-score {
+      font-size: 8px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(88, 166, 255, 0); }
+    }
+
+    .session-metrics {
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .session-metrics span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .session-controls {
+      display: flex;
+      gap: 6px;
+    }
+
+    .control-btn {
+      flex: 1;
+      padding: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.15s;
+    }
+
+    .control-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .control-btn.pause:hover { border-color: var(--color-warning); color: var(--color-warning); }
+    .control-btn.skip:hover { border-color: var(--color-info); color: var(--color-info); }
+    .control-btn.end:hover { border-color: var(--color-danger); color: var(--color-danger); }
+
+    /* ===== DETAIL PANEL (RIGHT PANE) ===== */
+    .detail-panel {
+      flex: 1;
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .detail-empty {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .detail-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .detail-title {
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .detail-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .detail-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .detail-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .detail-btn.primary {
+      background: var(--color-info);
+      border-color: var(--color-info);
+      color: white;
+    }
+
+    .detail-btn.danger {
+      border-color: var(--color-danger);
+      color: var(--color-danger);
+    }
+
+    .detail-btn.danger:hover {
+      background: rgba(248, 81, 73, 0.1);
+    }
+
+    /* ===== METRICS GRID ===== */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .metric-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+
+    .metric-card.health { border-left: 3px solid var(--color-success); }
+    .metric-card.warning { border-left: 3px solid var(--color-warning); }
+    .metric-card.critical { border-left: 3px solid var(--color-danger); }
+
+    .metric-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .metric-value.success { color: var(--color-success); }
+    .metric-value.warning { color: var(--color-warning); }
+    .metric-value.danger { color: var(--color-danger); }
+
+    .metric-detail {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ===== DETAIL CONTENT ===== */
+    .detail-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+    }
+
+    .detail-section {
+      margin-bottom: 24px;
+    }
+
+    .detail-section h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* ===== CURRENT TASK ===== */
+    .task-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .task-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .task-meta {
+      display: flex;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .acceptance-list {
+      list-style: none;
+    }
+
+    .acceptance-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .acceptance-item.done {
+      color: var(--color-success);
+    }
+
+    .acceptance-item .check {
+      width: 16px;
+      height: 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 10px;
+    }
+
+    .acceptance-item.done .check {
+      background: var(--color-success);
+      border-color: var(--color-success);
+      color: white;
+    }
+
+    /* ===== TASK QUEUE ===== */
+    .queue-list {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 13px;
+    }
+
+    .queue-item:last-child {
+      border-bottom: none;
+    }
+
+    .queue-item.next {
+      background: rgba(88, 166, 255, 0.1);
+    }
+
+    .queue-number {
+      width: 24px;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .queue-task {
+      flex: 1;
+    }
+
+    .queue-priority {
+      font-size: 10px;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--bg-hover);
+      color: var(--text-muted);
+    }
+
+    .queue-priority.critical { background: rgba(248, 81, 73, 0.2); color: var(--color-danger); }
+    .queue-priority.high { background: rgba(210, 153, 34, 0.2); color: var(--color-warning); }
+
+    /* ===== LOG VIEWER ===== */
+    .log-section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+    }
+
+    .log-header:hover {
+      background: var(--bg-hover);
+    }
+
+    .log-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .log-streaming-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-success);
+      animation: pulse 2s infinite;
+    }
+
+    .log-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .log-content {
+      height: 200px;
+      overflow-y: auto;
+      font-family: 'SF Mono', 'Consolas', monospace;
+      font-size: 11px;
+      padding: 12px 16px;
+      background: var(--bg-primary);
+    }
+
+    .log-line {
+      padding: 2px 0;
+      color: var(--text-secondary);
+    }
+
+    .log-line.error { color: var(--color-danger); }
+    .log-line.warn { color: var(--color-warning); }
+    .log-line.info { color: var(--color-info); }
+
+    /* ===== LESSONS LEARNED ===== */
+    .lessons-section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .lessons-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      gap: 12px;
+    }
+
+    .lessons-header:hover {
+      background: var(--bg-hover);
+    }
+
+    .lessons-title {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .lessons-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: auto;
+    }
+
+    .lessons-content {
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 12px 16px;
+    }
+
+    .lessons-empty {
+      color: var(--text-muted);
+      text-align: center;
+      padding: 20px;
+      font-size: 13px;
+    }
+
+    .lesson-item {
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border-left: 3px solid var(--color-info);
+    }
+
+    .lesson-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .lesson-item.success { border-left-color: var(--color-success); }
+    .lesson-item.warning { border-left-color: var(--color-warning); }
+    .lesson-item.error { border-left-color: var(--color-danger); }
+
+    .lesson-task {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .lesson-text {
+      font-size: 13px;
+      color: var(--text-primary);
+      line-height: 1.4;
+    }
+
+    .lesson-tags {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .lesson-tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      background: var(--bg-hover);
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    /* ===== USAGE LIMITS DROPDOWN ===== */
+    .usage-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      min-width: 320px;
+      display: none;
+      z-index: 200;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .usage-dropdown.open {
+      display: block;
+    }
+
+    .usage-limit {
+      margin-bottom: 16px;
+    }
+
+    .usage-limit:last-child {
+      margin-bottom: 0;
+    }
+
+    .usage-limit-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .usage-limit-name {
+      font-weight: 600;
+    }
+
+    .usage-limit-value {
+      color: var(--text-muted);
+    }
+
+    .usage-limit-bar {
+      height: 6px;
+      background: var(--bg-hover);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+
+    .usage-limit-fill {
+      height: 100%;
+      background: var(--color-success);
+      transition: width 0.3s;
+    }
+
+    .usage-limit-fill.warning { background: var(--color-warning); }
+    .usage-limit-fill.critical { background: var(--color-danger); }
+
+    .usage-limit-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* ===== SETTINGS MODAL ===== */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 20px;
+      padding: 4px;
+    }
+
+    .modal-close:hover {
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .settings-section {
+      margin-bottom: 24px;
+    }
+
+    .settings-section h3 {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+    }
+
+    .settings-option {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-muted);
+    }
+
+    .settings-option:last-child {
+      border-bottom: none;
+    }
+
+    .settings-label {
+      font-size: 13px;
+    }
+
+    .settings-description {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .toggle {
+      width: 40px;
+      height: 22px;
+      background: var(--bg-hover);
+      border-radius: 11px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle.active {
+      background: var(--color-success);
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: left 0.2s;
+    }
+
+    .toggle.active::after {
+      left: 20px;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 900px) {
+      .session-list {
+        width: 280px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        flex-direction: column;
+      }
+
+      .session-list {
+        width: 100%;
+        height: 40vh;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .detail-panel {
+        height: 60vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <h1>
+        <span class="status-dot" id="connectionDot"></span>
+        COMMAND CENTER
+      </h1>
+      <div class="header-actions">
+        <button class="header-btn" onclick="toggleSettings()">
+          Settings
+        </button>
+        <button class="header-btn" onclick="window.open('global-dashboard.html', '_blank')">
+          Classic View
+        </button>
+      </div>
+    </header>
+
+    <!-- Traffic Light Status Bar -->
+    <div class="status-bar">
+      <span class="status-bar-label">Quality Status</span>
+      <div class="traffic-lights" id="trafficLights">
+        <!-- Populated by JS -->
+      </div>
+      <span class="status-summary" id="statusSummary">Loading...</span>
+
+      <div style="position: relative; margin-left: auto;">
+        <div class="usage-badge" onclick="toggleUsageDropdown()">
+          <span>Usage</span>
+          <div class="bar">
+            <div class="bar-fill" id="usageBarFill" style="width: 0%"></div>
+          </div>
+          <span id="usagePercent">--%</span>
+        </div>
+        <div class="usage-dropdown" id="usageDropdown">
+          <div class="usage-limit">
+            <div class="usage-limit-header">
+              <span class="usage-limit-name">5-Hour Window</span>
+              <span class="usage-limit-value" id="usage5h">--/--</span>
+            </div>
+            <div class="usage-limit-bar">
+              <div class="usage-limit-fill" id="usage5hFill"></div>
+            </div>
+            <div class="usage-limit-meta" id="usage5hMeta">Resets in --</div>
+          </div>
+          <div class="usage-limit">
+            <div class="usage-limit-header">
+              <span class="usage-limit-name">Daily</span>
+              <span class="usage-limit-value" id="usageDaily">--/--</span>
+            </div>
+            <div class="usage-limit-bar">
+              <div class="usage-limit-fill" id="usageDailyFill"></div>
+            </div>
+            <div class="usage-limit-meta" id="usageDailyMeta">Resets in --</div>
+          </div>
+          <div class="usage-limit">
+            <div class="usage-limit-header">
+              <span class="usage-limit-name">Weekly</span>
+              <span class="usage-limit-value" id="usageWeekly">--/--</span>
+            </div>
+            <div class="usage-limit-bar">
+              <div class="usage-limit-fill" id="usageWeeklyFill"></div>
+            </div>
+            <div class="usage-limit-meta" id="usageWeeklyMeta">Resets on --</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content (Split Pane) -->
+    <div class="main-content">
+      <!-- Session List (Left Pane) -->
+      <div class="session-list">
+        <div class="session-list-header">
+          <h2>Sessions</h2>
+          <span class="session-count" id="sessionCount">0</span>
+        </div>
+        <div class="session-items" id="sessionItems">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Detail Panel (Right Pane) -->
+      <div class="detail-panel" id="detailPanel">
+        <div class="detail-empty" id="detailEmpty">
+          Select a session to view details
+        </div>
+        <div id="detailContent" style="display: none; height: 100%; display: flex; flex-direction: column;">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="modal-close" onclick="toggleSettings()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-section">
+          <h3>Health & Stability Metrics</h3>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Error Count</div>
+              <div class="settings-description">Show task retry attempts and failures</div>
+            </div>
+            <div class="toggle active" data-setting="showErrorCount" onclick="toggleSetting(this)"></div>
+          </div>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Quality Trend</div>
+              <div class="settings-description">Show quality score direction (improving/declining)</div>
+            </div>
+            <div class="toggle active" data-setting="showQualityTrend" onclick="toggleSetting(this)"></div>
+          </div>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Blocking Issues</div>
+              <div class="settings-description">Highlight tasks that block other work</div>
+            </div>
+            <div class="toggle active" data-setting="showBlockingIssues" onclick="toggleSetting(this)"></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Progress & Velocity Metrics</h3>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Token Burn Rate</div>
+              <div class="settings-description">Show tokens consumed per hour</div>
+            </div>
+            <div class="toggle active" data-setting="showTokenBurnRate" onclick="toggleSetting(this)"></div>
+          </div>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Context Exhaustion ETA</div>
+              <div class="settings-description">Predicted time until context limit</div>
+            </div>
+            <div class="toggle active" data-setting="showExhaustionETA" onclick="toggleSetting(this)"></div>
+          </div>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Acceptance Progress</div>
+              <div class="settings-description">Show criteria completion percentage</div>
+            </div>
+            <div class="toggle active" data-setting="showAcceptanceProgress" onclick="toggleSetting(this)"></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Resource & Cost Metrics</h3>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Cost Display</div>
+              <div class="settings-description">Show session and total costs</div>
+            </div>
+            <div class="toggle" data-setting="showCost" onclick="toggleSetting(this)"></div>
+          </div>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Model Usage</div>
+              <div class="settings-description">Show which AI model is being used</div>
+            </div>
+            <div class="toggle" data-setting="showModel" onclick="toggleSetting(this)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== STATE =====
+    let sessions = [];
+    let selectedSessionId = null;
+    let predictions = {};
+    let usageLimits = {};
+    let eventSource = null;
+    let tasksData = { tasks: [], stats: {} };
+    let executionState = {};
+
+    // Settings (persisted to localStorage)
+    let settings = {
+      showErrorCount: true,
+      showQualityTrend: true,
+      showBlockingIssues: true,
+      showTokenBurnRate: true,
+      showExhaustionETA: true,
+      showAcceptanceProgress: true,
+      showCost: false,
+      showModel: false
+    };
+
+    // Load settings from localStorage
+    const savedSettings = localStorage.getItem('dashboardSettings');
+    if (savedSettings) {
+      settings = { ...settings, ...JSON.parse(savedSettings) };
+    }
+
+    // Phase progression configuration
+    const PHASES = ['research', 'design', 'implement', 'test'];
+
+    // Render phase progression indicator for a task
+    function renderPhaseProgression(taskId, currentPhase) {
+      const taskPhases = executionState.taskPhaseHistory?.[taskId] || {
+        phases: [],
+        currentPhase: currentPhase,
+        scores: {}
+      };
+
+      const completedPhases = taskPhases.phases || [];
+      const activePhase = taskPhases.currentPhase || currentPhase;
+
+      return `
+        <div class="phase-progression">
+          ${PHASES.map((phase, idx) => {
+            const isCompleted = completedPhases.includes(phase);
+            const isCurrent = phase === activePhase && !isCompleted;
+            const isPending = !isCompleted && !isCurrent;
+            const score = taskPhases.scores?.[phase];
+
+            const statusClass = isCompleted ? 'completed' : (isCurrent ? 'current' : 'pending');
+            const icon = isCompleted ? '✓' : (isCurrent ? '●' : (idx + 1));
+
+            const connector = idx < PHASES.length - 1 ? `
+              <div class="phase-connector ${isCompleted ? 'completed' : ''}"></div>
+            ` : '';
+
+            return `
+              <div class="phase-step">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                  <div class="phase-dot ${statusClass}">${icon}</div>
+                  <span class="phase-label ${statusClass}">${phase}</span>
+                  ${score ? `<span class="phase-score">${score}</span>` : ''}
+                </div>
+              </div>
+              ${connector}
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    // ===== INITIALIZATION =====
+    async function init() {
+      loadSettingsUI();
+
+      // Fetch sessions first, then enrich with task/execution data
+      await fetchSessions();
+      await fetchTasksAndExecution(); // Enrich immediately after
+
+      // Then fetch other data in parallel
+      await Promise.all([
+        fetchUsageLimits(),
+        fetchPredictions()
+      ]);
+
+      // Now connect SSE (which will preserve enriched data)
+      connectSSE();
+
+      // Refresh usage limits every minute
+      setInterval(fetchUsageLimits, 60000);
+      // Refresh tasks every 10 seconds (reduced frequency to prevent flicker)
+      setInterval(fetchTasksAndExecution, 10000);
+    }
+
+    async function fetchTasksAndExecution() {
+      try {
+        // Fetch tasks and execution state
+        const [tasksRes, execRes] = await Promise.all([
+          fetch('/api/tasks'),
+          fetch('/api/execution')
+        ]);
+
+        const newTasksData = await tasksRes.json();
+        const newExecutionState = await execRes.json();
+
+        // Check if data actually changed before updating
+        const tasksChanged = JSON.stringify(newTasksData.stats) !== JSON.stringify(tasksData.stats);
+        const execChanged = JSON.stringify(newExecutionState.qualityScores) !== JSON.stringify(executionState.qualityScores);
+
+        tasksData = newTasksData;
+        executionState = newExecutionState;
+
+        // Enrich the active session with this data
+        enrichActiveSession();
+
+        // Only update UI if data changed
+        if (tasksChanged || execChanged) {
+          updateTrafficLights();
+          updateSessionList();
+          if (selectedSessionId) {
+            updateDetailPanel();
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch tasks/execution:', err);
+      }
+    }
+
+    function enrichActiveSession() {
+      const activeSession = sessions.find(s => s.status === 'active');
+      if (!activeSession) return;
+
+      // Add execution state data
+      if (executionState.currentPhase) {
+        activeSession.phase = executionState.currentPhase;
+        activeSession.iteration = executionState.phaseIteration || 1;
+
+        // Extract quality score
+        const scores = executionState.qualityScores;
+        if (scores && scores.totalScore) {
+          activeSession.qualityScore = scores.totalScore;
+          activeSession.qualityBreakdown = scores.scores || {};
+        }
+      }
+
+      // Add task queue (ready tasks)
+      if (tasksData.tasks && tasksData.tasks.length > 0) {
+        activeSession.taskQueue = tasksData.tasks
+          .filter(t => t.status === 'ready')
+          .sort((a, b) => {
+            const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+            return (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2);
+          })
+          .slice(0, 10);
+
+        // Set current task as the first in-progress or first ready task
+        const inProgressTask = tasksData.tasks.find(t => t.status === 'in_progress');
+        if (inProgressTask) {
+          activeSession.currentTask = {
+            id: inProgressTask.id,
+            title: inProgressTask.title,
+            description: inProgressTask.description,
+            phase: inProgressTask.phase || executionState.currentPhase,
+            priority: inProgressTask.priority,
+            estimate: inProgressTask.estimate,
+            acceptance: (inProgressTask.acceptance || []).map(a =>
+              typeof a === 'string' ? { text: a, done: false } : a
+            ),
+            attempts: inProgressTask.attempts || 1
+          };
+        } else if (activeSession.taskQueue.length > 0) {
+          const nextTask = activeSession.taskQueue[0];
+          activeSession.currentTask = {
+            id: nextTask.id,
+            title: nextTask.title,
+            description: nextTask.description,
+            phase: nextTask.phase || executionState.currentPhase,
+            priority: nextTask.priority,
+            estimate: nextTask.estimate,
+            acceptance: (nextTask.acceptance || []).map(a =>
+              typeof a === 'string' ? { text: a, done: false } : a
+            ),
+            attempts: 1
+          };
+        }
+      }
+
+      // Add task stats
+      activeSession.taskStats = tasksData.stats || {};
+    }
+
+    // ===== DATA FETCHING =====
+    async function fetchSessions() {
+      try {
+        // Use /api/projects which has the actual data
+        const res = await fetch('/api/projects');
+        const data = await res.json();
+
+        // Map projects to session format
+        // Preserve existing enriched data if available
+        sessions = (data.projects || []).map(p => {
+          const existingSession = sessions.find(s => s.id === (p.folder || p.name));
+          return {
+            id: p.folder || p.name,
+            project: p.name,
+            path: p.path,
+            status: p.status === 'active' ? 'active' : 'idle',
+            contextPercent: p.metrics?.contextPercent || 0,
+            // Preserve enriched quality score, don't use placeholder
+            qualityScore: existingSession?.qualityScore || 0,
+            qualityBreakdown: existingSession?.qualityBreakdown || {},
+            cost: p.metrics?.cost || 0,
+            tokens: p.metrics?.contextUsed || 0,
+            model: p.metrics?.model,
+            messageCount: p.metrics?.messageCount || 0,
+            currentTask: existingSession?.currentTask || null,
+            taskQueue: existingSession?.taskQueue || [],
+            taskStats: existingSession?.taskStats || {},
+            phase: existingSession?.phase || null,
+            autonomous: existingSession?.autonomous || false,
+            iteration: existingSession?.iteration || 1,
+            safetyStatus: p.safetyStatus
+          };
+        });
+
+        // Note: Enrichment with task/execution data happens in fetchTasksAndExecution()
+        updateTrafficLights();
+        updateSessionList();
+      } catch (err) {
+        console.error('Failed to fetch sessions:', err);
+      }
+    }
+
+    async function fetchUsageLimits() {
+      try {
+        const res = await fetch('/api/usage/limits');
+        usageLimits = await res.json();
+        updateUsageDisplay();
+      } catch (err) {
+        console.error('Failed to fetch usage limits:', err);
+      }
+    }
+
+    async function fetchPredictions() {
+      try {
+        const res = await fetch('/api/predictions');
+        predictions = await res.json();
+      } catch (err) {
+        console.error('Failed to fetch predictions:', err);
+      }
+    }
+
+    function connectSSE() {
+      eventSource = new EventSource('/api/events');
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          let needsUIUpdate = false;
+
+          // Handle taskData from SSE (real-time task updates)
+          if (data.taskData) {
+            const newStats = data.taskData.stats;
+            const oldStats = tasksData?.stats;
+
+            // Check if task data actually changed
+            if (JSON.stringify(newStats) !== JSON.stringify(oldStats)) {
+              console.log('[SSE] Task data changed, updating...');
+              tasksData = {
+                tasks: [...(data.taskData.inProgress || []), ...(data.taskData.ready || [])],
+                stats: newStats
+              };
+              needsUIUpdate = true;
+            }
+          }
+
+          // Handle executionState from SSE (phase, quality scores)
+          if (data.executionState) {
+            const newScores = data.executionState.qualityScores;
+            const oldScores = executionState?.qualityScores;
+
+            // Check if execution state changed
+            if (JSON.stringify(newScores) !== JSON.stringify(oldScores)) {
+              console.log('[SSE] Execution state changed, updating...');
+              executionState = data.executionState;
+              needsUIUpdate = true;
+            }
+          }
+
+          // If task/execution data changed, enrich sessions
+          if (needsUIUpdate) {
+            enrichActiveSession();
+          }
+
+          // Handle projects data from SSE
+          if (data.projects) {
+            // Update sessions while preserving enriched data
+            // Check if context data actually changed
+            let contextChanged = false;
+            const newSessions = data.projects.map(p => {
+              const existingSession = sessions.find(s => s.id === (p.folder || p.name));
+              const newContextPercent = p.metrics?.contextPercent || 0;
+
+              // Check if context changed for this session
+              if (!existingSession || Math.abs(existingSession.contextPercent - newContextPercent) > 0.1) {
+                contextChanged = true;
+              }
+
+              return {
+                id: p.folder || p.name,
+                project: p.name,
+                path: p.path,
+                status: p.status === 'active' ? 'active' : 'idle',
+                // Update from SSE
+                contextPercent: newContextPercent,
+                cost: p.metrics?.cost || 0,
+                tokens: p.metrics?.contextUsed || 0,
+                model: p.metrics?.model,
+                messageCount: p.metrics?.messageCount || 0,
+                safetyStatus: p.safetyStatus,
+                // Preserve enriched data from previous state
+                qualityScore: existingSession?.qualityScore || 0,
+                qualityBreakdown: existingSession?.qualityBreakdown || {},
+                currentTask: existingSession?.currentTask || null,
+                taskQueue: existingSession?.taskQueue || [],
+                taskStats: existingSession?.taskStats || {},
+                phase: existingSession?.phase || null,
+                iteration: existingSession?.iteration || 1,
+                autonomous: existingSession?.autonomous || false
+              };
+            });
+
+            sessions = newSessions;
+
+            // Update UI if context data or task data changed
+            if (contextChanged || needsUIUpdate) {
+              updateTrafficLights();
+              updateSessionList();
+              if (selectedSessionId) {
+                updateDetailPanel();
+              }
+            }
+          }
+        } catch (err) {
+          console.error('SSE parse error:', err);
+        }
+      };
+
+      eventSource.onerror = () => {
+        document.getElementById('connectionDot').style.background = 'var(--color-danger)';
+        setTimeout(() => {
+          eventSource.close();
+          connectSSE();
+        }, 3000);
+      };
+
+      eventSource.onopen = () => {
+        document.getElementById('connectionDot').style.background = 'var(--color-success)';
+      };
+    }
+
+    // ===== TRAFFIC LIGHTS =====
+    function updateTrafficLights() {
+      const container = document.getElementById('trafficLights');
+      const summary = document.getElementById('statusSummary');
+
+      let healthy = 0, warning = 0, critical = 0, idle = 0;
+
+      container.innerHTML = sessions.map(s => {
+        const quality = s.qualityScore || 0;
+        const isIdle = s.status === 'idle' || s.status === 'paused';
+
+        let statusClass, statusText;
+        if (isIdle) {
+          statusClass = 'idle';
+          statusText = 'Idle';
+          idle++;
+        } else if (quality >= 85) {
+          statusClass = 'excellent';
+          statusText = 'Excellent';
+          healthy++;
+        } else if (quality >= 75) {
+          statusClass = 'good';
+          statusText = 'Good';
+          healthy++;
+        } else if (quality >= 50) {
+          statusClass = 'warning';
+          statusText = 'Warning';
+          warning++;
+        } else {
+          statusClass = 'critical';
+          statusText = 'Critical';
+          critical++;
+        }
+
+        return `
+          <div class="traffic-light ${statusClass}" onclick="selectSession('${s.id}')" title="${s.project}">
+            <div class="traffic-light-tooltip">${s.project}: ${isIdle ? 'Idle' : quality}</div>
+          </div>
+        `;
+      }).join('');
+
+      const parts = [];
+      if (healthy) parts.push(`${healthy} healthy`);
+      if (warning) parts.push(`${warning} warning`);
+      if (critical) parts.push(`${critical} critical`);
+      if (idle) parts.push(`${idle} idle`);
+
+      summary.textContent = `${sessions.length} sessions: ${parts.join(', ') || 'none'}`;
+    }
+
+    // ===== SESSION LIST =====
+    function updateSessionList() {
+      const container = document.getElementById('sessionItems');
+      const countEl = document.getElementById('sessionCount');
+
+      // Preserve scroll position
+      const scrollTop = container.scrollTop;
+
+      countEl.textContent = sessions.length;
+
+      container.innerHTML = sessions.map(s => {
+        const quality = s.qualityScore || 0;
+        const isIdle = s.status === 'idle' || s.status === 'paused';
+        const isAutonomous = s.autonomous || s.isAutonomous;
+        const isSelected = s.id === selectedSessionId;
+
+        let qualityClass;
+        if (isIdle) qualityClass = 'idle';
+        else if (quality >= 85) qualityClass = 'excellent';
+        else if (quality >= 75) qualityClass = 'good';
+        else if (quality >= 50) qualityClass = 'warning';
+        else qualityClass = 'critical';
+
+        let borderClass = '';
+        if (!isIdle && quality < 50) borderClass = 'critical';
+        else if (!isIdle && quality < 75) borderClass = 'warning';
+
+        const prediction = predictions[s.project] || {};
+        const exhaustionText = prediction.minutesToExhaustion
+          ? `~${prediction.minutesToExhaustion}m to limit`
+          : '';
+
+        return `
+          <div class="session-item ${borderClass} ${isSelected ? 'selected' : ''}"
+               onclick="selectSession('${s.id}')">
+            <div class="session-header">
+              <span class="session-name">
+                ${s.project}
+                ${isAutonomous ? '<span class="autonomous-badge" title="Autonomous">🤖</span>' : ''}
+              </span>
+              <span class="quality-badge ${qualityClass}">${isIdle ? '--' : quality}</span>
+            </div>
+            <div class="session-task">
+              ${s.currentTask?.id || (s.taskQueue?.length ? `Next: ${s.taskQueue[0].id}` : 'No active task')}
+              ${(s.currentTask?.phase || s.phase) ? `<span class="phase-badge ${s.currentTask?.phase || s.phase}">${s.currentTask?.phase || s.phase}</span>` : ''}
+              ${s.iteration > 1 ? `<span style="font-size:10px;color:var(--text-muted)">iter ${s.iteration}</span>` : ''}
+            </div>
+            <div class="session-metrics">
+              <span title="Context used">${Math.round(s.contextPercent || 0)}% ctx</span>
+              ${s.taskStats?.total ? `<span title="Task completion">${s.taskStats.byStatus?.completed || 0}/${s.taskStats.total} tasks</span>` : ''}
+              ${s.taskQueue?.length ? `<span title="Ready tasks">${s.taskQueue.length} ready</span>` : ''}
+              ${settings.showCost ? `<span title="Cost">$${(s.cost || 0).toFixed(2)}</span>` : ''}
+            </div>
+            <div class="session-controls" onclick="event.stopPropagation()">
+              <button class="control-btn pause" onclick="togglePause('${s.id}')" title="${s.status === 'paused' ? 'Resume' : 'Pause'}">
+                ${s.status === 'paused' ? '▶' : '⏸'}
+              </button>
+              <button class="control-btn skip" onclick="skipTask('${s.id}')" title="Skip Task">⏭</button>
+              <button class="control-btn end" onclick="endSession('${s.id}')" title="End Session">⏹</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Restore scroll position
+      container.scrollTop = scrollTop;
+    }
+
+    // ===== DETAIL PANEL =====
+    function selectSession(id) {
+      selectedSessionId = id;
+      updateSessionList(); // Update selection highlight
+      updateDetailPanel();
+    }
+
+    function updateDetailPanel() {
+      const session = sessions.find(s => s.id === selectedSessionId);
+      const emptyEl = document.getElementById('detailEmpty');
+      const contentEl = document.getElementById('detailContent');
+
+      if (!session) {
+        emptyEl.style.display = 'flex';
+        contentEl.style.display = 'none';
+        return;
+      }
+
+      // Preserve scroll positions
+      const detailContentEl = contentEl.querySelector('.detail-content');
+      const detailScrollTop = detailContentEl ? detailContentEl.scrollTop : 0;
+      const logContentEl = document.getElementById('logContent');
+      const logScrollTop = logContentEl ? logContentEl.scrollTop : 0;
+      const logWasAtBottom = logContentEl ? (logContentEl.scrollHeight - logContentEl.scrollTop <= logContentEl.clientHeight + 50) : true;
+
+      emptyEl.style.display = 'none';
+      contentEl.style.display = 'flex';
+
+      const quality = session.qualityScore || 0;
+      const isIdle = session.status === 'idle' || session.status === 'paused';
+      const prediction = predictions[session.project] || {};
+      const isAutonomous = session.autonomous || session.isAutonomous;
+
+      let qualityClass = 'health';
+      if (!isIdle && quality < 50) qualityClass = 'critical';
+      else if (!isIdle && quality < 75) qualityClass = 'warning';
+
+      // Build quality breakdown tooltip
+      const qualityBreakdown = session.qualityBreakdown || {};
+      const breakdownText = Object.entries(qualityBreakdown)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(', ');
+
+      const metricsHTML = `
+        <div class="metric-card ${qualityClass}">
+          <div class="metric-label">Quality Score</div>
+          <div class="metric-value ${quality >= 75 ? 'success' : quality >= 50 ? 'warning' : 'danger'}"
+               title="${breakdownText || 'No breakdown available'}">
+            ${isIdle ? '--' : quality}
+          </div>
+          ${breakdownText ? `<div class="metric-detail" style="font-size:10px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${breakdownText}">${Object.keys(qualityBreakdown).length} criteria scored</div>` : ''}
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Context Used</div>
+          <div class="metric-value">${Math.round(session.contextPercent || 0)}%</div>
+          ${settings.showExhaustionETA && prediction.minutesToExhaustion
+            ? `<div class="metric-detail">Exhaustion in ~${prediction.minutesToExhaustion}m</div>`
+            : `<div class="metric-detail">${session.tokens ? (session.tokens/1000).toFixed(1) + 'k tokens' : 'Healthy pace'}</div>`}
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Phase / Iteration</div>
+          <div class="metric-value" style="font-size: 18px;">${session.phase || session.currentTask?.phase || 'Idle'}</div>
+          <div class="metric-detail">Iteration ${session.iteration || 1}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Task Progress</div>
+          <div class="metric-value" style="font-size: 18px;">${session.taskStats?.byStatus?.completed || 0}/${session.taskStats?.total || 0}</div>
+          <div class="metric-detail">${session.taskQueue?.length || 0} ready, ${session.taskStats?.byStatus?.blocked || 0} blocked</div>
+        </div>
+      `;
+
+      const task = session.currentTask || {};
+      const acceptance = task.acceptance || [];
+      const completedCriteria = acceptance.filter(a => a.done).length;
+
+      const taskHTML = task.id ? `
+        <div class="task-card">
+          <div class="task-header">
+            <span class="task-title">${task.title || task.id}</span>
+            <span class="phase-badge ${task.phase || ''}">${task.phase || 'unknown'}</span>
+          </div>
+          <div class="task-meta">
+            <span>Priority: ${task.priority || 'normal'}</span>
+            <span>Estimate: ${task.estimate || '--'}</span>
+            ${settings.showErrorCount ? `<span>Attempts: ${task.attempts || 1}</span>` : ''}
+          </div>
+          ${renderPhaseProgression(task.id, task.phase)}
+          ${settings.showAcceptanceProgress ? `
+          <ul class="acceptance-list">
+            ${acceptance.map(a => `
+              <li class="acceptance-item ${a.done ? 'done' : ''}">
+                <span class="check">${a.done ? '✓' : ''}</span>
+                ${a.text || a}
+              </li>
+            `).join('')}
+          </ul>
+          ` : ''}
+        </div>
+      ` : '<div class="task-card" style="text-align: center; color: var(--text-muted);">No active task</div>';
+
+      const queue = session.taskQueue || [];
+      const queueHTML = queue.length ? `
+        <div class="queue-list">
+          ${queue.slice(0, 8).map((t, i) => `
+            <div class="queue-item ${i === 0 ? 'next' : ''}">
+              <span class="queue-number">${i + 1}</span>
+              <span class="queue-task" title="${t.title || t.id}">
+                ${t.id}
+                ${t.phase ? `<span class="phase-badge ${t.phase}" style="margin-left:6px">${t.phase}</span>` : ''}
+              </span>
+              <span class="queue-priority ${t.priority || ''}">${t.priority || 'normal'}</span>
+            </div>
+          `).join('')}
+          ${queue.length > 8 ? `<div class="queue-item" style="justify-content:center;color:var(--text-muted)">+${queue.length - 8} more</div>` : ''}
+        </div>
+      ` : '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No tasks in queue. All caught up! 🎉</div>';
+
+      contentEl.innerHTML = `
+        <div class="detail-header">
+          <div class="detail-title">
+            ${session.project}
+            ${isAutonomous ? '<span title="Autonomous Session">🤖</span>' : ''}
+          </div>
+          <div class="detail-actions">
+            <button class="detail-btn" onclick="togglePause('${session.id}')">
+              ${session.status === 'paused' ? 'Resume' : 'Pause'}
+            </button>
+            <button class="detail-btn" onclick="skipTask('${session.id}')">Skip Task</button>
+            <button class="detail-btn danger" onclick="endSession('${session.id}')">End Session</button>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          ${metricsHTML}
+        </div>
+
+        <div class="detail-content">
+          <div class="detail-section">
+            <h3>Current Task</h3>
+            ${taskHTML}
+          </div>
+
+          <div class="detail-section">
+            <h3>Task Queue</h3>
+            ${queueHTML}
+          </div>
+
+          <div class="detail-section">
+            <h3>Lessons Learned</h3>
+            <div class="lessons-section" id="lessonsSection">
+              <div class="lessons-header" onclick="toggleLessons()">
+                <span class="lessons-title">Session Notes & Learnings</span>
+                <span class="lessons-count" id="lessonsCount">0 notes</span>
+                <span id="lessonsToggleIcon">▼</span>
+              </div>
+              <div class="lessons-content" id="lessonsContent" style="display: none;">
+                <div class="lessons-empty">No lessons recorded yet</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h3>Live Logs</h3>
+            <div class="log-section">
+              <div class="log-header" onclick="toggleLogs()">
+                <span class="log-title">
+                  <span class="log-streaming-dot"></span>
+                  Session Logs
+                </span>
+                <span id="logToggleIcon">▼</span>
+              </div>
+              <div class="log-content" id="logContent">
+                <div class="log-line info">[${new Date().toLocaleTimeString()}] Connected to session...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Restore scroll positions after DOM update
+      requestAnimationFrame(() => {
+        const newDetailContent = contentEl.querySelector('.detail-content');
+        if (newDetailContent && detailScrollTop > 0) {
+          newDetailContent.scrollTop = detailScrollTop;
+        }
+        const newLogContent = document.getElementById('logContent');
+        if (newLogContent) {
+          if (logWasAtBottom) {
+            // If was at bottom, stay at bottom (for auto-scroll)
+            newLogContent.scrollTop = newLogContent.scrollHeight;
+          } else if (logScrollTop > 0) {
+            newLogContent.scrollTop = logScrollTop;
+          }
+        }
+      });
+
+      // Start log streaming for selected session (only if session changed)
+      if (!logEventSource || logEventSource.sessionId !== session.id) {
+        startLogStream(session.id);
+      }
+    }
+
+    // ===== USAGE DISPLAY =====
+    function updateUsageDisplay() {
+      const fiveHour = usageLimits.fiveHour || {};
+      const daily = usageLimits.daily || {};
+      const weekly = usageLimits.weekly || {};
+
+      // Main badge
+      const mainPercent = fiveHour.percent || 0;
+      document.getElementById('usagePercent').textContent = `${mainPercent}%`;
+      const fillEl = document.getElementById('usageBarFill');
+      fillEl.style.width = `${mainPercent}%`;
+      fillEl.className = 'bar-fill' + (mainPercent >= 90 ? ' critical' : mainPercent >= 75 ? ' warning' : '');
+
+      // 5-hour
+      document.getElementById('usage5h').textContent = `${fiveHour.used || 0}/${fiveHour.limit || 300}`;
+      const fill5h = document.getElementById('usage5hFill');
+      fill5h.style.width = `${fiveHour.percent || 0}%`;
+      fill5h.className = 'usage-limit-fill' + (fiveHour.percent >= 90 ? ' critical' : fiveHour.percent >= 75 ? ' warning' : '');
+      document.getElementById('usage5hMeta').textContent = `Resets in ${fiveHour.resetIn || '--'}`;
+
+      // Daily
+      document.getElementById('usageDaily').textContent = `${daily.used || 0}/${daily.limit || 1500}`;
+      const fillDaily = document.getElementById('usageDailyFill');
+      fillDaily.style.width = `${daily.percent || 0}%`;
+      fillDaily.className = 'usage-limit-fill' + (daily.percent >= 90 ? ' critical' : daily.percent >= 75 ? ' warning' : '');
+      document.getElementById('usageDailyMeta').textContent = `Resets in ${daily.resetIn || '--'}`;
+
+      // Weekly
+      document.getElementById('usageWeekly').textContent = `${weekly.used || 0}/${weekly.limit || 7000}`;
+      const fillWeekly = document.getElementById('usageWeeklyFill');
+      fillWeekly.style.width = `${weekly.percent || 0}%`;
+      fillWeekly.className = 'usage-limit-fill' + (weekly.percent >= 90 ? ' critical' : weekly.percent >= 75 ? ' warning' : '');
+      document.getElementById('usageWeeklyMeta').textContent = `Resets on ${weekly.resetDay || '--'}`;
+    }
+
+    // ===== SESSION CONTROLS =====
+    async function togglePause(id) {
+      const session = sessions.find(s => s.id === id);
+      if (!session) return;
+
+      const action = session.status === 'paused' ? 'resume' : 'pause';
+      try {
+        await fetch(`/api/sessions/${id}/${action}`, { method: 'POST' });
+        fetchSessions();
+      } catch (err) {
+        console.error(`Failed to ${action} session:`, err);
+      }
+    }
+
+    async function skipTask(id) {
+      if (!confirm('Skip current task and move to next?')) return;
+      try {
+        await fetch(`/api/sessions/${id}/skip-task`, { method: 'POST' });
+        fetchSessions();
+      } catch (err) {
+        console.error('Failed to skip task:', err);
+      }
+    }
+
+    async function endSession(id) {
+      if (!confirm('End this session? This cannot be undone.')) return;
+      try {
+        await fetch(`/api/sessions/${id}/end`, { method: 'POST' });
+        if (selectedSessionId === id) {
+          selectedSessionId = null;
+        }
+        fetchSessions();
+      } catch (err) {
+        console.error('Failed to end session:', err);
+      }
+    }
+
+    // ===== LOG STREAMING =====
+    let logEventSource = null;
+
+    function startLogStream(sessionId) {
+      if (logEventSource) {
+        logEventSource.close();
+      }
+
+      const logContent = document.getElementById('logContent');
+      if (!logContent) return;
+
+      logEventSource = new EventSource(`/api/logs/${sessionId}/stream`);
+      logEventSource.sessionId = sessionId; // Track which session we're streaming
+
+      logEventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const line = document.createElement('div');
+          line.className = 'log-line ' + (data.level || '').toLowerCase();
+          line.textContent = `[${new Date(data.timestamp).toLocaleTimeString()}] ${data.line || data.message}`;
+          logContent.appendChild(line);
+          logContent.scrollTop = logContent.scrollHeight;
+
+          // Keep only last 100 lines
+          while (logContent.children.length > 100) {
+            logContent.removeChild(logContent.firstChild);
+          }
+        } catch (err) {
+          // Ignore parse errors
+        }
+      };
+    }
+
+    function toggleLogs() {
+      const content = document.getElementById('logContent');
+      const icon = document.getElementById('logToggleIcon');
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.textContent = '▲';
+      } else {
+        content.style.display = 'none';
+        icon.textContent = '▼';
+      }
+    }
+
+    function toggleLessons() {
+      const content = document.getElementById('lessonsContent');
+      const icon = document.getElementById('lessonsToggleIcon');
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.textContent = '▲';
+        fetchLessons();
+      } else {
+        content.style.display = 'none';
+        icon.textContent = '▼';
+      }
+    }
+
+    async function fetchLessons() {
+      if (!selectedSessionId) return;
+
+      const session = sessions.find(s => s.id === selectedSessionId);
+      if (!session) return;
+
+      try {
+        // Fetch lessons from memory store or task notes
+        const res = await fetch(`/api/lessons/${session.project}`);
+        if (!res.ok) {
+          // If endpoint doesn't exist, show placeholder
+          updateLessonsUI([]);
+          return;
+        }
+        const lessons = await res.json();
+        updateLessonsUI(lessons);
+      } catch (err) {
+        // Endpoint may not exist yet - show placeholder
+        updateLessonsUI([]);
+      }
+    }
+
+    function updateLessonsUI(lessons) {
+      const content = document.getElementById('lessonsContent');
+      const count = document.getElementById('lessonsCount');
+
+      if (!lessons || lessons.length === 0) {
+        content.innerHTML = '<div class="lessons-empty">No lessons recorded yet. Notes will appear here as tasks complete.</div>';
+        count.textContent = '0 notes';
+        return;
+      }
+
+      count.textContent = `${lessons.length} note${lessons.length !== 1 ? 's' : ''}`;
+
+      content.innerHTML = lessons.map(lesson => {
+        const typeClass = lesson.type === 'success' ? 'success' :
+                          lesson.type === 'warning' ? 'warning' :
+                          lesson.type === 'error' ? 'error' : '';
+
+        const timeAgo = getTimeAgo(new Date(lesson.timestamp));
+
+        return `
+          <div class="lesson-item ${typeClass}">
+            <div class="lesson-task">
+              <span>${lesson.taskId || 'General'}</span>
+              <span>${timeAgo}</span>
+            </div>
+            <div class="lesson-text">${lesson.text || lesson.note}</div>
+            ${lesson.tags ? `
+              <div class="lesson-tags">
+                ${lesson.tags.map(t => `<span class="lesson-tag">${t}</span>`).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getTimeAgo(date) {
+      const seconds = Math.floor((new Date() - date) / 1000);
+      if (seconds < 60) return 'just now';
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      return `${days}d ago`;
+    }
+
+    // ===== UI HELPERS =====
+    function toggleUsageDropdown() {
+      const dropdown = document.getElementById('usageDropdown');
+      dropdown.classList.toggle('open');
+    }
+
+    function toggleSettings() {
+      const modal = document.getElementById('settingsModal');
+      modal.classList.toggle('open');
+    }
+
+    function toggleSetting(el) {
+      el.classList.toggle('active');
+      const setting = el.dataset.setting;
+      settings[setting] = el.classList.contains('active');
+      localStorage.setItem('dashboardSettings', JSON.stringify(settings));
+
+      // Re-render affected components
+      updateSessionList();
+      if (selectedSessionId) {
+        updateDetailPanel();
+      }
+    }
+
+    function loadSettingsUI() {
+      document.querySelectorAll('.toggle[data-setting]').forEach(el => {
+        const setting = el.dataset.setting;
+        if (settings[setting]) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
+        }
+      });
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.usage-badge') && !e.target.closest('.usage-dropdown')) {
+        document.getElementById('usageDropdown').classList.remove('open');
+      }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+
+      const sessionList = sessions;
+      const currentIndex = sessionList.findIndex(s => s.id === selectedSessionId);
+
+      switch (e.key) {
+        case 'j': // Next session
+          if (currentIndex < sessionList.length - 1) {
+            selectSession(sessionList[currentIndex + 1].id);
+          } else if (sessionList.length > 0) {
+            selectSession(sessionList[0].id);
+          }
+          break;
+        case 'k': // Previous session
+          if (currentIndex > 0) {
+            selectSession(sessionList[currentIndex - 1].id);
+          } else if (sessionList.length > 0) {
+            selectSession(sessionList[sessionList.length - 1].id);
+          }
+          break;
+        case 'p': // Pause/Resume
+          if (selectedSessionId) togglePause(selectedSessionId);
+          break;
+        case 's': // Skip task
+          if (selectedSessionId) skipTask(selectedSessionId);
+          break;
+        case 'Escape':
+          selectedSessionId = null;
+          updateSessionList();
+          document.getElementById('detailEmpty').style.display = 'flex';
+          document.getElementById('detailContent').style.display = 'none';
+          break;
+        case '?':
+          alert('Keyboard Shortcuts:\n\nj/k - Navigate sessions\np - Pause/Resume\ns - Skip task\nEsc - Deselect');
+          break;
+      }
+    });
+
+    // Initialize
+    init();
+  </script>
+</body>
+</html>

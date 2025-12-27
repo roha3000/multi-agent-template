@@ -41,7 +41,6 @@
     "task:create": "node task-cli.js create",
     "task:stats": "node task-cli.js stats",
     "task:list": "node task-cli.js list",
-    "task:sync": "node -e \"const TaskManager = require('./.claude/core/task-manager'); const tm = new TaskManager(); tm.exportToMarkdown(); console.log('Synced tasks.json → .claude/dev-docs/tasks.md');\"",
     "task:migrate": "node tasks-migration.js",
     "test:e2e": "node tests/e2e/orchestrator.e2e.test.js",
     "test:e2e:context": "node tests/e2e/context-tracking.e2e.test.js",

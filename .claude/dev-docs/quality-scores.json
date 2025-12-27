@@ -1,28 +1,79 @@
 {
-  "phase": "implementation",
-  "taskId": "dashboard-command-center",
-  "iteration": 2,
+  "phase": "research",
+  "taskId": "dashboard-task-queue-management",
   "scores": {
-    "functionalCompleteness": 100,
-    "codeQuality": 95,
-    "testCoverage": 100,
-    "documentation": 95,
-    "userExperience": 92,
-    "performanceOptimization": 90
+    "requirementsComplete": 95,
+    "technicalAnalysis": 92,
+    "riskAssessment": 88,
+    "competitiveAnalysis": 85,
+    "feasibilityValidation": 95,
+    "stakeholderAlignment": 90
   },
   "recommendation": "proceed",
   "improvements": [],
-  "evaluatedAt": "2025-12-26T12:00:00.000Z",
-  "totalScore": 95,
+  "evaluatedAt": "2025-12-27T20:30:00.000Z",
+  "totalScore": 91,
   "summary": {
-    "weightedScore": 95,
+    "weightedScore": 91,
     "breakdown": {
-      "functionalCompleteness": "Phase 1 & 2 complete: Session registry, usage limits, Command Center UI, Session Detail View with all components (metrics, criteria, confidence, queue, controls)",
-      "codeQuality": "Clean component architecture, EventEmitter patterns, proper error handling, responsive CSS",
-      "testCoverage": "1291 tests passing, no regressions from new code",
-      "documentation": "Updated PROJECT_SUMMARY.md, tasks.md, created design docs (DASHBOARD-UX-REDESIGN.md)",
-      "userExperience": "Intuitive navigation, color-coded thresholds, responsive layout, auto-refresh",
-      "performanceOptimization": "SSE for real-time updates, 3-second refresh intervals, efficient DOM updates"
+      "requirementsComplete": "All 8 acceptance criteria fully documented with implementation paths. Functional requirements: queue movement (now/next/later/someday), reordering within queues, persistence to tasks.json, real-time SSE updates, confirmation dialogs for NOW queue, color-coded badges.",
+      "technicalAnalysis": "Analyzed TaskManager API (726 lines), global-context-manager.js (1449 lines), and dashboard-v2.html (1900+ lines). Identified gaps: moveToQueue() method needed, POST /api/tasks/:id/queue endpoint needed. Technology stack: Express, SSE, chokidar file watchers all in place.",
+      "riskAssessment": "Identified 3 key risks with mitigations: (1) Concurrent edits - TaskManager uses synchronous writes, (2) SSE flooding - existing 3s debounce, (3) Accidental NOW changes - confirmation dialog required. No blocking risks.",
+      "competitiveAnalysis": "Evaluated drag-drop libraries (SortableJS, React DnD, native HTML5) vs dropdown/buttons. Chose simpler dropdown + arrow buttons approach - no external dependencies, faster implementation, better accessibility, consistent with existing UI patterns.",
+      "feasibilityValidation": "All 8 acceptance criteria validated as technically feasible. Code paths identified for each. Estimated 3 hours implementation time. No blockers or dependencies.",
+      "stakeholderAlignment": "Feature aligns with user's demonstrated priority for active task control (from UX research in Session 27). Inline controls match existing dashboard interaction patterns. Enables users to manage backlog directly from dashboard."
     }
+  },
+  "details": {
+    "existingCapabilities": {
+      "taskManager": {
+        "moveToBacklog": "Moves task between tiers (now/next/later/someday) - LINE 344",
+        "getBacklogSummary": "Returns counts per tier and status - LINE 384",
+        "events": ["task:moved", "task:status-changed", "tasks:saved"]
+      },
+      "api": {
+        "existing": ["GET /api/tasks (LINE 805)", "POST /api/tasks/:id/status (LINE 816)"],
+        "missing": ["POST /api/tasks/:id/queue"]
+      },
+      "dashboard": {
+        "sse": "/api/events with taskData in payload",
+        "fileWatcher": "chokidar watches tasks.json, emits tasks:changed",
+        "uiPatterns": ["inline controls", "color badges", "confirmation dialogs"]
+      }
+    },
+    "gaps": [
+      {
+        "component": "TaskManager",
+        "missing": "moveToQueue(taskId, queue, rank) method",
+        "effort": "~30 lines of code"
+      },
+      {
+        "component": "API",
+        "missing": "POST /api/tasks/:id/queue endpoint",
+        "effort": "~20 lines in global-context-manager.js"
+      },
+      {
+        "component": "Dashboard",
+        "missing": "Queue management UI panel in dashboard-v2.html",
+        "effort": "~200 lines HTML/CSS/JS"
+      }
+    ],
+    "risks": [
+      {
+        "risk": "Data corruption on concurrent edits",
+        "severity": "Medium",
+        "mitigation": "TaskManager already uses synchronous file writes"
+      },
+      {
+        "risk": "SSE broadcast flooding",
+        "severity": "Low",
+        "mitigation": "Debounce updates, already have 3s interval"
+      },
+      {
+        "risk": "Accidental NOW queue changes",
+        "severity": "Medium",
+        "mitigation": "Confirmation dialog (acceptance criterion 7)"
+      }
+    ]
   }
 }
