@@ -25,7 +25,9 @@
     },
     "later": {
       "description": "Future work, not yet prioritized",
-      "tasks": []
+      "tasks": [
+        "swarm-integration-tests"
+      ]
     },
     "someday": {
       "description": "Ideas and possibilities, lowest priority",
@@ -73,6 +75,32 @@
     }
   },
   "tasks": {
+    "swarm-integration-tests": {
+      "id": "swarm-integration-tests",
+      "title": "Add SwarmController Integration Tests",
+      "description": "Add integration tests for SwarmController + SecurityValidator to catch API mismatches. Current tests only check happy path and structure, not actual integration between components.",
+      "phase": "testing",
+      "priority": "medium",
+      "estimate": "1h",
+      "tags": ["testing", "swarm", "integration", "quality"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["swarm-orchestrator-integration"]
+      },
+      "acceptance": [
+        "Test SecurityValidator.validate() is called with correct params from SwarmController",
+        "Test SwarmController correctly interprets { valid: false } responses",
+        "Test error messages from threats array are properly extracted",
+        "Test integration with real SecurityValidator (not mocked)",
+        "Add negative test cases (invalid taskId, malicious description)"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-27T19:30:00.000Z",
+      "updated": "2025-12-27T19:30:00.000Z",
+      "notes": "Created after discovering API mismatch between SwarmController (checking .allowed) and SecurityValidator (returning .valid) that caused all tasks to fail safety checks."
+    },
     "dashboard-v2-redesign": {
       "id": "dashboard-v2-redesign",
       "title": "Dashboard V2 Split-Pane Redesign",
