@@ -200,7 +200,7 @@
       "id": "dashboard-v2-polish",
       "title": "Dashboard V2 Polish and Testing",
       "description": "Final polish for dashboard v2: responsive design testing, accessibility, autonomous orchestrator integration testing.",
-      "phase": "testing",
+      "phase": "research",
       "priority": "medium",
       "estimate": "2h",
       "tags": [
@@ -225,7 +225,8 @@
       "status": "ready",
       "assignee": null,
       "created": "2025-12-27T20:00:00.000Z",
-      "updated": "2025-12-27T20:00:00.000Z"
+      "updated": "2025-12-27T22:25:24.549Z",
+      "started": "2025-12-27T22:25:24.530Z"
     },
     "add-health-endpoint": {
       "id": "add-health-endpoint",
@@ -483,7 +484,7 @@
       "id": "add-model-pricing",
       "title": "Add GPT-5.2 and Gemini 3 Pricing",
       "description": "Add pricing configuration for GPT-5.2 and Gemini 3 models to the cost calculator and fix hardcoded Claude defaults",
-      "phase": "implementation",
+      "phase": "research",
       "priority": "low",
       "estimate": "1h",
       "tags": [
@@ -502,7 +503,7 @@
         "Claude defaults configurable",
         "Tests pass"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2025-12-19T04:07:23.583Z",
       "updated": "2025-12-24T20:05:59.543Z",
@@ -1324,11 +1325,23 @@
       "phase": "implementation",
       "priority": "critical",
       "estimate": "14h",
-      "tags": ["orchestrator", "swarm", "cli-hooks", "phase-progression", "implementation"],
+      "tags": [
+        "orchestrator",
+        "swarm",
+        "cli-hooks",
+        "phase-progression",
+        "implementation"
+      ],
       "depends": {
-        "blocks": ["dashboard-log-session-id-fix"],
-        "requires": ["orchestrator-unification-analysis"],
-        "related": ["orchestrator-phase-progression-fix"]
+        "blocks": [
+          "dashboard-log-session-id-fix"
+        ],
+        "requires": [
+          "orchestrator-unification-analysis"
+        ],
+        "related": [
+          "orchestrator-phase-progression-fix"
+        ]
       },
       "acceptance": [
         "Phase 1: Create SwarmController module (.claude/core/swarm-controller.js)",
@@ -1369,11 +1382,21 @@
       "phase": "research",
       "priority": "critical",
       "estimate": "2h",
-      "tags": ["orchestrator", "architecture", "swarm", "cli-integration", "research"],
+      "tags": [
+        "orchestrator",
+        "architecture",
+        "swarm",
+        "cli-integration",
+        "research"
+      ],
       "depends": {
-        "blocks": ["orchestrator-phase-progression-fix"],
+        "blocks": [
+          "orchestrator-phase-progression-fix"
+        ],
         "requires": [],
-        "related": ["swarm-orchestrator-integration"]
+        "related": [
+          "swarm-orchestrator-integration"
+        ]
       },
       "acceptance": [
         "Document all features in ContinuousLoopOrchestrator that must be preserved",
@@ -1408,11 +1431,20 @@
       "phase": "implementation",
       "priority": "critical",
       "estimate": "2h",
-      "tags": ["orchestrator", "bug-fix", "critical", "phase-progression", "quality-gates", "swarm"],
+      "tags": [
+        "orchestrator",
+        "bug-fix",
+        "critical",
+        "phase-progression",
+        "quality-gates",
+        "swarm"
+      ],
       "depends": {
         "blocks": [],
         "requires": [],
-        "related": ["swarm-orchestrator-integration"]
+        "related": [
+          "swarm-orchestrator-integration"
+        ]
       },
       "acceptance": [
         "USE EXISTING quality-gates.js: getNextPhase(), PHASES[].minScore, calculatePhaseScore()",
@@ -1443,11 +1475,19 @@
       "phase": "implementation",
       "priority": "critical",
       "estimate": "45m",
-      "tags": ["dashboard", "logs", "bug-fix", "orchestrator", "multi-session"],
+      "tags": [
+        "dashboard",
+        "logs",
+        "bug-fix",
+        "orchestrator",
+        "multi-session"
+      ],
       "depends": {
         "blocks": [],
         "requires": [],
-        "related": ["dashboard-autonomous-tracking"]
+        "related": [
+          "dashboard-autonomous-tracking"
+        ]
       },
       "acceptance": [
         "Each orchestrator registers with logSessionId matching its log file (session-N.log)",
@@ -1478,7 +1518,12 @@
       "phase": "implementation",
       "priority": "critical",
       "estimate": "1h",
-      "tags": ["taskmanager", "bug-fix", "concurrency", "data-integrity"],
+      "tags": [
+        "taskmanager",
+        "bug-fix",
+        "concurrency",
+        "data-integrity"
+      ],
       "depends": {
         "blocks": [],
         "requires": [],

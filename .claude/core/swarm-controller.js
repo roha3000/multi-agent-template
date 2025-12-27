@@ -195,9 +195,11 @@ class SwarmController {
         if (this.components.securityValidator) {
             try {
                 const secResult = this.components.securityValidator.validate(operation);
-                if (!secResult.allowed) {
+                // SecurityValidator returns { valid, sanitized, threats } not { allowed }
+                if (!secResult.valid) {
                     result.safe = false;
-                    result.errors.push(secResult.reason || 'Security check failed');
+                    const threatMessages = (secResult.threats || []).map(t => t.message).join(', ');
+                    result.errors.push(threatMessages || 'Security check failed');
                 }
             } catch (error) {
                 result.warnings.push(`Security check error: ${error.message}`);

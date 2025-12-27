@@ -952,7 +952,7 @@ async function main() {
 
     if (swarmController && currentTask) {
       const safetyResult = swarmController.checkSafety({
-        task: currentTask.title,
+        taskId: currentTask.id,
         description: currentTask.description || '',
         phase: state.currentPhase
       });
