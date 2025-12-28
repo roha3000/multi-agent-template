@@ -18,6 +18,7 @@ const MemoryIntegration = require('./memory-integration');
 const AgentLoader = require('./agent-loader');
 const { DelegationContext } = require('./delegation-context');
 const { AggregationStrategies } = require('./aggregation-strategies');
+const { DelegationDecider, DelegationPattern } = require('./delegation-decider');
 
 const logger = createComponentLogger('AgentOrchestrator');
 
@@ -54,6 +55,11 @@ class AgentOrchestrator {
 
     // Initialize agent loader
     this.agentLoader = new AgentLoader(this.options.agentsDir);
+
+    // Initialize delegation decider for auto-delegation
+    this.delegationDecider = new DelegationDecider({
+      config: options.delegationConfig || {}
+    });
 
     // Initialize memory system if enabled
     if (this.options.enableMemory) {
@@ -1139,6 +1145,264 @@ class AgentOrchestrator {
       failed,
       duration: Date.now() - startTime
     };
+  }
+
+  // ============================================
+  // Auto-Delegation Methods (Phase 3)
+  // ============================================
+
+  /**
+   * Execute task with automatic delegation decision
+   * @param {string} agentId - Agent to execute task
+   * @param {Object} task - Task to execute
+   * @param {Object} options - Execution options
+   * @param {boolean} [options.autoDelegation=true] - Enable auto-delegation
+   * @param {Object} [options.delegationConfig] - Override delegation config
+   * @returns {Promise<Object>} Execution result
+   */
+  async executeWithAutoDelegation(agentId, task, options = {}) {
+    const {
+      autoDelegation = true,
+      delegationConfig = {},
+      timeout = 60000
+    } = options;
+
+    const agent = this.getAgent(agentId);
+    if (!agent) {
+      throw new Error(`Agent not found: ${agentId}`);
+    }
+
+    const startTime = Date.now();
+
+    // Get delegation decision
+    let decision = null;
+    if (autoDelegation) {
+      decision = this.getDelegationHint(task, agent, { config: delegationConfig });
+    }
+
+    logger.info('Auto-delegation evaluation', {
+      agentId,
+      taskId: task.id,
+      shouldDelegate: decision?.shouldDelegate,
+      pattern: decision?.suggestedPattern,
+      confidence: decision?.confidence
+    });
+
+    // If delegation is recommended, decompose and delegate
+    if (decision?.shouldDelegate) {
+      return this._executeWithDelegation(agent, task, decision, options);
+    }
+
+    // Otherwise, execute directly
+    try {
+      const result = await this._executeWithRetry(agent, task, { timeout, retries: 3 });
+
+      return {
+        success: true,
+        result,
+        delegated: false,
+        decision,
+        duration: Date.now() - startTime,
+        metadata: { pattern: 'direct', agentId }
+      };
+    } catch (error) {
+      logger.error('Direct execution failed', { agentId, error: error.message });
+
+      return {
+        success: false,
+        error: error.message,
+        delegated: false,
+        decision,
+        duration: Date.now() - startTime
+      };
+    }
+  }
+
+  /**
+   * Execute task through delegation based on decision
+   * @private
+   */
+  async _executeWithDelegation(agent, task, decision, options) {
+    const { timeout = 60000 } = options;
+    const startTime = Date.now();
+    const pattern = decision.suggestedPattern;
+
+    logger.info('Executing with delegation', {
+      agentId: agent.id,
+      pattern,
+      subtaskCount: decision.factors.subtaskCount
+    });
+
+    // Decompose task if TaskDecomposer available
+    let subtasks = [];
+    if (this.delegationDecider.taskDecomposer) {
+      try {
+        const decompositionStrategy = this._mapPatternToStrategy(pattern);
+        subtasks = this.delegationDecider.taskDecomposer.decompose(task, decompositionStrategy);
+      } catch (error) {
+        logger.warn('Decomposition failed, using task as single subtask', { error: error.message });
+        subtasks = [task];
+      }
+    } else {
+      subtasks = [task];
+    }
+
+    // Execute based on pattern
+    let result;
+    try {
+      switch (pattern) {
+        case DelegationPattern.PARALLEL:
+          result = await this.executeParallelDelegation(agent.id, subtasks, { timeout, ...options });
+          break;
+
+        case DelegationPattern.DEBATE:
+          // Get agent IDs for debate
+          const debateAgents = this._selectAgentsForPattern(task, pattern, 3);
+          result = await this.executeDebate(debateAgents, task, 3, { timeout, ...options });
+          break;
+
+        case DelegationPattern.REVIEW:
+          // Get creator and reviewers
+          const reviewAgents = this._selectAgentsForPattern(task, pattern, 3);
+          result = await this.executeReview(
+            reviewAgents[0],
+            reviewAgents.slice(1),
+            task,
+            { timeout, ...options }
+          );
+          break;
+
+        case DelegationPattern.ENSEMBLE:
+          // Get ensemble agents
+          const ensembleAgents = this._selectAgentsForPattern(task, pattern, 3);
+          result = await this.executeEnsemble(ensembleAgents, task, { timeout, ...options });
+          break;
+
+        case DelegationPattern.SEQUENTIAL:
+        default:
+          // Sequential delegation
+          result = await this._executeSequentialDelegation(agent.id, subtasks, { timeout, ...options });
+          break;
+      }
+
+      return {
+        success: result.success !== false,
+        result: result.aggregated || result.finalProposal || result.finalWork || result.result || result,
+        delegated: true,
+        decision,
+        pattern,
+        subtaskCount: subtasks.length,
+        duration: Date.now() - startTime,
+        metadata: { pattern, agentId: agent.id }
+      };
+
+    } catch (error) {
+      logger.error('Delegated execution failed', { pattern, error: error.message });
+
+      return {
+        success: false,
+        error: error.message,
+        delegated: true,
+        decision,
+        pattern,
+        duration: Date.now() - startTime
+      };
+    }
+  }
+
+  /**
+   * Execute subtasks sequentially
+   * @private
+   */
+  async _executeSequentialDelegation(parentAgentId, subtasks, options = {}) {
+    const { timeout = 60000 } = options;
+    const results = [];
+
+    for (const subtask of subtasks) {
+      const result = await this.delegateTask(parentAgentId, subtask, { timeout });
+      results.push(result);
+
+      if (!result.success && options.stopOnFailure !== false) {
+        break;
+      }
+    }
+
+    return {
+      success: results.every(r => r.success),
+      aggregated: this.aggregateResults(results, 'chain'),
+      results,
+      duration: results.reduce((sum, r) => sum + (r.duration || 0), 0)
+    };
+  }
+
+  /**
+   * Map delegation pattern to decomposition strategy
+   * @private
+   */
+  _mapPatternToStrategy(pattern) {
+    switch (pattern) {
+      case DelegationPattern.PARALLEL:
+        return 'parallel';
+      case DelegationPattern.SEQUENTIAL:
+        return 'sequential';
+      default:
+        return 'hybrid';
+    }
+  }
+
+  /**
+   * Select agents for a specific pattern
+   * @private
+   */
+  _selectAgentsForPattern(task, pattern, count) {
+    // Try to find suitable agents by phase
+    const phase = task.phase || 'implementation';
+    const phaseAgents = this.getAgentsByPhase(phase);
+
+    if (phaseAgents && phaseAgents.length >= count) {
+      return phaseAgents.slice(0, count).map(a => a.id);
+    }
+
+    // Fall back to any available agents
+    const allAgents = Array.from(this.agents.keys());
+    return allAgents.slice(0, count);
+  }
+
+  /**
+   * Get delegation hint for a task
+   * @param {Object} task - Task to evaluate
+   * @param {Object} agent - Agent considering delegation
+   * @param {Object} options - Additional options
+   * @returns {Object} Delegation decision
+   */
+  getDelegationHint(task, agent, options = {}) {
+    return this.delegationDecider.shouldDelegate(task, agent, options);
+  }
+
+  /**
+   * Get delegation hints for multiple tasks
+   * @param {Array<Object>} tasks - Tasks to evaluate
+   * @param {Object} agent - Agent considering delegation
+   * @returns {Array<Object>} Delegation decisions
+   */
+  getDelegationHintsBatch(tasks, agent) {
+    return this.delegationDecider.evaluateBatch(tasks, agent);
+  }
+
+  /**
+   * Get delegation decider metrics
+   * @returns {Object} Metrics
+   */
+  getDelegationMetrics() {
+    return this.delegationDecider.getMetrics();
+  }
+
+  /**
+   * Update delegation configuration
+   * @param {Object} config - New configuration
+   */
+  updateDelegationConfig(config) {
+    this.delegationDecider.updateConfig(config);
   }
 
   /**

@@ -402,7 +402,59 @@
         "calculateSimilarity() helper for Jaccard similarity",
         "__tests__/core/aggregation-strategies.test.js: 19 unit tests"
       ]
+    },
+    "hierarchy-phase3-decomposer": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "hierarchy-phase3-decomposer",
+      "title": "Phase 3: Task Decomposer",
+      "description": "Implement TaskDecomposer class for intelligent task breakdown. Analyzes task complexity and automatically generates subtasks with appropriate agent assignments.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "6h",
+      "tags": [
+        "hierarchy",
+        "phase3",
+        "decomposition",
+        "automation"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase3-auto-delegation"
+        ],
+        "requires": [
+          "hierarchy-phase2-aggregation"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "TaskDecomposer.analyze(task) returns DecompositionSuggestion",
+        "TaskDecomposer.decompose(task, strategy) returns subtask array",
+        "Decomposition strategies: parallel, sequential, hybrid, manual",
+        "Integration with ComplexityAnalyzer for delegation decisions",
+        "Subtask estimation (effort, tokens, time)",
+        "Agent capability matching for subtasks",
+        "Unit tests for decomposition logic"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T15:15:00.000Z",
+      "completed": "2025-12-28T15:15:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/task-decomposer.js: TaskDecomposer class (~993 lines)",
+        ".claude/core/decomposition-strategies.js: DecompositionStrategies with 4 strategy classes (~1477 lines)",
+        "__tests__/core/task-decomposer.test.js: 80 tests for decomposer",
+        "__tests__/core/decomposition-strategies.test.js: 43 tests for strategies",
+        "Complexity scoring with weighted factors",
+        "Capability matching for subtask agent assignment",
+        "Phase-based subtask templates for all 6 development phases"
+      ]
     }
   },
-  "lastArchived": "2025-12-28T23:10:38.781Z"
+  "lastArchived": "2025-12-28T23:14:51.814Z"
 }

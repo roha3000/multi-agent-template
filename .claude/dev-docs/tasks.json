@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 4,
-    "lastModifiedBy": "session-46-hierarchy-phase2",
-    "lastModifiedAt": "2025-12-28T22:30:00.000Z"
+    "version": 5,
+    "lastModifiedBy": "session-49-task-cleanup",
+    "lastModifiedAt": "2025-12-28T23:45:00.000Z"
   },
   "version": "1.1.0",
   "project": {
@@ -19,14 +19,12 @@
   "backlog": {
     "now": {
       "description": "Current sprint tasks",
-      "tasks": [
-        "taskjson-parallel-session-safety"
-      ]
+      "tasks": []
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "hierarchy-phase3-auto-delegation"
+        "audit-cleanup-phase1"
       ]
     },
     "later": {
@@ -37,8 +35,7 @@
         "hierarchy-phase4-optimization",
         "hierarchy-tests-unit",
         "hierarchy-tests-integration",
-        "dashboard-blocked-tasks-view",
-        "audit-cleanup-phase1"
+        "dashboard-blocked-tasks-view"
       ]
     },
     "someday": {
@@ -50,6 +47,8 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "hierarchy-phase3-auto-delegation",
+        "taskjson-parallel-session-safety",
         "parallel-safety-phase2-sqlite-coordinator",
         "parallel-safety-phase4-dashboard-conflicts",
         "parallel-safety-phase3-shadow-mode",
@@ -850,10 +849,20 @@
         "Delegation hints surfaced to dashboard",
         "Unit tests for decision logic"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T20:00:00.000Z"
+      "updated": "2025-12-28T23:45:00.000Z",
+      "completed": "2025-12-28T23:45:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/delegation-decider.js: DelegationDecider class (~600 lines)",
+        "6 decision factors: complexity, contextUtilization, subtaskCount, agentConfidence, agentLoad, depthRemaining",
+        "Weighted scoring algorithm, pattern selection (parallel/sequential/debate/review/ensemble)",
+        "AgentOrchestrator integration: executeWithAutoDelegation(), getDelegationHint()",
+        "Dashboard API: 6 new endpoints for delegation hints",
+        "__tests__/core/delegation-decider.test.js: 44 unit tests"
+      ]
     },
     "hierarchy-phase4-dashboard-viz": {
       "parentTaskId": null,
@@ -933,10 +942,10 @@
         "Metrics exported to MemoryStore for historical analysis",
         "Dashboard metrics panel integration"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T20:00:00.000Z"
+      "updated": "2025-12-28T23:45:00.000Z"
     },
     "hierarchy-phase4-optimization": {
       "parentTaskId": null,
@@ -974,10 +983,10 @@
         "Performance benchmarks vs baseline flat execution",
         "Configuration options in CLAUDE.md"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T20:00:00.000Z"
+      "updated": "2025-12-28T23:45:00.000Z"
     },
     "hierarchy-tests-unit": {
       "parentTaskId": null,
@@ -1101,14 +1110,16 @@
         "Design: Recommend solution (SQLite coordinator + JSON) ✓ COMPLETE",
         "Phase 1: Optimistic locking with version numbers ✓ COMPLETE",
         "Phase 2: SQLite coordinator for cross-process locking ✓ COMPLETE",
-        "Phase 3: Shadow mode validation",
-        "Phase 4: Dashboard conflict indicators"
+        "Phase 3: Shadow mode validation ✓ COMPLETE",
+        "Phase 4: Dashboard conflict indicators ✓ COMPLETE"
       ],
-      "status": "in_progress",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-28T15:10:00.000Z",
       "updated": "2025-12-28T23:30:00.000Z",
       "started": "2025-12-28T22:00:00.000Z",
+      "completed": "2025-12-28T23:30:00.000Z",
+      "qualityScore": 95,
       "researchCompleted": "2025-12-28T22:00:00.000Z",
       "researchFindings": {
         "recommendation": "Hybrid SQLite Coordinator + JSON",

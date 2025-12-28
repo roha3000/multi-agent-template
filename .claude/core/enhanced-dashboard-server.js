@@ -290,6 +290,12 @@ class EnhancedDashboardServer {
       res.json(result);
     });
 
+    // Get conflict counts for dashboard badge (MUST be before :id route)
+    this.app.get('/api/conflicts/counts', (req, res) => {
+      const counts = this._getConflictCounts();
+      res.json(counts);
+    });
+
     // Get specific conflict by ID
     this.app.get('/api/conflicts/:id', (req, res) => {
       const conflict = this._getConflict(req.params.id);
@@ -325,12 +331,6 @@ class EnhancedDashboardServer {
       }
     });
 
-    // Get conflict counts for dashboard badge
-    this.app.get('/api/conflicts/counts', (req, res) => {
-      const counts = this._getConflictCounts();
-      res.json(counts);
-    });
-
     // ====================================================================
     // CHANGE JOURNAL ENDPOINTS (Phase 4)
     // ====================================================================
@@ -353,6 +353,65 @@ class EnhancedDashboardServer {
       const limit = parseInt(req.query.limit) || 100;
       const changes = this._getChangesBySession(req.params.sessionId, limit);
       res.json(changes);
+    });
+
+    // ====================================================================
+    // DELEGATION HINTS ENDPOINTS (Phase 3 - Auto-Delegation)
+    // ====================================================================
+
+    // Get delegation hint for a specific task
+    this.app.get('/api/delegation-hints/:taskId', (req, res) => {
+      const { taskId } = req.params;
+      const agentId = req.query.agent || null;
+      const result = this._getDelegationHint(taskId, agentId);
+      if (result.error === 'TASK_NOT_FOUND') {
+        return res.status(404).json(result);
+      }
+      res.json(result);
+    });
+
+    // Get delegation hints for multiple tasks (batch)
+    this.app.get('/api/delegation-hints/batch', (req, res) => {
+      const taskIds = req.query.taskIds ? req.query.taskIds.split(',') : [];
+      const agentId = req.query.agent || null;
+      if (taskIds.length === 0) {
+        return res.status(400).json({ error: 'TASK_IDS_REQUIRED' });
+      }
+      const results = this._getDelegationHintsBatch(taskIds, agentId);
+      res.json(results);
+    });
+
+    // Get delegation recommendations for an agent
+    this.app.get('/api/delegation-hints/agent/:agentId', (req, res) => {
+      const { agentId } = req.params;
+      const limit = parseInt(req.query.limit) || 10;
+      const results = this._getAgentDelegationHints(agentId, limit);
+      res.json(results);
+    });
+
+    // Accept delegation hint (trigger delegation)
+    this.app.post('/api/delegation-hints/:taskId/accept', (req, res) => {
+      const { taskId } = req.params;
+      const { agentId, pattern } = req.body;
+      const result = this._acceptDelegationHint(taskId, agentId, pattern);
+      if (result.error) {
+        return res.status(400).json(result);
+      }
+      res.json(result);
+    });
+
+    // Dismiss delegation hint
+    this.app.post('/api/delegation-hints/:taskId/dismiss', (req, res) => {
+      const { taskId } = req.params;
+      const { reason } = req.body;
+      const result = this._dismissDelegationHint(taskId, reason);
+      res.json(result);
+    });
+
+    // Get delegation metrics
+    this.app.get('/api/delegation-hints/metrics', (req, res) => {
+      const metrics = this._getDelegationMetrics();
+      res.json(metrics);
     });
 
     // Project-specific endpoints
@@ -480,6 +539,9 @@ class EnhancedDashboardServer {
     } catch (error) {
       this.logger.debug('Could not setup hierarchy event listeners', { error: error.message });
     }
+
+    // Setup conflict and change journal event listeners
+    this._setupConflictEventListeners();
   }
 
   /**
@@ -1201,7 +1263,7 @@ class EnhancedDashboardServer {
       let depthCount = 0;
 
       // Get all sessions and count those with hierarchy
-      const sessions = sessionRegistry.getAllSessions ? sessionRegistry.getAllSessions() : [];
+      const sessions = sessionRegistry.getAll ? sessionRegistry.getAll() : [];
       for (const session of sessions) {
         if (session.hierarchyInfo &&
             (session.hierarchyInfo.childSessionIds?.length > 0 || session.hierarchyInfo.parentSessionId)) {
@@ -1559,6 +1621,220 @@ class EnhancedDashboardServer {
       entries: entries.slice(0, limit),
       available: true
     };
+  }
+
+  // ============================================
+  // Delegation Hints Helper Methods (Phase 3)
+  // ============================================
+
+  /**
+   * Get delegation hint for a task
+   * @private
+   */
+  _getDelegationHint(taskId, agentId = null) {
+    // Get DelegationDecider
+    const decider = this._getDelegationDecider();
+    if (!decider) {
+      return { error: 'DELEGATION_DECIDER_NOT_AVAILABLE' };
+    }
+
+    // Get task from TaskManager
+    const task = this._getTaskById(taskId);
+    if (!task) {
+      return { error: 'TASK_NOT_FOUND', taskId };
+    }
+
+    // Get agent if specified
+    const agent = agentId ? this._getAgentById(agentId) : null;
+
+    // Get decision
+    const decision = decider.shouldDelegate(task, agent);
+
+    return {
+      taskId,
+      agentId,
+      decision,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Get delegation hints for multiple tasks (batch)
+   * @private
+   */
+  _getDelegationHintsBatch(taskIds, agentId = null) {
+    const decider = this._getDelegationDecider();
+    if (!decider) {
+      return { error: 'DELEGATION_DECIDER_NOT_AVAILABLE' };
+    }
+
+    const agent = agentId ? this._getAgentById(agentId) : null;
+    const results = [];
+
+    for (const taskId of taskIds) {
+      const task = this._getTaskById(taskId);
+      if (task) {
+        const decision = decider.shouldDelegate(task, agent);
+        results.push({ taskId, decision });
+      } else {
+        results.push({ taskId, error: 'TASK_NOT_FOUND' });
+      }
+    }
+
+    return {
+      results,
+      agentId,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Get delegation hints for an agent's pending tasks
+   * @private
+   */
+  _getAgentDelegationHints(agentId, limit = 10) {
+    const decider = this._getDelegationDecider();
+    if (!decider) {
+      return { error: 'DELEGATION_DECIDER_NOT_AVAILABLE' };
+    }
+
+    const agent = this._getAgentById(agentId);
+
+    // Get pending/ready tasks
+    const tasks = this._getPendingTasks(limit);
+
+    // Evaluate each task
+    const hints = tasks.map(task => ({
+      taskId: task.id,
+      taskTitle: task.title,
+      decision: decider.shouldDelegate(task, agent)
+    }));
+
+    // Filter to only tasks that should be delegated
+    const recommended = hints.filter(h => h.decision.shouldDelegate);
+
+    return {
+      agentId,
+      recommended,
+      allHints: hints,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Accept a delegation hint
+   * @private
+   */
+  _acceptDelegationHint(taskId, agentId, pattern) {
+    // Record acceptance for metrics
+    this._broadcastEvent('delegation:accepted', {
+      taskId,
+      agentId,
+      pattern,
+      timestamp: Date.now()
+    });
+
+    return {
+      success: true,
+      taskId,
+      agentId,
+      pattern,
+      message: 'Delegation hint accepted'
+    };
+  }
+
+  /**
+   * Dismiss a delegation hint
+   * @private
+   */
+  _dismissDelegationHint(taskId, reason) {
+    // Record dismissal for metrics
+    this._broadcastEvent('delegation:dismissed', {
+      taskId,
+      reason,
+      timestamp: Date.now()
+    });
+
+    return {
+      success: true,
+      taskId,
+      reason,
+      message: 'Delegation hint dismissed'
+    };
+  }
+
+  /**
+   * Get delegation metrics
+   * @private
+   */
+  _getDelegationMetrics() {
+    const decider = this._getDelegationDecider();
+    if (!decider) {
+      return { error: 'DELEGATION_DECIDER_NOT_AVAILABLE' };
+    }
+
+    return {
+      metrics: decider.getMetrics(),
+      stats: decider.getStats(),
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Get DelegationDecider instance
+   * @private
+   */
+  _getDelegationDecider() {
+    // Try to get from orchestrator first
+    if (this.orchestrator?.delegationDecider) {
+      return this.orchestrator.delegationDecider;
+    }
+
+    // Create a new instance if needed
+    if (!this._delegationDecider) {
+      try {
+        const { DelegationDecider } = require('./delegation-decider');
+        this._delegationDecider = new DelegationDecider();
+      } catch (error) {
+        return null;
+      }
+    }
+
+    return this._delegationDecider;
+  }
+
+  /**
+   * Get task by ID from TaskManager
+   * @private
+   */
+  _getTaskById(taskId) {
+    if (this.taskManager) {
+      return this.taskManager.getTask(taskId);
+    }
+    return null;
+  }
+
+  /**
+   * Get agent by ID
+   * @private
+   */
+  _getAgentById(agentId) {
+    if (this.orchestrator) {
+      return this.orchestrator.getAgent(agentId);
+    }
+    return null;
+  }
+
+  /**
+   * Get pending tasks
+   * @private
+   */
+  _getPendingTasks(limit = 10) {
+    if (this.taskManager) {
+      const ready = this.taskManager.getReadyTasks().slice(0, limit);
+      return ready;
+    }
+    return [];
   }
 
   /**

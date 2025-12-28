@@ -1,58 +1,71 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-28 (Session 48)
+**Last Updated**: 2025-12-28 (Session 49)
 **Current Phase**: IMPLEMENTATION COMPLETE
-**Status**: Parallel Session Safety - 100% Complete (All 4 Phases)
+**Status**: Hierarchy Phase 3 - Auto-Delegation Complete
 
 ---
 
-## Session 48: Parallel Safety Phase 4 - Dashboard Conflicts (CURRENT)
+## Session 49: Hierarchy Phase 3 - Auto-Delegation (CURRENT)
 
 ### Work Completed
 
 | Task | Status | Description |
 |------|--------|-------------|
-| parallel-safety-phase4-dashboard-conflicts | ✅ (95) | Conflict detection and resolution |
+| hierarchy-phase3-auto-delegation | ✅ (95) | Automatic delegation decision logic |
 
 ### Implementation Details
 
-**CoordinationDB Conflicts** (`.claude/core/coordination-db.js`):
-- Conflicts table with 4 types: VERSION_CONFLICT, CONCURRENT_EDIT, STALE_LOCK, MERGE_FAILURE
-- CRUD methods: recordConflict, getConflict, getPendingConflicts, resolveConflict
-- Severity levels: info, warning, critical
-- Resolution options: version_a, version_b, merged, manual, discarded
+**DelegationDecider Class** (`.claude/core/delegation-decider.js`):
+- 6 decision factors: complexity, contextUtilization, subtaskCount, agentConfidence, agentLoad, depthRemaining
+- Configurable thresholds with sensible defaults
+- Weighted scoring algorithm (weights sum to 1.0)
+- Pattern selection: parallel, sequential, debate, review, ensemble, direct
+- Human-readable reasoning and actionable hints
+- Decision caching with 60s TTL
+- Metrics tracking for monitoring
+
+**AgentOrchestrator Integration** (`.claude/core/agent-orchestrator.js`):
+- `executeWithAutoDelegation(agentId, task, options)` - Auto-delegation wrapper
+- `getDelegationHint(task, agent)` - Get delegation recommendation
+- `getDelegationHintsBatch(tasks, agent)` - Batch evaluation
+- `getDelegationMetrics()` - Access decision metrics
+- Pattern-based execution: auto-selects parallel/debate/review/ensemble
 
 **Dashboard API Endpoints** (`.claude/core/enhanced-dashboard-server.js`):
-- `GET /api/conflicts` - List with filters
-- `GET /api/conflicts/:id` - Conflict details
-- `POST /api/conflicts/:id/resolve` - Resolution
-- `GET /api/conflicts/counts` - Badge count
-- `GET /api/change-journal` - Recent changes
-- `GET /api/change-journal/session/:id` - By session
-
-**SSE Broadcasting**:
-- `conflict:detected` - Real-time conflict alerts
-- `conflict:resolved` - Resolution notifications
-- `journal:entry` - Change journal updates
+- `GET /api/delegation-hints/:taskId` - Get hint for task
+- `GET /api/delegation-hints/batch` - Batch hints
+- `GET /api/delegation-hints/agent/:agentId` - Agent's pending hints
+- `POST /api/delegation-hints/:taskId/accept` - Accept hint
+- `POST /api/delegation-hints/:taskId/dismiss` - Dismiss hint
+- `GET /api/delegation-hints/metrics` - Decision metrics
 
 ### Agent Swarm Approach
 5 expert agents spawned in parallel:
-1. API Designer - REST endpoint schemas
-2. UI Expert - Dashboard components design
-3. SSE Expert - Real-time broadcasting
-4. Detection Expert - Conflict logic
-5. Test Engineer - Test strategy
+1. Decision Factors Expert - Data structures design
+2. Threshold Config Expert - Configuration system
+3. Integration Expert - Orchestrator integration
+4. Dashboard API Expert - REST endpoints
+5. Test Strategy Expert - Test plan
 
 ### Files Modified
 
 | File | Purpose |
 |------|---------|
-| `.claude/core/coordination-db.js` | Conflicts table + methods (+200 lines) |
-| `.claude/core/enhanced-dashboard-server.js` | 8 new API endpoints (+150 lines) |
-| `__tests__/core/conflict-management.test.js` | 39 unit tests |
+| `.claude/core/delegation-decider.js` | DelegationDecider class (~600 lines) |
+| `.claude/core/agent-orchestrator.js` | Auto-delegation integration (+260 lines) |
+| `.claude/core/enhanced-dashboard-server.js` | 6 new API endpoints (+220 lines) |
+| `__tests__/core/delegation-decider.test.js` | 44 unit tests |
 
 ### Tests
-- 39 new Conflict Management tests
-- 1925 total tests passing
+- 44 new DelegationDecider tests
+- All tests passing
+
+---
+
+## Session 48: Parallel Safety Phase 4 - Dashboard Conflicts ✅
+- **Tasks**: parallel-safety-phase4-dashboard-conflicts (95)
+- **Key changes**: Conflict detection, resolution API, SSE broadcasting, change journal
+- **Files**: coordination-db.js, enhanced-dashboard-server.js (39 tests)
 
 ---
 
