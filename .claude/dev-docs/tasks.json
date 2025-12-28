@@ -25,13 +25,13 @@
     },
     "next": {
       "description": "Next priority after now is complete",
-      "tasks": []
+      "tasks": [
+        "hierarchy-phase3-auto-delegation"
+      ]
     },
     "later": {
       "description": "Future work, not yet prioritized",
       "tasks": [
-        "hierarchy-phase3-decomposer",
-        "hierarchy-phase3-auto-delegation",
         "hierarchy-phase4-dashboard-viz",
         "hierarchy-phase4-metrics",
         "hierarchy-phase4-optimization",
@@ -54,7 +54,8 @@
         "parallel-safety-phase4-dashboard-conflicts",
         "parallel-safety-phase3-shadow-mode",
         "hierarchy-phase2-delegation",
-        "hierarchy-phase2-context"
+        "hierarchy-phase2-context",
+        "hierarchy-phase3-decomposer"
       ]
     }
   },
@@ -814,47 +815,6 @@
         "__tests__/core/delegation-context.test.js: 25 unit tests"
       ]
     },
-    "hierarchy-phase3-decomposer": {
-      "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "decomposition": null,
-      "id": "hierarchy-phase3-decomposer",
-      "title": "Phase 3: Task Decomposer",
-      "description": "Implement TaskDecomposer class for intelligent task breakdown. Analyzes task complexity and automatically generates subtasks with appropriate agent assignments.",
-      "phase": "implementation",
-      "priority": "high",
-      "estimate": "6h",
-      "tags": [
-        "hierarchy",
-        "phase3",
-        "decomposition",
-        "automation"
-      ],
-      "depends": {
-        "blocks": [
-          "hierarchy-phase3-auto-delegation"
-        ],
-        "requires": [
-          "hierarchy-phase2-aggregation"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "TaskDecomposer.analyze(task) returns DecompositionSuggestion",
-        "TaskDecomposer.decompose(task, strategy) returns subtask array",
-        "Decomposition strategies: parallel, sequential, hybrid, manual",
-        "Integration with ComplexityAnalyzer for delegation decisions",
-        "Subtask estimation (effort, tokens, time)",
-        "Agent capability matching for subtasks",
-        "Unit tests for decomposition logic"
-      ],
-      "status": "ready",
-      "assignee": null,
-      "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T22:30:00.000Z"
-    },
     "hierarchy-phase3-auto-delegation": {
       "parentTaskId": null,
       "childTaskIds": [],
@@ -890,7 +850,7 @@
         "Delegation hints surfaced to dashboard",
         "Unit tests for decision logic"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
       "updated": "2025-12-28T20:00:00.000Z"
@@ -1350,6 +1310,6 @@
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2025-12-28T23:10:38.790Z"
+    "lastArchived": "2025-12-28T23:14:51.820Z"
   }
 }
