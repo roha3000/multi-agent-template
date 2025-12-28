@@ -1678,6 +1678,9 @@
         const projectsData = await projectsRes.json();
         const summaryData = await summaryRes.json();
 
+        // Track which autonomous sessions have been matched to projects
+        const matchedAutoSessionIds = new Set();
+
         // Build maps of autonomous sessions by path AND folder for matching
         const autonomousByPath = {};
         const autonomousByFolder = {};
@@ -1691,17 +1694,23 @@
           }
         });
 
-        // Map projects to session format, merging autonomous session data
-        sessions = (projectsData.projects || []).map(p => {
+        // Map projects to session format, enriching with autonomous session data if matched
+        const projectSessions = (projectsData.projects || []).map(p => {
           const existingSession = sessions.find(s => s.id === (p.folder || p.name));
           // Try matching by path first, then by folder ID
           const autoSession = autonomousByPath[p.path] || autonomousByFolder[p.folder];
+
+          // Track matched autonomous sessions
+          if (autoSession) {
+            matchedAutoSessionIds.add(autoSession.id);
+          }
 
           // Prefer autonomous session data when available
           return {
             id: p.folder || p.name,
             project: p.name,
             path: p.path,
+            sessionType: autoSession ? 'autonomous' : 'cli',
             status: autoSession?.status === 'active' ? 'active' : (p.status === 'active' ? 'active' : 'idle'),
             contextPercent: p.metrics?.contextPercent || 0,
             qualityScore: autoSession?.qualityScore || existingSession?.qualityScore || 0,
@@ -1720,9 +1729,50 @@
             // Critical: Use autonomous session's logSessionId for log streaming
             logSessionId: autoSession?.logSessionId || null,
             orchestratorInfo: autoSession?.orchestratorInfo || null,
-            confidenceScore: autoSession?.confidenceScore || null
+            confidenceScore: autoSession?.confidenceScore || null,
+            registryId: autoSession?.id || null  // Track the registry ID for autonomous sessions
           };
         });
+
+        // Add autonomous sessions that weren't matched to any project as separate entries
+        const unmatchedAutoSessions = (summaryData.sessions || [])
+          .filter(s => !matchedAutoSessionIds.has(s.id) && s.status !== 'ended')
+          .map(s => {
+            const projectName = s.project || s.path?.split(/[\\/]/).pop() || 'Unknown Project';
+            return {
+              id: `auto-${s.id}`,  // Unique ID for unmatched autonomous sessions
+              project: projectName,
+              path: s.path,
+              sessionType: 'autonomous',
+              status: s.status || 'active',
+              contextPercent: s.contextPercent || 0,
+              qualityScore: s.qualityScore || 0,
+              qualityBreakdown: {},
+              cost: s.cost || 0,
+              tokens: s.tokens || 0,
+              model: null,
+              messageCount: 0,
+              currentTask: s.currentTask || null,
+              taskQueue: s.taskQueue || [],
+              taskStats: {},
+              phase: s.phase || null,
+              autonomous: true,
+              iteration: s.iteration || 1,
+              safetyStatus: null,
+              logSessionId: s.logSessionId || null,
+              orchestratorInfo: s.orchestratorInfo || null,
+              confidenceScore: s.confidenceScore || null,
+              registryId: s.id
+            };
+          });
+
+        // Combine: project sessions + unmatched autonomous sessions
+        sessions = [...projectSessions, ...unmatchedAutoSessions];
+
+        // Log for debugging
+        if (unmatchedAutoSessions.length > 0) {
+          console.log(`[Sessions] Added ${unmatchedAutoSessions.length} unmatched autonomous sessions`);
+        }
 
         // Note: Enrichment with task/execution data happens in fetchTasksAndExecution()
         updateTrafficLights();
@@ -1798,7 +1848,11 @@
             // Update sessions while preserving enriched data
             // Check if context data actually changed
             let contextChanged = false;
-            const newSessions = data.projects.map(p => {
+
+            // Preserve autonomous sessions that aren't linked to projects (start with 'auto-')
+            const autonomousSessions = sessions.filter(s => s.id?.toString().startsWith('auto-'));
+
+            const newProjectSessions = data.projects.map(p => {
               const existingSession = sessions.find(s => s.id === (p.folder || p.name));
               const newContextPercent = p.metrics?.contextPercent || 0;
 
@@ -1811,6 +1865,7 @@
                 id: p.folder || p.name,
                 project: p.name,
                 path: p.path,
+                sessionType: existingSession?.sessionType || 'cli',
                 status: existingSession?.autonomous ? (existingSession.status || 'active') : (p.status === 'active' ? 'active' : 'idle'),
                 // Update from SSE
                 contextPercent: newContextPercent,
@@ -1831,11 +1886,13 @@
                 // Preserve autonomous session data
                 logSessionId: existingSession?.logSessionId || null,
                 orchestratorInfo: existingSession?.orchestratorInfo || null,
-                confidenceScore: existingSession?.confidenceScore || null
+                confidenceScore: existingSession?.confidenceScore || null,
+                registryId: existingSession?.registryId || null
               };
             });
 
-            sessions = newSessions;
+            // Combine project sessions with preserved autonomous sessions
+            sessions = [...newProjectSessions, ...autonomousSessions];
 
             // Update UI if context data or task data changed
             if (contextChanged || needsUIUpdate) {

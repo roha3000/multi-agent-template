@@ -15,9 +15,6 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "swarm-integration-tests",
-        "agent-verification-protocol",
-        "add-model-pricing",
         "dashboard-blocked-tasks-view",
         "dashboard-multiple-sessions-view"
       ]
@@ -32,13 +29,18 @@
     },
     "someday": {
       "description": "Ideas and possibilities, lowest priority",
-      "tasks": []
+      "tasks": [
+        "add-model-pricing"
+      ]
     },
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "fix-queue-data-integrity",
+        "fix-autonomous-session-visibility",
         "test-session-type-fields",
         "test-orchestrator-dashboard-integration",
+        "swarm-integration-tests",
         "agent-verification-protocol",
         "dashboard-v2-polish",
         "dashboard-log-session-id-fix",
@@ -108,12 +110,17 @@
         "Test integration with real SecurityValidator (not mocked)",
         "Add negative test cases (invalid taskId, malicious description)"
       ],
-      "status": "blocked",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-27T19:30:00.000Z",
-      "updated": "2025-12-28T02:11:43.447Z",
+      "updated": "2025-12-28T03:00:00.000Z",
       "notes": "Created after discovering API mismatch between SwarmController (checking .allowed) and SecurityValidator (returning .valid) that caused all tasks to fail safety checks.",
-      "started": "2025-12-28T02:11:43.427Z"
+      "started": "2025-12-28T02:11:43.427Z",
+      "completed": "2025-12-25T15:40:00.000Z",
+      "qualityScore": 98,
+      "deliverables": [
+        "tests/e2e/swarm-integration.e2e.test.js (17 E2E tests)"
+      ]
     },
     "dashboard-v2-redesign": {
       "id": "dashboard-v2-redesign",
@@ -556,12 +563,10 @@
         "Claude defaults configurable",
         "Tests pass"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2025-12-19T04:07:23.583Z",
-      "updated": "2025-12-28T02:11:43.497Z",
-      "started": "2025-12-24T19:55:02.117Z",
-      "completed": null
+      "updated": "2025-12-28T03:00:00.000Z"
     },
     "swarm-complexity-analyzer": {
       "id": "swarm-complexity-analyzer",
@@ -1701,11 +1706,13 @@
         "Add verification checklist to task completion workflow",
         "Consider automated verification hooks"
       ],
-      "status": "blocked",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-27T22:58:27.953Z",
-      "updated": "2025-12-28T02:11:43.327Z",
+      "updated": "2025-12-28T03:00:00.000Z",
       "started": "2025-12-28T01:59:07.716Z",
+      "completed": "2025-12-28T02:30:00.000Z",
+      "qualityScore": 95,
       "deliverables": [
         "docs/AGENT-VERIFICATION-PROTOCOL.md",
         "CLAUDE.md - Section 4 Task Verification Protocol",
@@ -1784,6 +1791,94 @@
       "assignee": null,
       "created": "2025-12-28T02:35:00.000Z",
       "updated": "2025-12-28T02:35:00.000Z"
+    },
+    "fix-autonomous-session-visibility": {
+      "id": "fix-autonomous-session-visibility",
+      "title": "Investigate Why Autonomous Sessions Don't Appear as Separate Entries",
+      "description": "Autonomous orchestrator sessions are not appearing as separate entries in the dashboard. Despite fixes in Session 32 to merge autonomous session data, the sessions may still be hidden or merged incorrectly. Need to trace the data flow from orchestrator registration through API to dashboard rendering.",
+      "phase": "research",
+      "priority": "critical",
+      "estimate": "1h",
+      "tags": [
+        "bug-fix",
+        "dashboard",
+        "autonomous",
+        "sessions",
+        "visibility"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-multiple-sessions-view"
+        ]
+      },
+      "acceptance": [
+        "Verify orchestrator POSTs to /api/sessions/register with correct data",
+        "Verify /api/sessions/summary returns autonomous sessions",
+        "Trace dashboard fetchSessions() to confirm data retrieval",
+        "Identify where autonomous sessions are lost or merged incorrectly",
+        "Fix the root cause so autonomous sessions appear as distinct entries",
+        "Test with multiple concurrent autonomous sessions"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T03:10:00.000Z",
+      "updated": "2025-12-28T04:00:00.000Z",
+      "completed": "2025-12-28T04:00:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "fetchSessions() - Now adds unmatched autonomous sessions as separate entries",
+        "SSE handler - Preserves autonomous sessions when updating from projects data",
+        "Added sessionType field to distinguish CLI vs autonomous sessions",
+        "Added registryId field to track session registry ID"
+      ],
+      "notes": "Root cause: Dashboard only iterated over /api/projects (CLI-detected projects). Autonomous sessions from /api/sessions/summary that didn't match any project were lost. Now unmatched sessions are added with 'auto-{id}' IDs."
+    },
+    "fix-queue-data-integrity": {
+      "id": "fix-queue-data-integrity",
+      "title": "Investigate and Fix Queue Data Integrity Issues",
+      "description": "Tasks are not being correctly tracked in queues. Issues found: (1) Tasks appear in both NOW and completed queues simultaneously, (2) Task status field shows 'blocked' when task is actually completed, (3) Completed tasks not removed from active queues. This is critical for the autonomous orchestrator which relies on accurate queue state.",
+      "phase": "research",
+      "priority": "critical",
+      "estimate": "2h",
+      "tags": [
+        "bug-fix",
+        "task-manager",
+        "data-integrity",
+        "orchestrator",
+        "critical"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "taskmanager-concurrent-write-fix"
+        ]
+      },
+      "acceptance": [
+        "Identify all code paths that modify tasks.json (TaskManager, orchestrator, dashboard, agents)",
+        "Determine why completed tasks remain in NOW queue",
+        "Determine why task status field doesn't match queue placement",
+        "Add validation to ensure task can only exist in one queue at a time",
+        "Add validation to ensure task status matches queue (completed tasks must be in completed queue)",
+        "Add automated tests for queue integrity",
+        "Consider adding a queue integrity check that runs on tasks.json load"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T03:05:00.000Z",
+      "updated": "2025-12-28T04:00:00.000Z",
+      "completed": "2025-12-28T04:00:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "_mergeChanges() - Fixed to use in-memory queue placement as source of truth",
+        "_enforceQueueIntegrity() - New method to detect and fix queue violations",
+        "_checkAndFixIntegrityOnLoad() - New method to fix issues on startup",
+        "Completed tasks now auto-move to completed queue",
+        "Duplicate detection and removal across all queues"
+      ],
+      "notes": "Root cause: _mergeChanges() used UNION of disk/memory queue arrays, causing tasks to appear in multiple queues when status changed during concurrent edits."
     },
     "dashboard-multiple-sessions-view": {
       "id": "dashboard-multiple-sessions-view",

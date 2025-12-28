@@ -707,6 +707,13 @@ class TaskManager extends EventEmitter {
       this._lastFileHash = this._calculateHash(data);
       this._lastFileMtime = this._getFileStats().mtime;
 
+      // Check and fix queue integrity on load
+      const integrityFixed = this._checkAndFixIntegrityOnLoad();
+      if (integrityFixed) {
+        // Save the fixed state
+        this.save();
+      }
+
       this.emit('tasks:loaded', { count: this._getAllTasks().length });
     } catch (error) {
       if (error.code === 'ENOENT') {
@@ -718,6 +725,75 @@ class TaskManager extends EventEmitter {
         throw error;
       }
     }
+  }
+
+  /**
+   * Check and fix queue integrity issues on load
+   * @returns {boolean} True if any fixes were made
+   */
+  _checkAndFixIntegrityOnLoad() {
+    if (!this.tasks?.backlog || !this.tasks?.tasks) return false;
+
+    let fixesMade = false;
+    const allTiers = ['now', 'next', 'later', 'someday', 'completed'];
+    const taskQueueCount = new Map(); // taskId -> count of queues it appears in
+
+    // Count how many queues each task appears in
+    for (const tier of allTiers) {
+      const tasks = this.tasks.backlog[tier]?.tasks || [];
+      for (const taskId of tasks) {
+        taskQueueCount.set(taskId, (taskQueueCount.get(taskId) || 0) + 1);
+      }
+    }
+
+    // Find and fix duplicates
+    for (const [taskId, count] of taskQueueCount.entries()) {
+      if (count > 1) {
+        console.warn(`[TaskManager] Load integrity: Task ${taskId} found in ${count} queues - fixing`);
+        fixesMade = true;
+
+        const task = this.tasks.tasks[taskId];
+        const targetQueue = task?.status === 'completed' ? 'completed' :
+          (this.tasks.backlog.now?.tasks?.includes(taskId) ? 'now' :
+           this.tasks.backlog.next?.tasks?.includes(taskId) ? 'next' :
+           this.tasks.backlog.later?.tasks?.includes(taskId) ? 'later' :
+           'someday');
+
+        // Remove from all queues
+        for (const tier of allTiers) {
+          if (this.tasks.backlog[tier]?.tasks) {
+            this.tasks.backlog[tier].tasks = this.tasks.backlog[tier].tasks.filter(id => id !== taskId);
+          }
+        }
+
+        // Add to correct queue
+        if (this.tasks.backlog[targetQueue]?.tasks) {
+          this.tasks.backlog[targetQueue].tasks.push(taskId);
+        }
+      }
+    }
+
+    // Check for status/queue mismatches
+    for (const tier of allTiers) {
+      const tasks = this.tasks.backlog[tier]?.tasks || [];
+      for (const taskId of [...tasks]) {
+        const task = this.tasks.tasks[taskId];
+        if (task?.status === 'completed' && tier !== 'completed') {
+          console.warn(`[TaskManager] Load integrity: Completed task ${taskId} in ${tier} queue - moving to completed`);
+          fixesMade = true;
+
+          // Remove from current tier
+          this.tasks.backlog[tier].tasks = this.tasks.backlog[tier].tasks.filter(id => id !== taskId);
+
+          // Add to completed if not already there
+          if (!this.tasks.backlog.completed.tasks.includes(taskId)) {
+            this.tasks.backlog.completed.tasks.push(taskId);
+          }
+        }
+      }
+    }
+
+    return fixesMade;
   }
 
   /**
@@ -754,6 +830,7 @@ class TaskManager extends EventEmitter {
   /**
    * Merge external changes with in-memory changes
    * Strategy: External task additions are preserved, in-memory status updates win
+   * IMPORTANT: In-memory queue placement takes precedence to prevent duplicates
    */
   _mergeChanges(diskTasks) {
     const merged = JSON.parse(JSON.stringify(diskTasks));
@@ -776,17 +853,120 @@ class TaskManager extends EventEmitter {
       }
     }
 
-    // Merge backlog tiers - union of task IDs
+    // Build a map of in-memory task queue placements (source of truth for existing tasks)
+    const memoryQueueMap = new Map(); // taskId -> queueName
     for (const tier of ['now', 'next', 'later', 'someday', 'completed']) {
-      const diskIds = diskTasks.backlog?.[tier]?.tasks || [];
-      const memIds = this.tasks.backlog?.[tier]?.tasks || [];
-      const mergedIds = [...new Set([...diskIds, ...memIds])];
-      if (merged.backlog[tier]) {
-        merged.backlog[tier].tasks = mergedIds;
+      for (const taskId of (this.tasks.backlog?.[tier]?.tasks || [])) {
+        memoryQueueMap.set(taskId, tier);
       }
     }
 
+    // Build a set of all task IDs we know about
+    const allTaskIds = new Set([
+      ...Object.keys(merged.tasks),
+      ...Object.keys(this.tasks.tasks || {})
+    ]);
+
+    // Clear all queue arrays in merged
+    for (const tier of ['now', 'next', 'later', 'someday', 'completed']) {
+      if (merged.backlog[tier]) {
+        merged.backlog[tier].tasks = [];
+      }
+    }
+
+    // Rebuild queues: in-memory placement wins for known tasks, disk placement for new tasks
+    for (const taskId of allTaskIds) {
+      let targetQueue = null;
+
+      if (memoryQueueMap.has(taskId)) {
+        // In-memory placement takes precedence
+        targetQueue = memoryQueueMap.get(taskId);
+      } else {
+        // New task from disk - find its disk queue
+        for (const tier of ['now', 'next', 'later', 'someday', 'completed']) {
+          if (diskTasks.backlog?.[tier]?.tasks?.includes(taskId)) {
+            targetQueue = tier;
+            break;
+          }
+        }
+      }
+
+      // Place task in appropriate queue
+      if (targetQueue && merged.backlog[targetQueue]) {
+        if (!merged.backlog[targetQueue].tasks.includes(taskId)) {
+          merged.backlog[targetQueue].tasks.push(taskId);
+        }
+      }
+    }
+
+    // Final integrity check: ensure completed tasks are in completed queue
+    this._enforceQueueIntegrity(merged);
+
     return merged;
+  }
+
+  /**
+   * Enforce queue integrity rules:
+   * 1. Each task can only be in ONE queue
+   * 2. Completed tasks must be in the 'completed' queue
+   * 3. Status must match queue placement
+   */
+  _enforceQueueIntegrity(data) {
+    // Ensure backlog structure exists
+    if (!data?.backlog) return data;
+
+    const allTiers = ['now', 'next', 'later', 'someday', 'completed'];
+
+    // Ensure completed tier exists
+    if (!data.backlog.completed) {
+      data.backlog.completed = { description: 'Completed tasks (archived)', tasks: [] };
+    }
+    if (!data.backlog.completed.tasks) {
+      data.backlog.completed.tasks = [];
+    }
+
+    const taskQueueMap = new Map(); // taskId -> current queue
+
+    // First pass: detect duplicates and build current placement map
+    for (const tier of allTiers) {
+      const tasks = data.backlog?.[tier]?.tasks || [];
+      for (const taskId of tasks) {
+        if (taskQueueMap.has(taskId)) {
+          console.warn(`[TaskManager] Integrity violation: Task ${taskId} found in multiple queues (${taskQueueMap.get(taskId)}, ${tier})`);
+        }
+        taskQueueMap.set(taskId, tier);
+      }
+    }
+
+    // Second pass: move completed tasks to completed queue, remove duplicates
+    const seenTasks = new Set();
+    for (const tier of allTiers) {
+      if (!data.backlog?.[tier]?.tasks) continue;
+
+      data.backlog[tier].tasks = data.backlog[tier].tasks.filter(taskId => {
+        // Skip duplicates
+        if (seenTasks.has(taskId)) {
+          return false;
+        }
+        seenTasks.add(taskId);
+
+        const task = data.tasks?.[taskId];
+        if (!task) return true; // Keep orphaned queue entries for now
+
+        // If task is completed but not in completed queue, move it
+        if (task.status === 'completed' && tier !== 'completed') {
+          console.warn(`[TaskManager] Integrity fix: Moving completed task ${taskId} from ${tier} to completed`);
+          if (!data.backlog.completed.tasks.includes(taskId)) {
+            data.backlog.completed.tasks.push(taskId);
+          }
+          return false;
+        }
+
+        return true;
+      });
+    }
+
+    return data;
   }
 
   /**
@@ -812,6 +992,9 @@ class TaskManager extends EventEmitter {
         // Merge external changes with in-memory state
         this.tasks = this._mergeChanges(diskTasks);
       }
+
+      // Always enforce queue integrity before saving
+      this._enforceQueueIntegrity(this.tasks);
 
       // Save merged state
       const data = JSON.stringify(this.tasks, null, 2);

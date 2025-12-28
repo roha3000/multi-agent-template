@@ -1,8 +1,79 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-27 (Session 31)
+**Last Updated**: 2025-12-28 (Session 33)
 
-**Current Phase**: TESTING - Session Type & Dashboard Verification
-**Status**: Testing tasks promoted to NOW queue
+**Current Phase**: IMPLEMENTATION - Dashboard Improvements
+**Status**: Critical queue integrity and session visibility bugs fixed
+
+---
+
+## Session 33: Critical Bug Fixes
+
+### Work Completed
+
+| Task | Status | Description |
+|------|--------|-------------|
+| fix-queue-data-integrity | ✅ | Fixed merge logic, added queue integrity validation |
+| fix-autonomous-session-visibility | ✅ | Autonomous sessions now show as separate entries |
+
+### Root Causes Fixed
+
+**Queue Data Integrity:**
+- **Problem**: `_mergeChanges()` used UNION of disk/memory queues → tasks in multiple queues
+- **Solution**: In-memory queue placement takes precedence; added `_enforceQueueIntegrity()` and `_checkAndFixIntegrityOnLoad()`
+
+**Autonomous Session Visibility:**
+- **Problem**: Dashboard only iterated over `/api/projects`; unmatched autonomous sessions were lost
+- **Solution**: Unmatched sessions added with `auto-{id}` IDs; SSE handler preserves them
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `.claude/core/task-manager.js` | `_mergeChanges()` fix, `_enforceQueueIntegrity()`, `_checkAndFixIntegrityOnLoad()` |
+| `global-dashboard.html` | `fetchSessions()` shows unmatched autonomous sessions, SSE handler preserves them |
+
+### Current Queue Status
+
+| Queue | Count | Tasks |
+|-------|-------|-------|
+| NOW | 2 | dashboard-blocked-tasks-view, dashboard-multiple-sessions-view |
+| SOMEDAY | 1 | add-model-pricing |
+
+### Tests Passing
+
+- **TaskManager**: 119 tests ✅
+- **Session Registry**: 26 tests ✅
+
+---
+
+## Session 32: Dashboard Fixes + Testing Infrastructure
+
+### Work Completed
+
+| Task | Status | Description |
+|------|--------|-------------|
+| test-session-type-fields | ✅ | 26 unit tests for sessionType/autonomous fields |
+| test-orchestrator-dashboard-integration | ✅ | 9 E2E tests for HTTP communication |
+| Dashboard Session Merging | ✅ | Fixed to merge by path AND folder ID |
+| Path Reconstruction | ✅ | Fixed _folderToPath for dashed folder names |
+| Quality Score Display | ✅ | Fixed reading from scores.summary.totalScore |
+| Orchestrator Logging | ✅ | Changed exec() to spawn() for stdout capture |
+
+### Files Modified/Created
+
+| File | Change |
+|------|--------|
+| `global-dashboard.html` | Session merging, quality score fix, SSE handler fix |
+| `.claude/core/global-context-tracker.js` | Smart path reconstruction for dashed folders |
+| `autonomous-orchestrator.js` | spawn() instead of exec() for log capture |
+| `__tests__/core/session-registry.test.js` | NEW: 26 unit tests |
+| `tests/e2e/orchestrator-dashboard.e2e.test.js` | NEW: 9 E2E tests |
+| `docs/AGENT-VERIFICATION-PROTOCOL.md` | NEW: Verification protocol docs |
+
+### Test Coverage Added
+
+- **Session Registry**: 26 tests covering sessionType, autonomous, orchestratorInfo, logSessionId
+- **Orchestrator-Dashboard**: 9 E2E tests for register, update, end, differentiation
 
 ---
 

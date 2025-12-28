@@ -1,9 +1,58 @@
 # Current Plan - Post-Unification
 
-**Last Updated**: 2025-12-27 (Session 30)
-**Current Phase**: MAINTENANCE
-**Status**: NOW queue cleared, moving to NEXT queue tasks
+**Last Updated**: 2025-12-28 (Session 33)
+**Current Phase**: IMPLEMENTATION
+**Status**: Queue integrity and session visibility fixes complete
 **Priority**: NORMAL
+
+---
+
+## Session 33: Critical Bug Fixes ✅
+
+### Completed This Session
+
+| Task | Status | Description |
+|------|--------|-------------|
+| fix-queue-data-integrity | ✅ | Fixed merge logic, added integrity validation |
+| fix-autonomous-session-visibility | ✅ | Unmatched autonomous sessions now shown separately |
+
+### Root Causes Identified and Fixed
+
+**Queue Data Integrity Issue:**
+- **Problem**: `_mergeChanges()` used UNION of disk/memory queue arrays, causing tasks to appear in multiple queues
+- **Fix**: In-memory queue placement now takes precedence; added `_enforceQueueIntegrity()` and `_checkAndFixIntegrityOnLoad()`
+
+**Autonomous Session Visibility Issue:**
+- **Problem**: Dashboard only iterated over `/api/projects` (CLI projects). Autonomous sessions that didn't match were lost
+- **Fix**: Added unmatched autonomous sessions as separate entries with `auto-{id}` IDs; SSE handler preserves them
+
+### NOW Queue (2 tasks)
+
+1. `dashboard-blocked-tasks-view` - Show blocked tasks with dependency graph
+2. `dashboard-multiple-sessions-view` - Show individual sessions, not merged
+
+---
+
+## Session 32: Dashboard Fixes + Testing ✅
+
+### Completed
+
+| Task | Status | Description |
+|------|--------|-------------|
+| test-session-type-fields | ✅ | 26 unit tests for session-registry |
+| test-orchestrator-dashboard-integration | ✅ | 9 E2E tests for HTTP communication |
+| Dashboard Merging Fix | ✅ | Autonomous sessions now match by folder ID |
+| Path Reconstruction | ✅ | _folderToPath handles dashed folder names |
+| Quality Score Fix | ✅ | Reads from scores.summary.totalScore |
+
+### SOMEDAY Queue
+
+- `add-model-pricing` - Add GPT-5.2 and Gemini 3 pricing
+
+### Recently Completed (Session 32 - Previously Miscounted)
+
+- ✅ `swarm-integration-tests` - 17 E2E tests in `tests/e2e/swarm-integration.e2e.test.js`
+- ✅ `agent-verification-protocol` - `docs/AGENT-VERIFICATION-PROTOCOL.md` + CLAUDE.md Section 4
 
 ---
 
