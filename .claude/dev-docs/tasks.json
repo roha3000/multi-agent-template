@@ -20,23 +20,22 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "taskjson-parallel-session-safety"
+        "taskjson-parallel-session-safety",
+        "hierarchy-phase2-delegation",
+        "hierarchy-phase2-context",
+        "hierarchy-phase2-aggregation"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "parallel-safety-phase2-sqlite-coordinator",
         "parallel-safety-phase3-shadow-mode",
-        "parallel-safety-phase4-dashboard-conflicts",
-        "hierarchy-phase2-delegation"
+        "parallel-safety-phase4-dashboard-conflicts"
       ]
     },
     "later": {
       "description": "Future work, not yet prioritized",
       "tasks": [
-        "hierarchy-phase2-context",
-        "hierarchy-phase2-aggregation",
         "hierarchy-phase3-decomposer",
         "hierarchy-phase3-auto-delegation",
         "hierarchy-phase4-dashboard-viz",
@@ -57,6 +56,7 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "parallel-safety-phase2-sqlite-coordinator",
         "parallel-safety-phase1-optimistic-locking",
         "hierarchy-phase1-task-extension",
         "hierarchy-phase1-dashboard-api",
@@ -807,10 +807,10 @@
         "Unit tests for delegation flow",
         "Integration tests for multi-level delegation"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T20:00:00.000Z"
+      "updated": "2025-12-28T21:30:00.000Z"
     },
     "hierarchy-phase2-context": {
       "parentTaskId": null,
@@ -1191,7 +1191,7 @@
       "decomposition": {
         "strategy": "sequential",
         "estimatedSubtasks": 4,
-        "completedSubtasks": 1,
+        "completedSubtasks": 2,
         "aggregationRule": "all-complete"
       },
       "id": "taskjson-parallel-session-safety",
@@ -1218,15 +1218,15 @@
         "Research: Document current race condition scenarios ✓ COMPLETE",
         "Research: Evaluate approaches - file locking, optimistic locking, CRDT, event sourcing ✓ COMPLETE",
         "Design: Recommend solution (SQLite coordinator + JSON) ✓ COMPLETE",
-        "Phase 1: Optimistic locking with version numbers",
-        "Phase 2: SQLite coordinator for cross-process locking",
+        "Phase 1: Optimistic locking with version numbers ✓ COMPLETE",
+        "Phase 2: SQLite coordinator for cross-process locking ✓ COMPLETE",
         "Phase 3: Shadow mode validation",
         "Phase 4: Dashboard conflict indicators"
       ],
       "status": "in_progress",
       "assignee": null,
       "created": "2025-12-28T15:10:00.000Z",
-      "updated": "2025-12-28T21:03:40.641Z",
+      "updated": "2025-12-28T23:30:00.000Z",
       "started": "2025-12-28T22:00:00.000Z",
       "researchCompleted": "2025-12-28T22:00:00.000Z",
       "researchFindings": {
@@ -1248,8 +1248,8 @@
         ],
         "industry_pattern": "Git worktrees for parallel features, SQLite for same-project concurrency"
       },
-      "notes": "Research phase complete via 5 parallel expert agents. Recommendation: SQLite coordinator preserves JSON human-readability while adding proper cross-process locking. Implementation split into 4 phases.",
-      "progress": 25
+      "notes": "Phase 2 complete. SQLite coordinator provides cross-process locking with 60s TTL, session heartbeats, change journaling. 49 unit tests passing.",
+      "progress": 50
     },
     "parallel-safety-phase1-optimistic-locking": {
       "parentTaskId": "taskjson-parallel-session-safety",
@@ -1348,25 +1348,39 @@
         "Unit tests for lock acquisition/release",
         "Unit tests for stale lock cleanup"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-28T22:00:00.000Z",
-      "updated": "2025-12-28T21:03:40.610Z",
+      "updated": "2025-12-28T23:30:00.000Z",
+      "completed": "2025-12-28T23:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/coordination-db.js: 550+ lines CoordinationDB class",
+        "SQLite schema: sessions, locks, change_journal tables with indexes",
+        "acquireLock(), releaseLock(), refreshLock(), isLockHeld() methods",
+        "withLock() convenience wrapper for atomic operations",
+        "Session management: register, heartbeat, deregister, stale detection",
+        "Change journal: recordChange, query methods, pruning",
+        "Auto-cleanup timers for expired locks and stale sessions",
+        "TaskManager integration: lazy init, lock on save, journal changes",
+        "__tests__/core/coordination-db.test.js: 49 unit tests",
+        ".gitignore updated for .coordination/ database files"
+      ],
       "implementationNotes": {
-        "files_to_create": [
+        "files_created": [
           ".claude/core/coordination-db.js",
-          ".claude/dev-docs/.coordination/tasks.db"
+          "__tests__/core/coordination-db.test.js"
         ],
-        "files_to_modify": [
+        "files_modified": [
           ".claude/core/task-manager.js",
           ".gitignore"
         ],
         "schema": {
-          "sessions": "id, project_path, started_at, last_heartbeat",
-          "locks": "resource, session_id, acquired_at, expires_at",
-          "change_journal": "id, session_id, resource, operation, data, timestamp, applied"
+          "sessions": "id, project_path, agent_type, started_at, last_heartbeat, metadata, pid",
+          "locks": "resource, session_id, acquired_at, expires_at, lock_type, refresh_count",
+          "change_journal": "id, session_id, resource, operation, change_data, created_at, applied, checksum"
         },
-        "dependencies": "better-sqlite3 (already installed)"
+        "approach": "5 expert agents in parallel: Schema Designer, Pattern Researcher, Lock Management, Session Heartbeat, Test Engineer"
       }
     },
     "parallel-safety-phase3-shadow-mode": {

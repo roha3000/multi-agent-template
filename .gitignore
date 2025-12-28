@@ -95,5 +95,8 @@ __tests__/core/test-*.db
 # Database files
 .claude/data/
 
+# Coordination database (Phase 2 parallel session safety)
+.claude/dev-docs/.coordination/
+
 # Windows artifacts
 nul

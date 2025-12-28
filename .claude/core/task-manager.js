@@ -16,6 +16,15 @@ const path = require('path');
 const EventEmitter = require('events');
 const crypto = require('crypto');
 
+// Lazy-load CoordinationDB to avoid circular dependencies
+let CoordinationDB = null;
+const getCoordinationDB = () => {
+  if (!CoordinationDB) {
+    CoordinationDB = require('./coordination-db');
+  }
+  return CoordinationDB;
+};
+
 class TaskManager extends EventEmitter {
   constructor(options = {}) {
     super();
@@ -34,7 +43,105 @@ class TaskManager extends EventEmitter {
     this._saveLock = false;
     this._pendingSave = false;
 
+    // Phase 2: SQLite Coordination (optional)
+    this._coordinationDb = options.coordinationDb || null;
+    this._useCoordination = options.useCoordination !== false && !options.coordinationDb;
+    this._coordinationInitialized = false;
+    this._lockResource = 'tasks.json';
+    this._lockTTL = options.lockTTL || 60000; // 60 seconds default
+    this._lockTimeout = options.lockTimeout || 5000; // 5 seconds wait for lock
+
     this.load();
+  }
+
+  /**
+   * Initialize SQLite coordination layer (Phase 2)
+   * Called lazily on first save if coordination is enabled
+   * @private
+   */
+  _initCoordination() {
+    if (this._coordinationInitialized || this._coordinationDb) return;
+    if (!this._useCoordination) return;
+
+    try {
+      const CoordDB = getCoordinationDB();
+      const coordPath = path.join(path.dirname(this.tasksPath), '.coordination', 'tasks.db');
+      this._coordinationDb = new CoordDB(coordPath, {
+        autoCleanup: true,
+        defaultLockTTL: this._lockTTL
+      });
+
+      // Register this session
+      const projectPath = path.dirname(path.dirname(this.tasksPath));
+      this._coordinationDb.registerSession(this.sessionId, projectPath, 'task-manager');
+
+      this._coordinationInitialized = true;
+      this.emit('coordination:initialized', { sessionId: this.sessionId });
+    } catch (error) {
+      console.warn('[TaskManager] Could not initialize coordination DB:', error.message);
+      this._useCoordination = false;
+    }
+  }
+
+  /**
+   * Acquire lock before save (Phase 2)
+   * @private
+   * @returns {boolean} True if lock acquired
+   */
+  _acquireSaveLock() {
+    if (!this._coordinationDb) return true;
+
+    const result = this._coordinationDb.acquireLock(
+      this._lockResource,
+      this.sessionId,
+      this._lockTTL
+    );
+
+    if (result.acquired) {
+      this.emit('lock:acquired', { resource: this._lockResource });
+      return true;
+    }
+
+    this.emit('lock:failed', {
+      resource: this._lockResource,
+      holder: result.holder,
+      remainingMs: result.remainingMs
+    });
+    return false;
+  }
+
+  /**
+   * Release lock after save (Phase 2)
+   * @private
+   */
+  _releaseSaveLock() {
+    if (!this._coordinationDb) return;
+
+    this._coordinationDb.releaseLock(this._lockResource, this.sessionId);
+    this.emit('lock:released', { resource: this._lockResource });
+  }
+
+  /**
+   * Record change in journal (Phase 2)
+   * @private
+   */
+  _recordChange(operation, data = {}) {
+    if (!this._coordinationDb) return;
+
+    this._coordinationDb.recordChange(
+      this.sessionId,
+      this._lockResource,
+      operation,
+      data
+    );
+  }
+
+  /**
+   * Get coordination database instance
+   * @returns {CoordinationDB|null}
+   */
+  getCoordinationDb() {
+    return this._coordinationDb;
   }
 
   // ====================================================================
@@ -1037,18 +1144,33 @@ class TaskManager extends EventEmitter {
 
   /**
    * Save tasks to file with optimistic locking and concurrency protection
+   * Uses SQLite coordination layer (Phase 2) when available for cross-process locking
    * @param {number} _retryAttempt - Internal retry counter (do not set manually)
    */
   save(_retryAttempt = 0) {
     const MAX_RETRIES = 3;
 
-    // Prevent concurrent saves
+    // Prevent concurrent saves within this process
     if (this._saveLock) {
       this._pendingSave = true;
       return;
     }
 
     this._saveLock = true;
+
+    // Initialize coordination layer on first save (Phase 2)
+    this._initCoordination();
+
+    // Acquire cross-process lock (Phase 2)
+    if (!this._acquireSaveLock()) {
+      this._saveLock = false;
+      if (_retryAttempt < MAX_RETRIES) {
+        // Wait and retry
+        setTimeout(() => this.save(_retryAttempt + 1), 100 * (_retryAttempt + 1));
+        return;
+      }
+      throw new Error('Could not acquire lock for save after retries');
+    }
 
     try {
       // Check for external changes
@@ -1112,8 +1234,17 @@ class TaskManager extends EventEmitter {
       this._lastFileHash = this._calculateHash(data);
       this._lastFileMtime = this._getFileStats().mtime;
 
+      // Record change in journal (Phase 2)
+      this._recordChange('SAVE', {
+        version: this.tasks._concurrency?.version,
+        taskCount: Object.keys(this.tasks.tasks || {}).length
+      });
+
       this.emit('tasks:saved', { version: this.tasks._concurrency?.version });
     } finally {
+      // Release cross-process lock (Phase 2)
+      this._releaseSaveLock();
+
       this._saveLock = false;
 
       // Process pending save if one was requested during lock
