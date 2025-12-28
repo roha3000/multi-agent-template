@@ -1,0 +1,1389 @@
+{
+  "date": "2025-12-28",
+  "summary": {
+    "totalIssues": 104,
+    "critical": 0,
+    "high": 43,
+    "medium": 38,
+    "low": 23,
+    "estimatedEffort": 67.75,
+    "potentialSavings": {
+      "lines": 10283,
+      "bytes": 249856
+    }
+  },
+  "findings": {
+    "deadCode": {
+      "orphanedModules": [
+        {
+          "file": ".claude\\core\\claude-session-tracker.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T04:35:44.570Z",
+          "lineCount": 214,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": ".claude\\core\\claude-telemetry-bridge.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T04:35:05.759Z",
+          "lineCount": 330,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": ".claude\\core\\error-parser.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-11-19T04:24:49.750Z",
+          "lineCount": 408,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": ".claude\\core\\example.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-11-19T04:24:49.759Z",
+          "lineCount": 185,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\cli.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-11-19T04:24:50.968Z",
+          "lineCount": 470,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\import-agents.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-11-19T04:24:51.005Z",
+          "lineCount": 532,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\load-test-parallel-sessions.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T16:02:20.551Z",
+          "lineCount": 642,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\parallel-research.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-11-19T04:24:51.033Z",
+          "lineCount": 328,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\recommend-skills.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-11-19T04:24:51.041Z",
+          "lineCount": 184,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\recover-context.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T20:00:46.156Z",
+          "lineCount": 117,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\run-full-system.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T16:03:52.663Z",
+          "lineCount": 355,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\session-bootstrap.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T01:39:52.889Z",
+          "lineCount": 180,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\start-enhanced-dashboard.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-15T03:48:18.951Z",
+          "lineCount": 392,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\start-monitor-background.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-11-19T04:24:51.064Z",
+          "lineCount": 101,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\start-otlp-receiver.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T05:19:22.070Z",
+          "lineCount": 133,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\test-dashboard-swarm-panels.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-26T00:18:10.211Z",
+          "lineCount": 336,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\test-otlp-metrics.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-15T04:14:05.485Z",
+          "lineCount": 207,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\test-real-context.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-15T04:14:17.255Z",
+          "lineCount": 233,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\traceability-query.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-11-19T04:24:51.087Z",
+          "lineCount": 470,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\usage-monitor.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-11-19T04:24:51.095Z",
+          "lineCount": 271,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\validate-orchestrator.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-22T21:39:13.747Z",
+          "lineCount": 169,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\validate-real-tracking.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-15T04:04:17.198Z",
+          "lineCount": 166,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\validate-system.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-11-19T04:47:07.278Z",
+          "lineCount": 231,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "scripts\\validate-traceability.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-11-19T04:24:51.118Z",
+          "lineCount": 333,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "benchmark-swarm.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-27T00:58:46.685Z",
+          "lineCount": 453,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "context-manager-real.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-15T06:38:13.643Z",
+          "lineCount": 396,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "context-manager.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T19:59:02.968Z",
+          "lineCount": 223,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "dashboard-backend.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T19:37:21.754Z",
+          "lineCount": 152,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "handoff-to-loop.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-18T07:46:46.912Z",
+          "lineCount": 224,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "load-test-swarm.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-27T01:00:28.095Z",
+          "lineCount": 523,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "start-dashboard.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T19:30:57.403Z",
+          "lineCount": 123,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "start-monitor-singleton.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T22:36:36.293Z",
+          "lineCount": 191,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "start-services.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T19:27:20.813Z",
+          "lineCount": 71,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "tasks-migration.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-21T19:12:03.054Z",
+          "lineCount": 131,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "test-claude-code-parser.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T02:49:50.560Z",
+          "lineCount": 94,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "track-current-session.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T21:23:15.405Z",
+          "lineCount": 177,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "trigger-checkpoint.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T21:57:17.748Z",
+          "lineCount": 148,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": "unified-context-monitor.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-14T22:06:24.808Z",
+          "lineCount": 390,
+          "recommendation": "DELETE or ARCHIVE"
+        }
+      ],
+      "unusedExports": [],
+      "deadCode": [],
+      "deprecatedInUse": [],
+      "summary": {
+        "totalOrphaned": 38,
+        "totalUnusedExports": 0,
+        "totalDeadCode": 0,
+        "totalDeprecatedInUse": 0,
+        "estimatedCleanupLines": 10283
+      }
+    },
+    "duplications": {
+      "duplicateImplementations": [
+        {
+          "concept": "Usage Tracking",
+          "implementations": [
+            {
+              "file": ".claude/core/claude-code-usage-parser.js",
+              "purpose": "Claude Code Usage Parser"
+            },
+            {
+              "file": ".claude/core/claude-limit-tracker.js",
+              "purpose": "Claude Limit Tracker - Monitor and enforce Claude API rate limits"
+            },
+            {
+              "file": ".claude/core/claude-session-tracker.js",
+              "purpose": "Claude Session Tracker"
+            },
+            {
+              "file": ".claude/core/global-context-tracker.js",
+              "purpose": "Global Context Tracker"
+            },
+            {
+              "file": ".claude/core/real-context-tracker.js",
+              "purpose": "Real Context Tracker"
+            },
+            {
+              "file": ".claude/core/real-time-context-tracker.js",
+              "purpose": "Real-Time Context Tracker"
+            },
+            {
+              "file": ".claude/core/token-counter.js",
+              "purpose": "Token Counter - Accurate token counting using tiktoken"
+            },
+            {
+              "file": ".claude/core/usage-limit-tracker.js",
+              "purpose": "Usage Limit Tracker for Claude Code Message Limits"
+            },
+            {
+              "file": ".claude/core/usage-reporter.js",
+              "purpose": "UsageReporter - Generate formatted reports for usage analytics"
+            },
+            {
+              "file": ".claude/core/usage-tracker.js",
+              "purpose": "UsageTracker - Track token usage and costs for AI orchestrations"
+            }
+          ],
+          "similarity": 0.7,
+          "recommendation": "Consolidate 10 files into single implementation",
+          "effort": "10h",
+          "risk": "medium"
+        },
+        {
+          "concept": "Memory Storage",
+          "implementations": [
+            {
+              "file": ".claude/core/memory-integration.js",
+              "purpose": "Memory Integration - Bridges LifecycleHooks and MessageBus"
+            },
+            {
+              "file": ".claude/core/memory-search-api.js",
+              "purpose": "Memory Search API - Query interface for orchestration memory"
+            },
+            {
+              "file": ".claude/core/memory-store.js",
+              "purpose": "Memory Store - SQLite-based persistent storage for orchestrations"
+            },
+            {
+              "file": ".claude/core/vector-store.js",
+              "purpose": "VectorStore - Semantic search with Chroma vector database"
+            }
+          ],
+          "similarity": 0.7,
+          "recommendation": "Consolidate 4 files into single implementation",
+          "effort": "4h",
+          "risk": "medium"
+        },
+        {
+          "concept": "Orchestration",
+          "implementations": [
+            {
+              "file": ".claude/core/agent-orchestrator.js",
+              "purpose": "Agent Orchestrator - Coordinates multiple agents for collaborative tasks"
+            },
+            {
+              "file": ".claude/core/continuous-loop-orchestrator.js",
+              "purpose": "Continuous Loop Orchestrator - Main integration class"
+            },
+            {
+              "file": ".claude/core/intelligent-orchestrator.js",
+              "purpose": "Intelligent Orchestrator - Automatically selects and executes orchestration patterns"
+            },
+            {
+              "file": ".claude/core/smart-orchestrate.js",
+              "purpose": "Smart Orchestration - Context-aware orchestration that chooses between"
+            },
+            {
+              "file": ".claude/core/swarm-controller.js",
+              "purpose": "SwarmController - Unified Interface for All Swarm Components"
+            }
+          ],
+          "similarity": 0.7,
+          "recommendation": "Consolidate 5 files into single implementation",
+          "effort": "5h",
+          "risk": "medium"
+        },
+        {
+          "concept": "Dashboard",
+          "implementations": [
+            {
+              "file": ".claude/core/dashboard-html.js",
+              "purpose": "Enhanced Dashboard HTML with Interactive Controls"
+            },
+            {
+              "file": ".claude/core/dashboard-manager.js",
+              "purpose": "Dashboard Manager - Real-time monitoring and control center"
+            },
+            {
+              "file": ".claude/core/enhanced-dashboard-server.js",
+              "purpose": "Enhanced Dashboard Server"
+            },
+            {
+              "file": ".claude/core/otlp-dashboard-extension.js",
+              "purpose": "OTLP Dashboard Extension - Enhanced dashboard for OTLP metrics"
+            }
+          ],
+          "similarity": 0.7,
+          "recommendation": "Consolidate 4 files into single implementation",
+          "effort": "4h",
+          "risk": "medium"
+        },
+        {
+          "concept": "Session Management",
+          "implementations": [
+            {
+              "file": ".claude/core/claude-session-tracker.js",
+              "purpose": "Claude Session Tracker"
+            },
+            {
+              "file": ".claude/core/context-loader.js",
+              "purpose": "Context Loader - Token-budget aware context assembly"
+            },
+            {
+              "file": ".claude/core/context-retriever.js",
+              "purpose": "ContextRetriever - Intelligent context loading with progressive disclosure"
+            },
+            {
+              "file": ".claude/core/context-tracking-bridge.js",
+              "purpose": "Context Tracking Bridge"
+            },
+            {
+              "file": ".claude/core/global-context-tracker.js",
+              "purpose": "Global Context Tracker"
+            },
+            {
+              "file": ".claude/core/real-context-tracker.js",
+              "purpose": "Real Context Tracker"
+            },
+            {
+              "file": ".claude/core/real-time-context-tracker.js",
+              "purpose": "Real-Time Context Tracker"
+            },
+            {
+              "file": ".claude/core/session-aware-metric-processor.js",
+              "purpose": "Session-Aware Metric Processor"
+            },
+            {
+              "file": ".claude/core/session-init.js",
+              "purpose": "Session Initializer - Orchestrates all core components"
+            },
+            {
+              "file": ".claude/core/session-registry.js",
+              "purpose": "Session Registry Service"
+            }
+          ],
+          "similarity": 0.7,
+          "recommendation": "Consolidate 10 files into single implementation",
+          "effort": "10h",
+          "risk": "medium"
+        }
+      ],
+      "duplicateDatabases": [],
+      "conceptOverlaps": [
+        {
+          "concepts": [
+            "MemoryStore",
+            "VectorStore"
+          ],
+          "overlap": "Both store observations with search capability",
+          "files": [
+            ".claude/core/memory-store.js",
+            ".claude/core/vector-store.js"
+          ],
+          "recommendation": "Clarify responsibilities or merge"
+        },
+        {
+          "concepts": [
+            "ContinuousLoopOrchestrator",
+            "AutonomousOrchestrator"
+          ],
+          "overlap": "Both orchestrate long-running agent sessions",
+          "files": [
+            ".claude/core/continuous-loop-orchestrator.js",
+            "autonomous-orchestrator.js"
+          ],
+          "recommendation": "Deprecated version exists - complete migration"
+        }
+      ],
+      "summary": {
+        "duplicateImplementations": 5,
+        "duplicateDatabases": 0,
+        "conceptOverlaps": 2,
+        "consolidationEffort": "23h",
+        "codeReduction": "0 lines"
+      }
+    },
+    "databases": {
+      "databases": [
+        {
+          "path": ".claude\\data\\memory.db",
+          "size": "408 KB",
+          "tables": 24,
+          "totalRows": 39,
+          "lastModified": "2025-12-27",
+          "status": "ACTIVE",
+          "usedBy": [
+            ".claude/core/memory-store.tasks.test.js"
+          ],
+          "issues": []
+        },
+        {
+          "path": ".claude\\memory\\dashboard.db",
+          "size": "272 KB",
+          "tables": 19,
+          "totalRows": 5,
+          "lastModified": "2025-12-28",
+          "status": "ACTIVE",
+          "usedBy": [
+            "scripts/start-enhanced-dashboard.js"
+          ],
+          "issues": []
+        },
+        {
+          "path": ".claude\\memory\\memory-store.db",
+          "size": "272 KB",
+          "tables": 19,
+          "totalRows": 5,
+          "lastModified": "2025-12-13",
+          "status": "ACTIVE",
+          "usedBy": [],
+          "issues": []
+        },
+        {
+          "path": ".claude\\memory\\orchestrations.db",
+          "size": "408 KB",
+          "tables": 24,
+          "totalRows": 7,
+          "lastModified": "2025-12-27",
+          "status": "ACTIVE",
+          "usedBy": [
+            ".claude/core/agent-orchestrator.js",
+            ".claude/core/context-retriever.js",
+            ".claude/core/memory-store.js",
+            ".claude/core/vector-store.js",
+            "scripts/parallel-research.js",
+            "scripts/recommend-skills.js",
+            "scripts/usage-monitor.js",
+            "scripts/usage-report.js"
+          ],
+          "issues": []
+        },
+        {
+          "path": ".claude\\memory\\test-parser.db",
+          "size": "4.1 MB",
+          "tables": 16,
+          "totalRows": 8314,
+          "lastModified": "2025-12-14",
+          "status": "ACTIVE",
+          "usedBy": [],
+          "issues": []
+        },
+        {
+          "path": ".claude\\memory\\test.db",
+          "size": "164 KB",
+          "tables": 13,
+          "totalRows": 5,
+          "lastModified": "2025-11-19",
+          "status": "ACTIVE",
+          "usedBy": [],
+          "issues": []
+        },
+        {
+          "path": "__tests__\\core\\test-checkpoint-1765751157248.db",
+          "size": "4 KB",
+          "tables": 0,
+          "totalRows": 0,
+          "lastModified": "2025-12-14",
+          "status": "ORPHANED_TEST",
+          "usedBy": [],
+          "issues": []
+        },
+        {
+          "path": "__tests__\\core\\test-hil-1765751157251.db",
+          "size": "0 B",
+          "tables": 0,
+          "totalRows": 0,
+          "lastModified": "2025-12-14",
+          "status": "ORPHANED_TEST",
+          "usedBy": [],
+          "issues": []
+        },
+        {
+          "path": "__tests__\\core\\test-limit-1765751157200.db",
+          "size": "240 KB",
+          "tables": 16,
+          "totalRows": 5,
+          "lastModified": "2025-12-14",
+          "status": "ORPHANED_TEST",
+          "usedBy": [],
+          "issues": []
+        },
+        {
+          "path": "__tests__\\core\\test-usage-1765751157256.db",
+          "size": "0 B",
+          "tables": 0,
+          "totalRows": 0,
+          "lastModified": "2025-12-14",
+          "status": "ORPHANED_TEST",
+          "usedBy": [],
+          "issues": []
+        }
+      ],
+      "duplicateSchemas": [
+        {
+          "databases": [
+            ".claude\\data\\memory.db",
+            ".claude\\memory\\orchestrations.db"
+          ],
+          "sharedTables": [
+            "agent_collaborations",
+            "agent_stats",
+            "api_limit_tracking",
+            "budget_alerts",
+            "complexity_analysis",
+            "confidence_history",
+            "context_cache",
+            "observations",
+            "observations_fts",
+            "observations_fts_config",
+            "observations_fts_data",
+            "observations_fts_docsize",
+            "observations_fts_idx",
+            "orchestrations",
+            "pattern_stats",
+            "plan_comparisons",
+            "schema_migrations",
+            "system_info",
+            "tag_stats",
+            "task_history",
+            "task_pattern_stats",
+            "token_usage",
+            "usage_cache",
+            "work_sessions"
+          ],
+          "recommendation": "Keep one, delete 1 duplicates"
+        },
+        {
+          "databases": [
+            ".claude\\memory\\dashboard.db",
+            ".claude\\memory\\memory-store.db"
+          ],
+          "sharedTables": [
+            "agent_collaborations",
+            "agent_stats",
+            "budget_alerts",
+            "checkpoint_learning_data",
+            "context_cache",
+            "human_loop_detections",
+            "human_loop_learning",
+            "observations",
+            "observations_fts",
+            "observations_fts_config",
+            "observations_fts_data",
+            "observations_fts_docsize",
+            "observations_fts_idx",
+            "orchestrations",
+            "pattern_stats",
+            "system_info",
+            "token_usage",
+            "usage_cache",
+            "work_sessions"
+          ],
+          "recommendation": "Keep one, delete 1 duplicates"
+        }
+      ],
+      "cleanupTargets": [
+        {
+          "path": "__tests__\\core\\test-checkpoint-1765751157248.db",
+          "reason": "Orphaned test artifact",
+          "size": "4 KB",
+          "action": "DELETE"
+        },
+        {
+          "path": "__tests__\\core\\test-hil-1765751157251.db",
+          "reason": "Orphaned test artifact",
+          "size": "0 B",
+          "action": "DELETE"
+        },
+        {
+          "path": "__tests__\\core\\test-limit-1765751157200.db",
+          "reason": "Orphaned test artifact",
+          "size": "240 KB",
+          "action": "DELETE"
+        },
+        {
+          "path": "__tests__\\core\\test-usage-1765751157256.db",
+          "reason": "Orphaned test artifact",
+          "size": "0 B",
+          "action": "DELETE"
+        }
+      ],
+      "summary": {
+        "totalDatabases": 10,
+        "activeWithData": 6,
+        "emptyDatabases": 0,
+        "orphanedTestDBs": 4,
+        "totalCleanupSize": 244,
+        "duplicateSchemaGroups": 2
+      }
+    },
+    "documentation": {
+      "staleDocs": [
+        {
+          "file": "docs\\CLAUDE-CODE-INFRASTRUCTURE-COMPARISON.md",
+          "freshnessScore": -30,
+          "issues": [
+            "References non-existent: .claude/skills/README.md",
+            "References non-existent: .claude/skills/skill-rules.json",
+            "References non-existent: .claude/skills/multi-agent-patterns/SKILL.md",
+            "References non-existent: .claude/commands/dev-docs.md",
+            "References non-existent: .claude/commands/dev-docs-update.md",
+            "References non-existent: .claude/templates/dev-docs/",
+            "References non-existent: .claude/hooks/stop-build-check.js",
+            "References non-existent: .claude/config/build-rules.json",
+            "References non-existent: .claude/agents/build-error-resolver.md",
+            "References non-existent: .claude/hooks/error-context-injector.js",
+            "References non-existent: .claude/agents/error-resolver.md",
+            "References non-existent: .claude/agents/code-architecture-reviewer.md",
+            "References non-existent: .claude/agents/refactor-planner.md",
+            "References non-existent: .claude/agents/test-coverage-analyzer.md",
+            "References non-existent: .claude/agents/documentation-architect.md",
+            "References non-existent: .claude/agents/strategic-plan-architect.md",
+            "References non-existent: .claude/commands/code-review.md",
+            "References non-existent: .claude/commands/build-and-fix.md",
+            "References non-existent: .claude/commands/analyze-costs.md",
+            "References non-existent: .claude/commands/optimize-prompts.md",
+            "References non-existent: .claude/skills/multi-agent-orchestration/SKILL.md",
+            "References non-existent: .claude/skills/multi-agent-orchestration/resources/",
+            "References non-existent: .claude/skills/memory-system/SKILL.md",
+            "References non-existent: .claude/skills/memory-system/resources/"
+          ],
+          "brokenLinks": [],
+          "isArchiveCandidate": false,
+          "archiveReason": null
+        },
+        {
+          "file": "docs\\CRITICAL-FEATURES-IMPLEMENTATION.md",
+          "freshnessScore": 35,
+          "issues": [
+            "References non-existent: .claude/dev-docs/tasks.md",
+            "References non-existent: user-prompt-submit.js",
+            "References non-existent: after-code-change.js",
+            "References non-existent: ERROR in ./src/file.js",
+            "References non-existent: error-parser.js",
+            "References non-existent: after-execution.js",
+            "References non-existent: parallel-research.js",
+            "References non-existent: import-agents.js",
+            "References non-existent: .claude/config.json",
+            "References non-existent: .claude/research-config.json",
+            "References non-existent: .claude/dev-docs/tasks.md"
+          ],
+          "brokenLinks": [],
+          "isArchiveCandidate": false,
+          "archiveReason": null
+        },
+        {
+          "file": ".claude\\agents\\diet103\\documentation-architect.md",
+          "freshnessScore": 35,
+          "issues": [],
+          "brokenLinks": [
+            {
+              "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+              "brokenLink": "./CHANGELOG.md",
+              "linkType": "internal"
+            },
+            {
+              "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+              "brokenLink": "./openapi.yaml",
+              "linkType": "internal"
+            },
+            {
+              "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+              "brokenLink": "./schema.sql",
+              "linkType": "internal"
+            },
+            {
+              "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+              "brokenLink": "./DEPLOYMENT.md",
+              "linkType": "internal"
+            },
+            {
+              "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+              "brokenLink": "badge-url",
+              "linkType": "internal"
+            },
+            {
+              "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+              "brokenLink": "badge-url",
+              "linkType": "internal"
+            },
+            {
+              "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+              "brokenLink": "badge-url",
+              "linkType": "internal"
+            },
+            {
+              "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+              "brokenLink": "./examples",
+              "linkType": "internal"
+            },
+            {
+              "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+              "brokenLink": "./CONTRIBUTING.md",
+              "linkType": "internal"
+            },
+            {
+              "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+              "brokenLink": "./LICENSE",
+              "linkType": "internal"
+            },
+            {
+              "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+              "brokenLink": "./CHANGELOG.md",
+              "linkType": "internal"
+            }
+          ],
+          "isArchiveCandidate": false,
+          "archiveReason": null
+        },
+        {
+          "file": ".claude\\dev-docs\\multi-project-implementation-plan.md",
+          "freshnessScore": 45,
+          "issues": [
+            "References non-existent: .claude/core/project-registry.js",
+            "References non-existent: .claude/core/project-id-generator.js",
+            "References non-existent: .claude/core/port-allocator.js",
+            "References non-existent: .claude/core/multi-project-orchestrator.js",
+            "References non-existent: .claude/core/unified-dashboard.js",
+            "References non-existent: .claude/core/unified-dashboard-html.js",
+            "References non-existent: .claude/core/shared-api-limit-tracker.js",
+            "References non-existent: .claude/core/cost-aggregator.js",
+            "References non-existent: .claude/migrations/001_add_project_support.sql",
+            "References non-existent: .claude/core/database-migrator.js",
+            "References non-existent: bin/claude-loop.js"
+          ],
+          "brokenLinks": [],
+          "isArchiveCandidate": false,
+          "archiveReason": null
+        },
+        {
+          "file": "docs\\CLAUDE-CODE-INFRASTRUCTURE-COMPARISON.md",
+          "freshnessScore": -30,
+          "issues": [
+            "References non-existent: .claude/skills/README.md",
+            "References non-existent: .claude/skills/skill-rules.json",
+            "References non-existent: .claude/skills/multi-agent-patterns/SKILL.md",
+            "References non-existent: .claude/commands/dev-docs.md",
+            "References non-existent: .claude/commands/dev-docs-update.md",
+            "References non-existent: .claude/templates/dev-docs/",
+            "References non-existent: .claude/hooks/stop-build-check.js",
+            "References non-existent: .claude/config/build-rules.json",
+            "References non-existent: .claude/agents/build-error-resolver.md",
+            "References non-existent: .claude/hooks/error-context-injector.js",
+            "References non-existent: .claude/agents/error-resolver.md",
+            "References non-existent: .claude/agents/code-architecture-reviewer.md",
+            "References non-existent: .claude/agents/refactor-planner.md",
+            "References non-existent: .claude/agents/test-coverage-analyzer.md",
+            "References non-existent: .claude/agents/documentation-architect.md",
+            "References non-existent: .claude/agents/strategic-plan-architect.md",
+            "References non-existent: .claude/commands/code-review.md",
+            "References non-existent: .claude/commands/build-and-fix.md",
+            "References non-existent: .claude/commands/analyze-costs.md",
+            "References non-existent: .claude/commands/optimize-prompts.md",
+            "References non-existent: .claude/skills/multi-agent-orchestration/SKILL.md",
+            "References non-existent: .claude/skills/multi-agent-orchestration/resources/",
+            "References non-existent: .claude/skills/memory-system/SKILL.md",
+            "References non-existent: .claude/skills/memory-system/resources/"
+          ],
+          "brokenLinks": [],
+          "isArchiveCandidate": false,
+          "archiveReason": null
+        },
+        {
+          "file": "docs\\CRITICAL-FEATURES-IMPLEMENTATION.md",
+          "freshnessScore": 35,
+          "issues": [
+            "References non-existent: .claude/dev-docs/tasks.md",
+            "References non-existent: user-prompt-submit.js",
+            "References non-existent: after-code-change.js",
+            "References non-existent: ERROR in ./src/file.js",
+            "References non-existent: error-parser.js",
+            "References non-existent: after-execution.js",
+            "References non-existent: parallel-research.js",
+            "References non-existent: import-agents.js",
+            "References non-existent: .claude/config.json",
+            "References non-existent: .claude/research-config.json",
+            "References non-existent: .claude/dev-docs/tasks.md"
+          ],
+          "brokenLinks": [],
+          "isArchiveCandidate": false,
+          "archiveReason": null
+        }
+      ],
+      "brokenLinks": [
+        {
+          "sourceFile": "docs\\FRAMEWORK-OVERVIEW.md",
+          "brokenLink": "ROADMAP.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\index.md",
+          "brokenLink": "README.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\index.md",
+          "brokenLink": "SETUP.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\index.md",
+          "brokenLink": "WORKFLOW.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\index.md",
+          "brokenLink": "TEMPLATE-GUIDE.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\index.md",
+          "brokenLink": "CLAUDE.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\LIVE-USAGE-MONITORING.md",
+          "brokenLink": "./COST-OPTIMIZATION.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\MEMORY_SYSTEM.md",
+          "brokenLink": "./API_REFERENCE.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\MULTI-AGENT-GUIDE.md",
+          "brokenLink": "./BEST-PRACTICES.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": ".claude\\agents\\audit\\documentation-reviewer.md",
+          "brokenLink": "../CURRENT-ARCHITECTURE.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+          "brokenLink": "./CHANGELOG.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+          "brokenLink": "./openapi.yaml",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+          "brokenLink": "./schema.sql",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+          "brokenLink": "./DEPLOYMENT.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+          "brokenLink": "badge-url",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+          "brokenLink": "badge-url",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+          "brokenLink": "badge-url",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+          "brokenLink": "./examples",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+          "brokenLink": "./CONTRIBUTING.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+          "brokenLink": "./LICENSE",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": ".claude\\agents\\diet103\\documentation-architect.md",
+          "brokenLink": "./CHANGELOG.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\FRAMEWORK-OVERVIEW.md",
+          "brokenLink": "ROADMAP.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\index.md",
+          "brokenLink": "README.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\index.md",
+          "brokenLink": "SETUP.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\index.md",
+          "brokenLink": "WORKFLOW.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\index.md",
+          "brokenLink": "TEMPLATE-GUIDE.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\index.md",
+          "brokenLink": "CLAUDE.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\LIVE-USAGE-MONITORING.md",
+          "brokenLink": "./COST-OPTIMIZATION.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\MEMORY_SYSTEM.md",
+          "brokenLink": "./API_REFERENCE.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "docs\\MULTI-AGENT-GUIDE.md",
+          "brokenLink": "./BEST-PRACTICES.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "README.md",
+          "brokenLink": "docs/ROADMAP.md",
+          "linkType": "internal"
+        },
+        {
+          "sourceFile": "README.md",
+          "brokenLink": "docs/ROADMAP.md",
+          "linkType": "internal"
+        }
+      ],
+      "outdatedReferences": [],
+      "missingDocs": [
+        {
+          "component": "agent-orchestrator",
+          "file": ".claude/core/agent-orchestrator.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/AGENT_ORCHESTRATOR.md"
+        },
+        {
+          "component": "agent",
+          "file": ".claude/core/agent.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/AGENT.md"
+        },
+        {
+          "component": "ai-categorizer",
+          "file": ".claude/core/ai-categorizer.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/AI_CATEGORIZER.md"
+        },
+        {
+          "component": "artifact-summarizer",
+          "file": ".claude/core/artifact-summarizer.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/ARTIFACT_SUMMARIZER.md"
+        },
+        {
+          "component": "context-loader",
+          "file": ".claude/core/context-loader.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/CONTEXT_LOADER.md"
+        },
+        {
+          "component": "context-retriever",
+          "file": ".claude/core/context-retriever.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/CONTEXT_RETRIEVER.md"
+        },
+        {
+          "component": "intelligent-orchestrator",
+          "file": ".claude/core/intelligent-orchestrator.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/INTELLIGENT_ORCHESTRATOR.md"
+        },
+        {
+          "component": "lifecycle-hooks",
+          "file": ".claude/core/lifecycle-hooks.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/LIFECYCLE_HOOKS.md"
+        },
+        {
+          "component": "memory-integration",
+          "file": ".claude/core/memory-integration.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/MEMORY_INTEGRATION.md"
+        },
+        {
+          "component": "memory-search-api",
+          "file": ".claude/core/memory-search-api.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/MEMORY_SEARCH_API.md"
+        },
+        {
+          "component": "memory-store",
+          "file": ".claude/core/memory-store.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/MEMORY_STORE.md"
+        },
+        {
+          "component": "message-bus",
+          "file": ".claude/core/message-bus.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/MESSAGE_BUS.md"
+        },
+        {
+          "component": "pattern-recommender",
+          "file": ".claude/core/pattern-recommender.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/PATTERN_RECOMMENDER.md"
+        },
+        {
+          "component": "pattern-selector",
+          "file": ".claude/core/pattern-selector.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/PATTERN_SELECTOR.md"
+        },
+        {
+          "component": "phase-inference",
+          "file": ".claude/core/phase-inference.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/PHASE_INFERENCE.md"
+        },
+        {
+          "component": "session-init",
+          "file": ".claude/core/session-init.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/SESSION_INIT.md"
+        },
+        {
+          "component": "smart-orchestrate",
+          "file": ".claude/core/smart-orchestrate.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/SMART_ORCHESTRATE.md"
+        },
+        {
+          "component": "state-manager",
+          "file": ".claude/core/state-manager.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/STATE_MANAGER.md"
+        },
+        {
+          "component": "summary-generator",
+          "file": ".claude/core/summary-generator.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/SUMMARY_GENERATOR.md"
+        },
+        {
+          "component": "vector-store",
+          "file": ".claude/core/vector-store.js",
+          "exports": [
+            "module"
+          ],
+          "recommendation": "CREATE documentation",
+          "suggestedLocation": "docs/VECTOR_STORE.md"
+        }
+      ],
+      "archiveCandidates": [
+        {
+          "file": "docs\\AGENT-MIGRATION-COMPLETE.md",
+          "reason": "Migration completed",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": "docs\\AGENT-MIGRATION-PLAN.md",
+          "reason": "Migration completed",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": "docs\\IMPLEMENTATION-COMPLETE.md",
+          "reason": "Implementation completed",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": "docs\\IMPLEMENTATION-ROADMAP.md",
+          "reason": "Roadmap - may be outdated",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": "docs\\LEAN-INTEGRATION-ROADMAP.md",
+          "reason": "Roadmap - may be outdated",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": "docs\\UX-REDESIGN-PROPOSAL-v2.md",
+          "reason": "Proposal - likely accepted/rejected",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": ".claude\\agents\\diet103\\strategic-plan-architect.md",
+          "reason": "Roadmap - may be outdated",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": ".claude\\agents\\planning\\strategic-planner.md",
+          "reason": "Roadmap - may be outdated",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": ".claude\\bootstrap.md",
+          "reason": "Roadmap - may be outdated",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": "docs\\AGENT-MIGRATION-COMPLETE.md",
+          "reason": "Migration completed",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": "docs\\AGENT-MIGRATION-PLAN.md",
+          "reason": "Migration completed",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": "docs\\IMPLEMENTATION-COMPLETE.md",
+          "reason": "Implementation completed",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": "docs\\IMPLEMENTATION-ROADMAP.md",
+          "reason": "Roadmap - may be outdated",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": "docs\\LEAN-INTEGRATION-ROADMAP.md",
+          "reason": "Roadmap - may be outdated",
+          "recommendation": "MOVE to docs/archive/"
+        },
+        {
+          "file": "docs\\UX-REDESIGN-PROPOSAL-v2.md",
+          "reason": "Proposal - likely accepted/rejected",
+          "recommendation": "MOVE to docs/archive/"
+        }
+      ],
+      "summary": {
+        "totalDocs": 205,
+        "current": 187,
+        "stale": 6,
+        "outdated": 0,
+        "archiveCandidates": 15,
+        "missingDocs": 20,
+        "brokenLinks": 32,
+        "averageFreshnessScore": 88
+      }
+    },
+    "dependencies": {
+      "unusedDependencies": [
+        {
+          "package": "@opentelemetry/api",
+          "type": "dependency",
+          "recommendation": "REMOVE from package.json"
+        },
+        {
+          "package": "@opentelemetry/exporter-metrics-otlp-http",
+          "type": "dependency",
+          "recommendation": "REMOVE from package.json"
+        },
+        {
+          "package": "sqlite",
+          "type": "dependency",
+          "recommendation": "REMOVE from package.json"
+        },
+        {
+          "package": "sqlite3",
+          "type": "dependency",
+          "recommendation": "REMOVE from package.json"
+        }
+      ],
+      "unusedDevDependencies": [],
+      "duplicateFunctionality": [],
+      "securityIssues": [],
+      "outdatedPackages": [],
+      "summary": {
+        "totalDependencies": 28,
+        "unusedDeps": 4,
+        "unusedDevDeps": 0,
+        "securityHigh": 0,
+        "securityMedium": 0,
+        "majorUpdatesAvailable": 0,
+        "potentialSavingsKB": 0
+      }
+    }
+  }
+}
