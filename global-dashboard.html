@@ -249,6 +249,97 @@
       align-items: center;
     }
 
+    .session-filters {
+      display: flex;
+      gap: 8px;
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+      flex-wrap: wrap;
+    }
+
+    .filter-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .filter-checkbox input[type="checkbox"] {
+      width: 12px;
+      height: 12px;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .filter-checkbox:hover {
+      color: var(--text-primary);
+    }
+
+    .session-group {
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .session-group-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .session-group-header:hover {
+      background: var(--bg-secondary);
+    }
+
+    .session-group-toggle {
+      font-size: 10px;
+      transition: transform 0.2s;
+    }
+
+    .session-group.collapsed .session-group-toggle {
+      transform: rotate(-90deg);
+    }
+
+    .session-group.collapsed .session-group-items {
+      display: none;
+    }
+
+    .session-group-count {
+      color: var(--text-muted);
+      font-weight: normal;
+    }
+
+    .session-type-badge {
+      font-size: 9px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .session-type-badge.cli {
+      background: var(--color-info);
+      color: white;
+    }
+
+    .session-type-badge.autonomous {
+      background: var(--color-warning);
+      color: #1a1a1a;
+    }
+
+    .session-id-text {
+      font-size: 9px;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
     .session-list-header h2 {
       font-size: 12px;
       font-weight: 600;
@@ -1376,6 +1467,24 @@
           <h2 id="sessionsHeading">Sessions</h2>
           <span class="session-count" id="sessionCount" aria-label="Total sessions">0</span>
         </div>
+        <div class="session-filters">
+          <label class="filter-checkbox">
+            <input type="checkbox" id="filterActiveOnly" onchange="updateSessionList()">
+            <span>Active only</span>
+          </label>
+          <label class="filter-checkbox">
+            <input type="checkbox" id="filterShowCli" checked onchange="updateSessionList()">
+            <span>CLI</span>
+          </label>
+          <label class="filter-checkbox">
+            <input type="checkbox" id="filterShowAuto" checked onchange="updateSessionList()">
+            <span>Auto</span>
+          </label>
+          <label class="filter-checkbox">
+            <input type="checkbox" id="filterGroupByProject" checked onchange="updateSessionList()">
+            <span>Group</span>
+          </label>
+        </div>
         <div class="session-items" id="sessionItems" role="listbox" aria-labelledby="sessionsHeading" tabindex="0">
           <!-- Populated by JS -->
         </div>
@@ -1602,28 +1711,22 @@
     }
 
     function enrichActiveSession() {
-      const activeSession = sessions.find(s => s.status === 'active');
-      if (!activeSession) return;
+      // Find first active session to determine the current project
+      const firstActive = sessions.find(s => s.status === 'active');
+      if (!firstActive) return;
 
-      // Add execution state data
-      if (executionState.currentPhase) {
-        activeSession.phase = executionState.currentPhase;
-        activeSession.iteration = executionState.phaseIteration || 1;
+      // Get all active sessions from the SAME project
+      const projectName = firstActive.project;
+      const projectSessions = sessions.filter(s =>
+        s.status === 'active' && s.project === projectName
+      );
 
-        // Extract quality score (can be in scores.summary.totalScore or scores.totalScore)
-        const scores = executionState.qualityScores;
-        if (scores) {
-          const totalScore = scores.summary?.totalScore || scores.totalScore || 0;
-          if (totalScore) {
-            activeSession.qualityScore = totalScore;
-            activeSession.qualityBreakdown = scores.scores || {};
-          }
-        }
-      }
+      // Build task data once
+      let taskQueue = [];
+      let currentTask = null;
 
-      // Add task queue (ready tasks)
       if (tasksData.tasks && tasksData.tasks.length > 0) {
-        activeSession.taskQueue = tasksData.tasks
+        taskQueue = tasksData.tasks
           .filter(t => t.status === 'ready')
           .sort((a, b) => {
             const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -1631,10 +1734,9 @@
           })
           .slice(0, 10);
 
-        // Set current task as the first in-progress or first ready task
         const inProgressTask = tasksData.tasks.find(t => t.status === 'in_progress');
         if (inProgressTask) {
-          activeSession.currentTask = {
+          currentTask = {
             id: inProgressTask.id,
             title: inProgressTask.title,
             description: inProgressTask.description,
@@ -1646,9 +1748,9 @@
             ),
             attempts: inProgressTask.attempts || 1
           };
-        } else if (activeSession.taskQueue.length > 0) {
-          const nextTask = activeSession.taskQueue[0];
-          activeSession.currentTask = {
+        } else if (taskQueue.length > 0) {
+          const nextTask = taskQueue[0];
+          currentTask = {
             id: nextTask.id,
             title: nextTask.title,
             description: nextTask.description,
@@ -1663,8 +1765,22 @@
         }
       }
 
-      // Add task stats
-      activeSession.taskStats = tasksData.stats || {};
+      // Apply shared project-level data to active sessions
+      // BUT preserve each session's individual metrics (quality, context)
+      for (const session of projectSessions) {
+        // Only set phase if session doesn't have its own
+        if (executionState.currentPhase && !session.phase) {
+          session.phase = executionState.currentPhase;
+          session.iteration = executionState.phaseIteration || 1;
+        }
+        // DON'T overwrite session-specific quality scores
+        // Each session tracks its own quality from the session registry
+
+        // Task queue and stats are project-level, safe to share
+        session.taskQueue = taskQueue;
+        session.currentTask = currentTask;
+        session.taskStats = tasksData.stats || {};
+      }
     }
 
     // ===== DATA FETCHING =====
@@ -1678,144 +1794,152 @@
         const projectsData = await projectsRes.json();
         const summaryData = await summaryRes.json();
 
-        // Track which autonomous sessions have been matched to projects
-        const matchedAutoSessionIds = new Set();
+        // Build list of ALL sessions - never merge CLI and autonomous
+        const allSessions = [];
 
-        // Build maps of autonomous sessions by path AND folder for matching
-        const autonomousByPath = {};
-        const autonomousByFolder = {};
-        (summaryData.sessions || []).forEach(s => {
-          if (s.path) {
-            autonomousByPath[s.path] = s;
-            // Also index by folder format (convert path to folder ID format)
-            // e.g., C:\Users\roha3\Claude\multi-agent-template -> C--Users-roha3-Claude-multi-agent-template
-            const folder = s.path.replace(/:/g, '').replace(/[\\/]/g, '-');
-            autonomousByFolder[folder] = s;
-          }
-        });
-
-        // Expand projects into individual CLI sessions
-        // Each project can have multiple CLI sessions (from p.sessions array)
-        const projectSessions = [];
-
+        // 1. Add all CLI sessions from projects (each as separate entry)
         for (const p of (projectsData.projects || [])) {
-          const autoSession = autonomousByPath[p.path] || autonomousByFolder[p.folder];
+          // Filter out agent-* sessions (subagent tasks) - they should roll up to parent
+          const cliSessions = (p.sessions || []).filter(s => {
+            const id = s.id || '';
+            return !id.startsWith('agent-') && !id.includes('/agent-');
+          });
 
-          // Track matched autonomous sessions
-          if (autoSession) {
-            matchedAutoSessionIds.add(autoSession.id);
-          }
+          // Always show each CLI session separately
+          for (const cliSession of cliSessions) {
+            // Double-check: skip if this is an agent session
+            if (cliSession.id?.startsWith('agent-')) continue;
 
-          // If project has multiple sessions, create an entry for each
-          const cliSessions = p.sessions || [];
+            const sessionId = `cli-${p.folder}-${cliSession.id}`;
+            const existingSession = sessions.find(s => s.id === sessionId);
 
-          if (cliSessions.length > 1) {
-            // Multiple CLI sessions - show each separately
-            for (const cliSession of cliSessions) {
-              const sessionId = `${p.folder}-${cliSession.id}`;
-              const existingSession = sessions.find(s => s.id === sessionId);
-              const isActive = cliSession.isActive && p.status === 'active';
+            // Consider session active if:
+            // 1. Project is marked active, OR
+            // 2. Session is marked as current, OR
+            // 3. Has activity within the last 5 minutes
+            const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+            const lastUpdateTime = typeof cliSession.lastUpdate === 'number' ? cliSession.lastUpdate : 0;
+            const hasRecentActivity = lastUpdateTime > fiveMinutesAgo;
+            const isActive = p.status === 'active' || cliSession.isActive || hasRecentActivity;
 
-              projectSessions.push({
-                id: sessionId,
-                project: p.name,
-                path: p.path,
-                cliSessionId: cliSession.id,  // The actual session file ID
-                sessionType: 'cli',
-                status: isActive ? 'active' : 'idle',
-                // For active session, use project metrics; for inactive, use session-specific
-                contextPercent: isActive ? (p.metrics?.contextPercent || 0) : 0,
-                qualityScore: existingSession?.qualityScore || 0,
-                qualityBreakdown: existingSession?.qualityBreakdown || {},
-                cost: p.metrics?.cost || 0,  // Cost is aggregated at project level
-                tokens: isActive ? (p.metrics?.contextUsed || 0) : (cliSession.inputTokens + cliSession.outputTokens),
-                model: p.metrics?.model,
-                messageCount: cliSession.messageCount || 0,
-                currentTask: existingSession?.currentTask || null,
-                taskQueue: existingSession?.taskQueue || [],
-                taskStats: existingSession?.taskStats || {},
-                phase: existingSession?.phase || null,
-                autonomous: false,
-                iteration: existingSession?.iteration || 1,
-                safetyStatus: isActive ? p.safetyStatus : 'OK',
-                logSessionId: null,
-                orchestratorInfo: null,
-                confidenceScore: null,
-                registryId: null,
-                lastUpdate: cliSession.lastUpdate
-              });
-            }
-          } else {
-            // Single session or no sessions - show as before (merged with autonomous if matched)
-            const existingSession = sessions.find(s => s.id === (p.folder || p.name));
-
-            projectSessions.push({
-              id: p.folder || p.name,
+            allSessions.push({
+              id: sessionId,
               project: p.name,
               path: p.path,
-              sessionType: autoSession ? 'autonomous' : 'cli',
-              status: autoSession?.status === 'active' ? 'active' : (p.status === 'active' ? 'active' : 'idle'),
+              folder: p.folder,
+              cliSessionId: cliSession.id,
+              sessionType: 'cli',
+              status: isActive ? 'active' : 'idle',
               contextPercent: p.metrics?.contextPercent || 0,
-              qualityScore: autoSession?.qualityScore || existingSession?.qualityScore || 0,
+              qualityScore: existingSession?.qualityScore || 0,
               qualityBreakdown: existingSession?.qualityBreakdown || {},
+              cost: p.metrics?.cost || 0,
+              tokens: cliSession.inputTokens + cliSession.outputTokens,
+              model: p.metrics?.model,
+              messageCount: cliSession.messageCount || 0,
+              currentTask: existingSession?.currentTask || null,
+              taskQueue: existingSession?.taskQueue || [],
+              taskStats: existingSession?.taskStats || {},
+              phase: existingSession?.phase || null,
+              autonomous: false,
+              iteration: existingSession?.iteration || 1,
+              safetyStatus: isActive ? p.safetyStatus : 'OK',
+              logSessionId: null,
+              orchestratorInfo: null,
+              confidenceScore: null,
+              registryId: null,
+              lastUpdate: cliSession.lastUpdate,
+              startTime: cliSession.lastUpdate // For display
+            });
+          }
+
+          // If no CLI sessions but project exists, still show it
+          if (cliSessions.length === 0) {
+            allSessions.push({
+              id: `cli-${p.folder}-default`,
+              project: p.name,
+              path: p.path,
+              folder: p.folder,
+              cliSessionId: 'default',
+              sessionType: 'cli',
+              status: p.status === 'active' ? 'active' : 'idle',
+              contextPercent: p.metrics?.contextPercent || 0,
+              qualityScore: 0,
+              qualityBreakdown: {},
               cost: p.metrics?.cost || 0,
               tokens: p.metrics?.contextUsed || 0,
               model: p.metrics?.model,
               messageCount: p.metrics?.messageCount || 0,
-              currentTask: autoSession?.currentTask || existingSession?.currentTask || null,
-              taskQueue: existingSession?.taskQueue || [],
-              taskStats: existingSession?.taskStats || {},
-              phase: autoSession?.phase || existingSession?.phase || null,
-              autonomous: autoSession?.autonomous || autoSession?.sessionType === 'autonomous' || false,
-              iteration: autoSession?.iteration || existingSession?.iteration || 1,
+              currentTask: null,
+              taskQueue: [],
+              taskStats: {},
+              phase: null,
+              autonomous: false,
+              iteration: 1,
               safetyStatus: p.safetyStatus,
-              logSessionId: autoSession?.logSessionId || null,
-              orchestratorInfo: autoSession?.orchestratorInfo || null,
-              confidenceScore: autoSession?.confidenceScore || null,
-              registryId: autoSession?.id || null
+              logSessionId: null,
+              orchestratorInfo: null,
+              confidenceScore: null,
+              registryId: null,
+              lastUpdate: p.metrics?.lastUpdate,
+              startTime: p.metrics?.lastUpdate
             });
           }
         }
 
-        // Add autonomous sessions that weren't matched to any project as separate entries
-        const unmatchedAutoSessions = (summaryData.sessions || [])
-          .filter(s => !matchedAutoSessionIds.has(s.id) && s.status !== 'ended')
-          .map(s => {
-            const projectName = s.project || s.path?.split(/[\\/]/).pop() || 'Unknown Project';
-            return {
-              id: `auto-${s.id}`,  // Unique ID for unmatched autonomous sessions
-              project: projectName,
-              path: s.path,
-              sessionType: 'autonomous',
-              status: s.status || 'active',
-              contextPercent: s.contextPercent || 0,
-              qualityScore: s.qualityScore || 0,
-              qualityBreakdown: {},
-              cost: s.cost || 0,
-              tokens: s.tokens || 0,
-              model: null,
-              messageCount: 0,
-              currentTask: s.currentTask || null,
-              taskQueue: s.taskQueue || [],
-              taskStats: {},
-              phase: s.phase || null,
-              autonomous: true,
-              iteration: s.iteration || 1,
-              safetyStatus: null,
-              logSessionId: s.logSessionId || null,
-              orchestratorInfo: s.orchestratorInfo || null,
-              confidenceScore: s.confidenceScore || null,
-              registryId: s.id
-            };
+        // 2. Add all autonomous sessions as separate entries (never merge)
+        for (const s of (summaryData.sessions || [])) {
+          if (s.status === 'ended') continue; // Skip ended sessions by default
+
+          const projectName = s.project || s.path?.split(/[\\/]/).pop() || 'Unknown Project';
+          const folder = s.path ? s.path.replace(/:/g, '').replace(/[\\/]/g, '-') : null;
+
+          allSessions.push({
+            id: `auto-${s.id}`,
+            project: projectName,
+            path: s.path,
+            folder: folder,
+            cliSessionId: null,
+            sessionType: 'autonomous',
+            status: s.status || 'active',
+            contextPercent: s.contextPercent || 0,
+            qualityScore: s.qualityScore || 0,
+            qualityBreakdown: {},
+            cost: s.cost || 0,
+            tokens: s.tokens || 0,
+            model: null,
+            messageCount: 0,
+            currentTask: s.currentTask || null,
+            taskQueue: s.taskQueue || [],
+            taskStats: {},
+            phase: s.phase || null,
+            autonomous: true,
+            iteration: s.iteration || 1,
+            safetyStatus: null,
+            logSessionId: s.logSessionId || null,
+            orchestratorInfo: s.orchestratorInfo || null,
+            confidenceScore: s.confidenceScore || null,
+            registryId: s.id,
+            lastUpdate: s.lastUpdate || s.startTime,
+            startTime: s.startTime
           });
-
-        // Combine: project sessions + unmatched autonomous sessions
-        sessions = [...projectSessions, ...unmatchedAutoSessions];
-
-        // Log for debugging
-        if (unmatchedAutoSessions.length > 0) {
-          console.log(`[Sessions] Added ${unmatchedAutoSessions.length} unmatched autonomous sessions`);
         }
+
+        // Sort by: active first, then by lastUpdate (most recent first)
+        allSessions.sort((a, b) => {
+          // Active sessions first
+          const aActive = a.status === 'active' ? 1 : 0;
+          const bActive = b.status === 'active' ? 1 : 0;
+          if (aActive !== bActive) return bActive - aActive;
+          // Then by most recent activity
+          return (b.lastUpdate || 0) - (a.lastUpdate || 0);
+        });
+
+        // Final filter: remove any sessions with agent IDs that slipped through
+        sessions = allSessions.filter(s => {
+          const cliId = s.cliSessionId || '';
+          return !cliId.startsWith('agent-');
+        });
 
         // Note: Enrichment with task/execution data happens in fetchTasksAndExecution()
         updateTrafficLights();
@@ -1859,7 +1983,6 @@
 
             // Check if task data actually changed
             if (JSON.stringify(newStats) !== JSON.stringify(oldStats)) {
-              console.log('[SSE] Task data changed, updating...');
               tasksData = {
                 tasks: [...(data.taskData.inProgress || []), ...(data.taskData.ready || [])],
                 stats: newStats
@@ -1875,7 +1998,6 @@
 
             // Check if execution state changed
             if (JSON.stringify(newScores) !== JSON.stringify(oldScores)) {
-              console.log('[SSE] Execution state changed, updating...');
               executionState = data.executionState;
               needsUIUpdate = true;
             }
@@ -1886,108 +2008,142 @@
             enrichActiveSession();
           }
 
-          // Handle projects data from SSE
+          // Handle projects data from SSE - update existing sessions in-place to avoid bouncing
           if (data.projects) {
-            // Update sessions while preserving enriched data
-            // Check if context data actually changed
-            let contextChanged = false;
+            let anyChanged = false;
 
-            // Preserve autonomous sessions that aren't linked to projects (start with 'auto-')
-            const autonomousSessions = sessions.filter(s => s.id?.toString().startsWith('auto-'));
-
-            // Expand projects into individual CLI sessions (same logic as fetchSessions)
-            const newProjectSessions = [];
-
+            // Update CLI sessions in-place
             for (const p of data.projects) {
-              const cliSessions = p.sessions || [];
+              // Filter out agent-* sessions (subagent tasks)
+              const cliSessions = (p.sessions || []).filter(s => {
+                const id = s.id || '';
+                return !id.startsWith('agent-') && !id.includes('/agent-');
+              });
+              const defaultSessionId = `cli-${p.folder}-default`;
 
-              if (cliSessions.length > 1) {
-                // Multiple CLI sessions - update each separately
-                for (const cliSession of cliSessions) {
-                  const sessionId = `${p.folder}-${cliSession.id}`;
-                  const existingSession = sessions.find(s => s.id === sessionId);
-                  const isActive = cliSession.isActive && p.status === 'active';
-                  const newContextPercent = isActive ? (p.metrics?.contextPercent || 0) : 0;
+              // If we have real sessions, remove any "default" placeholder
+              if (cliSessions.length > 0) {
+                const defaultIdx = sessions.findIndex(s => s.id === defaultSessionId);
+                if (defaultIdx >= 0) {
+                  sessions.splice(defaultIdx, 1);
+                  anyChanged = true;
+                }
+              }
 
-                  if (!existingSession || Math.abs(existingSession.contextPercent - newContextPercent) > 0.1) {
-                    contextChanged = true;
-                  }
+              for (const cliSession of cliSessions) {
+                // Skip agent sessions
+                if (cliSession.id?.startsWith('agent-')) continue;
 
-                  newProjectSessions.push({
+                const sessionId = `cli-${p.folder}-${cliSession.id}`;
+                const existing = sessions.find(s => s.id === sessionId);
+
+                // Consider session active if project active, session current, or recent activity
+                const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+                const lastUpdateTime = typeof cliSession.lastUpdate === 'number' ? cliSession.lastUpdate : 0;
+                const hasRecentActivity = lastUpdateTime > fiveMinutesAgo;
+                const isActive = p.status === 'active' || cliSession.isActive || hasRecentActivity;
+                const newContextPercent = p.metrics?.contextPercent || 0;
+
+                if (existing) {
+                  // Update in-place - only mark changed if values actually differ
+                  const oldStatus = existing.status;
+                  existing.status = isActive ? 'active' : 'idle';
+                  existing.contextPercent = newContextPercent;
+                  existing.cost = isActive ? (p.metrics?.cost || 0) : 0;
+                  existing.tokens = isActive ? (p.metrics?.contextUsed || 0) : (cliSession.inputTokens + cliSession.outputTokens);
+                  existing.model = p.metrics?.model;
+                  existing.messageCount = cliSession.messageCount || 0;
+                  existing.safetyStatus = isActive ? p.safetyStatus : 'OK';
+                  existing.lastUpdate = cliSession.lastUpdate;
+                  if (oldStatus !== existing.status) anyChanged = true;
+                } else {
+                  // New session - add it
+                  anyChanged = true;
+                  sessions.push({
                     id: sessionId,
                     project: p.name,
                     path: p.path,
+                    folder: p.folder,
                     cliSessionId: cliSession.id,
                     sessionType: 'cli',
                     status: isActive ? 'active' : 'idle',
                     contextPercent: newContextPercent,
-                    cost: p.metrics?.cost || 0,
+                    cost: isActive ? (p.metrics?.cost || 0) : 0,
                     tokens: isActive ? (p.metrics?.contextUsed || 0) : (cliSession.inputTokens + cliSession.outputTokens),
                     model: p.metrics?.model,
                     messageCount: cliSession.messageCount || 0,
                     safetyStatus: isActive ? p.safetyStatus : 'OK',
-                    qualityScore: existingSession?.qualityScore || 0,
-                    qualityBreakdown: existingSession?.qualityBreakdown || {},
-                    currentTask: existingSession?.currentTask || null,
-                    taskQueue: existingSession?.taskQueue || [],
-                    taskStats: existingSession?.taskStats || {},
-                    phase: existingSession?.phase || null,
-                    iteration: existingSession?.iteration || 1,
+                    qualityScore: 0,
+                    qualityBreakdown: {},
+                    currentTask: null,
+                    taskQueue: [],
+                    taskStats: {},
+                    phase: null,
+                    iteration: 1,
                     autonomous: false,
                     logSessionId: null,
                     orchestratorInfo: null,
                     confidenceScore: null,
                     registryId: null,
-                    lastUpdate: cliSession.lastUpdate
+                    lastUpdate: cliSession.lastUpdate,
+                    startTime: cliSession.lastUpdate
                   });
                 }
-              } else {
-                // Single session - preserve existing behavior
-                const existingSession = sessions.find(s => s.id === (p.folder || p.name));
+              }
+
+              // Only create default session if no real CLI sessions exist
+              if (cliSessions.length === 0) {
+                const existing = sessions.find(s => s.id === defaultSessionId);
                 const newContextPercent = p.metrics?.contextPercent || 0;
 
-                if (!existingSession || Math.abs(existingSession.contextPercent - newContextPercent) > 0.1) {
-                  contextChanged = true;
+                if (existing) {
+                  const oldStatus = existing.status;
+                  existing.status = p.status === 'active' ? 'active' : 'idle';
+                  existing.contextPercent = newContextPercent;
+                  existing.cost = p.metrics?.cost || 0;
+                  existing.tokens = p.metrics?.contextUsed || 0;
+                  existing.messageCount = p.metrics?.messageCount || 0;
+                  existing.safetyStatus = p.safetyStatus;
+                  existing.lastUpdate = p.metrics?.lastUpdate;
+                  if (oldStatus !== existing.status) anyChanged = true;
+                } else {
+                  anyChanged = true;
+                  sessions.push({
+                    id: defaultSessionId,
+                    project: p.name,
+                    path: p.path,
+                    folder: p.folder,
+                    cliSessionId: 'default',
+                    sessionType: 'cli',
+                    status: p.status === 'active' ? 'active' : 'idle',
+                    contextPercent: newContextPercent,
+                    cost: p.metrics?.cost || 0,
+                    tokens: p.metrics?.contextUsed || 0,
+                    model: p.metrics?.model,
+                    messageCount: p.metrics?.messageCount || 0,
+                    safetyStatus: p.safetyStatus,
+                    qualityScore: 0,
+                    qualityBreakdown: {},
+                    currentTask: null,
+                    taskQueue: [],
+                    taskStats: {},
+                    phase: null,
+                    iteration: 1,
+                    autonomous: false,
+                    logSessionId: null,
+                    orchestratorInfo: null,
+                    confidenceScore: null,
+                    registryId: null,
+                    lastUpdate: p.metrics?.lastUpdate,
+                    startTime: p.metrics?.lastUpdate
+                  });
                 }
-
-                newProjectSessions.push({
-                  id: p.folder || p.name,
-                  project: p.name,
-                  path: p.path,
-                  sessionType: existingSession?.sessionType || 'cli',
-                  status: existingSession?.autonomous ? (existingSession.status || 'active') : (p.status === 'active' ? 'active' : 'idle'),
-                  contextPercent: newContextPercent,
-                  cost: p.metrics?.cost || 0,
-                  tokens: p.metrics?.contextUsed || 0,
-                  model: p.metrics?.model,
-                  messageCount: p.metrics?.messageCount || 0,
-                  safetyStatus: p.safetyStatus,
-                  qualityScore: existingSession?.qualityScore || 0,
-                  qualityBreakdown: existingSession?.qualityBreakdown || {},
-                  currentTask: existingSession?.currentTask || null,
-                  taskQueue: existingSession?.taskQueue || [],
-                  taskStats: existingSession?.taskStats || {},
-                  phase: existingSession?.phase || null,
-                  iteration: existingSession?.iteration || 1,
-                  autonomous: existingSession?.autonomous || false,
-                  logSessionId: existingSession?.logSessionId || null,
-                  orchestratorInfo: existingSession?.orchestratorInfo || null,
-                  confidenceScore: existingSession?.confidenceScore || null,
-                  registryId: existingSession?.registryId || null
-                });
               }
             }
 
-            // Combine project sessions with preserved autonomous sessions
-            sessions = [...newProjectSessions, ...autonomousSessions];
-
-            // Update UI if context data or task data changed
-            if (contextChanged || needsUIUpdate) {
-              updateTrafficLights();
-              updateSessionList();
-              if (selectedSessionId) {
-                updateDetailPanel();
-              }
+            // Update UI only if something actually changed (throttled to reduce jumping)
+            if (anyChanged || needsUIUpdate) {
+              throttledUIUpdate();
             }
           }
         } catch (err) {
@@ -2013,52 +2169,195 @@
       const container = document.getElementById('trafficLights');
       const summary = document.getElementById('statusSummary');
 
-      let healthy = 0, warning = 0, critical = 0, idle = 0;
+      let healthy = 0, warning = 0, critical = 0, idle = 0, cli = 0;
 
       container.innerHTML = sessions.map(s => {
         const quality = s.qualityScore || 0;
         const isIdle = s.status === 'idle' || s.status === 'paused';
+        const isAutonomous = s.autonomous || s.isAutonomous;
 
-        let statusClass, statusText;
-        if (isIdle) {
+        let statusClass, tooltipText;
+        if (!isAutonomous) {
+          // CLI sessions don't have quality tracking
+          statusClass = isIdle ? 'idle' : 'good';
+          tooltipText = `${s.project}: CLI (no quality tracking)`;
+          cli++;
+        } else if (isIdle) {
           statusClass = 'idle';
-          statusText = 'Idle';
+          tooltipText = `${s.project}: Idle`;
           idle++;
         } else if (quality >= 85) {
           statusClass = 'excellent';
-          statusText = 'Excellent';
+          tooltipText = `${s.project}: ${quality}`;
           healthy++;
         } else if (quality >= 75) {
           statusClass = 'good';
-          statusText = 'Good';
+          tooltipText = `${s.project}: ${quality}`;
           healthy++;
         } else if (quality >= 50) {
           statusClass = 'warning';
-          statusText = 'Warning';
+          tooltipText = `${s.project}: ${quality}`;
           warning++;
         } else {
           statusClass = 'critical';
-          statusText = 'Critical';
+          tooltipText = `${s.project}: ${quality}`;
           critical++;
         }
 
         return `
           <div class="traffic-light ${statusClass}" onclick="selectSession('${s.id}')" title="${s.project}">
-            <div class="traffic-light-tooltip">${s.project}: ${isIdle ? 'Idle' : quality}</div>
+            <div class="traffic-light-tooltip">${tooltipText}</div>
           </div>
         `;
       }).join('');
 
+      // Build summary - only show quality counts for autonomous sessions
       const parts = [];
       if (healthy) parts.push(`${healthy} healthy`);
       if (warning) parts.push(`${warning} warning`);
       if (critical) parts.push(`${critical} critical`);
       if (idle) parts.push(`${idle} idle`);
+      if (cli) parts.push(`${cli} CLI`);
 
-      summary.textContent = `${sessions.length} sessions: ${parts.join(', ') || 'none'}`;
+      // If all sessions are CLI, indicate no quality tracking
+      if (cli === sessions.length && sessions.length > 0) {
+        summary.textContent = `${sessions.length} CLI sessions (no quality tracking)`;
+      } else {
+        summary.textContent = `${sessions.length} sessions: ${parts.join(', ') || 'none'}`;
+      }
     }
 
     // ===== SESSION LIST =====
+    // Track collapsed groups
+    const collapsedGroups = new Set();
+
+    // Throttle UI updates to prevent jumping
+    let lastUIUpdate = 0;
+    const UI_UPDATE_THROTTLE = 500; // ms
+    let pendingUIUpdate = null;
+
+    function throttledUIUpdate() {
+      const now = Date.now();
+      if (now - lastUIUpdate >= UI_UPDATE_THROTTLE) {
+        lastUIUpdate = now;
+        updateTrafficLights();
+        updateSessionList();
+        if (selectedSessionId) {
+          updateDetailPanel();
+        }
+      } else if (!pendingUIUpdate) {
+        pendingUIUpdate = setTimeout(() => {
+          pendingUIUpdate = null;
+          lastUIUpdate = Date.now();
+          updateTrafficLights();
+          updateSessionList();
+          if (selectedSessionId) {
+            updateDetailPanel();
+          }
+        }, UI_UPDATE_THROTTLE - (now - lastUIUpdate));
+      }
+    }
+
+    function toggleGroup(project) {
+      if (collapsedGroups.has(project)) {
+        collapsedGroups.delete(project);
+      } else {
+        collapsedGroups.add(project);
+      }
+      updateSessionList();
+    }
+
+    function renderSessionItem(s) {
+      const quality = s.qualityScore || 0;
+      const isIdle = s.status === 'idle' || s.status === 'paused';
+      const isAutonomous = s.autonomous || s.isAutonomous;
+      const isSelected = s.id === selectedSessionId;
+
+      // CLI sessions don't have quality tracking - show NA
+      let qualityClass;
+      let qualityDisplay;
+      if (!isAutonomous) {
+        qualityClass = 'idle';
+        qualityDisplay = 'NA';
+      } else if (isIdle) {
+        qualityClass = 'idle';
+        qualityDisplay = '--';
+      } else if (quality >= 85) {
+        qualityClass = 'excellent';
+        qualityDisplay = quality;
+      } else if (quality >= 75) {
+        qualityClass = 'good';
+        qualityDisplay = quality;
+      } else if (quality >= 50) {
+        qualityClass = 'warning';
+        qualityDisplay = quality;
+      } else {
+        qualityClass = 'critical';
+        qualityDisplay = quality;
+      }
+
+      let borderClass = '';
+      if (isAutonomous && !isIdle && quality < 50) borderClass = 'critical';
+      else if (isAutonomous && !isIdle && quality < 75) borderClass = 'warning';
+
+      // Format session ID for display
+      const sessionIdShort = s.cliSessionId || (s.registryId ? `#${s.registryId}` : '');
+      const sessionTypeLabel = isAutonomous ? 'AUTO' : 'CLI';
+      const sessionTypeBadgeClass = isAutonomous ? 'autonomous' : 'cli';
+
+      // Format time
+      const timeAgo = s.lastUpdate ? formatTimeAgo(s.lastUpdate) : '';
+
+      return `
+        <div class="session-item ${borderClass} ${isSelected ? 'selected' : ''}"
+             onclick="selectSession('${s.id}')"
+             role="option"
+             tabindex="0"
+             aria-selected="${isSelected}"
+             aria-label="${s.project} ${sessionTypeLabel} session, quality ${qualityDisplay}"
+             onkeydown="if(event.key==='Enter'||event.key===' ')selectSession('${s.id}')">
+          <div class="session-header">
+            <span class="session-name">
+              <span class="session-type-badge ${sessionTypeBadgeClass}">${sessionTypeLabel}</span>
+              ${s.project}
+            </span>
+            <span class="quality-badge ${qualityClass}" aria-label="Quality score ${qualityDisplay}">${qualityDisplay}</span>
+          </div>
+          <div class="session-task">
+            ${s.currentTask?.id || (s.taskQueue?.length ? `Next: ${s.taskQueue[0].id}` : 'No active task')}
+            ${(s.currentTask?.phase || s.phase) ? `<span class="phase-badge ${s.currentTask?.phase || s.phase}">${s.currentTask?.phase || s.phase}</span>` : ''}
+            ${s.iteration > 1 ? `<span style="font-size:10px;color:var(--text-muted)">iter ${s.iteration}</span>` : ''}
+          </div>
+          <div class="session-metrics">
+            <span class="session-id-text" title="Session ID">${sessionIdShort}</span>
+            <span title="Context used">${Math.round(s.contextPercent || 0)}% ctx</span>
+            ${s.taskStats?.total ? `<span title="Task completion">${s.taskStats.byStatus?.completed || 0}/${s.taskStats.total} tasks</span>` : ''}
+            ${timeAgo ? `<span title="Last update">${timeAgo}</span>` : ''}
+            ${settings.showCost ? `<span title="Cost">$${(s.cost || 0).toFixed(2)}</span>` : ''}
+          </div>
+          <div class="session-controls" onclick="event.stopPropagation()">
+            <button class="control-btn pause" onclick="togglePause('${s.id}')" aria-label="${s.status === 'paused' ? 'Resume session' : 'Pause session'}">
+              ${s.status === 'paused' ? '▶' : '⏸'}
+            </button>
+            <button class="control-btn skip" onclick="skipTask('${s.id}')" aria-label="Skip current task">⏭</button>
+            <button class="control-btn end" onclick="endSession('${s.id}')" aria-label="End session">⏹</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function formatTimeAgo(timestamp) {
+      if (!timestamp) return '';
+      const seconds = Math.floor((Date.now() - timestamp) / 1000);
+      if (seconds < 60) return `${seconds}s ago`;
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      return `${days}d ago`;
+    }
+
     function updateSessionList() {
       const container = document.getElementById('sessionItems');
       const countEl = document.getElementById('sessionCount');
@@ -2066,66 +2365,99 @@
       // Preserve scroll position
       const scrollTop = container.scrollTop;
 
-      countEl.textContent = sessions.length;
+      // Get filter settings
+      const activeOnly = document.getElementById('filterActiveOnly')?.checked ?? false;
+      const showCli = document.getElementById('filterShowCli')?.checked ?? true;
+      const showAuto = document.getElementById('filterShowAuto')?.checked ?? true;
+      const groupByProject = document.getElementById('filterGroupByProject')?.checked ?? true;
 
-      container.innerHTML = sessions.map(s => {
-        const quality = s.qualityScore || 0;
-        const isIdle = s.status === 'idle' || s.status === 'paused';
+      // Apply filters and sort (active first, then by most recent)
+      const filteredSessions = sessions.filter(s => {
+        const isActive = s.status === 'active';
         const isAutonomous = s.autonomous || s.isAutonomous;
-        const isSelected = s.id === selectedSessionId;
 
-        let qualityClass;
-        if (isIdle) qualityClass = 'idle';
-        else if (quality >= 85) qualityClass = 'excellent';
-        else if (quality >= 75) qualityClass = 'good';
-        else if (quality >= 50) qualityClass = 'warning';
-        else qualityClass = 'critical';
+        if (activeOnly && !isActive) return false;
+        if (!showCli && !isAutonomous) return false;
+        if (!showAuto && isAutonomous) return false;
 
-        let borderClass = '';
-        if (!isIdle && quality < 50) borderClass = 'critical';
-        else if (!isIdle && quality < 75) borderClass = 'warning';
+        return true;
+      }).sort((a, b) => {
+        // Active first, then by most recent
+        const aActive = a.status === 'active' ? 1 : 0;
+        const bActive = b.status === 'active' ? 1 : 0;
+        if (aActive !== bActive) return bActive - aActive;
+        return (b.lastUpdate || 0) - (a.lastUpdate || 0);
+      });
 
-        const prediction = predictions[s.project] || {};
-        const exhaustionText = prediction.minutesToExhaustion
-          ? `~${prediction.minutesToExhaustion}m to limit`
-          : '';
+      // Time thresholds for activity
+      const now = Date.now();
+      const thirtyMinsAgo = now - (30 * 60 * 1000);
+      const tenMinsAgo = now - (10 * 60 * 1000);
 
-        return `
-          <div class="session-item ${borderClass} ${isSelected ? 'selected' : ''}"
-               onclick="selectSession('${s.id}')"
-               role="option"
-               tabindex="0"
-               aria-selected="${isSelected}"
-               aria-label="${s.project} session, quality ${isIdle ? 'idle' : quality}, ${s.currentTask?.id || 'no active task'}"
-               onkeydown="if(event.key==='Enter'||event.key===' ')selectSession('${s.id}')">
-            <div class="session-header">
-              <span class="session-name">
-                ${s.project}
-                ${isAutonomous ? '<span class="autonomous-badge" title="Autonomous" aria-label="Autonomous session">🤖</span>' : ''}
-              </span>
-              <span class="quality-badge ${qualityClass}" aria-label="Quality score ${isIdle ? 'idle' : quality}">${isIdle ? '--' : quality}</span>
+      if (groupByProject) {
+        // Group sessions by project
+        const groups = {};
+        for (const s of filteredSessions) {
+          const key = s.project || 'Unknown';
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(s);
+        }
+
+        // Filter to only active projects (has session active in last 30 mins)
+        const activeGroups = Object.entries(groups).filter(([, projectSessions]) => {
+          return projectSessions.some(s => (s.lastUpdate || 0) > thirtyMinsAgo);
+        });
+
+        // Sort groups by: has active session, then by most recent update in group
+        const sortedGroups = activeGroups.sort(([, sessionsA], [, sessionsB]) => {
+          const aHasActive = sessionsA.some(s => s.status === 'active') ? 1 : 0;
+          const bHasActive = sessionsB.some(s => s.status === 'active') ? 1 : 0;
+          if (aHasActive !== bHasActive) return bHasActive - aHasActive;
+          const aMaxUpdate = Math.max(...sessionsA.map(s => s.lastUpdate || 0));
+          const bMaxUpdate = Math.max(...sessionsB.map(s => s.lastUpdate || 0));
+          return bMaxUpdate - aMaxUpdate;
+        });
+
+        // Count visible sessions
+        let visibleCount = 0;
+
+        // Render grouped
+        container.innerHTML = sortedGroups.map(([project, projectSessions]) => {
+          // Within active projects, only show sessions active in last 10 mins
+          const recentSessions = projectSessions.filter(s => (s.lastUpdate || 0) > tenMinsAgo);
+          const hiddenCount = projectSessions.length - recentSessions.length;
+
+          visibleCount += recentSessions.length;
+
+          // Skip if no recent sessions (shouldn't happen since project is active)
+          if (recentSessions.length === 0) return '';
+
+          const activeCount = recentSessions.filter(s => s.status === 'active').length;
+
+          // Only collapse if user manually collapsed it
+          const isCollapsed = collapsedGroups.has(project);
+
+          return `
+            <div class="session-group ${isCollapsed ? 'collapsed' : ''}">
+              <div class="session-group-header" onclick="toggleGroup('${project}')">
+                <span class="session-group-toggle">▼</span>
+                <span>${project}</span>
+                <span class="session-group-count">${activeCount > 0 ? `${activeCount} active` : 'idle'}${hiddenCount > 0 ? ` (+${hiddenCount} older)` : ''}</span>
+              </div>
+              <div class="session-group-items">
+                ${recentSessions.map(s => renderSessionItem(s)).join('')}
+              </div>
             </div>
-            <div class="session-task">
-              ${s.currentTask?.id || (s.taskQueue?.length ? `Next: ${s.taskQueue[0].id}` : 'No active task')}
-              ${(s.currentTask?.phase || s.phase) ? `<span class="phase-badge ${s.currentTask?.phase || s.phase}">${s.currentTask?.phase || s.phase}</span>` : ''}
-              ${s.iteration > 1 ? `<span style="font-size:10px;color:var(--text-muted)">iter ${s.iteration}</span>` : ''}
-            </div>
-            <div class="session-metrics">
-              <span title="Context used">${Math.round(s.contextPercent || 0)}% ctx</span>
-              ${s.taskStats?.total ? `<span title="Task completion">${s.taskStats.byStatus?.completed || 0}/${s.taskStats.total} tasks</span>` : ''}
-              ${s.taskQueue?.length ? `<span title="Ready tasks">${s.taskQueue.length} ready</span>` : ''}
-              ${settings.showCost ? `<span title="Cost">$${(s.cost || 0).toFixed(2)}</span>` : ''}
-            </div>
-            <div class="session-controls" onclick="event.stopPropagation()">
-              <button class="control-btn pause" onclick="togglePause('${s.id}')" aria-label="${s.status === 'paused' ? 'Resume session' : 'Pause session'}">
-                ${s.status === 'paused' ? '▶' : '⏸'}
-              </button>
-              <button class="control-btn skip" onclick="skipTask('${s.id}')" aria-label="Skip current task">⏭</button>
-              <button class="control-btn end" onclick="endSession('${s.id}')" aria-label="End session">⏹</button>
-            </div>
-          </div>
-        `;
-      }).join('');
+          `;
+        }).join('');
+
+        countEl.textContent = `${visibleCount}/${sessions.length}`;
+      } else {
+        // Render flat list - only show sessions active in last 10 mins
+        const recentSessions = filteredSessions.filter(s => (s.lastUpdate || 0) > tenMinsAgo);
+        container.innerHTML = recentSessions.map(s => renderSessionItem(s)).join('');
+        countEl.textContent = `${recentSessions.length}/${sessions.length}`;
+      }
 
       // Restore scroll position
       container.scrollTop = scrollTop;
@@ -2166,24 +2498,33 @@
       const prediction = predictions[session.project] || {};
       const isAutonomous = session.autonomous || session.isAutonomous;
 
+      // CLI sessions don't have quality tracking - show NA
       let qualityClass = 'health';
-      if (!isIdle && quality < 50) qualityClass = 'critical';
-      else if (!isIdle && quality < 75) qualityClass = 'warning';
+      let qualityDisplay;
+      if (!isAutonomous) {
+        qualityDisplay = 'NA';
+      } else if (isIdle) {
+        qualityDisplay = '--';
+      } else {
+        qualityDisplay = quality;
+        if (quality < 50) qualityClass = 'critical';
+        else if (quality < 75) qualityClass = 'warning';
+      }
 
       // Build quality breakdown tooltip
       const qualityBreakdown = session.qualityBreakdown || {};
-      const breakdownText = Object.entries(qualityBreakdown)
+      const breakdownText = isAutonomous ? Object.entries(qualityBreakdown)
         .map(([k, v]) => `${k}: ${v}`)
-        .join(', ');
+        .join(', ') : 'Quality tracking only available for autonomous sessions';
 
       const metricsHTML = `
         <div class="metric-card ${qualityClass}">
           <div class="metric-label">Quality Score</div>
-          <div class="metric-value ${quality >= 75 ? 'success' : quality >= 50 ? 'warning' : 'danger'}"
-               title="${breakdownText || 'No breakdown available'}">
-            ${isIdle ? '--' : quality}
+          <div class="metric-value ${isAutonomous && quality >= 75 ? 'success' : isAutonomous && quality >= 50 ? 'warning' : ''}"
+               title="${breakdownText}">
+            ${qualityDisplay}
           </div>
-          ${breakdownText ? `<div class="metric-detail" style="font-size:10px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${breakdownText}">${Object.keys(qualityBreakdown).length} criteria scored</div>` : ''}
+          ${isAutonomous && breakdownText && Object.keys(qualityBreakdown).length ? `<div class="metric-detail" style="font-size:10px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${breakdownText}">${Object.keys(qualityBreakdown).length} criteria scored</div>` : ''}
         </div>
         <div class="metric-card">
           <div class="metric-label">Context Used</div>

@@ -422,14 +422,24 @@ class AgentOrchestrator {
    * @param {Object} topic - Topic/task to debate
    * @param {number} rounds - Number of debate rounds
    * @param {Object} options - Debate options
+   * @param {boolean} [options.parallelSynthesis=false] - Enable parallel synthesis with multiple agents
+   * @param {number} [options.synthesizerCount=1] - Number of synthesizers when parallel (default: all agents)
+   * @param {string} [options.mergeStrategy='best'] - How to merge parallel syntheses: 'best', 'consensus', 'merge'
    * @returns {Promise<Object>} Final refined result
    */
   async executeDebate(agentIds, topic, rounds = 3, options = {}) {
-    const { timeout = 60000 } = options;
+    const {
+      timeout = 60000,
+      parallelSynthesis = false,
+      synthesizerCount = agentIds.length,
+      mergeStrategy = 'best'
+    } = options;
 
     logger.info('Starting debate', {
       agentCount: agentIds.length,
-      rounds
+      rounds,
+      parallelSynthesis,
+      synthesizerCount: parallelSynthesis ? Math.min(synthesizerCount, agentIds.length) : 1
     });
 
     let proposal = topic.initialProposal || 'Initial proposal';
@@ -459,9 +469,61 @@ class AgentOrchestrator {
         round
       };
 
-      // Use first agent to synthesize (could be specialized synthesizer agent)
-      const synthesizer = this.getAgent(agentIds[0]);
-      const synthesized = await synthesizer.execute(synthesizeTask);
+      let synthesized;
+      let synthesisResults = [];
+
+      if (parallelSynthesis && agentIds.length > 1) {
+        // Parallel synthesis: multiple agents synthesize concurrently for 2.5x speedup
+        const synthesizerIds = agentIds.slice(0, Math.min(synthesizerCount, agentIds.length));
+
+        logger.debug('Parallel synthesis starting', {
+          round,
+          synthesizerCount: synthesizerIds.length,
+          mergeStrategy
+        });
+
+        // Execute all synthesizers in parallel
+        const synthesisPromises = synthesizerIds.map(async (agentId) => {
+          const agent = this.getAgent(agentId);
+          if (!agent) {
+            throw new Error(`Synthesizer agent not found: ${agentId}`);
+          }
+          const result = await agent.execute(synthesizeTask);
+          return { agentId, result };
+        });
+
+        const parallelResults = await Promise.allSettled(synthesisPromises);
+
+        // Collect successful syntheses
+        for (const result of parallelResults) {
+          if (result.status === 'fulfilled') {
+            synthesisResults.push(result.value);
+          } else {
+            logger.warn('Parallel synthesis failed for agent', {
+              error: result.reason?.message || result.reason
+            });
+          }
+        }
+
+        if (synthesisResults.length === 0) {
+          throw new Error('All parallel synthesizers failed');
+        }
+
+        // Merge results based on strategy
+        synthesized = await this._mergeDebateSyntheses(synthesisResults, mergeStrategy);
+
+        logger.debug('Parallel synthesis complete', {
+          round,
+          successfulSynthesizers: synthesisResults.length,
+          mergeStrategy
+        });
+
+      } else {
+        // Sequential synthesis: use first agent (default behavior)
+        const synthesizer = this.getAgent(agentIds[0]);
+        synthesized = await synthesizer.execute(synthesizeTask);
+        synthesisResults = [{ agentId: agentIds[0], result: synthesized }];
+      }
 
       proposal = synthesized.improvedProposal || synthesized.result || proposal;
 
@@ -469,20 +531,117 @@ class AgentOrchestrator {
         round,
         proposal,
         critiques: critiques.results,
-        synthesized
+        synthesized,
+        parallelSynthesis: parallelSynthesis && agentIds.length > 1,
+        synthesisResults: parallelSynthesis ? synthesisResults : undefined
       });
 
       logger.debug('Debate round complete', { round, proposalLength: proposal.length });
     }
 
-    logger.info('Debate complete', { rounds, historyLength: debateHistory.length });
+    logger.info('Debate complete', {
+      rounds,
+      historyLength: debateHistory.length,
+      parallelSynthesis
+    });
 
     return {
       success: true,
       finalProposal: proposal,
       debateHistory,
-      rounds
+      rounds,
+      parallelSynthesis
     };
+  }
+
+  /**
+   * Merge multiple synthesis results from parallel debate synthesis
+   * @private
+   * @param {Array<{agentId: string, result: Object}>} synthesisResults - Results from parallel synthesizers
+   * @param {string} strategy - Merge strategy: 'best', 'consensus', 'merge'
+   * @returns {Object} Merged synthesis result
+   */
+  async _mergeDebateSyntheses(synthesisResults, strategy) {
+    if (synthesisResults.length === 0) {
+      throw new Error('No synthesis results to merge');
+    }
+
+    if (synthesisResults.length === 1) {
+      return synthesisResults[0].result;
+    }
+
+    switch (strategy) {
+      case 'best':
+        // Select the synthesis with the highest quality score or confidence
+        let best = synthesisResults[0].result;
+        let bestScore = best.quality || best.confidence || 0;
+
+        for (const { result } of synthesisResults) {
+          const score = result.quality || result.confidence || 0;
+          if (score > bestScore) {
+            best = result;
+            bestScore = score;
+          }
+        }
+
+        // If no scores, use the first result (maintains backward compatibility)
+        return best;
+
+      case 'consensus':
+        // Find common elements across all syntheses
+        const proposals = synthesisResults.map(s =>
+          s.result.improvedProposal || s.result.result || ''
+        );
+
+        // Simple consensus: if all proposals are similar (>80% overlap), use first
+        // Otherwise, merge unique insights
+        const allSimilar = proposals.every((p, i) =>
+          i === 0 || this._calculateSimilarity(proposals[0], p) > 0.8
+        );
+
+        if (allSimilar) {
+          return synthesisResults[0].result;
+        }
+
+        // Merge unique points
+        return {
+          improvedProposal: proposals.join('\n\n--- Alternative synthesis ---\n\n'),
+          merged: true,
+          sourceCount: synthesisResults.length,
+          consensus: false
+        };
+
+      case 'merge':
+        // Combine all synthesis results
+        const allProposals = synthesisResults.map(s =>
+          s.result.improvedProposal || s.result.result || ''
+        );
+
+        return {
+          improvedProposal: allProposals.join('\n\n--- Synthesis from another agent ---\n\n'),
+          merged: true,
+          sourceCount: synthesisResults.length,
+          sources: synthesisResults.map(s => s.agentId)
+        };
+
+      default:
+        logger.warn('Unknown merge strategy, using best', { strategy });
+        return synthesisResults[0].result;
+    }
+  }
+
+  /**
+   * Calculate similarity between two strings (simple Jaccard similarity on words)
+   * @private
+   */
+  _calculateSimilarity(str1, str2) {
+    const words1 = new Set(str1.toLowerCase().split(/\s+/));
+    const words2 = new Set(str2.toLowerCase().split(/\s+/));
+
+    const intersection = new Set([...words1].filter(w => words2.has(w)));
+    const union = new Set([...words1, ...words2]);
+
+    return union.size > 0 ? intersection.size / union.size : 0;
   }
 
   /**

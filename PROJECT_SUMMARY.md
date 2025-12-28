@@ -1,68 +1,69 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-28 (Session 36)
+**Last Updated**: 2025-12-28 (Session 41)
 **Current Phase**: IMPLEMENTATION
-**Status**: Token efficiency framework
+**Status**: Hierarchy Phase 1 Registry Complete
 
 ---
 
-## Session 36: Dev-Docs Token Efficiency ✅
+## Session 41: HierarchyRegistry Implementation (CURRENT)
 
 ### Work Completed
 
 | Task | Status | Description |
 |------|--------|-------------|
-| dev-docs-token-efficiency | ✅ | Archival + rotation framework to reduce context load |
+| hierarchy-phase1-registry | ✅ (95) | Core HierarchyRegistry class via swarm (67 tests) |
 
 ### Implementation Details
 
-**Problem Solved:**
-- Dev-docs 3-file pattern drifted from ~400 tokens to ~19,000 tokens
-- tasks.json had 84 completed tasks with full definitions (79 KB)
-- PROJECT_SUMMARY.md had 8 sessions of full history (16 KB)
-
-**TaskManager Auto-Archival:**
-- Added `_archiveOldCompletedTasks()` method to task-manager.js
-- Auto-archives when completed tasks > 5
-- Archive stored in `.claude/dev-docs/archives/tasks-archive.json`
-- tasks.json reduced from 79 KB to 16 KB (80% reduction)
-
-**PROJECT_SUMMARY Rotation:**
-- Added `_archiveOldSessions()` and `_slimSession()` to summary-generator.js
-- Keeps current session (full detail) + prior session (slimmed)
-- Archives full details to `.claude/dev-docs/archives/sessions-archive.md`
-- Prior sessions compressed to 5 lines (title, tasks, key changes, files)
-
-**Token Savings:**
-- tasks.json: 15,000 → 1,000 tokens
-- PROJECT_SUMMARY.md: 2,500 → 350 tokens
-- plan.md: 1,500 → 150 tokens
-- **Total: 19,000 → 1,500 tokens (92% reduction)**
-
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `.claude/core/task-manager.js` | Added `_archiveOldCompletedTasks()`, `getArchivedTask()` |
-| `.claude/core/summary-generator.js` | Added `_archiveOldSessions()`, `_slimSession()` |
-| `.claude/dev-docs/tasks.json` | Reduced to 9 tasks, added archival config |
-| `PROJECT_SUMMARY.md` | Trimmed to 2 sessions |
-| `.claude/dev-docs/plan.md` | Trimmed to current plan only |
-| `CLAUDE.md` | Added token efficiency rules |
+**HierarchyRegistry (hierarchy-registry.js)**
+- Centralized parent-child agent relationship tracking
+- Quick lookup indexes: byParent, byDepth, byStatus Maps
+- Delegation chain management with DelegationStatus enum
+- registerHierarchy(), getHierarchy(), getDelegationChain(), pruneHierarchy()
+- Cycle detection and depth limit enforcement (default: 3 levels, 10 children)
+- canDelegate() for delegation capability checks
+- findCommonAncestor() for hierarchy traversal
+- State export/import for persistence
+- Singleton pattern via getHierarchyRegistry()
 
 ### Files Created
 
 | File | Purpose |
-|------|--------|
-| `.claude/dev-docs/archives/tasks-archive.json` | 40 archived completed tasks |
-| `.claude/dev-docs/archives/sessions-archive.md` | Sessions 28-34 full details |
-| `scripts/archive-completed-tasks.js` | One-time archival script |
+|------|---------|
+| `.claude/core/hierarchy-registry.js` | Core hierarchy registry class |
+| `__tests__/core/hierarchy-registry.test.js` | 67 unit tests |
+
+### Tests
+- 67 new tests passing
+- Total: 1518+ tests passing
 
 ---
 
-## Session 35: Dashboard Polish ✅
-- **Tasks**: dashboard-multiple-sessions-view (polish)
-- **Key changes**: CLI quality "NA" display, time filtering (30min/10min), enrichActiveSession bug fix
-- **Files**: global-dashboard.html
+## Session 40b: Dashboard Project Isolation ✅
+- **Tasks**: dashboard-project-isolation (95/100)
+- **Key changes**: Per-project TaskManager/ExecutionState Maps, SessionRegistry projectKey
+- **Files**: global-context-manager.js, session-registry.js, global-dashboard.html
+
+---
+
+## Session 40a: Hierarchy Prerequisites ✅
+- **Tasks**: supervision-tree, hierarchical-state-manager
+- **Key changes**: SupervisionTree + HierarchicalStateManager (84 tests)
+- **Files**: supervision-tree.js, hierarchical-state.js
+
+---
+
+## Session 39: Dashboard Project Isolation Design ✅
+- **Tasks**: dashboard-project-isolation (planned)
+- **Key changes**: Solution designed for per-project context isolation
+- **Files**: `.claude/plans/dazzling-kindling-dusk.md`
+
+---
+
+## Session 38: Hierarchy Quick Wins ✅
+- **Tasks**: parallel-loader, parallel-planner, parallel-synthesis
+- **Key changes**: 10x agent loading, 3x planning, 2.5x debate speedups
+- **Files**: agent-loader.js, competitive-planner.js, agent-orchestrator.js
 
 ---
 
@@ -70,10 +71,11 @@
 
 | Component | Status |
 |-----------|--------|
-| Orchestrator | Unified with swarm integration |
-| Dashboard | Command Center at http://localhost:3033/ |
+| Orchestrator | Unified + parallel patterns + hierarchy foundations |
+| Dashboard | Command Center - project isolation DONE |
 | Task System | Concurrent write protection + auto-archival |
-| Tests | 1329+ passing |
+| Tests | 1518+ passing (67 new) |
+| Hierarchy | Phase 1 Registry complete, Agent/Session extensions ready |
 
 ---
 
@@ -82,3 +84,5 @@
 - **Dashboard**: http://localhost:3033/
 - **Archives**: `.claude/dev-docs/archives/`
 - **Task Graph**: http://localhost:3033/task-graph.html
+- **NOW**: hierarchy-phase1-agent-extension, hierarchy-phase1-session-extension
+- **NEXT**: hierarchy-phase1-task-extension, hierarchy-phase1-dashboard-api

@@ -15,18 +15,34 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "dashboard-blocked-tasks-view"
+        "hierarchy-phase1-agent-extension",
+        "hierarchy-phase1-session-extension"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "audit-cleanup-phase1"
+        "hierarchy-phase1-task-extension",
+        "hierarchy-phase1-dashboard-api",
+        "taskjson-parallel-session-safety"
       ]
     },
     "later": {
       "description": "Future work, not yet prioritized",
-      "tasks": []
+      "tasks": [
+        "hierarchy-phase2-delegation",
+        "hierarchy-phase2-context",
+        "hierarchy-phase2-aggregation",
+        "hierarchy-phase3-decomposer",
+        "hierarchy-phase3-auto-delegation",
+        "hierarchy-phase4-dashboard-viz",
+        "hierarchy-phase4-metrics",
+        "hierarchy-phase4-optimization",
+        "hierarchy-tests-unit",
+        "hierarchy-tests-integration",
+        "dashboard-blocked-tasks-view",
+        "audit-cleanup-phase1"
+      ]
     },
     "someday": {
       "description": "Ideas and possibilities, lowest priority",
@@ -37,11 +53,11 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
-        "dashboard-multiple-sessions-view",
-        "fix-queue-data-integrity",
-        "fix-autonomous-session-visibility",
-        "test-session-type-fields",
-        "test-orchestrator-dashboard-integration"
+        "dashboard-project-isolation",
+        "hierarchy-phase1-registry",
+        "hierarchy-prereq-failure-cascade",
+        "hierarchy-prereq-state-management",
+        "hierarchy-quickwin-parallel-loader"
       ]
     }
   },
@@ -219,6 +235,53 @@
       "created": "2025-12-28T02:35:00.000Z",
       "updated": "2025-12-28T02:35:00.000Z"
     },
+    "dashboard-project-isolation": {
+      "id": "dashboard-project-isolation",
+      "title": "Multi-Project Session Context Isolation",
+      "description": "Dashboard shows same context for different projects because of single global TaskManager and executionState. Need per-project storage so each project displays its own tasks, metrics, and execution state independently.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "dashboard",
+        "session",
+        "multi-project",
+        "context-isolation"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "hierarchy-phase1-session-extension"
+        ]
+      },
+      "acceptance": [
+        "Backend: TaskManager instances stored in Map keyed by project path",
+        "Backend: ExecutionState stored per-session in Map",
+        "API: /api/tasks accepts optional projectPath param (backward compat)",
+        "API: /api/execution accepts optional sessionId param (backward compat)",
+        "SessionRegistry: projectKey field added for project isolation",
+        "Frontend: projectTasksData and projectExecutionState Maps replace globals",
+        "Frontend: enrichAllActiveSessions() enriches each project independently",
+        "Test: 2 projects show different tasks/context simultaneously",
+        "Test: Same project with 2 CLI windows shows separate entries",
+        "Test: Backward compat - parameterless API calls still work"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T21:00:00.000Z",
+      "updated": "2025-12-28T16:00:00.000Z",
+      "completed": "2025-12-28T16:00:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "global-context-manager.js: Per-project TaskManager Map (getTaskManagerForProject)",
+        "global-context-manager.js: Per-session ExecutionState Map (getExecutionState)",
+        "session-registry.js: projectKey field with path normalization",
+        "global-dashboard.html: projectTasksData/projectExecutionState Maps",
+        "global-dashboard.html: enrichAllActiveSessions() with per-project enrichment"
+      ],
+      "notes": "Implemented via 4 parallel agents. All acceptance criteria met. Backward compatible - APIs work without params."
+    },
     "fix-autonomous-session-visibility": {
       "id": "fix-autonomous-session-visibility",
       "title": "Investigate Why Autonomous Sessions Don't Appear as Separate Entries",
@@ -391,12 +454,744 @@
         "bytes": 249856,
         "dependencies": 4
       }
+    },
+    "hierarchy-quickwin-parallel-loader": {
+      "id": "hierarchy-quickwin-parallel-loader",
+      "title": "Quick Win: Parallelize Agent Loader",
+      "description": "Convert sequential agent loading in AgentLoader.loadAll() to parallel Promise.all(). Currently loads agents one-by-one which adds ~2s startup time. Parallelization achieves 10x faster init.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "1h",
+      "tags": [
+        "hierarchy",
+        "quick-win",
+        "performance",
+        "parallelization"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "hierarchy-phase1-registry"
+        ]
+      },
+      "acceptance": [
+        "AgentLoader.loadAll() uses Promise.all() instead of sequential loop",
+        "Startup time reduced from ~2s to ~0.2s for 20 agents",
+        "Error handling preserves individual agent load failures",
+        "Unit tests verify parallel loading behavior",
+        "No regressions in existing agent loading tests"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T14:41:00.000Z",
+      "completed": "2025-12-28T14:41:00.000Z",
+      "estimatedSpeedup": "10x",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/agent-loader.js: loadAll() now uses Promise.allSettled() for parallel agent loading",
+        "Individual agent load failures handled gracefully without failing batch",
+        "Duration logging added for performance tracking"
+      ]
+    },
+    "hierarchy-prereq-failure-cascade": {
+      "id": "hierarchy-prereq-failure-cascade",
+      "title": "Prerequisite: Failure Cascade Handling",
+      "description": "Implement supervision tree pattern for hierarchical error handling. Required before hierarchy implementation to prevent orphaned sub-agents, enable structured error propagation, and support partial result recovery.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "8h",
+      "tags": [
+        "hierarchy",
+        "prerequisite",
+        "error-handling",
+        "supervision"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase1-registry"
+        ],
+        "requires": [
+          "hierarchy-quickwin-parallel-loader"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "SupervisionTree class with restart strategies (one-for-one, all-for-one, rest-for-one)",
+        "HierarchicalError class with agentId, parentId, childErrors, partialResults",
+        "Parent agents can define child restart policies",
+        "Orphan detection and cleanup when parent terminates",
+        "Partial result recovery via MemoryStore checkpointing",
+        "Unit tests for each restart strategy",
+        "Integration tests for cascade scenarios"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T14:45:00.000Z",
+      "completed": "2025-12-28T14:45:00.000Z",
+      "criticalPath": true,
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/supervision-tree.js: SupervisionTree class with restart strategies",
+        "HierarchicalError class with error chain, partial results aggregation",
+        "RestartStrategy enum (ONE_FOR_ONE, ALL_FOR_ONE, REST_FOR_ONE)",
+        "Orphan detection and cleanup methods",
+        "Checkpoint storage for partial result recovery",
+        "__tests__/core/supervision-tree.test.js: 42 unit tests"
+      ]
+    },
+    "hierarchy-prereq-state-management": {
+      "id": "hierarchy-prereq-state-management",
+      "title": "Prerequisite: Hierarchical State Management",
+      "description": "Extend state management to handle parent-child relationships, prevent race conditions with concurrent agent writes, and support aggregate state queries. Required before hierarchy to prevent state corruption.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "6h",
+      "tags": [
+        "hierarchy",
+        "prerequisite",
+        "state-management",
+        "concurrency"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase1-registry"
+        ],
+        "requires": [
+          "hierarchy-quickwin-parallel-loader"
+        ],
+        "related": [
+          "hierarchy-prereq-failure-cascade"
+        ]
+      },
+      "acceptance": [
+        "Optimistic locking with version numbers for agent state updates",
+        "Atomic parent-child state transitions",
+        "Aggregate state queries (e.g., all children of parent)",
+        "State machine enforcement for valid transitions",
+        "Stale session cleanup respects hierarchy (parent death cleans children)",
+        "No race conditions in concurrent child spawning tests",
+        "Event log for state transitions (audit trail)"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T14:45:00.000Z",
+      "completed": "2025-12-28T14:45:00.000Z",
+      "criticalPath": true,
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/hierarchical-state.js: HierarchicalStateManager class",
+        "AgentStates enum with 9 states (IDLE through TERMINATED)",
+        "StateTransitions map enforcing valid state machine",
+        "OptimisticLockError and InvalidTransitionError classes",
+        "atomicFamilyTransition() for parent-child atomic updates",
+        "getAggregateState() for hierarchy rollup queries",
+        "Event log with filtering and bounded size",
+        "__tests__/core/hierarchical-state.test.js: 42 unit tests"
+      ]
+    },
+    "hierarchy-phase1-registry": {
+      "id": "hierarchy-phase1-registry",
+      "title": "Phase 1: Core Hierarchy Registry",
+      "description": "Create HierarchyRegistry class for centralized tracking of parent-child agent relationships, delegation chains, and hierarchy metadata. Foundation for all subsequent hierarchy features.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "6h",
+      "tags": [
+        "hierarchy",
+        "phase1",
+        "core",
+        "registry"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase1-agent-extension",
+          "hierarchy-phase1-session-extension"
+        ],
+        "requires": [
+          "hierarchy-prereq-failure-cascade",
+          "hierarchy-prereq-state-management"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "HierarchyRegistry class with roots, nodes, delegations Maps",
+        "Quick lookup indexes: byParent, byDepth, byStatus",
+        "registerHierarchy(parentId, childId, metadata) method",
+        "getHierarchy(agentId) returns full subtree",
+        "getDelegationChain(agentId) returns path from root",
+        "pruneHierarchy(rootId) removes entire subtree",
+        "Singleton instance accessible from Agent and Orchestrator",
+        "Unit tests for all registry operations"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T15:05:00.000Z",
+      "completed": "2025-12-28T15:05:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/hierarchy-registry.js: HierarchyRegistry class with full API",
+        "DelegationStatus enum (PENDING, ACTIVE, COMPLETED, FAILED, CANCELLED)",
+        "HierarchyError class for hierarchy-specific errors",
+        "Singleton pattern via getHierarchyRegistry() and resetHierarchyRegistry()",
+        "Quick lookup indexes: byParent, byDepth, byStatus Maps",
+        "State export/import for persistence",
+        "__tests__/core/hierarchy-registry.test.js: 67 unit tests"
+      ]
+    },
+    "hierarchy-phase1-agent-extension": {
+      "id": "hierarchy-phase1-agent-extension",
+      "title": "Phase 1: Agent Class Hierarchy Extension",
+      "description": "Extend Agent class with hierarchy metadata (parentAgentId, childAgentIds, delegationChain, depth) and delegation capability methods. Enables agents to track their position in hierarchy.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "phase1",
+        "agent",
+        "extension"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase1-task-extension"
+        ],
+        "requires": [
+          "hierarchy-phase1-registry"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Agent class has hierarchyInfo object with parentAgentId, childAgentIds, delegationChain, depth",
+        "Agent.canDelegate() checks depth limits and child slots",
+        "Agent.getParent() and Agent.getChildren() accessors",
+        "Agent.reportToParent(progress) for upward communication",
+        "Resource quota tracking (maxTokens, maxTime, maxChildren)",
+        "Backward compatible - existing agents work without hierarchy",
+        "Unit tests for hierarchy methods"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T15:05:00.000Z"
+    },
+    "hierarchy-phase1-session-extension": {
+      "id": "hierarchy-phase1-session-extension",
+      "title": "Phase 1: Session Registry Hierarchy Extension with Dashboard Rollup",
+      "description": "Extend SessionRegistry with hierarchy tracking fields and rollup aggregation for dashboard display. Sessions must aggregate sub-agent metrics (tokens, quality, progress) for unified dashboard view.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "6h",
+      "tags": [
+        "hierarchy",
+        "phase1",
+        "session",
+        "dashboard",
+        "rollup"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase1-dashboard-api"
+        ],
+        "requires": [
+          "hierarchy-phase1-registry"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Session object has hierarchyInfo: {isRoot, parentSessionId, childSessionIds, delegationDepth}",
+        "Session object has activeDelegations array tracking delegationId, targetAgentId, taskId, status",
+        "getRollupMetrics(sessionId) aggregates child session metrics to parent",
+        "Rollup includes: totalTokens, totalCost, avgQuality, activeAgentCount, delegationDepth",
+        "getSessionWithHierarchy(id) returns session with all descendant summaries",
+        "/api/sessions/:id/hierarchy endpoint returns hierarchy tree for session",
+        "/api/sessions/:id/rollup endpoint returns aggregated metrics",
+        "SSE updates propagate hierarchy changes to dashboard",
+        "Unit tests for rollup aggregation accuracy"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T15:05:00.000Z",
+      "dashboardIntegration": true
+    },
+    "hierarchy-phase1-task-extension": {
+      "id": "hierarchy-phase1-task-extension",
+      "title": "Phase 1: Task Manager Hierarchy Extension",
+      "description": "Extend TaskManager with parent-child task relationships, delegatedTo tracking, and decomposition metadata. Enables hierarchical task breakdown and progress tracking.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "phase1",
+        "task-manager",
+        "extension"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase2-delegation"
+        ],
+        "requires": [
+          "hierarchy-phase1-agent-extension"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Task schema has parentTaskId, childTaskIds, delegatedTo fields",
+        "Task has delegationDepth tracking",
+        "Task has decomposition object: {strategy, estimatedSubtasks, completedSubtasks, aggregationRule}",
+        "createSubtask(parentTaskId, subtaskData) method",
+        "getTaskHierarchy(taskId) returns full task tree",
+        "Subtask completion auto-updates parent progress",
+        "Backward compatible with existing task structure",
+        "Unit tests for task hierarchy operations"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T20:00:00.000Z"
+    },
+    "hierarchy-phase1-dashboard-api": {
+      "id": "hierarchy-phase1-dashboard-api",
+      "title": "Phase 1: Dashboard Hierarchy API Endpoints",
+      "description": "Create REST API endpoints for hierarchy data access by dashboard. Enables global-dashboard.html to display agent hierarchies, delegation chains, and aggregated metrics per session.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "phase1",
+        "dashboard",
+        "api"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase4-dashboard-viz"
+        ],
+        "requires": [
+          "hierarchy-phase1-session-extension"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "GET /api/hierarchy/:agentId returns AgentHierarchyNode with children",
+        "GET /api/delegations/active returns all active DelegationRecords",
+        "GET /api/delegations/:delegationId/chain returns delegation chain",
+        "GET /api/sessions/:id/agents returns all agents (including sub-agents) for session",
+        "GET /api/metrics/hierarchy returns aggregate hierarchy metrics",
+        "SSE topic 'hierarchy:update' broadcasts hierarchy changes",
+        "API documentation in swagger/openapi format",
+        "Integration tests for all endpoints"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T20:00:00.000Z"
+    },
+    "hierarchy-phase2-delegation": {
+      "id": "hierarchy-phase2-delegation",
+      "title": "Phase 2: Delegation Primitives",
+      "description": "Implement core delegation methods in AgentOrchestrator: delegateTask(), spawnSubAgent(), aggregateResults(). Enables parent agents to spawn sub-agents and collect results.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "8h",
+      "tags": [
+        "hierarchy",
+        "phase2",
+        "delegation",
+        "core"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase2-context",
+          "hierarchy-phase2-aggregation"
+        ],
+        "requires": [
+          "hierarchy-phase1-task-extension"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "AgentOrchestrator.delegateTask(parentAgentId, task, options) method",
+        "AgentOrchestrator.spawnSubAgent(parentAgentId, agentConfig) method",
+        "AgentOrchestrator.aggregateResults(delegationId, results, strategy) method",
+        "Delegation options: decompositionStrategy, agentSelectionStrategy, aggregationStrategy, maxDepth, timeout",
+        "Sub-agents automatically registered in HierarchyRegistry",
+        "Delegation lifecycle events published to MessageBus",
+        "Unit tests for delegation flow",
+        "Integration tests for multi-level delegation"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T20:00:00.000Z"
+    },
+    "hierarchy-phase2-context": {
+      "id": "hierarchy-phase2-context",
+      "title": "Phase 2: Delegation Context Builder",
+      "description": "Implement DelegationContext builder for minimal, task-specific context passing to sub-agents. Reduces token overhead by 67-74% through context isolation.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "phase2",
+        "context",
+        "token-efficiency"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "hierarchy-phase2-delegation"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "DelegationContext class with minimal required fields",
+        "buildDelegationContext(parentAgent, task, subtask) method",
+        "Context slicing: only required fields passed to sub-agents",
+        "Constraint passing: deadline, tokenBudget, mustComplete",
+        "Communication channel setup with MessageBus topics",
+        "Context size logging for optimization tracking",
+        "Token usage reduced by 60%+ compared to full context",
+        "Unit tests for context building"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T20:00:00.000Z",
+      "estimatedTokenSavings": "67%"
+    },
+    "hierarchy-phase2-aggregation": {
+      "id": "hierarchy-phase2-aggregation",
+      "title": "Phase 2: Result Aggregation Strategies",
+      "description": "Implement aggregation strategies for combining sub-agent results: merge, selectBest, vote, chain. Each strategy suited for different delegation patterns.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "phase2",
+        "aggregation",
+        "strategies"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase3-decomposer"
+        ],
+        "requires": [
+          "hierarchy-phase2-delegation"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "AggregationStrategies.merge() combines all results",
+        "AggregationStrategies.selectBest() picks highest quality",
+        "AggregationStrategies.vote() uses consensus voting",
+        "AggregationStrategies.chain() sequences results (output N -> input N+1)",
+        "Custom aggregation function support",
+        "Aggregation metadata (strategy used, confidence, alternatives)",
+        "Unit tests for each strategy with edge cases"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T20:00:00.000Z"
+    },
+    "hierarchy-phase3-decomposer": {
+      "id": "hierarchy-phase3-decomposer",
+      "title": "Phase 3: Task Decomposer",
+      "description": "Implement TaskDecomposer class for intelligent task breakdown. Analyzes task complexity and automatically generates subtasks with appropriate agent assignments.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "6h",
+      "tags": [
+        "hierarchy",
+        "phase3",
+        "decomposition",
+        "automation"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase3-auto-delegation"
+        ],
+        "requires": [
+          "hierarchy-phase2-aggregation"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "TaskDecomposer.analyze(task) returns DecompositionSuggestion",
+        "TaskDecomposer.decompose(task, strategy) returns subtask array",
+        "Decomposition strategies: parallel, sequential, hybrid, manual",
+        "Integration with ComplexityAnalyzer for delegation decisions",
+        "Subtask estimation (effort, tokens, time)",
+        "Agent capability matching for subtasks",
+        "Unit tests for decomposition logic"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T20:00:00.000Z"
+    },
+    "hierarchy-phase3-auto-delegation": {
+      "id": "hierarchy-phase3-auto-delegation",
+      "title": "Phase 3: Automatic Delegation Decisions",
+      "description": "Implement automatic delegation decision logic based on task complexity, context utilization, and agent confidence. Parent agents can auto-delegate without manual intervention.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "phase3",
+        "automation",
+        "decisions"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase4-optimization"
+        ],
+        "requires": [
+          "hierarchy-phase3-decomposer"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "DelegationDecision factors: complexity, contextUtilization, subtaskCount, confidence",
+        "Configurable thresholds for automatic delegation",
+        "shouldDelegate(task, agent) returns decision with reasoning",
+        "Integration with existing executeParallel/executeDebate patterns",
+        "Delegation hints surfaced to dashboard",
+        "Unit tests for decision logic"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T20:00:00.000Z"
+    },
+    "hierarchy-phase4-dashboard-viz": {
+      "id": "hierarchy-phase4-dashboard-viz",
+      "title": "Phase 4: Dashboard Hierarchy Visualization",
+      "description": "Add hierarchy visualization to global-dashboard.html showing agent trees, delegation chains, and real-time sub-agent status. Enables monitoring of hierarchical execution.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "6h",
+      "tags": [
+        "hierarchy",
+        "phase4",
+        "dashboard",
+        "visualization"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "hierarchy-phase1-dashboard-api"
+        ],
+        "related": [
+          "hierarchy-phase4-metrics"
+        ]
+      },
+      "acceptance": [
+        "Interactive hierarchy tree visualization in dashboard",
+        "Expand/collapse nodes to show sub-agent details",
+        "Real-time status updates via SSE",
+        "Delegation chain viewer showing task flow",
+        "Color coding by status (active, completed, failed, awaiting)",
+        "Click-to-drill-down into sub-agent details",
+        "Rollup metrics displayed at each tree level",
+        "Responsive design for different screen sizes"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T20:00:00.000Z"
+    },
+    "hierarchy-phase4-metrics": {
+      "id": "hierarchy-phase4-metrics",
+      "title": "Phase 4: Delegation Metrics and Analytics",
+      "description": "Implement comprehensive metrics for delegation performance: duration, success rates, token usage, speedups achieved. Enables optimization decisions.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "phase4",
+        "metrics",
+        "analytics"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "hierarchy-phase3-auto-delegation"
+        ],
+        "related": [
+          "hierarchy-phase4-dashboard-viz"
+        ]
+      },
+      "acceptance": [
+        "DelegationMetrics: duration, subtaskCount, depth, aggregationTime histograms",
+        "Success/failure counters: delegationSuccess, delegationFailure, retryCount",
+        "Quality metrics: subAgentQualityScore, aggregationQuality",
+        "Resource metrics: tokenBudgetUsed, timeBudgetUsed, activeChildCount",
+        "GET /api/metrics/delegation endpoint",
+        "Metrics exported to MemoryStore for historical analysis",
+        "Dashboard metrics panel integration"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T20:00:00.000Z"
+    },
+    "hierarchy-phase4-optimization": {
+      "id": "hierarchy-phase4-optimization",
+      "title": "Phase 4: Performance Optimization",
+      "description": "Optimize hierarchy performance: agent pooling, pre-warming, caching, tiered timeouts. Target: minimize coordination overhead to maximize parallelism gains.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "6h",
+      "tags": [
+        "hierarchy",
+        "phase4",
+        "optimization",
+        "performance"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "hierarchy-phase3-auto-delegation"
+        ],
+        "related": [
+          "hierarchy-phase4-metrics"
+        ]
+      },
+      "acceptance": [
+        "Agent pool for pre-warmed sub-agents (configurable pool size)",
+        "Tiered timeouts by depth (level 1: 60s, level 2: 30s, level 3: 15s)",
+        "Context caching at parent level for shared sub-agent context",
+        "Speculative execution support (start children before full analysis)",
+        "Memory-efficient agent recycling",
+        "Performance benchmarks vs baseline flat execution",
+        "Configuration options in CLAUDE.md"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T20:00:00.000Z"
+    },
+    "hierarchy-tests-unit": {
+      "id": "hierarchy-tests-unit",
+      "title": "Hierarchy System Unit Tests",
+      "description": "Comprehensive unit tests for all hierarchy components: registry, agent extensions, session extensions, task extensions, delegation primitives, aggregation strategies.",
+      "phase": "testing",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "testing",
+        "unit-tests"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "hierarchy-phase2-aggregation"
+        ],
+        "related": [
+          "hierarchy-tests-integration"
+        ]
+      },
+      "acceptance": [
+        "HierarchyRegistry tests: register, get, prune, index operations",
+        "Agent hierarchy tests: metadata, canDelegate, parent/child accessors",
+        "Session hierarchy tests: rollup aggregation, hierarchy queries",
+        "Task hierarchy tests: subtask creation, hierarchy traversal",
+        "Delegation tests: spawn, delegate, aggregate",
+        "Aggregation strategy tests: merge, selectBest, vote, chain",
+        "Coverage > 80% for hierarchy modules",
+        "All tests pass in CI"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T20:00:00.000Z"
+    },
+    "hierarchy-tests-integration": {
+      "id": "hierarchy-tests-integration",
+      "title": "Hierarchy System Integration Tests",
+      "description": "End-to-end integration tests for hierarchy flows: multi-level delegation, failure cascades, dashboard updates, metric collection.",
+      "phase": "testing",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "testing",
+        "integration-tests"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "hierarchy-tests-unit"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "E2E test: 3-level delegation with result aggregation",
+        "E2E test: failure cascade with partial recovery",
+        "E2E test: dashboard displays hierarchy correctly",
+        "E2E test: rollup metrics accurate across levels",
+        "E2E test: auto-decomposition and delegation",
+        "Performance test: hierarchy vs flat execution speedup",
+        "Load test: concurrent multi-hierarchy execution"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T20:00:00.000Z"
+    },
+    "taskjson-parallel-session-safety": {
+      "id": "taskjson-parallel-session-safety",
+      "title": "Explore Parallel Session Safety for tasks.json",
+      "description": "Multiple CLI sessions editing tasks.json concurrently can cause race conditions, lost updates, or unexpected auto-archival triggers. Research and implement safer patterns for multi-session task management.",
+      "phase": "research",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": [
+        "task-manager",
+        "concurrency",
+        "multi-session",
+        "reliability"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "taskmanager-concurrent-write-fix"
+        ]
+      },
+      "acceptance": [
+        "Research: Document current race condition scenarios with parallel sessions",
+        "Research: Evaluate approaches - file locking, optimistic locking, CRDT, event sourcing",
+        "Design: Recommend solution balancing complexity vs safety",
+        "Consider: Per-session staging files merged on commit",
+        "Consider: Lock file with session ID and timeout",
+        "Consider: Append-only task log with periodic compaction",
+        "Consider: SQLite or other DB with proper locking",
+        "Document: Migration path from current tasks.json format"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-28T15:10:00.000Z",
+      "updated": "2025-12-28T15:10:00.000Z"
     }
   },
   "archival": {
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2025-12-28T16:34:51.507Z"
+    "lastArchived": "2025-12-28T18:06:21.596Z"
   }
 }

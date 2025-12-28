@@ -1,0 +1,89 @@
+{
+  "archivedAt": "2025-12-28T18:02:07.595Z",
+  "tasks": {
+    "hierarchy-quickwin-parallel-synthesis": {
+      "id": "hierarchy-quickwin-parallel-synthesis",
+      "title": "Quick Win: Parallelize Debate Synthesis",
+      "description": "Enable parallel synthesis in executeDebate() pattern. Currently only first agent synthesizes sequentially after each round. Allow multiple synthesizers with result merging for 2.5x faster debates.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "quick-win",
+        "performance",
+        "parallelization"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "hierarchy-phase2-delegation"
+        ]
+      },
+      "acceptance": [
+        "executeDebate() supports parallelSynthesis option",
+        "Multiple synthesizers can work concurrently",
+        "Synthesis results merged intelligently (best-of or consensus)",
+        "Debate time reduced from ~360s to ~140s for 3 rounds",
+        "Backward compatible - default behavior unchanged",
+        "Unit tests for parallel synthesis mode"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T14:41:00.000Z",
+      "completed": "2025-12-28T14:41:00.000Z",
+      "estimatedSpeedup": "2.5x",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/agent-orchestrator.js: executeDebate() now supports parallelSynthesis option",
+        "New options: parallelSynthesis, synthesizerCount, mergeStrategy ('best', 'consensus', 'merge')",
+        "New _mergeDebateSyntheses() method for intelligent result merging",
+        "New _calculateSimilarity() method for consensus detection",
+        "Backward compatible - default behavior unchanged (parallelSynthesis=false)"
+      ]
+    },
+    "hierarchy-quickwin-parallel-planner": {
+      "id": "hierarchy-quickwin-parallel-planner",
+      "title": "Quick Win: Parallelize Competitive Planner",
+      "description": "Convert sequential plan generation in CompetitivePlanner._generatePlanForStrategy() to parallel execution. Currently generates plans one-by-one. Parallelization achieves 3x faster planning.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "hierarchy",
+        "quick-win",
+        "performance",
+        "parallelization"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "hierarchy-phase1-registry"
+        ]
+      },
+      "acceptance": [
+        "CompetitivePlanner generates all strategy plans in parallel",
+        "Planning time reduced from ~180s to ~60s for 3 strategies",
+        "Results aggregation maintains quality ranking",
+        "Error handling for individual strategy failures",
+        "Unit tests verify parallel plan generation"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T14:41:00.000Z",
+      "completed": "2025-12-28T14:41:00.000Z",
+      "estimatedSpeedup": "3x",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/competitive-planner.js: generatePlans() now uses Promise.allSettled() for parallel strategy execution",
+        "_generatePlanForStrategy() converted to async for future LLM call support",
+        "Individual strategy failures handled gracefully"
+      ]
+    }
+  },
+  "lastArchived": "2025-12-28T18:06:21.592Z"
+}

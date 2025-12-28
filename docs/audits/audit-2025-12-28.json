@@ -1,14 +1,14 @@
 {
   "date": "2025-12-28",
   "summary": {
-    "totalIssues": 104,
+    "totalIssues": 103,
     "critical": 0,
-    "high": 43,
+    "high": 42,
     "medium": 38,
     "low": 23,
-    "estimatedEffort": 67.75,
+    "estimatedEffort": 66.75,
     "potentialSavings": {
-      "lines": 10283,
+      "lines": 10475,
       "bytes": 249856
     }
   },
@@ -41,6 +41,13 @@
           "reason": "Not imported by any module",
           "lastModified": "2025-11-19T04:24:49.759Z",
           "lineCount": 185,
+          "recommendation": "DELETE or ARCHIVE"
+        },
+        {
+          "file": ".claude\\core\\real-time-context-tracker.js",
+          "reason": "Not imported by any module",
+          "lastModified": "2025-12-15T07:05:58.219Z",
+          "lineCount": 811,
           "recommendation": "DELETE or ARCHIVE"
         },
         {
@@ -191,20 +198,6 @@
           "recommendation": "DELETE or ARCHIVE"
         },
         {
-          "file": "context-manager-real.js",
-          "reason": "Not imported by any module",
-          "lastModified": "2025-12-15T06:38:13.643Z",
-          "lineCount": 396,
-          "recommendation": "DELETE or ARCHIVE"
-        },
-        {
-          "file": "context-manager.js",
-          "reason": "Not imported by any module",
-          "lastModified": "2025-12-14T19:59:02.968Z",
-          "lineCount": 223,
-          "recommendation": "DELETE or ARCHIVE"
-        },
-        {
           "file": "dashboard-backend.js",
           "reason": "Not imported by any module",
           "lastModified": "2025-12-14T19:37:21.754Z",
@@ -286,11 +279,11 @@
       "deadCode": [],
       "deprecatedInUse": [],
       "summary": {
-        "totalOrphaned": 38,
+        "totalOrphaned": 37,
         "totalUnusedExports": 0,
         "totalDeadCode": 0,
         "totalDeprecatedInUse": 0,
-        "estimatedCleanupLines": 10283
+        "estimatedCleanupLines": 10475
       }
     },
     "duplications": {
@@ -1338,8 +1331,8 @@
         }
       ],
       "summary": {
-        "totalDocs": 205,
-        "current": 187,
+        "totalDocs": 207,
+        "current": 189,
         "stale": 6,
         "outdated": 0,
         "archiveCandidates": 15,
