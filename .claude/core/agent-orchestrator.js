@@ -16,6 +16,8 @@ const LifecycleHooks = require('./lifecycle-hooks');
 const MemoryStore = require('./memory-store');
 const MemoryIntegration = require('./memory-integration');
 const AgentLoader = require('./agent-loader');
+const { DelegationContext } = require('./delegation-context');
+const { AggregationStrategies } = require('./aggregation-strategies');
 
 const logger = createComponentLogger('AgentOrchestrator');
 
@@ -920,6 +922,223 @@ class AgentOrchestrator {
    */
   _defaultSelector(results) {
     return results.length > 0 ? results[0] : null;
+  }
+
+  // ============================================
+  // Delegation Primitives (Phase 2)
+  // ============================================
+
+  /**
+   * Delegate a task to a child agent
+   * @param {string} parentAgentId - Agent delegating the task
+   * @param {Object} task - Task to delegate
+   * @param {Object} options - Delegation options
+   * @param {string} [options.childAgentId] - Specific child agent (optional)
+   * @param {number} [options.timeout=60000] - Timeout in ms
+   * @param {Object} [options.context={}] - Additional context
+   * @returns {Promise<Object>} Delegation result
+   */
+  async delegateTask(parentAgentId, task, options = {}) {
+    const {
+      childAgentId = null,
+      timeout = 60000,
+      context: additionalContext = {}
+    } = options;
+
+    const startTime = Date.now();
+
+    // Get parent agent
+    const parentAgent = this.getAgent(parentAgentId);
+    if (!parentAgent) {
+      return {
+        success: false,
+        error: `Parent agent ${parentAgentId} not found`,
+        duration: Date.now() - startTime
+      };
+    }
+
+    // Build delegation context
+    let delegationContext;
+    try {
+      delegationContext = DelegationContext.buildDelegationContext(
+        parentAgent,
+        task,
+        task, // subtask is same as task for direct delegation
+        {
+          childAgentId,
+          timeout,
+          startTime,
+          ...additionalContext
+        }
+      );
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        duration: Date.now() - startTime
+      };
+    }
+
+    logger.info('Delegating task', {
+      parentAgentId,
+      childAgentId,
+      delegationId: delegationContext.delegationId,
+      tokenBudget: delegationContext.constraints.tokenBudget
+    });
+
+    // Find or select target agent
+    let targetAgent;
+    if (childAgentId) {
+      targetAgent = this.getAgent(childAgentId);
+      if (!targetAgent) {
+        return {
+          success: false,
+          error: `Child agent ${childAgentId} not found`,
+          duration: Date.now() - startTime
+        };
+      }
+    } else {
+      // Find best agent for task
+      const candidates = this.findAgentForTask({
+        phase: task.phase,
+        capabilities: task.requiredCapabilities || [],
+        tags: task.tags || []
+      });
+      if (candidates) {
+        targetAgent = this.getAgent(candidates.id);
+      }
+    }
+
+    if (!targetAgent) {
+      // Fall back to parent executing itself
+      logger.warn('No suitable child agent found, parent executing task');
+      targetAgent = parentAgent;
+    }
+
+    // Execute the task
+    try {
+      const result = await this._executeWithRetry(targetAgent, {
+        ...task,
+        delegationContext: delegationContext.toJSON()
+      }, { timeout, retries: delegationContext.constraints.maxRetries });
+
+      logger.info('Delegation completed', {
+        delegationId: delegationContext.delegationId,
+        duration: Date.now() - startTime
+      });
+
+      return {
+        success: true,
+        delegationId: delegationContext.delegationId,
+        result,
+        agentId: targetAgent.id,
+        duration: Date.now() - startTime,
+        tokenReduction: delegationContext.metadata.tokenReduction
+      };
+
+    } catch (error) {
+      logger.error('Delegation failed', {
+        delegationId: delegationContext.delegationId,
+        error: error.message
+      });
+
+      return {
+        success: false,
+        delegationId: delegationContext.delegationId,
+        error: error.message,
+        agentId: targetAgent?.id,
+        duration: Date.now() - startTime
+      };
+    }
+  }
+
+  /**
+   * Aggregate results from multiple delegations
+   * @param {Array<Object>} results - Results to aggregate
+   * @param {string} strategy - Aggregation strategy (merge, selectBest, vote, chain)
+   * @param {Object} options - Strategy-specific options
+   * @returns {Object} Aggregated result
+   */
+  aggregateResults(results, strategy = 'merge', options = {}) {
+    logger.debug('Aggregating results', { strategy, resultCount: results?.length });
+
+    switch (strategy) {
+      case 'selectBest':
+        return AggregationStrategies.selectBest(results, options);
+      case 'vote':
+        return AggregationStrategies.vote(results, options);
+      case 'chain':
+        return AggregationStrategies.chain(results, options);
+      case 'merge':
+      default:
+        return AggregationStrategies.merge(results, options);
+    }
+  }
+
+  /**
+   * Execute delegated tasks in parallel and aggregate results
+   * @param {string} parentAgentId - Parent agent ID
+   * @param {Array<Object>} tasks - Tasks to delegate
+   * @param {Object} options - Execution options
+   * @returns {Promise<Object>} Aggregated results
+   */
+  async executeParallelDelegation(parentAgentId, tasks, options = {}) {
+    const {
+      aggregationStrategy = 'merge',
+      aggregationOptions = {},
+      timeout = 60000
+    } = options;
+
+    logger.info('Starting parallel delegation', {
+      parentAgentId,
+      taskCount: tasks.length,
+      aggregationStrategy
+    });
+
+    const startTime = Date.now();
+
+    // Delegate all tasks in parallel
+    const promises = tasks.map(task =>
+      this.delegateTask(parentAgentId, task, { timeout, ...options })
+    );
+
+    const results = await Promise.allSettled(promises);
+
+    // Collect successful results
+    const successful = [];
+    const failed = [];
+
+    results.forEach((r, idx) => {
+      if (r.status === 'fulfilled' && r.value.success) {
+        successful.push({
+          agentId: r.value.agentId,
+          result: r.value.result,
+          delegationId: r.value.delegationId
+        });
+      } else {
+        failed.push({
+          taskIndex: idx,
+          error: r.status === 'rejected' ? r.reason.message : r.value.error
+        });
+      }
+    });
+
+    // Aggregate successful results
+    const aggregated = this.aggregateResults(successful, aggregationStrategy, aggregationOptions);
+
+    logger.info('Parallel delegation complete', {
+      successful: successful.length,
+      failed: failed.length,
+      duration: Date.now() - startTime
+    });
+
+    return {
+      success: successful.length > 0,
+      aggregated,
+      successful,
+      failed,
+      duration: Date.now() - startTime
+    };
   }
 
   /**
