@@ -817,15 +817,17 @@ class GlobalContextTracker extends EventEmitter {
         status: project.status,
         currentSessionId: project.currentSessionId,
         sessionCount: project.sessions.size,
-        // Show today's sessions, sorted by recency, max 5 per project
+        // Show today's CLI sessions (exclude agent-* sessions), sorted by recency
         sessions: Array.from(project.sessions.values())
           .filter(s => {
+            // Exclude agent sessions (subagent tasks)
+            if (s.id.startsWith('agent-')) return false;
             // Must have activity today (based on file mtime)
             const todayStart = new Date().setHours(0, 0, 0, 0);
             return s.lastUpdate && s.lastUpdate > todayStart;
           })
           .sort((a, b) => (b.lastUpdate || 0) - (a.lastUpdate || 0))
-          .slice(0, 5)  // Max 5 sessions per project
+          .slice(0, 5)  // Max 5 CLI sessions per project
           .map(s => ({
             id: s.id,
             inputTokens: s.inputTokens,
