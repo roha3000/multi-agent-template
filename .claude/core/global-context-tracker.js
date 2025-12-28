@@ -817,12 +817,10 @@ class GlobalContextTracker extends EventEmitter {
         status: project.status,
         currentSessionId: project.currentSessionId,
         sessionCount: project.sessions.size,
-        // Show today's active sessions, sorted by recency, max 5 per project
+        // Show today's sessions, sorted by recency, max 5 per project
         sessions: Array.from(project.sessions.values())
           .filter(s => {
-            // Must have been used (has messages)
-            if (s.messageCount === 0) return false;
-            // Must have activity today
+            // Must have activity today (based on file mtime)
             const todayStart = new Date().setHours(0, 0, 0, 0);
             return s.lastUpdate && s.lastUpdate > todayStart;
           })
