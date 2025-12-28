@@ -16,6 +16,7 @@ const http = require('http');
 const path = require('path');
 const { createComponentLogger } = require('./logger');
 const { getSessionRegistry } = require('./session-registry');
+const { getHierarchyRegistry } = require('./hierarchy-registry');
 
 class EnhancedDashboardServer {
   constructor(components, options = {}) {
@@ -175,6 +176,49 @@ class EnhancedDashboardServer {
       res.json(summary);
     });
 
+    // Get all agents for a session (including sub-agents)
+    this.app.get('/api/sessions/:id/agents', (req, res) => {
+      const sessionId = parseInt(req.params.id, 10);
+      const agents = this._getSessionAgents(sessionId);
+      if (agents !== null) {
+        res.json(agents);
+      } else {
+        res.status(404).json({ error: 'Session not found' });
+      }
+    });
+
+    // Get agent hierarchy tree
+    this.app.get('/api/hierarchy/:agentId', (req, res) => {
+      const hierarchy = this._getAgentHierarchy(req.params.agentId);
+      if (hierarchy) {
+        res.json(hierarchy);
+      } else {
+        res.status(404).json({ error: 'Agent not found in hierarchy' });
+      }
+    });
+
+    // Get all active delegations
+    this.app.get('/api/delegations/active', (req, res) => {
+      const delegations = this._getActiveDelegations();
+      res.json(delegations);
+    });
+
+    // Get delegation chain for a specific delegation
+    this.app.get('/api/delegations/:delegationId/chain', (req, res) => {
+      const chain = this._getDelegationChain(req.params.delegationId);
+      if (chain !== null) {
+        res.json(chain);
+      } else {
+        res.status(404).json({ error: 'Delegation not found' });
+      }
+    });
+
+    // Get aggregate hierarchy metrics
+    this.app.get('/api/metrics/hierarchy', (req, res) => {
+      const metrics = this._getHierarchyMetrics();
+      res.json(metrics);
+    });
+
     // Project-specific endpoints
     this.app.get('/api/otlp/project/:id', (req, res) => {
       const projectData = this._getProjectDetails(req.params.id);
@@ -277,6 +321,28 @@ class EnhancedDashboardServer {
           data
         });
       });
+    }
+
+    // Listen to hierarchy registry events for SSE updates
+    try {
+      const hierarchyRegistry = getHierarchyRegistry();
+      hierarchyRegistry.on('hierarchy:registered', (data) => {
+        this._broadcastHierarchyUpdate(data.childId, 'registered', data);
+      });
+      hierarchyRegistry.on('hierarchy:pruned', (data) => {
+        this._broadcastHierarchyUpdate(data.rootId, 'pruned', data);
+      });
+      hierarchyRegistry.on('delegation:registered', (data) => {
+        this._broadcastHierarchyUpdate(null, 'delegation:registered', data);
+      });
+      hierarchyRegistry.on('delegation:updated', (data) => {
+        this._broadcastHierarchyUpdate(null, 'delegation:updated', data);
+      });
+      hierarchyRegistry.on('node:statusChanged', (data) => {
+        this._broadcastHierarchyUpdate(data.agentId, 'status:changed', data);
+      });
+    } catch (error) {
+      this.logger.debug('Could not setup hierarchy event listeners', { error: error.message });
     }
   }
 
@@ -883,6 +949,159 @@ class EnhancedDashboardServer {
     } catch (error) {
       this.logger.debug('Could not get summary with hierarchy', { error: error.message });
       return { hierarchyMetrics: {}, rootSessions: [] };
+    }
+  }
+
+  /**
+   * Get all agents for a session (including sub-agents in hierarchy)
+   * @private
+   */
+  _getSessionAgents(sessionId) {
+    try {
+      const sessionRegistry = getSessionRegistry();
+      const session = sessionRegistry.get(sessionId);
+      if (!session) return null;
+
+      const hierarchyRegistry = getHierarchyRegistry();
+      const agents = [];
+
+      // Get agents from session's activeDelegations
+      if (session.activeDelegations) {
+        for (const delegation of session.activeDelegations) {
+          if (delegation.targetAgentId) {
+            const node = hierarchyRegistry.getNode(delegation.targetAgentId);
+            if (node) {
+              agents.push({
+                agentId: node.agentId,
+                parentId: node.parentId,
+                depth: node.depth,
+                status: node.status,
+                delegationId: delegation.delegationId,
+                taskId: delegation.taskId
+              });
+              // Also get descendants
+              const descendants = hierarchyRegistry.getDescendants(delegation.targetAgentId);
+              for (const descId of descendants) {
+                const descNode = hierarchyRegistry.getNode(descId);
+                if (descNode) {
+                  agents.push({
+                    agentId: descNode.agentId,
+                    parentId: descNode.parentId,
+                    depth: descNode.depth,
+                    status: descNode.status
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return agents;
+    } catch (error) {
+      this.logger.debug('Could not get session agents', { sessionId, error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get agent hierarchy tree
+   * @private
+   */
+  _getAgentHierarchy(agentId) {
+    try {
+      const hierarchyRegistry = getHierarchyRegistry();
+      return hierarchyRegistry.getHierarchy(agentId);
+    } catch (error) {
+      this.logger.debug('Could not get agent hierarchy', { agentId, error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get all active delegations
+   * @private
+   */
+  _getActiveDelegations() {
+    try {
+      const hierarchyRegistry = getHierarchyRegistry();
+      return hierarchyRegistry.getActiveDelegations();
+    } catch (error) {
+      this.logger.debug('Could not get active delegations', { error: error.message });
+      return [];
+    }
+  }
+
+  /**
+   * Get delegation chain for a specific delegation
+   * @private
+   */
+  _getDelegationChain(delegationId) {
+    try {
+      const hierarchyRegistry = getHierarchyRegistry();
+      const delegation = hierarchyRegistry.getDelegation(delegationId);
+      if (!delegation) return null;
+
+      return hierarchyRegistry.getDelegationChain(delegation.childAgentId);
+    } catch (error) {
+      this.logger.debug('Could not get delegation chain', { delegationId, error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get aggregate hierarchy metrics
+   * @private
+   */
+  _getHierarchyMetrics() {
+    try {
+      const hierarchyRegistry = getHierarchyRegistry();
+      const stats = hierarchyRegistry.getStats();
+
+      const sessionRegistry = getSessionRegistry();
+      let sessionsWithHierarchy = 0;
+      let totalDelegationsInProgress = 0;
+      let totalDepth = 0;
+      let depthCount = 0;
+
+      // Get all sessions and count those with hierarchy
+      const sessions = sessionRegistry.getAllSessions ? sessionRegistry.getAllSessions() : [];
+      for (const session of sessions) {
+        if (session.hierarchyInfo &&
+            (session.hierarchyInfo.childSessionIds?.length > 0 || session.hierarchyInfo.parentSessionId)) {
+          sessionsWithHierarchy++;
+        }
+        if (session.activeDelegations?.length > 0) {
+          totalDelegationsInProgress += session.activeDelegations.filter(d => d.status === 'active').length;
+        }
+        if (session.hierarchyInfo?.delegationDepth > 0) {
+          totalDepth += session.hierarchyInfo.delegationDepth;
+          depthCount++;
+        }
+      }
+
+      return {
+        timestamp: Date.now(),
+        registryStats: stats,
+        sessionsWithHierarchy,
+        delegationsInProgress: totalDelegationsInProgress,
+        avgDelegationDepth: depthCount > 0 ? Math.round((totalDepth / depthCount) * 100) / 100 : 0,
+        totalNodes: stats.totalNodes || 0,
+        rootCount: stats.rootCount || 0,
+        maxDepth: stats.maxDepth || 0
+      };
+    } catch (error) {
+      this.logger.debug('Could not get hierarchy metrics', { error: error.message });
+      return {
+        timestamp: Date.now(),
+        registryStats: {},
+        sessionsWithHierarchy: 0,
+        delegationsInProgress: 0,
+        avgDelegationDepth: 0,
+        totalNodes: 0,
+        rootCount: 0,
+        maxDepth: 0
+      };
     }
   }
 

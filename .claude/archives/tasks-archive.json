@@ -83,7 +83,166 @@
         "_generatePlanForStrategy() converted to async for future LLM call support",
         "Individual strategy failures handled gracefully"
       ]
+    },
+    "hierarchy-prereq-failure-cascade": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "hierarchy-prereq-failure-cascade",
+      "title": "Prerequisite: Failure Cascade Handling",
+      "description": "Implement supervision tree pattern for hierarchical error handling. Required before hierarchy implementation to prevent orphaned sub-agents, enable structured error propagation, and support partial result recovery.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "8h",
+      "tags": [
+        "hierarchy",
+        "prerequisite",
+        "error-handling",
+        "supervision"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase1-registry"
+        ],
+        "requires": [
+          "hierarchy-quickwin-parallel-loader"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "SupervisionTree class with restart strategies (one-for-one, all-for-one, rest-for-one)",
+        "HierarchicalError class with agentId, parentId, childErrors, partialResults",
+        "Parent agents can define child restart policies",
+        "Orphan detection and cleanup when parent terminates",
+        "Partial result recovery via MemoryStore checkpointing",
+        "Unit tests for each restart strategy",
+        "Integration tests for cascade scenarios"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T14:45:00.000Z",
+      "completed": "2025-12-28T14:45:00.000Z",
+      "criticalPath": true,
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/supervision-tree.js: SupervisionTree class with restart strategies",
+        "HierarchicalError class with error chain, partial results aggregation",
+        "RestartStrategy enum (ONE_FOR_ONE, ALL_FOR_ONE, REST_FOR_ONE)",
+        "Orphan detection and cleanup methods",
+        "Checkpoint storage for partial result recovery",
+        "__tests__/core/supervision-tree.test.js: 42 unit tests"
+      ]
+    },
+    "hierarchy-phase1-registry": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "hierarchy-phase1-registry",
+      "title": "Phase 1: Core Hierarchy Registry",
+      "description": "Create HierarchyRegistry class for centralized tracking of parent-child agent relationships, delegation chains, and hierarchy metadata. Foundation for all subsequent hierarchy features.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "6h",
+      "tags": [
+        "hierarchy",
+        "phase1",
+        "core",
+        "registry"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase1-agent-extension",
+          "hierarchy-phase1-session-extension"
+        ],
+        "requires": [
+          "hierarchy-prereq-failure-cascade",
+          "hierarchy-prereq-state-management"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "HierarchyRegistry class with roots, nodes, delegations Maps",
+        "Quick lookup indexes: byParent, byDepth, byStatus",
+        "registerHierarchy(parentId, childId, metadata) method",
+        "getHierarchy(agentId) returns full subtree",
+        "getDelegationChain(agentId) returns path from root",
+        "pruneHierarchy(rootId) removes entire subtree",
+        "Singleton instance accessible from Agent and Orchestrator",
+        "Unit tests for all registry operations"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T15:05:00.000Z",
+      "completed": "2025-12-28T15:05:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/hierarchy-registry.js: HierarchyRegistry class with full API",
+        "DelegationStatus enum (PENDING, ACTIVE, COMPLETED, FAILED, CANCELLED)",
+        "HierarchyError class for hierarchy-specific errors",
+        "Singleton pattern via getHierarchyRegistry() and resetHierarchyRegistry()",
+        "Quick lookup indexes: byParent, byDepth, byStatus Maps",
+        "State export/import for persistence",
+        "__tests__/core/hierarchy-registry.test.js: 67 unit tests"
+      ]
+    },
+    "dashboard-project-isolation": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "dashboard-project-isolation",
+      "title": "Multi-Project Session Context Isolation",
+      "description": "Dashboard shows same context for different projects because of single global TaskManager and executionState. Need per-project storage so each project displays its own tasks, metrics, and execution state independently.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "dashboard",
+        "session",
+        "multi-project",
+        "context-isolation"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "hierarchy-phase1-session-extension"
+        ]
+      },
+      "acceptance": [
+        "Backend: TaskManager instances stored in Map keyed by project path",
+        "Backend: ExecutionState stored per-session in Map",
+        "API: /api/tasks accepts optional projectPath param (backward compat)",
+        "API: /api/execution accepts optional sessionId param (backward compat)",
+        "SessionRegistry: projectKey field added for project isolation",
+        "Frontend: projectTasksData and projectExecutionState Maps replace globals",
+        "Frontend: enrichAllActiveSessions() enriches each project independently",
+        "Test: 2 projects show different tasks/context simultaneously",
+        "Test: Same project with 2 CLI windows shows separate entries",
+        "Test: Backward compat - parameterless API calls still work"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T21:00:00.000Z",
+      "updated": "2025-12-28T16:00:00.000Z",
+      "completed": "2025-12-28T16:00:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "global-context-manager.js: Per-project TaskManager Map (getTaskManagerForProject)",
+        "global-context-manager.js: Per-session ExecutionState Map (getExecutionState)",
+        "session-registry.js: projectKey field with path normalization",
+        "global-dashboard.html: projectTasksData/projectExecutionState Maps",
+        "global-dashboard.html: enrichAllActiveSessions() with per-project enrichment"
+      ],
+      "notes": "Implemented via 4 parallel agents. All acceptance criteria met. Backward compatible - APIs work without params."
     }
   },
-  "lastArchived": "2025-12-28T18:06:21.592Z"
+  "lastArchived": "2025-12-28T21:48:46.987Z"
 }

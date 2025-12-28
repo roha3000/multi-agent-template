@@ -1,4 +1,9 @@
 {
+  "_concurrency": {
+    "version": 1,
+    "lastModifiedBy": "migration-script",
+    "lastModifiedAt": "2025-12-28T21:02:59.011Z"
+  },
   "archivedAt": "2025-12-28T16:34:51.507Z",
   "tasks": {
     "agent-verification-protocol": {

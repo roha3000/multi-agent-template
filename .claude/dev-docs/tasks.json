@@ -1,4 +1,9 @@
 {
+  "_concurrency": {
+    "version": 3,
+    "lastModifiedBy": "session-44-completion",
+    "lastModifiedAt": "2025-12-28T21:03:40.654Z"
+  },
   "version": "1.1.0",
   "project": {
     "name": "multi-agent-template",
@@ -15,13 +20,15 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "hierarchy-phase1-dashboard-api"
+        "taskjson-parallel-session-safety"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "taskjson-parallel-session-safety",
+        "parallel-safety-phase2-sqlite-coordinator",
+        "parallel-safety-phase3-shadow-mode",
+        "parallel-safety-phase4-dashboard-conflicts",
         "hierarchy-phase2-delegation"
       ]
     },
@@ -50,12 +57,11 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "parallel-safety-phase1-optimistic-locking",
+        "hierarchy-phase1-task-extension",
+        "hierarchy-phase1-dashboard-api",
         "hierarchy-phase1-agent-extension",
-        "hierarchy-phase1-session-extension",
-        "dashboard-project-isolation",
-        "hierarchy-phase1-registry",
-        "hierarchy-prereq-failure-cascade",
-        "hierarchy-phase1-task-extension"
+        "hierarchy-phase1-session-extension"
       ]
     }
   },
@@ -257,58 +263,6 @@
       "assignee": null,
       "created": "2025-12-28T02:35:00.000Z",
       "updated": "2025-12-28T02:35:00.000Z"
-    },
-    "dashboard-project-isolation": {
-      "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "decomposition": null,
-      "id": "dashboard-project-isolation",
-      "title": "Multi-Project Session Context Isolation",
-      "description": "Dashboard shows same context for different projects because of single global TaskManager and executionState. Need per-project storage so each project displays its own tasks, metrics, and execution state independently.",
-      "phase": "implementation",
-      "priority": "high",
-      "estimate": "4h",
-      "tags": [
-        "dashboard",
-        "session",
-        "multi-project",
-        "context-isolation"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "hierarchy-phase1-session-extension"
-        ]
-      },
-      "acceptance": [
-        "Backend: TaskManager instances stored in Map keyed by project path",
-        "Backend: ExecutionState stored per-session in Map",
-        "API: /api/tasks accepts optional projectPath param (backward compat)",
-        "API: /api/execution accepts optional sessionId param (backward compat)",
-        "SessionRegistry: projectKey field added for project isolation",
-        "Frontend: projectTasksData and projectExecutionState Maps replace globals",
-        "Frontend: enrichAllActiveSessions() enriches each project independently",
-        "Test: 2 projects show different tasks/context simultaneously",
-        "Test: Same project with 2 CLI windows shows separate entries",
-        "Test: Backward compat - parameterless API calls still work"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2025-12-28T21:00:00.000Z",
-      "updated": "2025-12-28T16:00:00.000Z",
-      "completed": "2025-12-28T16:00:00.000Z",
-      "qualityScore": 95,
-      "deliverables": [
-        "global-context-manager.js: Per-project TaskManager Map (getTaskManagerForProject)",
-        "global-context-manager.js: Per-session ExecutionState Map (getExecutionState)",
-        "session-registry.js: projectKey field with path normalization",
-        "global-dashboard.html: projectTasksData/projectExecutionState Maps",
-        "global-dashboard.html: enrichAllActiveSessions() with per-project enrichment"
-      ],
-      "notes": "Implemented via 4 parallel agents. All acceptance criteria met. Backward compatible - APIs work without params."
     },
     "fix-autonomous-session-visibility": {
       "parentTaskId": null,
@@ -548,58 +502,6 @@
         "Duration logging added for performance tracking"
       ]
     },
-    "hierarchy-prereq-failure-cascade": {
-      "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "decomposition": null,
-      "id": "hierarchy-prereq-failure-cascade",
-      "title": "Prerequisite: Failure Cascade Handling",
-      "description": "Implement supervision tree pattern for hierarchical error handling. Required before hierarchy implementation to prevent orphaned sub-agents, enable structured error propagation, and support partial result recovery.",
-      "phase": "implementation",
-      "priority": "critical",
-      "estimate": "8h",
-      "tags": [
-        "hierarchy",
-        "prerequisite",
-        "error-handling",
-        "supervision"
-      ],
-      "depends": {
-        "blocks": [
-          "hierarchy-phase1-registry"
-        ],
-        "requires": [
-          "hierarchy-quickwin-parallel-loader"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "SupervisionTree class with restart strategies (one-for-one, all-for-one, rest-for-one)",
-        "HierarchicalError class with agentId, parentId, childErrors, partialResults",
-        "Parent agents can define child restart policies",
-        "Orphan detection and cleanup when parent terminates",
-        "Partial result recovery via MemoryStore checkpointing",
-        "Unit tests for each restart strategy",
-        "Integration tests for cascade scenarios"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T14:45:00.000Z",
-      "completed": "2025-12-28T14:45:00.000Z",
-      "criticalPath": true,
-      "qualityScore": 95,
-      "deliverables": [
-        ".claude/core/supervision-tree.js: SupervisionTree class with restart strategies",
-        "HierarchicalError class with error chain, partial results aggregation",
-        "RestartStrategy enum (ONE_FOR_ONE, ALL_FOR_ONE, REST_FOR_ONE)",
-        "Orphan detection and cleanup methods",
-        "Checkpoint storage for partial result recovery",
-        "__tests__/core/supervision-tree.test.js: 42 unit tests"
-      ]
-    },
     "hierarchy-prereq-state-management": {
       "parentTaskId": null,
       "childTaskIds": [],
@@ -654,61 +556,6 @@
         "getAggregateState() for hierarchy rollup queries",
         "Event log with filtering and bounded size",
         "__tests__/core/hierarchical-state.test.js: 42 unit tests"
-      ]
-    },
-    "hierarchy-phase1-registry": {
-      "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "decomposition": null,
-      "id": "hierarchy-phase1-registry",
-      "title": "Phase 1: Core Hierarchy Registry",
-      "description": "Create HierarchyRegistry class for centralized tracking of parent-child agent relationships, delegation chains, and hierarchy metadata. Foundation for all subsequent hierarchy features.",
-      "phase": "implementation",
-      "priority": "critical",
-      "estimate": "6h",
-      "tags": [
-        "hierarchy",
-        "phase1",
-        "core",
-        "registry"
-      ],
-      "depends": {
-        "blocks": [
-          "hierarchy-phase1-agent-extension",
-          "hierarchy-phase1-session-extension"
-        ],
-        "requires": [
-          "hierarchy-prereq-failure-cascade",
-          "hierarchy-prereq-state-management"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "HierarchyRegistry class with roots, nodes, delegations Maps",
-        "Quick lookup indexes: byParent, byDepth, byStatus",
-        "registerHierarchy(parentId, childId, metadata) method",
-        "getHierarchy(agentId) returns full subtree",
-        "getDelegationChain(agentId) returns path from root",
-        "pruneHierarchy(rootId) removes entire subtree",
-        "Singleton instance accessible from Agent and Orchestrator",
-        "Unit tests for all registry operations"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T15:05:00.000Z",
-      "completed": "2025-12-28T15:05:00.000Z",
-      "qualityScore": 95,
-      "deliverables": [
-        ".claude/core/hierarchy-registry.js: HierarchyRegistry class with full API",
-        "DelegationStatus enum (PENDING, ACTIVE, COMPLETED, FAILED, CANCELLED)",
-        "HierarchyError class for hierarchy-specific errors",
-        "Singleton pattern via getHierarchyRegistry() and resetHierarchyRegistry()",
-        "Quick lookup indexes: byParent, byDepth, byStatus Maps",
-        "State export/import for persistence",
-        "__tests__/core/hierarchy-registry.test.js: 67 unit tests"
       ]
     },
     "hierarchy-phase1-agent-extension": {
@@ -908,11 +755,19 @@
         "API documentation in swagger/openapi format",
         "Integration tests for all endpoints"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T17:00:00.000Z",
-      "notes": "Session hierarchy endpoints already implemented in hierarchy-phase1-session-extension. This task adds agent and delegation endpoints."
+      "updated": "2025-12-28T18:05:00.000Z",
+      "completed": "2025-12-28T18:05:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/enhanced-dashboard-server.js: 5 new hierarchy endpoints + SSE listeners",
+        "__tests__/integration/hierarchy-dashboard-api.test.js: 27 integration tests",
+        "Import for getHierarchyRegistry added",
+        "Helper methods: _getSessionAgents, _getAgentHierarchy, _getActiveDelegations, _getDelegationChain, _getHierarchyMetrics"
+      ],
+      "notes": "Phase 1 hierarchy complete. All acceptance criteria met except OpenAPI docs (deferred). 94 hierarchy tests passing."
     },
     "hierarchy-phase2-delegation": {
       "parentTaskId": null,
@@ -1325,21 +1180,32 @@
     },
     "taskjson-parallel-session-safety": {
       "parentTaskId": null,
-      "childTaskIds": [],
+      "childTaskIds": [
+        "parallel-safety-phase1-optimistic-locking",
+        "parallel-safety-phase2-sqlite-coordinator",
+        "parallel-safety-phase3-shadow-mode",
+        "parallel-safety-phase4-dashboard-conflicts"
+      ],
       "delegatedTo": null,
       "delegationDepth": 0,
-      "decomposition": null,
+      "decomposition": {
+        "strategy": "sequential",
+        "estimatedSubtasks": 4,
+        "completedSubtasks": 1,
+        "aggregationRule": "all-complete"
+      },
       "id": "taskjson-parallel-session-safety",
-      "title": "Explore Parallel Session Safety for tasks.json",
-      "description": "Multiple CLI sessions editing tasks.json concurrently can cause race conditions, lost updates, or unexpected auto-archival triggers. Research and implement safer patterns for multi-session task management.",
-      "phase": "research",
-      "priority": "medium",
-      "estimate": "4h",
+      "title": "Parallel Session Safety for tasks.json",
+      "description": "Multiple CLI sessions editing tasks.json concurrently can cause race conditions, lost updates, or unexpected auto-archival triggers. Research completed - implementing SQLite coordinator + JSON hybrid approach.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "12h",
       "tags": [
         "task-manager",
         "concurrency",
         "multi-session",
-        "reliability"
+        "reliability",
+        "sqlite"
       ],
       "depends": {
         "blocks": [],
@@ -1349,25 +1215,245 @@
         ]
       },
       "acceptance": [
-        "Research: Document current race condition scenarios with parallel sessions",
-        "Research: Evaluate approaches - file locking, optimistic locking, CRDT, event sourcing",
-        "Design: Recommend solution balancing complexity vs safety",
-        "Consider: Per-session staging files merged on commit",
-        "Consider: Lock file with session ID and timeout",
-        "Consider: Append-only task log with periodic compaction",
-        "Consider: SQLite or other DB with proper locking",
-        "Document: Migration path from current tasks.json format"
+        "Research: Document current race condition scenarios ✓ COMPLETE",
+        "Research: Evaluate approaches - file locking, optimistic locking, CRDT, event sourcing ✓ COMPLETE",
+        "Design: Recommend solution (SQLite coordinator + JSON) ✓ COMPLETE",
+        "Phase 1: Optimistic locking with version numbers",
+        "Phase 2: SQLite coordinator for cross-process locking",
+        "Phase 3: Shadow mode validation",
+        "Phase 4: Dashboard conflict indicators"
+      ],
+      "status": "in_progress",
+      "assignee": null,
+      "created": "2025-12-28T15:10:00.000Z",
+      "updated": "2025-12-28T21:03:40.641Z",
+      "started": "2025-12-28T22:00:00.000Z",
+      "researchCompleted": "2025-12-28T22:00:00.000Z",
+      "researchFindings": {
+        "recommendation": "Hybrid SQLite Coordinator + JSON",
+        "alternatives_evaluated": [
+          "file-locking",
+          "optimistic-locking",
+          "CRDT",
+          "event-sourcing",
+          "per-session-overlay",
+          "git-worktrees"
+        ],
+        "competitive_analysis": [
+          "Cursor",
+          "Copilot",
+          "Aider",
+          "Windsurf",
+          "Continue.dev"
+        ],
+        "industry_pattern": "Git worktrees for parallel features, SQLite for same-project concurrency"
+      },
+      "notes": "Research phase complete via 5 parallel expert agents. Recommendation: SQLite coordinator preserves JSON human-readability while adding proper cross-process locking. Implementation split into 4 phases.",
+      "progress": 25
+    },
+    "parallel-safety-phase1-optimistic-locking": {
+      "parentTaskId": "taskjson-parallel-session-safety",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "parallel-safety-phase1-optimistic-locking",
+      "title": "Phase 1: Optimistic Locking with Version Numbers",
+      "description": "Add version field to tasks.json and implement optimistic locking in TaskManager. Quick win that detects conflicts and enables automatic retry with merge.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "task-manager",
+        "concurrency",
+        "optimistic-locking",
+        "quick-win"
+      ],
+      "depends": {
+        "blocks": [
+          "parallel-safety-phase2-sqlite-coordinator"
+        ],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Add _concurrency field to tasks.json: {version, lastModifiedBy, lastModifiedAt}",
+        "TaskManager.save() checks version before write",
+        "Version mismatch triggers merge and retry (max 3 attempts)",
+        "Session ID tracked in TaskManager constructor",
+        "Conflict events emitted for logging/debugging",
+        "Backward compatible - works without _concurrency field",
+        "Unit tests for version conflict detection",
+        "Unit tests for automatic merge and retry"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T22:00:00.000Z",
+      "updated": "2025-12-28T21:03:40.609Z",
+      "implementationNotes": {
+        "files_to_modify": [
+          ".claude/core/task-manager.js"
+        ],
+        "schema_change": {
+          "_concurrency": {
+            "version": "integer, increments on each save",
+            "lastModifiedBy": "session ID string",
+            "lastModifiedAt": "ISO timestamp"
+          }
+        },
+        "key_methods": [
+          "_checkVersionConflict()",
+          "_incrementVersion()",
+          "save() - add retry loop"
+        ]
+      },
+      "completed": "2025-12-28T21:03:40.610Z"
+    },
+    "parallel-safety-phase2-sqlite-coordinator": {
+      "parentTaskId": "taskjson-parallel-session-safety",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "parallel-safety-phase2-sqlite-coordinator",
+      "title": "Phase 2: SQLite Coordination Layer",
+      "description": "Create CoordinationDB class using SQLite for cross-process locking, session tracking, and change journaling. JSON remains human-readable, SQLite handles concurrency.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "6h",
+      "tags": [
+        "task-manager",
+        "concurrency",
+        "sqlite",
+        "coordination"
+      ],
+      "depends": {
+        "blocks": [
+          "parallel-safety-phase3-shadow-mode"
+        ],
+        "requires": [
+          "parallel-safety-phase1-optimistic-locking"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "CoordinationDB class in .claude/core/coordination-db.js",
+        "SQLite schema: sessions, locks, change_journal tables",
+        "acquireLock(resource, sessionId, timeout) method",
+        "releaseLock(resource, sessionId) method",
+        "Lock auto-expiration (60s default) for crash recovery",
+        "Session heartbeat tracking (stale after 5min)",
+        "Change journal for audit trail",
+        "Integration with existing TaskManager",
+        "Unit tests for lock acquisition/release",
+        "Unit tests for stale lock cleanup"
       ],
       "status": "ready",
       "assignee": null,
-      "created": "2025-12-28T15:10:00.000Z",
-      "updated": "2025-12-28T15:10:00.000Z"
+      "created": "2025-12-28T22:00:00.000Z",
+      "updated": "2025-12-28T21:03:40.610Z",
+      "implementationNotes": {
+        "files_to_create": [
+          ".claude/core/coordination-db.js",
+          ".claude/dev-docs/.coordination/tasks.db"
+        ],
+        "files_to_modify": [
+          ".claude/core/task-manager.js",
+          ".gitignore"
+        ],
+        "schema": {
+          "sessions": "id, project_path, started_at, last_heartbeat",
+          "locks": "resource, session_id, acquired_at, expires_at",
+          "change_journal": "id, session_id, resource, operation, data, timestamp, applied"
+        },
+        "dependencies": "better-sqlite3 (already installed)"
+      }
+    },
+    "parallel-safety-phase3-shadow-mode": {
+      "parentTaskId": "taskjson-parallel-session-safety",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "parallel-safety-phase3-shadow-mode",
+      "title": "Phase 3: Shadow Mode Validation",
+      "description": "Run SQLite coordinator in shadow mode alongside existing file operations to validate consistency. Detect any divergence before full migration.",
+      "phase": "testing",
+      "priority": "medium",
+      "estimate": "3h",
+      "tags": [
+        "task-manager",
+        "concurrency",
+        "validation",
+        "shadow-mode"
+      ],
+      "depends": {
+        "blocks": [
+          "parallel-safety-phase4-dashboard-conflicts"
+        ],
+        "requires": [
+          "parallel-safety-phase2-sqlite-coordinator"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Shadow mode flag in TaskManager constructor",
+        "When enabled: write to both JSON and SQLite",
+        "Consistency check on each save (hash comparison)",
+        "Log any divergence with full context",
+        "Run for 1 week in production before full switch",
+        "Metrics: conflict_count, merge_count, divergence_count",
+        "Dashboard indicator showing shadow mode status"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T22:00:00.000Z",
+      "updated": "2025-12-28T22:00:00.000Z"
+    },
+    "parallel-safety-phase4-dashboard-conflicts": {
+      "parentTaskId": "taskjson-parallel-session-safety",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "parallel-safety-phase4-dashboard-conflicts",
+      "title": "Phase 4: Dashboard Conflict Visibility",
+      "description": "Add conflict detection and visualization to dashboard. Show when sessions have conflicting edits, display change journal, enable manual conflict resolution.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": [
+        "dashboard",
+        "concurrency",
+        "ux",
+        "conflict-resolution"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "parallel-safety-phase3-shadow-mode"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "GET /api/conflicts returns pending conflicts",
+        "GET /api/change-journal returns recent changes",
+        "Dashboard shows conflict indicator (yellow warning)",
+        "Conflict detail modal shows both versions",
+        "Manual resolution: pick version A, B, or merge",
+        "SSE broadcasts conflict events",
+        "Conflict count in dashboard header metrics"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T22:00:00.000Z",
+      "updated": "2025-12-28T22:00:00.000Z"
     }
   },
   "archival": {
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2025-12-28T18:06:21.596Z"
+    "lastArchived": "2025-12-28T21:48:46.992Z"
   }
 }

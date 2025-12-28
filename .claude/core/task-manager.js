@@ -24,6 +24,10 @@ class TaskManager extends EventEmitter {
     this.memoryStore = options.memoryStore || null;
     this.tasks = null;
 
+    // Session tracking for optimistic locking
+    this.sessionId = options.sessionId || crypto.randomUUID();
+    this._memoryVersion = 0;
+
     // Concurrency protection
     this._lastFileHash = null;
     this._lastFileMtime = null;
@@ -31,6 +35,59 @@ class TaskManager extends EventEmitter {
     this._pendingSave = false;
 
     this.load();
+  }
+
+  // ====================================================================
+  // OPTIMISTIC LOCKING METHODS
+  // ====================================================================
+
+  /**
+   * Initialize _concurrency field if missing (backward compatibility)
+   * @private
+   */
+  _initConcurrency() {
+    if (!this.tasks._concurrency) {
+      this.tasks._concurrency = {
+        version: 1,
+        lastModifiedBy: this.sessionId,
+        lastModifiedAt: new Date().toISOString()
+      };
+      this._memoryVersion = 1;
+    } else {
+      this._memoryVersion = this.tasks._concurrency.version;
+    }
+  }
+
+  /**
+   * Check for version conflict between disk and memory
+   * @param {Object} diskData - Data read from disk
+   * @returns {Object} { conflict: boolean, diskVersion: number, memoryVersion: number }
+   * @private
+   */
+  _checkVersionConflict(diskData) {
+    const diskVersion = diskData._concurrency?.version || 0;
+    const memoryVersion = this._memoryVersion;
+
+    return {
+      conflict: diskVersion > memoryVersion,
+      diskVersion,
+      memoryVersion
+    };
+  }
+
+  /**
+   * Increment version after successful save
+   * @private
+   */
+  _incrementVersion() {
+    if (!this.tasks._concurrency) {
+      this._initConcurrency();
+    }
+
+    this.tasks._concurrency.version += 1;
+    this.tasks._concurrency.lastModifiedBy = this.sessionId;
+    this.tasks._concurrency.lastModifiedAt = new Date().toISOString();
+    this._memoryVersion = this.tasks._concurrency.version;
   }
 
   // ====================================================================
@@ -712,6 +769,9 @@ class TaskManager extends EventEmitter {
       this._lastFileHash = this._calculateHash(data);
       this._lastFileMtime = this._getFileStats().mtime;
 
+      // Initialize concurrency tracking (backward compatibility)
+      this._initConcurrency();
+
       // Check and fix queue integrity on load
       const integrityFixed = this._checkAndFixIntegrityOnLoad();
       if (integrityFixed) {
@@ -724,6 +784,7 @@ class TaskManager extends EventEmitter {
       if (error.code === 'ENOENT') {
         // File doesn't exist, create default structure
         this.tasks = this._createDefaultStructure();
+        this._initConcurrency();
         this.save();
         this.emit('tasks:initialized');
       } else {
@@ -975,9 +1036,12 @@ class TaskManager extends EventEmitter {
   }
 
   /**
-   * Save tasks to file with concurrency protection
+   * Save tasks to file with optimistic locking and concurrency protection
+   * @param {number} _retryAttempt - Internal retry counter (do not set manually)
    */
-  save() {
+  save(_retryAttempt = 0) {
+    const MAX_RETRIES = 3;
+
     // Prevent concurrent saves
     if (this._saveLock) {
       this._pendingSave = true;
@@ -991,11 +1055,42 @@ class TaskManager extends EventEmitter {
       const { changed, diskTasks, data: diskData } = this._checkForExternalChanges();
 
       if (changed && diskTasks) {
-        console.warn('[TaskManager] External modification detected - merging changes');
-        this.emit('tasks:external-change', { diskTasks });
+        // Check for version conflict
+        const versionInfo = this._checkVersionConflict(diskTasks);
 
-        // Merge external changes with in-memory state
-        this.tasks = this._mergeChanges(diskTasks);
+        if (versionInfo.conflict) {
+          console.warn(`[TaskManager] Version conflict detected (disk: ${versionInfo.diskVersion}, memory: ${versionInfo.memoryVersion})`);
+
+          this.emit('tasks:version-conflict', {
+            diskVersion: versionInfo.diskVersion,
+            memoryVersion: versionInfo.memoryVersion,
+            resolved: false,
+            attempts: _retryAttempt + 1
+          });
+
+          if (_retryAttempt >= MAX_RETRIES) {
+            throw new Error(`Version conflict could not be resolved after ${MAX_RETRIES} attempts`);
+          }
+
+          // Merge external changes with in-memory state
+          this.tasks = this._mergeChanges(diskTasks);
+
+          // Update memory version to match disk after merge
+          this._memoryVersion = versionInfo.diskVersion;
+
+          this.emit('tasks:version-conflict', {
+            diskVersion: versionInfo.diskVersion,
+            memoryVersion: this._memoryVersion,
+            resolved: true,
+            attempts: _retryAttempt + 1
+          });
+        } else {
+          console.warn('[TaskManager] External modification detected - merging changes');
+          this.emit('tasks:external-change', { diskTasks });
+
+          // Merge external changes with in-memory state
+          this.tasks = this._mergeChanges(diskTasks);
+        }
       }
 
       // Always enforce queue integrity before saving
@@ -1006,6 +1101,9 @@ class TaskManager extends EventEmitter {
         this._archiveOldCompletedTasks();
       }
 
+      // Increment version before saving
+      this._incrementVersion();
+
       // Save merged state
       const data = JSON.stringify(this.tasks, null, 2);
       fs.writeFileSync(this.tasksPath, data, 'utf8');
@@ -1014,7 +1112,7 @@ class TaskManager extends EventEmitter {
       this._lastFileHash = this._calculateHash(data);
       this._lastFileMtime = this._getFileStats().mtime;
 
-      this.emit('tasks:saved');
+      this.emit('tasks:saved', { version: this.tasks._concurrency?.version });
     } finally {
       this._saveLock = false;
 
