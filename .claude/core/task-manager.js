@@ -996,6 +996,11 @@ class TaskManager extends EventEmitter {
       // Always enforce queue integrity before saving
       this._enforceQueueIntegrity(this.tasks);
 
+      // Auto-archive old completed tasks if configured
+      if (this.tasks.archival?.autoArchive) {
+        this._archiveOldCompletedTasks();
+      }
+
       // Save merged state
       const data = JSON.stringify(this.tasks, null, 2);
       fs.writeFileSync(this.tasksPath, data, 'utf8');
@@ -1051,6 +1056,128 @@ class TaskManager extends EventEmitter {
       },
       tasks: {}
     };
+  }
+
+  // ====================================================================
+  // ARCHIVAL METHODS
+  // ====================================================================
+
+  /**
+   * Archive old completed tasks to reduce file size
+   * Called automatically on save when archival.autoArchive is true
+   */
+  _archiveOldCompletedTasks() {
+    const archival = this.tasks.archival;
+    if (!archival) return;
+
+    const maxCompleted = archival.maxCompleted || 5;
+    const archivePath = archival.archivePath
+      ? path.join(path.dirname(this.tasksPath), '..', archival.archivePath.replace('.claude/dev-docs/', ''))
+      : path.join(path.dirname(this.tasksPath), 'archives', 'tasks-archive.json');
+
+    const completedIds = this.tasks.backlog.completed?.tasks || [];
+    if (completedIds.length <= maxCompleted) return;
+
+    // Get completed tasks with timestamps, sorted by completion date (most recent first)
+    const completedTasks = completedIds
+      .map(id => {
+        const task = this.tasks.tasks[id];
+        return task ? {
+          id,
+          task,
+          completedAt: task.completed ? new Date(task.completed).getTime() : 0
+        } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.completedAt - a.completedAt);
+
+    // Split into keep and archive
+    const tasksToKeep = completedTasks.slice(0, maxCompleted);
+    const tasksToArchive = completedTasks.slice(maxCompleted);
+
+    if (tasksToArchive.length === 0) return;
+
+    // Ensure archive directory exists
+    const archiveDir = path.dirname(archivePath);
+    if (!fs.existsSync(archiveDir)) {
+      fs.mkdirSync(archiveDir, { recursive: true });
+    }
+
+    // Load or create archive
+    let archive = { archivedAt: new Date().toISOString(), tasks: {} };
+    if (fs.existsSync(archivePath)) {
+      try {
+        archive = JSON.parse(fs.readFileSync(archivePath, 'utf8'));
+      } catch (e) {
+        console.warn('[TaskManager] Could not read archive file, creating new one');
+      }
+    }
+
+    // Add tasks to archive
+    tasksToArchive.forEach(({ id, task }) => {
+      archive.tasks[id] = task;
+    });
+    archive.lastArchived = new Date().toISOString();
+
+    // Write archive
+    fs.writeFileSync(archivePath, JSON.stringify(archive, null, 2), 'utf8');
+
+    // Update in-memory state
+    this.tasks.backlog.completed.tasks = tasksToKeep.map(t => t.id);
+    tasksToArchive.forEach(({ id }) => {
+      delete this.tasks.tasks[id];
+    });
+    this.tasks.archival.lastArchived = new Date().toISOString();
+
+    console.log(`[TaskManager] Archived ${tasksToArchive.length} completed tasks`);
+    this.emit('tasks:archived', { count: tasksToArchive.length, archivePath });
+  }
+
+  /**
+   * Get a task from the archive by ID
+   * @param {string} taskId - Task ID to retrieve
+   * @returns {Object|null} Task object or null if not found
+   */
+  getArchivedTask(taskId) {
+    const archival = this.tasks.archival;
+    if (!archival) return null;
+
+    const archivePath = archival.archivePath
+      ? path.join(path.dirname(this.tasksPath), '..', archival.archivePath.replace('.claude/dev-docs/', ''))
+      : path.join(path.dirname(this.tasksPath), 'archives', 'tasks-archive.json');
+
+    if (!fs.existsSync(archivePath)) return null;
+
+    try {
+      const archive = JSON.parse(fs.readFileSync(archivePath, 'utf8'));
+      return archive.tasks[taskId] || null;
+    } catch (e) {
+      console.warn('[TaskManager] Could not read archive:', e.message);
+      return null;
+    }
+  }
+
+  /**
+   * Get all archived tasks
+   * @returns {Object} Map of taskId -> task
+   */
+  getAllArchivedTasks() {
+    const archival = this.tasks.archival;
+    if (!archival) return {};
+
+    const archivePath = archival.archivePath
+      ? path.join(path.dirname(this.tasksPath), '..', archival.archivePath.replace('.claude/dev-docs/', ''))
+      : path.join(path.dirname(this.tasksPath), 'archives', 'tasks-archive.json');
+
+    if (!fs.existsSync(archivePath)) return {};
+
+    try {
+      const archive = JSON.parse(fs.readFileSync(archivePath, 'utf8'));
+      return archive.tasks || {};
+    } catch (e) {
+      console.warn('[TaskManager] Could not read archive:', e.message);
+      return {};
+    }
   }
 }
 

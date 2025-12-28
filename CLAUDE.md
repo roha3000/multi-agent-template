@@ -18,7 +18,7 @@ Multi-agent development system that combines specialized AI agent personas with 
 - `plan.md` - What we're building (current task breakdown, implementation steps)
 - `tasks.json` - Structured tasks with backlog tiers, dependencies, and status tracking
 
-**Token cost**: ~400 tokens total (cached via prompt caching = ~40 tokens effective)
+**Token cost**: ~1,500 tokens total (target, see Token Efficiency Rules below)
 
 **When you need fresh context or phase inference**:
 - User can run `/session-init [task description]` to regenerate context with intelligent phase detection
@@ -27,6 +27,83 @@ Multi-agent development system that combines specialized AI agent personas with 
 **Important**:
 - If PROJECT_SUMMARY.md doesn't exist, the project is new. Proceed with research phase.
 - If dev-docs files don't exist, create them from current task state.
+
+## Token Efficiency Rules
+
+The dev-docs pattern must stay token-efficient. **Target: ~1,500 tokens total** for all 3 files.
+
+### File Size Limits
+
+| File | Target | Max Lines | Content Rules |
+|------|--------|-----------|---------------|
+| `tasks.json` | ~1,000 tokens | 300 lines | 5 completed tasks max, rest archived |
+| `PROJECT_SUMMARY.md` | ~350 tokens | 80 lines | Current session (full) + 1 prior (slimmed) |
+| `plan.md` | ~150 tokens | 30 lines | Current plan only, no history |
+
+### Automatic Archival
+
+**TaskManager** auto-archives completed tasks when `archival.autoArchive: true` in tasks.json:
+- Keeps last 5 completed tasks by completion date
+- Archives older tasks to `.claude/dev-docs/archives/tasks-archive.json`
+- Removes archived task definitions from active file (keeps IDs only)
+
+**Configuration** (in tasks.json):
+```json
+"archival": {
+  "maxCompleted": 5,
+  "autoArchive": true,
+  "archivePath": ".claude/dev-docs/archives/tasks-archive.json"
+}
+```
+
+### PROJECT_SUMMARY.md Format
+
+**Current session** gets full detail:
+```markdown
+## Session N: Title (CURRENT)
+### Work Completed
+[table]
+### Implementation Details
+[full details]
+### Files Modified
+[table]
+```
+
+**Prior session** gets slimmed to 5 lines:
+```markdown
+## Session N-1: Title ✅
+- **Tasks**: task-id-1, task-id-2
+- **Key changes**: Brief summary of what changed
+- **Files**: file1.js, file2.js
+```
+
+### plan.md Format
+
+Current plan only - no session history:
+```markdown
+# Current Plan
+**Phase**: [phase]
+**Status**: [status]
+
+## Active Tasks (NOW)
+[table]
+
+## Next Steps
+[numbered list]
+```
+
+### Archive Location
+
+All archives stored in `.claude/dev-docs/archives/`:
+- `tasks-archive.json` - Completed tasks with full definitions
+- `sessions-archive.md` - Full session details before slimming
+
+### Preventing Drift
+
+If context load exceeds 5,000 tokens:
+1. Run `node scripts/archive-completed-tasks.js` to archive old tasks
+2. Manually trim PROJECT_SUMMARY.md to 2 sessions
+3. Trim plan.md to current plan only
 
 ## Multi-Agent Multi-Model Strategy
 

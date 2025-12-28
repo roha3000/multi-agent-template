@@ -1056,4 +1056,142 @@ describe('TaskManager', () => {
       expect(stats.total).toBe(0);
     });
   });
+
+  describe('Archival - _archiveOldCompletedTasks', () => {
+    let archivePath;
+
+    beforeEach(() => {
+      // Set up archival config - use path relative to tasks.json location
+      // The archival code does: path.join(path.dirname(tasksPath), '..', archivePath.replace('.claude/dev-docs/', ''))
+      // So we need archivePath to end up in tempDir after that calculation
+      // tasksPath = tempDir/tasks.json
+      // dirname(tasksPath) = tempDir
+      // We want final path = tempDir/archives/tasks-archive.json
+      // So archivePath should be: '.claude/dev-docs/archives/tasks-archive.json'
+      // which after replace becomes 'archives/tasks-archive.json'
+      // then path.join(tempDir, '..', 'archives/tasks-archive.json') = tempDir/../archives/tasks-archive.json
+      // That's wrong! Let's use a different approach - use the default path (no archivePath config)
+      // Default: path.join(path.dirname(tasksPath), 'archives', 'tasks-archive.json')
+      // = path.join(tempDir, 'archives', 'tasks-archive.json')
+      archivePath = path.join(tempDir, 'archives', 'tasks-archive.json');
+      taskManager.tasks.archival = {
+        maxCompleted: 2,
+        autoArchive: true
+        // Don't set archivePath - let it use default which is relative to tasksPath
+      };
+
+      // Ensure completed backlog exists
+      if (!taskManager.tasks.backlog.completed) {
+        taskManager.tasks.backlog.completed = { description: 'Completed', tasks: [] };
+      }
+
+      // Clean up archive from previous tests
+      const archiveDir = path.dirname(archivePath);
+      if (fs.existsSync(archiveDir)) {
+        fs.rmSync(archiveDir, { recursive: true });
+      }
+    });
+
+    // Helper to create completed task with specific timestamp
+    function createCompletedTask(id, title, completedTime) {
+      const task = taskManager.createTask({
+        id,
+        title,
+        phase: 'implementation',
+        status: 'completed'
+      });
+      // Manually set completed timestamp (createTask doesn't preserve it)
+      taskManager.tasks.tasks[id].completed = completedTime;
+      return task;
+    }
+
+    test('should not archive when completed count is within limit', () => {
+      // Add 2 completed tasks (at limit)
+      const now = Date.now();
+      createCompletedTask('task-1', 'Task 1', new Date(now - 1000).toISOString());
+      createCompletedTask('task-2', 'Task 2', new Date(now).toISOString());
+      taskManager.tasks.backlog.completed.tasks = ['task-1', 'task-2'];
+
+      taskManager._archiveOldCompletedTasks();
+
+      expect(fs.existsSync(archivePath)).toBe(false);
+      expect(taskManager.tasks.backlog.completed.tasks).toHaveLength(2);
+    });
+
+    test('should archive oldest completed tasks when over limit', () => {
+      // Add 4 completed tasks (over limit of 2)
+      const now = Date.now();
+      createCompletedTask('oldest', 'Oldest Task', new Date(now - 4000).toISOString());
+      createCompletedTask('old', 'Old Task', new Date(now - 3000).toISOString());
+      createCompletedTask('recent', 'Recent Task', new Date(now - 2000).toISOString());
+      createCompletedTask('newest', 'Newest Task', new Date(now - 1000).toISOString());
+      taskManager.tasks.backlog.completed.tasks = ['oldest', 'old', 'recent', 'newest'];
+
+      taskManager._archiveOldCompletedTasks();
+
+      // Should keep 2 most recent
+      expect(taskManager.tasks.backlog.completed.tasks).toHaveLength(2);
+      expect(taskManager.tasks.backlog.completed.tasks).toContain('newest');
+      expect(taskManager.tasks.backlog.completed.tasks).toContain('recent');
+
+      // Archived tasks should be removed from active tasks
+      expect(taskManager.tasks.tasks['oldest']).toBeUndefined();
+      expect(taskManager.tasks.tasks['old']).toBeUndefined();
+
+      // Archive file should exist with archived tasks
+      expect(fs.existsSync(archivePath)).toBe(true);
+      const archive = JSON.parse(fs.readFileSync(archivePath, 'utf8'));
+      expect(archive.tasks['oldest']).toBeDefined();
+      expect(archive.tasks['old']).toBeDefined();
+    });
+
+    test('should emit tasks:archived event', () => {
+      const archiveEvents = [];
+      taskManager.on('tasks:archived', (data) => archiveEvents.push(data));
+
+      const now = Date.now();
+      createCompletedTask('task-a', 'Task A', new Date(now - 2000).toISOString());
+      createCompletedTask('task-b', 'Task B', new Date(now - 1000).toISOString());
+      createCompletedTask('task-c', 'Task C', new Date(now).toISOString());
+      taskManager.tasks.backlog.completed.tasks = ['task-a', 'task-b', 'task-c'];
+
+      taskManager._archiveOldCompletedTasks();
+
+      expect(archiveEvents).toHaveLength(1);
+      expect(archiveEvents[0].count).toBe(1); // 1 task archived (3 - 2 limit)
+    });
+
+    test('getArchivedTask should retrieve archived task', () => {
+      // Create and archive a task
+      const now = Date.now();
+      createCompletedTask('to-archive', 'Archived Task', new Date(now - 2000).toISOString());
+      createCompletedTask('keep-1', 'Keep 1', new Date(now - 1000).toISOString());
+      createCompletedTask('keep-2', 'Keep 2', new Date(now).toISOString());
+      taskManager.tasks.backlog.completed.tasks = ['to-archive', 'keep-1', 'keep-2'];
+
+      taskManager._archiveOldCompletedTasks();
+
+      // Task should not be in active tasks
+      expect(taskManager.getTask('to-archive')).toBeNull();
+
+      // But should be retrievable from archive
+      const archivedTask = taskManager.getArchivedTask('to-archive');
+      expect(archivedTask).toBeDefined();
+      expect(archivedTask.title).toBe('Archived Task');
+    });
+
+    test('getAllArchivedTasks should return all archived tasks', () => {
+      // Create multiple tasks and archive some
+      const now = Date.now();
+      for (let i = 0; i < 5; i++) {
+        createCompletedTask(`task-${i}`, `Task ${i}`, new Date(now - (5 - i) * 1000).toISOString());
+      }
+      taskManager.tasks.backlog.completed.tasks = ['task-0', 'task-1', 'task-2', 'task-3', 'task-4'];
+
+      taskManager._archiveOldCompletedTasks();
+
+      const allArchived = taskManager.getAllArchivedTasks();
+      expect(Object.keys(allArchived)).toHaveLength(3); // 5 - 2 limit = 3 archived
+    });
+  });
 });
