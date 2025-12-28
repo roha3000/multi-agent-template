@@ -817,11 +817,11 @@ class GlobalContextTracker extends EventEmitter {
         status: project.status,
         currentSessionId: project.currentSessionId,
         sessionCount: project.sessions.size,
-        // Include only recent/active sessions (updated within last 2 hours)
+        // Include only active sessions (updated within last 10 minutes)
         sessions: Array.from(project.sessions.values())
           .filter(s => {
             const isActive = s.id === project.currentSessionId;
-            const recentThreshold = Date.now() - (2 * 60 * 60 * 1000); // 2 hours
+            const recentThreshold = Date.now() - (10 * 60 * 1000); // 10 minutes
             const isRecent = s.lastUpdate && s.lastUpdate > recentThreshold;
             return isActive || isRecent;
           })
