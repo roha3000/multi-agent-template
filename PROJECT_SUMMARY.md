@@ -43,6 +43,7 @@
 - **Tasks**: dashboard-project-isolation (95/100)
 - **Key changes**: Per-project TaskManager/ExecutionState Maps, SessionRegistry projectKey
 - **Files**: global-context-manager.js, session-registry.js, global-dashboard.html
+- **Tests**: 22 integration tests in `__tests__/integration/project-isolation.test.js`
 
 ---
 
@@ -74,7 +75,7 @@
 | Orchestrator | Unified + parallel patterns + hierarchy foundations |
 | Dashboard | Command Center - project isolation DONE |
 | Task System | Concurrent write protection + auto-archival |
-| Tests | 1518+ passing (67 new) |
+| Tests | 1540+ passing |
 | Hierarchy | Phase 1 Registry complete, Agent/Session extensions ready |
 
 ---
