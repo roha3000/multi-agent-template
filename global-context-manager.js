@@ -399,8 +399,14 @@ function addAlert(alert) {
 // DEV-DOCS FILE WATCHING
 // ============================================================================
 
-function readQualityScores() {
-  const scoresPath = path.join(__dirname, '.claude', 'dev-docs', 'quality-scores.json');
+/**
+ * Read quality scores from a project's dev-docs
+ * @param {string} [projectPath] - Project directory path (defaults to this project)
+ * @returns {Object|null} Quality scores or null if not found
+ */
+function readQualityScores(projectPath) {
+  const basePath = projectPath || defaultProjectPath;
+  const scoresPath = path.join(basePath, '.claude', 'dev-docs', 'quality-scores.json');
   try {
     if (fs.existsSync(scoresPath)) {
       const content = fs.readFileSync(scoresPath, 'utf-8');
@@ -412,8 +418,14 @@ function readQualityScores() {
   return null;
 }
 
-function readTasksFile() {
-  const tasksJsonPath = path.join(__dirname, '.claude', 'dev-docs', 'tasks.json');
+/**
+ * Read tasks from a project's tasks.json
+ * @param {string} [projectPath] - Project directory path (defaults to this project)
+ * @returns {Object} Parsed tasks with todos, phase, and status
+ */
+function readTasksFile(projectPath) {
+  const basePath = projectPath || defaultProjectPath;
+  const tasksJsonPath = path.join(basePath, '.claude', 'dev-docs', 'tasks.json');
   try {
     if (fs.existsSync(tasksJsonPath)) {
       const content = fs.readFileSync(tasksJsonPath, 'utf-8');
@@ -470,8 +482,14 @@ function parseTasksJson(content) {
   return { todos, phase: currentPhase, status };
 }
 
-function readPlanFile() {
-  const planPath = path.join(__dirname, '.claude', 'dev-docs', 'plan.md');
+/**
+ * Read plan from a project's dev-docs
+ * @param {string} [projectPath] - Project directory path (defaults to this project)
+ * @returns {Object|null} Parsed plan or null if not found
+ */
+function readPlanFile(projectPath) {
+  const basePath = projectPath || defaultProjectPath;
+  const planPath = path.join(basePath, '.claude', 'dev-docs', 'plan.md');
   try {
     if (fs.existsSync(planPath)) {
       const content = fs.readFileSync(planPath, 'utf-8');
@@ -509,38 +527,51 @@ function parsePlanMarkdown(content) {
   return { phase, status, criteria };
 }
 
-function updateExecutionState() {
-  const scores = readQualityScores();
-  const tasks = readTasksFile();
-  const plan = readPlanFile();
+/**
+ * Update execution state for a specific project (or default)
+ * @param {string} [projectPath] - Project directory path
+ * @returns {Object} Updated execution state for the project
+ */
+function updateExecutionState(projectPath) {
+  const state = getExecutionStateForProject(projectPath);
+  const scores = readQualityScores(projectPath);
+  const tasks = readTasksFile(projectPath);
+  const plan = readPlanFile(projectPath);
 
-  executionState.qualityScores = scores;
-  executionState.todos = tasks.todos;
-  executionState.plan = plan;
-  executionState.lastUpdate = new Date().toISOString();
+  state.qualityScores = scores;
+  state.todos = tasks.todos;
+  state.plan = plan;
+  state.lastUpdate = new Date().toISOString();
 
   // Update current phase from quality scores or tasks
   if (scores?.phase) {
-    executionState.currentPhase = scores.phase;
-    executionState.phaseIteration = scores.iteration || 1;
+    state.currentPhase = scores.phase;
+    state.phaseIteration = scores.iteration || 1;
   } else if (tasks.phase) {
-    executionState.currentPhase = tasks.phase;
+    state.currentPhase = tasks.phase;
   }
 
   // Record phase history if score changed
-  if (scores && (!executionState.phaseHistory.length ||
-      executionState.phaseHistory[executionState.phaseHistory.length - 1]?.totalScore !== scores.totalScore)) {
-    executionState.phaseHistory.push({
+  if (scores && (!state.phaseHistory.length ||
+      state.phaseHistory[state.phaseHistory.length - 1]?.totalScore !== scores.totalScore)) {
+    state.phaseHistory.push({
       phase: scores.phase,
       iteration: scores.iteration,
       totalScore: scores.totalScore,
       timestamp: new Date().toISOString(),
     });
     // Keep last 20 entries
-    if (executionState.phaseHistory.length > 20) {
-      executionState.phaseHistory.shift();
+    if (state.phaseHistory.length > 20) {
+      state.phaseHistory.shift();
     }
   }
+
+  // Update legacy reference for backward compatibility
+  if (!projectPath || normalizeProjectPath(projectPath) === normalizeProjectPath(defaultProjectPath)) {
+    executionState = state;
+  }
+
+  return state;
 }
 
 function startDevDocsWatcher() {
@@ -715,9 +746,11 @@ app.get('/api/series', (req, res) => {
 // ============================================================================
 
 // Get current execution state (phase, scores, todos)
+// Supports ?projectPath= query param for per-project isolation
 app.get('/api/execution', (req, res) => {
-  updateExecutionState(); // Refresh before sending
-  res.json(executionState);
+  const projectPath = req.query.projectPath;
+  const state = updateExecutionState(projectPath);
+  res.json(state);
 });
 
 // Update execution state (called by orchestrator)
@@ -730,15 +763,17 @@ app.post('/api/execution/phase', (req, res) => {
   res.json({ success: true });
 });
 
-// Get quality scores
+// Get quality scores - supports ?projectPath= query param
 app.get('/api/execution/scores', (req, res) => {
-  const scores = readQualityScores();
+  const projectPath = req.query.projectPath;
+  const scores = readQualityScores(projectPath);
   res.json(scores || { phase: null, scores: {}, totalScore: 0 });
 });
 
-// Get todos from tasks.md
+// Get todos from tasks.json - supports ?projectPath= query param
 app.get('/api/execution/todos', (req, res) => {
-  const tasks = readTasksFile();
+  const projectPath = req.query.projectPath;
+  const tasks = readTasksFile(projectPath);
   res.json(tasks);
 });
 
@@ -966,14 +1001,23 @@ app.get('/api/tasks/dot', (req, res) => {
   res.type('text/plain').send(taskGraph.toDOT());
 });
 
-// Get all tasks
+// Get all tasks - supports ?projectPath= query param for per-project isolation
 app.get('/api/tasks', (req, res) => {
-  if (!taskManager) {
-    return res.status(503).json({ error: 'TaskManager not initialized' });
+  const projectPath = req.query.projectPath;
+  const tm = projectPath ? getTaskManagerForProject(projectPath) : taskManager;
+
+  if (!tm) {
+    // If no TaskManager, return empty data instead of error (more graceful)
+    return res.json({
+      tasks: [],
+      stats: { total: 0, now: 0, next: 0, later: 0, completed: 0, ready: 0, inProgress: 0 },
+      projectPath: projectPath || defaultProjectPath
+    });
   }
   res.json({
-    tasks: taskManager.getReadyTasks({ backlog: 'all' }),
-    stats: taskManager.getStats(),
+    tasks: tm.getReadyTasks({ backlog: 'all' }),
+    stats: tm.getStats(),
+    projectPath: projectPath || defaultProjectPath
   });
 });
 

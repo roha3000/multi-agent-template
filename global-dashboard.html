@@ -1588,6 +1588,9 @@
     let predictions = {};
     let usageLimits = {};
     let eventSource = null;
+    // Per-project task/execution data (key = project path)
+    const projectDataMap = new Map();
+    // Legacy single-project references (for backward compatibility)
     let tasksData = { tasks: [], stats: {} };
     let executionState = {};
 
@@ -1678,27 +1681,78 @@
 
     async function fetchTasksAndExecution() {
       try {
-        // Fetch tasks and execution state
-        const [tasksRes, execRes] = await Promise.all([
-          fetch('/api/tasks'),
-          fetch('/api/execution')
-        ]);
+        // Get unique project paths from all sessions
+        const uniqueProjectPaths = new Set();
+        for (const session of sessions) {
+          if (session.path) {
+            uniqueProjectPaths.add(session.path);
+          }
+        }
 
-        const newTasksData = await tasksRes.json();
-        const newExecutionState = await execRes.json();
+        // If no sessions with paths, fetch default project data
+        if (uniqueProjectPaths.size === 0) {
+          const [tasksRes, execRes] = await Promise.all([
+            fetch('/api/tasks'),
+            fetch('/api/execution')
+          ]);
+          tasksData = await tasksRes.json();
+          executionState = await execRes.json();
+          enrichActiveSession();
+          return;
+        }
 
-        // Check if data actually changed before updating
-        const tasksChanged = JSON.stringify(newTasksData.stats) !== JSON.stringify(tasksData.stats);
-        const execChanged = JSON.stringify(newExecutionState.qualityScores) !== JSON.stringify(executionState.qualityScores);
+        // Fetch tasks and execution state for EACH unique project
+        const fetchPromises = [];
+        const projectPaths = Array.from(uniqueProjectPaths);
 
-        tasksData = newTasksData;
-        executionState = newExecutionState;
+        for (const projectPath of projectPaths) {
+          const encodedPath = encodeURIComponent(projectPath);
+          fetchPromises.push(
+            Promise.all([
+              fetch(`/api/tasks?projectPath=${encodedPath}`),
+              fetch(`/api/execution?projectPath=${encodedPath}`)
+            ]).then(async ([tasksRes, execRes]) => ({
+              projectPath,
+              tasks: await tasksRes.json(),
+              execution: await execRes.json()
+            }))
+          );
+        }
 
-        // Enrich the active session with this data
+        // Wait for all fetches to complete
+        const results = await Promise.all(fetchPromises);
+        let anyChanged = false;
+
+        // Store results in the projectDataMap
+        for (const result of results) {
+          const oldData = projectDataMap.get(result.projectPath);
+          const newData = {
+            tasks: result.tasks,
+            execution: result.execution
+          };
+
+          // Check if data changed for this project
+          const tasksChanged = !oldData || JSON.stringify(oldData.tasks?.stats) !== JSON.stringify(newData.tasks?.stats);
+          const execChanged = !oldData || JSON.stringify(oldData.execution?.qualityScores) !== JSON.stringify(newData.execution?.qualityScores);
+
+          if (tasksChanged || execChanged) {
+            anyChanged = true;
+          }
+
+          projectDataMap.set(result.projectPath, newData);
+        }
+
+        // Update legacy references with first project's data (for backward compatibility)
+        if (results.length > 0) {
+          tasksData = results[0].tasks;
+          executionState = results[0].execution;
+        }
+
+        // Enrich sessions with their project's data
         enrichActiveSession();
 
         // Only update UI if data changed
-        if (tasksChanged || execChanged) {
+        if (anyChanged) {
           updateTrafficLights();
           updateSessionList();
           if (selectedSessionId) {
@@ -1711,75 +1765,89 @@
     }
 
     function enrichActiveSession() {
-      // Find first active session to determine the current project
-      const firstActive = sessions.find(s => s.status === 'active');
-      if (!firstActive) return;
+      // Group sessions by project path for per-project enrichment
+      const sessionsByPath = new Map();
 
-      // Get all active sessions from the SAME project
-      const projectName = firstActive.project;
-      const projectSessions = sessions.filter(s =>
-        s.status === 'active' && s.project === projectName
-      );
+      for (const session of sessions) {
+        const projectPath = session.path;
+        if (!projectPath) continue;
 
-      // Build task data once
-      let taskQueue = [];
-      let currentTask = null;
-
-      if (tasksData.tasks && tasksData.tasks.length > 0) {
-        taskQueue = tasksData.tasks
-          .filter(t => t.status === 'ready')
-          .sort((a, b) => {
-            const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-            return (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2);
-          })
-          .slice(0, 10);
-
-        const inProgressTask = tasksData.tasks.find(t => t.status === 'in_progress');
-        if (inProgressTask) {
-          currentTask = {
-            id: inProgressTask.id,
-            title: inProgressTask.title,
-            description: inProgressTask.description,
-            phase: inProgressTask.phase || executionState.currentPhase,
-            priority: inProgressTask.priority,
-            estimate: inProgressTask.estimate,
-            acceptance: (inProgressTask.acceptance || []).map(a =>
-              typeof a === 'string' ? { text: a, done: false } : a
-            ),
-            attempts: inProgressTask.attempts || 1
-          };
-        } else if (taskQueue.length > 0) {
-          const nextTask = taskQueue[0];
-          currentTask = {
-            id: nextTask.id,
-            title: nextTask.title,
-            description: nextTask.description,
-            phase: nextTask.phase || executionState.currentPhase,
-            priority: nextTask.priority,
-            estimate: nextTask.estimate,
-            acceptance: (nextTask.acceptance || []).map(a =>
-              typeof a === 'string' ? { text: a, done: false } : a
-            ),
-            attempts: 1
-          };
+        if (!sessionsByPath.has(projectPath)) {
+          sessionsByPath.set(projectPath, []);
         }
+        sessionsByPath.get(projectPath).push(session);
       }
 
-      // Apply shared project-level data to active sessions
-      // BUT preserve each session's individual metrics (quality, context)
-      for (const session of projectSessions) {
-        // Only set phase if session doesn't have its own
-        if (executionState.currentPhase && !session.phase) {
-          session.phase = executionState.currentPhase;
-          session.iteration = executionState.phaseIteration || 1;
-        }
-        // DON'T overwrite session-specific quality scores
-        // Each session tracks its own quality from the session registry
+      // Enrich each project's sessions with that project's data
+      for (const [projectPath, projectSessions] of sessionsByPath) {
+        // Get this project's data from the map
+        const projectData = projectDataMap.get(projectPath) || {
+          tasks: { tasks: [], stats: {} },
+          execution: {}
+        };
 
-        // Task queue and stats are project-level, safe to share
-        session.taskQueue = taskQueue;
-        session.currentTask = currentTask;
-        session.taskStats = tasksData.stats || {};
+        const projectTasksData = projectData.tasks || { tasks: [], stats: {} };
+        const projectExecutionState = projectData.execution || {};
+
+        // Build task data for this project
+        let taskQueue = [];
+        let currentTask = null;
+
+        if (projectTasksData.tasks && projectTasksData.tasks.length > 0) {
+          taskQueue = projectTasksData.tasks
+            .filter(t => t.status === 'ready')
+            .sort((a, b) => {
+              const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+              return (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2);
+            })
+            .slice(0, 10);
+
+          const inProgressTask = projectTasksData.tasks.find(t => t.status === 'in_progress');
+          if (inProgressTask) {
+            currentTask = {
+              id: inProgressTask.id,
+              title: inProgressTask.title,
+              description: inProgressTask.description,
+              phase: inProgressTask.phase || projectExecutionState.currentPhase,
+              priority: inProgressTask.priority,
+              estimate: inProgressTask.estimate,
+              acceptance: (inProgressTask.acceptance || []).map(a =>
+                typeof a === 'string' ? { text: a, done: false } : a
+              ),
+              attempts: inProgressTask.attempts || 1
+            };
+          } else if (taskQueue.length > 0) {
+            const nextTask = taskQueue[0];
+            currentTask = {
+              id: nextTask.id,
+              title: nextTask.title,
+              description: nextTask.description,
+              phase: nextTask.phase || projectExecutionState.currentPhase,
+              priority: nextTask.priority,
+              estimate: nextTask.estimate,
+              acceptance: (nextTask.acceptance || []).map(a =>
+                typeof a === 'string' ? { text: a, done: false } : a
+              ),
+              attempts: 1
+            };
+          }
+        }
+
+        // Apply this project's data to its sessions
+        for (const session of projectSessions) {
+          // Only set phase if session doesn't have its own
+          if (projectExecutionState.currentPhase && !session.phase) {
+            session.phase = projectExecutionState.currentPhase;
+            session.iteration = projectExecutionState.phaseIteration || 1;
+          }
+          // DON'T overwrite session-specific quality scores
+          // Each session tracks its own quality from the session registry
+
+          // Task queue and stats are project-level, safe to share within project
+          session.taskQueue = taskQueue;
+          session.currentTask = currentTask;
+          session.taskStats = projectTasksData.stats || {};
+        }
       }
     }
 
@@ -1830,12 +1898,16 @@
               cliSessionId: cliSession.id,
               sessionType: 'cli',
               status: isActive ? 'active' : 'idle',
-              contextPercent: p.metrics?.contextPercent || 0,
+              // Use per-session context (fallback to project for backward compat)
+              contextPercent: cliSession.contextPercent ?? p.metrics?.contextPercent ?? 0,
+              contextUsed: cliSession.contextUsed ?? p.metrics?.contextUsed ?? 0,
               qualityScore: existingSession?.qualityScore || 0,
               qualityBreakdown: existingSession?.qualityBreakdown || {},
-              cost: p.metrics?.cost || 0,
+              // Use per-session cost (fallback to project for backward compat)
+              cost: cliSession.cost ?? p.metrics?.cost ?? 0,
               tokens: cliSession.inputTokens + cliSession.outputTokens,
-              model: p.metrics?.model,
+              // Use per-session model (fallback to project for backward compat)
+              model: cliSession.model ?? p.metrics?.model,
               messageCount: cliSession.messageCount || 0,
               currentTask: existingSession?.currentTask || null,
               taskQueue: existingSession?.taskQueue || [],
@@ -2042,16 +2114,20 @@
                 const lastUpdateTime = typeof cliSession.lastUpdate === 'number' ? cliSession.lastUpdate : 0;
                 const hasRecentActivity = lastUpdateTime > fiveMinutesAgo;
                 const isActive = p.status === 'active' || cliSession.isActive || hasRecentActivity;
-                const newContextPercent = p.metrics?.contextPercent || 0;
+                // Use per-session context (fallback to project for backward compat)
+                const newContextPercent = cliSession.contextPercent ?? p.metrics?.contextPercent ?? 0;
+                const newCost = cliSession.cost ?? p.metrics?.cost ?? 0;
+                const newModel = cliSession.model ?? p.metrics?.model;
 
                 if (existing) {
                   // Update in-place - only mark changed if values actually differ
                   const oldStatus = existing.status;
                   existing.status = isActive ? 'active' : 'idle';
                   existing.contextPercent = newContextPercent;
-                  existing.cost = isActive ? (p.metrics?.cost || 0) : 0;
-                  existing.tokens = isActive ? (p.metrics?.contextUsed || 0) : (cliSession.inputTokens + cliSession.outputTokens);
-                  existing.model = p.metrics?.model;
+                  existing.contextUsed = cliSession.contextUsed ?? p.metrics?.contextUsed ?? 0;
+                  existing.cost = isActive ? newCost : 0;
+                  existing.tokens = cliSession.inputTokens + cliSession.outputTokens;
+                  existing.model = newModel;
                   existing.messageCount = cliSession.messageCount || 0;
                   existing.safetyStatus = isActive ? p.safetyStatus : 'OK';
                   existing.lastUpdate = cliSession.lastUpdate;
@@ -2068,9 +2144,10 @@
                     sessionType: 'cli',
                     status: isActive ? 'active' : 'idle',
                     contextPercent: newContextPercent,
-                    cost: isActive ? (p.metrics?.cost || 0) : 0,
-                    tokens: isActive ? (p.metrics?.contextUsed || 0) : (cliSession.inputTokens + cliSession.outputTokens),
-                    model: p.metrics?.model,
+                    contextUsed: cliSession.contextUsed ?? p.metrics?.contextUsed ?? 0,
+                    cost: isActive ? newCost : 0,
+                    tokens: cliSession.inputTokens + cliSession.outputTokens,
+                    model: newModel,
                     messageCount: cliSession.messageCount || 0,
                     safetyStatus: isActive ? p.safetyStatus : 'OK',
                     qualityScore: 0,

@@ -250,14 +250,21 @@ class GlobalContextTracker extends EventEmitter {
 
         if (isActive) {
           projectData.status = 'active';
-          // Only read and show context for ACTIVE sessions
-          const currentSessionPath = path.join(projectPath, mostRecentFile);
-          await this._readExistingSession(projectData, currentSessionPath);
         } else {
-          // Inactive sessions show 0% context (session is closed)
           projectData.status = 'inactive';
           projectData.metrics.contextUsed = 0;
           projectData.metrics.contextPercent = 0;
+        }
+
+        // Read context for ALL sessions with today's activity (per-session tracking)
+        const todayStart = new Date().setHours(0, 0, 0, 0);
+        for (const [sessionId, session] of projectData.sessions) {
+          // Skip agent sessions
+          if (sessionId.startsWith('agent-')) continue;
+          // Only read sessions with today's activity
+          if (session.lastUpdate && session.lastUpdate > todayStart) {
+            await this._readExistingSession(projectData, session.filepath);
+          }
         }
       }
 
@@ -322,16 +329,6 @@ class GlobalContextTracker extends EventEmitter {
         }
       }
 
-      // Update session data with cumulative totals
-      session.inputTokens = totalInput;
-      session.outputTokens = totalOutput;
-      session.cacheCreationTokens = totalCacheCreate;
-      session.cacheReadTokens = totalCacheRead;
-      session.messageCount = messageCount;
-      session.model = model;
-      // Store latest usage for context calculation
-      session.latestUsage = latestUsage;
-
       // Calculate context used from LATEST entry (not cumulative!)
       // Context window = input_tokens + cache_read + cache_creation + output_tokens + system overhead
       // The JSONL only captures message tokens, not system prompt/tools/memory
@@ -346,15 +343,32 @@ class GlobalContextTracker extends EventEmitter {
         contextUsed = messageTokens + this.systemOverhead;
       }
 
+      const contextPercent = (contextUsed / this.contextWindowSize) * 100;
+      const sessionCost = this._calculateCost(totalInput, totalOutput, totalCacheCreate, totalCacheRead, model);
+
+      // Update session data with cumulative totals AND per-session context
+      session.inputTokens = totalInput;
+      session.outputTokens = totalOutput;
+      session.cacheCreationTokens = totalCacheCreate;
+      session.cacheReadTokens = totalCacheRead;
+      session.messageCount = messageCount;
+      session.model = model;
+      session.latestUsage = latestUsage;
+      // Per-session context tracking (NEW)
+      session.contextUsed = contextUsed;
+      session.contextPercent = contextPercent;
+      session.cost = sessionCost;
+
+      // Also update project-level metrics (for backward compatibility)
       projectData.metrics = {
         inputTokens: totalInput,
         outputTokens: totalOutput,
         cacheCreationTokens: totalCacheCreate,
         cacheReadTokens: totalCacheRead,
         contextUsed,
-        contextPercent: (contextUsed / this.contextWindowSize) * 100,
+        contextPercent,
         messageCount,
-        cost: this._calculateCost(totalInput, totalOutput, totalCacheCreate, totalCacheRead, model),
+        cost: sessionCost,
         model,
         lastUpdate: Date.now(),
         // Store latest usage breakdown for dashboard
@@ -366,7 +380,7 @@ class GlobalContextTracker extends EventEmitter {
         } : null
       };
 
-      console.log(`[GlobalContextTracker] Loaded ${projectData.name}: ${projectData.metrics.contextPercent.toFixed(1)}% context (${contextUsed.toLocaleString()} tokens)`);
+      console.log(`[GlobalContextTracker] Loaded ${projectData.name}/${sessionId}: ${contextPercent.toFixed(1)}% context (${contextUsed.toLocaleString()} tokens)`);
 
     } catch (error) {
       console.error(`[GlobalContextTracker] Error reading session file:`, error);
@@ -836,7 +850,12 @@ class GlobalContextTracker extends EventEmitter {
             cacheReadTokens: s.cacheReadTokens,
             messageCount: s.messageCount,
             lastUpdate: s.lastUpdate,
-            isActive: s.id === project.currentSessionId
+            isActive: s.id === project.currentSessionId,
+            // Per-session context tracking
+            contextUsed: s.contextUsed || 0,
+            contextPercent: s.contextPercent || 0,
+            cost: s.cost || 0,
+            model: s.model || null
           })),
         metrics: { ...project.metrics },
         checkpointState: { ...project.checkpointState },
