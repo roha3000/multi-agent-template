@@ -273,6 +273,88 @@ class EnhancedDashboardServer {
       res.json(result);
     });
 
+    // ====================================================================
+    // CONFLICT MANAGEMENT ENDPOINTS (Phase 4)
+    // ====================================================================
+
+    // Get all conflicts with optional filters
+    this.app.get('/api/conflicts', (req, res) => {
+      const options = {
+        status: req.query.status || null,
+        resource: req.query.resource || null,
+        limit: parseInt(req.query.limit) || 50,
+        offset: parseInt(req.query.offset) || 0,
+        includeResolved: req.query.includeResolved === 'true'
+      };
+      const result = this._getConflicts(options);
+      res.json(result);
+    });
+
+    // Get specific conflict by ID
+    this.app.get('/api/conflicts/:id', (req, res) => {
+      const conflict = this._getConflict(req.params.id);
+      if (conflict) {
+        res.json(conflict);
+      } else {
+        res.status(404).json({ error: 'CONFLICT_NOT_FOUND' });
+      }
+    });
+
+    // Resolve a conflict
+    this.app.post('/api/conflicts/:id/resolve', (req, res) => {
+      const { resolution, resolutionData, notes } = req.body;
+
+      if (!resolution || !['version_a', 'version_b', 'merged', 'manual', 'discarded'].includes(resolution)) {
+        return res.status(400).json({ error: 'INVALID_RESOLUTION', validOptions: ['version_a', 'version_b', 'merged', 'manual', 'discarded'] });
+      }
+
+      if (resolution === 'merged' && !resolutionData) {
+        return res.status(400).json({ error: 'MERGE_DATA_REQUIRED' });
+      }
+
+      const result = this._resolveConflict(req.params.id, resolution, { resolutionData, notes });
+
+      if (result.success) {
+        res.json(result);
+      } else if (result.error === 'CONFLICT_NOT_FOUND') {
+        res.status(404).json(result);
+      } else if (result.error === 'ALREADY_RESOLVED') {
+        res.status(400).json(result);
+      } else {
+        res.status(500).json(result);
+      }
+    });
+
+    // Get conflict counts for dashboard badge
+    this.app.get('/api/conflicts/counts', (req, res) => {
+      const counts = this._getConflictCounts();
+      res.json(counts);
+    });
+
+    // ====================================================================
+    // CHANGE JOURNAL ENDPOINTS (Phase 4)
+    // ====================================================================
+
+    // Get change journal with filters
+    this.app.get('/api/change-journal', (req, res) => {
+      const options = {
+        sessionId: req.query.session || null,
+        resource: req.query.resource || null,
+        operation: req.query.operation || null,
+        limit: parseInt(req.query.limit) || 50,
+        since: req.query.since ? parseInt(req.query.since) : null
+      };
+      const result = this._getChangeJournal(options);
+      res.json(result);
+    });
+
+    // Get changes for a specific session
+    this.app.get('/api/change-journal/session/:sessionId', (req, res) => {
+      const limit = parseInt(req.query.limit) || 100;
+      const changes = this._getChangesBySession(req.params.sessionId, limit);
+      res.json(changes);
+    });
+
     // Project-specific endpoints
     this.app.get('/api/otlp/project/:id', (req, res) => {
       const projectData = this._getProjectDetails(req.params.id);
@@ -1328,6 +1410,192 @@ class EnhancedDashboardServer {
     }
 
     return result;
+  }
+
+  // ============================================================================
+  // CONFLICT MANAGEMENT HELPERS (Phase 4)
+  // ============================================================================
+
+  /**
+   * Get CoordinationDB instance from TaskManager
+   * @private
+   */
+  _getCoordinationDb() {
+    const tm = this._getTaskManager();
+    return tm?._coordinationDb || null;
+  }
+
+  /**
+   * Get conflicts with optional filters
+   * @private
+   */
+  _getConflicts(options = {}) {
+    const db = this._getCoordinationDb();
+    if (!db) {
+      return {
+        conflicts: [],
+        pagination: { total: 0, limit: options.limit || 50, offset: 0, hasMore: false },
+        summary: { pending: 0, resolved: 0, total: 0 },
+        available: false
+      };
+    }
+
+    const result = db.getConflicts(options);
+    return { ...result, available: true };
+  }
+
+  /**
+   * Get a specific conflict by ID
+   * @private
+   */
+  _getConflict(conflictId) {
+    const db = this._getCoordinationDb();
+    if (!db) return null;
+
+    return db.getConflict(conflictId);
+  }
+
+  /**
+   * Resolve a conflict
+   * @private
+   */
+  _resolveConflict(conflictId, resolution, options = {}) {
+    const db = this._getCoordinationDb();
+    if (!db) {
+      return { success: false, error: 'DATABASE_UNAVAILABLE' };
+    }
+
+    const result = db.resolveConflict(conflictId, resolution, options);
+
+    if (result.success) {
+      // Broadcast conflict resolution
+      this._broadcastEvent('conflict:resolved', {
+        conflictId,
+        resolution,
+        resolvedBy: result.conflict?.resolvedBy,
+        timestamp: Date.now()
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Get conflict counts for dashboard badge
+   * @private
+   */
+  _getConflictCounts() {
+    const db = this._getCoordinationDb();
+    if (!db) {
+      return { pending: 0, resolved: 0, autoResolved: 0, total: 0, available: false };
+    }
+
+    const counts = db.getConflictCounts();
+    return { ...counts, available: true };
+  }
+
+  /**
+   * Get change journal with filters
+   * @private
+   */
+  _getChangeJournal(options = {}) {
+    const db = this._getCoordinationDb();
+    if (!db) {
+      return { entries: [], available: false };
+    }
+
+    const { sessionId, resource, limit = 50 } = options;
+
+    let entries;
+    if (sessionId) {
+      entries = db.getChangesBySession(sessionId);
+    } else if (resource) {
+      entries = db.getChangesByResource(resource);
+    } else {
+      entries = db.getRecentChanges(limit);
+    }
+
+    // Get unique sessions for filter dropdown
+    const sessionsSet = new Set(entries.map(e => e.sessionId));
+    const sessions = Array.from(sessionsSet).map(sid => {
+      const session = db.getSession(sid);
+      return {
+        id: sid,
+        agentType: session?.agentType || 'unknown',
+        active: session ? (Date.now() - session.lastHeartbeat < db.options.staleSessionThreshold) : false
+      };
+    });
+
+    return {
+      entries: entries.slice(0, limit),
+      sessions,
+      available: true,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Get changes for a specific session
+   * @private
+   */
+  _getChangesBySession(sessionId, limit = 100) {
+    const db = this._getCoordinationDb();
+    if (!db) {
+      return { entries: [], available: false };
+    }
+
+    const entries = db.getChangesBySession(sessionId);
+    const session = db.getSession(sessionId);
+
+    return {
+      sessionId,
+      session: session ? {
+        agentType: session.agentType,
+        projectPath: session.projectPath,
+        startedAt: session.startedAt,
+        lastHeartbeat: session.lastHeartbeat,
+        status: (Date.now() - session.lastHeartbeat < db.options.staleSessionThreshold) ? 'active' : 'stale'
+      } : null,
+      entries: entries.slice(0, limit),
+      available: true
+    };
+  }
+
+  /**
+   * Setup conflict event listeners for SSE broadcasting
+   * Call this after CoordinationDB is available
+   * @private
+   */
+  _setupConflictEventListeners() {
+    const db = this._getCoordinationDb();
+    if (!db) return;
+
+    // Listen for conflict events and broadcast via SSE
+    db.on('conflict:detected', (conflict) => {
+      this._broadcastEvent('conflict:detected', {
+        ...conflict,
+        timestamp: Date.now()
+      });
+    });
+
+    db.on('conflict:resolved', (conflict) => {
+      this._broadcastEvent('conflict:resolved', {
+        conflictId: conflict.id,
+        resolution: conflict.resolution,
+        resolvedBy: conflict.resolvedBy,
+        timestamp: Date.now()
+      });
+    });
+
+    db.on('change:recorded', (change) => {
+      this._broadcastEvent('journal:entry', {
+        entryId: change.id,
+        sessionId: change.sessionId,
+        operation: change.operation,
+        resource: change.resource,
+        timestamp: Date.now()
+      });
+    });
   }
 }
 

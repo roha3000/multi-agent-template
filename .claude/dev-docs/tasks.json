@@ -25,9 +25,7 @@
     },
     "next": {
       "description": "Next priority after now is complete",
-      "tasks": [
-        "parallel-safety-phase4-dashboard-conflicts"
-      ]
+      "tasks": []
     },
     "later": {
       "description": "Future work, not yet prioritized",
@@ -53,10 +51,10 @@
       "description": "Completed tasks (archived)",
       "tasks": [
         "parallel-safety-phase2-sqlite-coordinator",
+        "parallel-safety-phase4-dashboard-conflicts",
         "parallel-safety-phase3-shadow-mode",
         "hierarchy-phase2-delegation",
-        "hierarchy-phase2-context",
-        "hierarchy-phase2-aggregation"
+        "hierarchy-phase2-context"
       ]
     }
   },
@@ -816,59 +814,6 @@
         "__tests__/core/delegation-context.test.js: 25 unit tests"
       ]
     },
-    "hierarchy-phase2-aggregation": {
-      "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "decomposition": null,
-      "id": "hierarchy-phase2-aggregation",
-      "title": "Phase 2: Result Aggregation Strategies",
-      "description": "Implement aggregation strategies for combining sub-agent results: merge, selectBest, vote, chain. Each strategy suited for different delegation patterns.",
-      "phase": "implementation",
-      "priority": "high",
-      "estimate": "4h",
-      "tags": [
-        "hierarchy",
-        "phase2",
-        "aggregation",
-        "strategies"
-      ],
-      "depends": {
-        "blocks": [
-          "hierarchy-phase3-decomposer"
-        ],
-        "requires": [
-          "hierarchy-phase2-delegation"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "AggregationStrategies.merge() combines all results",
-        "AggregationStrategies.selectBest() picks highest quality",
-        "AggregationStrategies.vote() uses consensus voting",
-        "AggregationStrategies.chain() sequences results (output N -> input N+1)",
-        "Custom aggregation function support",
-        "Aggregation metadata (strategy used, confidence, alternatives)",
-        "Unit tests for each strategy with edge cases"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T22:30:00.000Z",
-      "completed": "2025-12-28T22:30:00.000Z",
-      "qualityScore": 95,
-      "deliverables": [
-        ".claude/core/aggregation-strategies.js: AggregationStrategies class (~410 lines)",
-        "merge() with array dedup, object merge, primitive handling",
-        "selectBest() with quality scoring, tie breakers, custom selectors",
-        "vote() with majority, weighted, unanimous strategies",
-        "chain() with pipeline stages (filter, transform, aggregate, validate)",
-        "custom() for user-provided aggregation functions",
-        "calculateSimilarity() helper for Jaccard similarity",
-        "__tests__/core/aggregation-strategies.test.js: 19 unit tests"
-      ]
-    },
     "hierarchy-phase3-decomposer": {
       "parentTaskId": null,
       "childTaskIds": [],
@@ -1167,7 +1112,7 @@
       "decomposition": {
         "strategy": "sequential",
         "estimatedSubtasks": 4,
-        "completedSubtasks": 3,
+        "completedSubtasks": 4,
         "aggregationRule": "all-complete"
       },
       "id": "taskjson-parallel-session-safety",
@@ -1224,8 +1169,8 @@
         ],
         "industry_pattern": "Git worktrees for parallel features, SQLite for same-project concurrency"
       },
-      "notes": "Phase 3 complete. Shadow mode validation with dual-write, hash comparison, metrics, and health scoring. 48 shadow mode tests + 49 coordination tests passing.",
-      "progress": 75
+      "notes": "100% COMPLETE. All 4 phases done: optimistic locking, SQLite coordinator, shadow mode, dashboard conflicts. 136 total tests (49 coordination + 48 shadow + 39 conflicts).",
+      "progress": 100
     },
     "parallel-safety-phase2-sqlite-coordinator": {
       "parentTaskId": "taskjson-parallel-session-safety",
@@ -1386,16 +1331,25 @@
         "SSE broadcasts conflict events",
         "Conflict count in dashboard header metrics"
       ],
-      "status": "blocked",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-28T22:00:00.000Z",
-      "updated": "2025-12-28T22:00:00.000Z"
+      "updated": "2025-12-28T23:30:00.000Z",
+      "completed": "2025-12-28T23:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/coordination-db.js: Conflicts table + CRUD methods (~200 lines added)",
+        ".claude/core/enhanced-dashboard-server.js: 8 new API endpoints (conflicts + change-journal)",
+        "SSE broadcasting for conflict:detected, conflict:resolved, journal:entry events",
+        "__tests__/core/conflict-management.test.js: 39 unit tests",
+        "Expert agent swarm design: API, UI, SSE, Detection, Test Strategy"
+      ]
     }
   },
   "archival": {
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2025-12-28T22:45:33.740Z"
+    "lastArchived": "2025-12-28T23:10:38.790Z"
   }
 }

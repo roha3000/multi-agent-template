@@ -125,6 +125,45 @@ class CoordinationDB extends EventEmitter {
       CREATE INDEX IF NOT EXISTS idx_change_journal_resource ON change_journal(resource, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_change_journal_session ON change_journal(session_id);
       CREATE INDEX IF NOT EXISTS idx_change_journal_applied ON change_journal(applied) WHERE applied = 0;
+
+      -- Conflicts table: Track detected conflicts for dashboard visibility
+      CREATE TABLE IF NOT EXISTS conflicts (
+        id TEXT PRIMARY KEY NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('VERSION_CONFLICT', 'CONCURRENT_EDIT', 'STALE_LOCK', 'MERGE_FAILURE')),
+        resource TEXT NOT NULL,
+        detected_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+        severity TEXT NOT NULL DEFAULT 'warning' CHECK(severity IN ('info', 'warning', 'critical')),
+
+        -- Session A (the session that detected the conflict)
+        session_a_id TEXT NOT NULL,
+        session_a_data TEXT,
+        session_a_version INTEGER,
+        session_a_timestamp INTEGER,
+
+        -- Session B (the conflicting session)
+        session_b_id TEXT,
+        session_b_data TEXT,
+        session_b_version INTEGER,
+        session_b_timestamp INTEGER,
+
+        -- Conflict details
+        affected_task_ids TEXT,
+        field_conflicts TEXT,
+        description TEXT,
+
+        -- Resolution tracking
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'resolved', 'auto-resolved', 'escalated')),
+        resolution TEXT CHECK(resolution IN (NULL, 'version_a', 'version_b', 'merged', 'manual', 'discarded')),
+        resolution_data TEXT,
+        resolved_at INTEGER,
+        resolved_by TEXT,
+        resolution_notes TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_conflicts_status ON conflicts(status) WHERE status = 'pending';
+      CREATE INDEX IF NOT EXISTS idx_conflicts_resource ON conflicts(resource, detected_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_conflicts_session_a ON conflicts(session_a_id);
+      CREATE INDEX IF NOT EXISTS idx_conflicts_detected_at ON conflicts(detected_at DESC);
     `);
 
     // Prepare commonly used statements
@@ -207,6 +246,40 @@ class CoordinationDB extends EventEmitter {
       `),
       deleteOldChanges: this.db.prepare(`
         DELETE FROM change_journal WHERE created_at < ? AND applied = 1
+      `),
+
+      // Conflict statements
+      insertConflict: this.db.prepare(`
+        INSERT INTO conflicts (id, type, resource, detected_at, severity, session_a_id, session_a_data,
+          session_a_version, session_a_timestamp, session_b_id, session_b_data, session_b_version,
+          session_b_timestamp, affected_task_ids, field_conflicts, description, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+      `),
+      getConflict: this.db.prepare(`
+        SELECT * FROM conflicts WHERE id = ?
+      `),
+      getPendingConflicts: this.db.prepare(`
+        SELECT * FROM conflicts WHERE status = 'pending' ORDER BY detected_at DESC
+      `),
+      getConflictsByStatus: this.db.prepare(`
+        SELECT * FROM conflicts WHERE status = ? ORDER BY detected_at DESC LIMIT ?
+      `),
+      getConflictsByResource: this.db.prepare(`
+        SELECT * FROM conflicts WHERE resource = ? ORDER BY detected_at DESC LIMIT ?
+      `),
+      getAllConflicts: this.db.prepare(`
+        SELECT * FROM conflicts ORDER BY detected_at DESC LIMIT ? OFFSET ?
+      `),
+      resolveConflict: this.db.prepare(`
+        UPDATE conflicts SET status = ?, resolution = ?, resolution_data = ?,
+          resolved_at = ?, resolved_by = ?, resolution_notes = ?
+        WHERE id = ? AND status = 'pending'
+      `),
+      getConflictCount: this.db.prepare(`
+        SELECT status, COUNT(*) as count FROM conflicts GROUP BY status
+      `),
+      deleteOldConflicts: this.db.prepare(`
+        DELETE FROM conflicts WHERE resolved_at < ? AND status IN ('resolved', 'auto-resolved')
       `)
     };
   }
@@ -742,6 +815,243 @@ class CoordinationDB extends EventEmitter {
       createdAt: row.created_at,
       applied: !!row.applied,
       checksum: row.checksum
+    };
+  }
+
+  // ============================================================================
+  // CONFLICT MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Record a conflict
+   * @param {Object} conflictData - Conflict details
+   * @returns {Object} Created conflict record
+   */
+  recordConflict(conflictData) {
+    const id = conflictData.id || crypto.randomUUID();
+    const now = Date.now();
+
+    this._stmts.insertConflict.run(
+      id,
+      conflictData.type,
+      conflictData.resource || 'tasks.json',
+      now,
+      conflictData.severity || 'warning',
+      conflictData.sessionAId,
+      conflictData.sessionAData ? JSON.stringify(conflictData.sessionAData) : null,
+      conflictData.sessionAVersion || null,
+      conflictData.sessionATimestamp || now,
+      conflictData.sessionBId || null,
+      conflictData.sessionBData ? JSON.stringify(conflictData.sessionBData) : null,
+      conflictData.sessionBVersion || null,
+      conflictData.sessionBTimestamp || null,
+      conflictData.affectedTaskIds ? JSON.stringify(conflictData.affectedTaskIds) : null,
+      conflictData.fieldConflicts ? JSON.stringify(conflictData.fieldConflicts) : null,
+      conflictData.description || null
+    );
+
+    const conflict = {
+      id,
+      type: conflictData.type,
+      resource: conflictData.resource || 'tasks.json',
+      detectedAt: now,
+      severity: conflictData.severity || 'warning',
+      sessionAId: conflictData.sessionAId,
+      sessionBId: conflictData.sessionBId,
+      affectedTaskIds: conflictData.affectedTaskIds || [],
+      status: 'pending'
+    };
+
+    this.emit('conflict:detected', conflict);
+    return conflict;
+  }
+
+  /**
+   * Get a conflict by ID
+   * @param {string} conflictId - Conflict ID
+   * @returns {Object|null} Conflict details
+   */
+  getConflict(conflictId) {
+    const row = this._stmts.getConflict.get(conflictId);
+    return row ? this._formatConflictRow(row) : null;
+  }
+
+  /**
+   * Get pending (unresolved) conflicts
+   * @returns {Array} Pending conflicts
+   */
+  getPendingConflicts() {
+    const rows = this._stmts.getPendingConflicts.all();
+    return rows.map(row => this._formatConflictRow(row));
+  }
+
+  /**
+   * Get conflicts with pagination and filters
+   * @param {Object} options - Query options
+   * @returns {Object} Conflicts and pagination info
+   */
+  getConflicts(options = {}) {
+    const {
+      status = null,
+      resource = null,
+      limit = 50,
+      offset = 0,
+      includeResolved = false
+    } = options;
+
+    let rows;
+    if (status) {
+      rows = this._stmts.getConflictsByStatus.all(status, limit);
+    } else if (resource) {
+      rows = this._stmts.getConflictsByResource.all(resource, limit);
+    } else {
+      rows = this._stmts.getAllConflicts.all(limit, offset);
+    }
+
+    const conflicts = rows.map(row => this._formatConflictRow(row));
+
+    // Filter out resolved if needed
+    const filtered = includeResolved
+      ? conflicts
+      : conflicts.filter(c => c.status === 'pending');
+
+    // Get counts
+    const countRows = this._stmts.getConflictCount.all();
+    const counts = { pending: 0, resolved: 0, 'auto-resolved': 0, escalated: 0 };
+    for (const row of countRows) {
+      counts[row.status] = row.count;
+    }
+
+    return {
+      conflicts: filtered,
+      pagination: {
+        total: Object.values(counts).reduce((a, b) => a + b, 0),
+        limit,
+        offset,
+        hasMore: filtered.length === limit
+      },
+      summary: {
+        pending: counts.pending,
+        resolved: counts.resolved + counts['auto-resolved'],
+        total: Object.values(counts).reduce((a, b) => a + b, 0)
+      }
+    };
+  }
+
+  /**
+   * Resolve a conflict
+   * @param {string} conflictId - Conflict ID
+   * @param {string} resolution - Resolution type (version_a, version_b, merged, manual, discarded)
+   * @param {Object} options - Resolution options
+   * @returns {Object} Resolution result
+   */
+  resolveConflict(conflictId, resolution, options = {}) {
+    const conflict = this.getConflict(conflictId);
+    if (!conflict) {
+      return { success: false, error: 'CONFLICT_NOT_FOUND' };
+    }
+
+    if (conflict.status !== 'pending') {
+      return { success: false, error: 'ALREADY_RESOLVED', existingResolution: conflict.resolution };
+    }
+
+    const now = Date.now();
+    const status = options.autoResolved ? 'auto-resolved' : 'resolved';
+
+    const result = this._stmts.resolveConflict.run(
+      status,
+      resolution,
+      options.resolutionData ? JSON.stringify(options.resolutionData) : null,
+      now,
+      options.resolvedBy || this._currentSessionId,
+      options.notes || null,
+      conflictId
+    );
+
+    if (result.changes === 0) {
+      return { success: false, error: 'UPDATE_FAILED' };
+    }
+
+    const resolvedConflict = {
+      ...conflict,
+      status,
+      resolution,
+      resolvedAt: now,
+      resolvedBy: options.resolvedBy || this._currentSessionId
+    };
+
+    this.emit('conflict:resolved', resolvedConflict);
+
+    return {
+      success: true,
+      conflict: resolvedConflict
+    };
+  }
+
+  /**
+   * Get conflict counts for dashboard
+   * @returns {Object} Conflict counts by status
+   */
+  getConflictCounts() {
+    const countRows = this._stmts.getConflictCount.all();
+    const counts = { pending: 0, resolved: 0, autoResolved: 0, escalated: 0, total: 0 };
+
+    for (const row of countRows) {
+      if (row.status === 'auto-resolved') {
+        counts.autoResolved = row.count;
+      } else {
+        counts[row.status] = row.count;
+      }
+      counts.total += row.count;
+    }
+
+    return counts;
+  }
+
+  /**
+   * Prune old resolved conflicts
+   * @param {number} retentionMs - How long to keep resolved conflicts
+   * @returns {number} Number of conflicts pruned
+   */
+  pruneOldConflicts(retentionMs = null) {
+    const threshold = Date.now() - (retentionMs || this.options.journalRetention);
+    const result = this._stmts.deleteOldConflicts.run(threshold);
+
+    if (result.changes > 0) {
+      this.emit('conflicts:pruned', { count: result.changes });
+    }
+
+    return result.changes;
+  }
+
+  /**
+   * Format a conflict row
+   * @private
+   */
+  _formatConflictRow(row) {
+    return {
+      id: row.id,
+      type: row.type,
+      resource: row.resource,
+      detectedAt: row.detected_at,
+      severity: row.severity,
+      sessionAId: row.session_a_id,
+      sessionAData: row.session_a_data ? JSON.parse(row.session_a_data) : null,
+      sessionAVersion: row.session_a_version,
+      sessionATimestamp: row.session_a_timestamp,
+      sessionBId: row.session_b_id,
+      sessionBData: row.session_b_data ? JSON.parse(row.session_b_data) : null,
+      sessionBVersion: row.session_b_version,
+      sessionBTimestamp: row.session_b_timestamp,
+      affectedTaskIds: row.affected_task_ids ? JSON.parse(row.affected_task_ids) : [],
+      fieldConflicts: row.field_conflicts ? JSON.parse(row.field_conflicts) : [],
+      description: row.description,
+      status: row.status,
+      resolution: row.resolution,
+      resolutionData: row.resolution_data ? JSON.parse(row.resolution_data) : null,
+      resolvedAt: row.resolved_at,
+      resolvedBy: row.resolved_by,
+      resolutionNotes: row.resolution_notes
     };
   }
 
