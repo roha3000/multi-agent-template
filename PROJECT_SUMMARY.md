@@ -1,51 +1,48 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-28 (Session 44)
+**Last Updated**: 2025-12-28 (Session 45)
 **Current Phase**: IMPLEMENTATION
-**Status**: Parallel Session Safety Phase 1 Complete - Optimistic Locking Implemented
+**Status**: Hierarchy Phase 1 Complete - Dashboard API Endpoints Implemented
 
 ---
 
-## Session 44: Parallel Safety Phase 1 - Optimistic Locking (CURRENT)
+## Session 45: Hierarchy Phase 1 - Dashboard API Endpoints (CURRENT)
 
 ### Work Completed
 
 | Task | Status | Description |
 |------|--------|-------------|
-| parallel-safety-phase1-optimistic-locking | ✅ (95) | Version conflict detection, merge, retry |
+| hierarchy-phase1-dashboard-api | ✅ (95) | 5 REST endpoints + SSE events for hierarchy visualization |
 
 ### Implementation Details
 
-**TaskManager Enhancements** (`task-manager.js`):
-- `sessionId` tracking in constructor (auto-generated UUID)
-- `_memoryVersion` for in-memory version tracking
-- `_initConcurrency()` - Initialize `_concurrency` field (backward compatible)
-- `_checkVersionConflict(diskData)` - Detect version conflicts
-- `_incrementVersion()` - Update version/timestamp on save
-- Modified `save()` with max 3 retry attempts on conflict
-- Emits `tasks:version-conflict` event with resolution status
-
-**Schema Addition**:
-```json
-"_concurrency": {
-  "version": 1,
-  "lastModifiedBy": "session-id",
-  "lastModifiedAt": "ISO timestamp"
-}
-```
+**Dashboard Server Enhancements** (`enhanced-dashboard-server.js`):
+- Added import for `getHierarchyRegistry`
+- 5 new REST API endpoints:
+  - `GET /api/sessions/:id/agents` - Session agents including sub-agents
+  - `GET /api/hierarchy/:agentId` - Agent hierarchy tree
+  - `GET /api/delegations/active` - All active delegations
+  - `GET /api/delegations/:delegationId/chain` - Delegation chain traversal
+  - `GET /api/metrics/hierarchy` - Aggregate hierarchy metrics
+- SSE event listeners for real-time hierarchy updates
+- 5 helper methods: `_getSessionAgents`, `_getAgentHierarchy`, `_getActiveDelegations`, `_getDelegationChain`, `_getHierarchyMetrics`
 
 ### Files Modified
 
 | File | Purpose |
 |------|---------|
-| `.claude/core/task-manager.js` | Optimistic locking implementation |
-| `__tests__/core/task-manager-concurrency.test.js` | 13 unit tests |
-| `scripts/migrate-tasks-concurrency.js` | Migration script |
-| `.claude/dev-docs/tasks.json` | Migrated with _concurrency field |
-| `.claude/dev-docs/archives/tasks-archive.json` | Migrated with _concurrency field |
+| `.claude/core/enhanced-dashboard-server.js` | 5 hierarchy endpoints + SSE |
+| `__tests__/integration/hierarchy-dashboard-api.test.js` | 27 integration tests |
 
 ### Tests
-- 13 concurrency-specific tests passing
-- Total: 1552+ tests passing
+- 27 hierarchy dashboard API tests passing
+- 94 total hierarchy tests (67 + 27)
+
+---
+
+## Session 44: Parallel Safety Phase 1 ✅
+- **Tasks**: parallel-safety-phase1-optimistic-locking (95)
+- **Key changes**: TaskManager optimistic locking with version conflict detection
+- **Files**: task-manager.js, task-manager-concurrency.test.js (13 tests)
 
 ---
 
@@ -53,7 +50,6 @@
 - **Tasks**: hierarchy-phase1-task-extension (95)
 - **Key changes**: TaskManager +540 lines hierarchy methods (14 methods)
 - **Files**: task-manager.js, migrate-tasks-hierarchy.js
-- **Migration**: 69 tasks with explicit hierarchy fields
 
 ---
 
@@ -72,7 +68,7 @@
 | Dashboard | Command Center - project isolation + hierarchy endpoints |
 | Task System | Hierarchy support + concurrent write protection + auto-archival |
 | Tests | 1540+ passing |
-| Hierarchy | Phase 1 complete (Registry + Agent + Session + Task) |
+| Hierarchy | Phase 1 COMPLETE (Registry + Agent + Session + Task + Dashboard API) |
 
 ---
 
@@ -81,5 +77,5 @@
 - **Dashboard**: http://localhost:3033/
 - **Archives**: `.claude/dev-docs/archives/`
 - **Task Graph**: http://localhost:3033/task-graph.html
-- **NOW**: parallel-safety-phase2-sqlite-coordinator, hierarchy-phase1-dashboard-api
+- **NOW**: parallel-safety-phase2-sqlite-coordinator
 - **NEXT**: parallel-safety-phase3-shadow-mode, hierarchy-phase2-delegation
