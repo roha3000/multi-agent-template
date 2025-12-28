@@ -63,6 +63,15 @@
 
 ---
 
+## Session 46+: Hierarchy Phase 3 - Task Decomposer ✅ (Recovered)
+- **Tasks**: hierarchy-phase3-decomposer (95)
+- **Key changes**: TaskDecomposer class, 4 decomposition strategies (parallel, sequential, hybrid, manual)
+- **Files**: task-decomposer.js (~993 lines), decomposition-strategies.js (~1477 lines)
+- **Tests**: 123 tests (80 decomposer + 43 strategies)
+- **Note**: Work completed but context lost; files recovered and committed in Session 48
+
+---
+
 ## Session 46: Hierarchy Phase 2 - Delegation Primitives ✅
 - **Tasks**: hierarchy-phase2-delegation, hierarchy-phase2-context, hierarchy-phase2-aggregation (95)
 - **Key changes**: AggregationStrategies, DelegationContext, AgentOrchestrator integration
@@ -84,7 +93,7 @@
 | Orchestrator | Unified + parallel patterns + delegation primitives |
 | Dashboard | Command Center + hierarchy + shadow mode + conflicts API |
 | Task System | Hierarchy + concurrent write + shadow mode + conflict resolution |
-| Tests | 1925+ passing |
+| Tests | 2048+ passing |
 | Parallel Safety | 100% COMPLETE (4/4 phases) |
 
 ---
@@ -101,10 +110,22 @@
 
 ---
 
+## Hierarchy Progress Summary
+
+| Phase | Description | Status | Tests |
+|-------|-------------|--------|-------|
+| Phase 1 | Agent/Session/Task Extensions + Dashboard API | ✅ Complete | 94+ |
+| Phase 2 | Delegation Primitives + Context + Aggregation | ✅ Complete | 44 |
+| Phase 3 | Task Decomposer (recovered) | ✅ Complete | 123 |
+| Phase 3 | Auto-Delegation | Ready | - |
+| Phase 4 | Dashboard Viz, Metrics, Optimization | Blocked | - |
+
+---
+
 ## Quick Reference
 
 - **Dashboard**: http://localhost:3033/
 - **Archives**: `.claude/dev-docs/archives/`
 - **Task Graph**: http://localhost:3033/task-graph.html
 - **Parallel Safety**: COMPLETE
-- **NEXT**: hierarchy-phase3-decomposer, audit-cleanup-phase1
+- **NEXT**: hierarchy-phase3-auto-delegation, audit-cleanup-phase1
