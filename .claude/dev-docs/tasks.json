@@ -36,6 +36,7 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "codebase-audit-system",
         "fix-queue-data-integrity",
         "fix-autonomous-session-visibility",
         "test-session-type-fields",
@@ -83,6 +84,58 @@
     }
   },
   "tasks": {
+    "codebase-audit-system": {
+      "id": "codebase-audit-system",
+      "title": "Multi-Agent Codebase Audit System",
+      "description": "Comprehensive codebase audit system with 5 parallel analyzers: dead code detection, duplication detection, database inspection, documentation review, and dependency analysis. Includes CI/CD integration for weekly automated audits.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "8h",
+      "tags": [
+        "audit",
+        "code-quality",
+        "automation",
+        "ci-cd",
+        "multi-agent"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "AuditEngine orchestrator runs 5 analyzers in parallel",
+        "Dead code analysis identifies orphaned modules and unused exports",
+        "Duplication detection finds duplicate code and concept overlaps",
+        "Database inspection checks SQLite health and duplicate schemas",
+        "Documentation review identifies stale docs and broken links",
+        "Dependency analysis finds unused packages and security issues",
+        "/audit skill invocable from Claude CLI",
+        "Weekly CI/CD workflow runs automatically",
+        "JSON and Markdown report generation",
+        "Auto-creates cleanup tasks in tasks.json"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-27T00:00:00.000Z",
+      "updated": "2025-12-27T23:00:00.000Z",
+      "started": "2025-12-27T00:00:00.000Z",
+      "completed": "2025-12-27T23:00:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "scripts/audit/index.js (553 lines) - Main AuditEngine orchestrator",
+        "scripts/audit/dead-code-analysis.js - Orphaned modules, unused exports",
+        "scripts/audit/duplication-detection.js - Duplicate code detection",
+        "scripts/audit/database-inspection.js - SQLite health, duplicate schemas",
+        "scripts/audit/documentation-review.js - Stale docs, broken links",
+        "scripts/audit/dependency-analysis.js (290 lines) - Unused packages, security",
+        ".claude/commands/audit.md - Skill definition for /audit command",
+        ".claude/agents/audit/architecture-auditor.md - Agent persona",
+        "docs/CODEBASE-AUDIT-SYSTEM.md - Full architecture documentation",
+        ".github/workflows/weekly-audit.yml - CI/CD for weekly audits"
+      ],
+      "notes": "Latest audit (2025-12-28) found: 104 issues, 38 orphaned modules, 10,283 lines potential dead code, 4 unused npm packages, 32 broken doc links. Estimated cleanup: 67.75 hours."
+    },
     "swarm-integration-tests": {
       "id": "swarm-integration-tests",
       "title": "Add SwarmController Integration Tests",

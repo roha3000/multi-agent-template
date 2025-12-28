@@ -7,7 +7,7 @@
 
 ---
 
-## Session 33: Critical Bug Fixes ✅
+## Session 33: Critical Bug Fixes + Audit System ✅
 
 ### Completed This Session
 
@@ -15,6 +15,7 @@
 |------|--------|-------------|
 | fix-queue-data-integrity | ✅ | Fixed merge logic, added integrity validation |
 | fix-autonomous-session-visibility | ✅ | Unmatched autonomous sessions now shown separately |
+| codebase-audit-system | ✅ | Multi-agent codebase audit (dead code, duplicates, docs, deps) |
 
 ### Root Causes Identified and Fixed
 
@@ -25,6 +26,27 @@
 **Autonomous Session Visibility Issue:**
 - **Problem**: Dashboard only iterated over `/api/projects` (CLI projects). Autonomous sessions that didn't match were lost
 - **Fix**: Added unmatched autonomous sessions as separate entries with `auto-{id}` IDs; SSE handler preserves them
+
+### Codebase Audit System
+
+**Architecture:**
+- Main orchestrator (`scripts/audit/index.js`) runs 5 analyzers in parallel
+- Dead code analysis: orphaned modules, unused exports
+- Duplication detection: duplicate code, concept overlaps
+- Database inspection: SQLite health, duplicate schemas
+- Documentation review: stale docs, broken links
+- Dependency analysis: unused packages, security issues
+
+**Key Files:**
+| File | Purpose |
+|------|---------|
+| `scripts/audit/index.js` | AuditEngine orchestrator (553 lines) |
+| `scripts/audit/dependency-analysis.js` | Dependency analyzer (290 lines) |
+| `.claude/commands/audit.md` | `/audit` skill definition |
+| `docs/CODEBASE-AUDIT-SYSTEM.md` | Architecture docs |
+| `.github/workflows/weekly-audit.yml` | CI/CD (Sundays 3am UTC) |
+
+**Usage:** `node scripts/audit/index.js [--scope=full|code|docs|deps] [--dry-run] [--json]`
 
 ### NOW Queue (2 tasks)
 
