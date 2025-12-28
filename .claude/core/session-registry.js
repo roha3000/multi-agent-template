@@ -3,13 +3,21 @@
  *
  * Tracks multiple autonomous orchestrator sessions for the Command Center.
  * Provides centralized session state management, metrics aggregation,
- * and event-driven updates.
+ * hierarchy tracking, and event-driven updates.
+ *
+ * Features:
+ * - Session lifecycle management (register, update, deregister)
+ * - Hierarchy tracking (parent-child session relationships)
+ * - Rollup metrics aggregation from child sessions
+ * - Active delegation tracking
+ * - Real-time event emission for dashboard updates
  *
  * @module session-registry
  */
 
 const EventEmitter = require('events');
 const { createComponentLogger } = require('./logger');
+const { getHierarchyRegistry, DelegationStatus } = require('./hierarchy-registry');
 
 const log = createComponentLogger('SessionRegistry');
 
@@ -43,10 +51,15 @@ class SessionRegistry extends EventEmitter {
     const id = this.nextId++;
     const now = new Date().toISOString();
 
+    // Process hierarchy configuration
+    const hierarchyData = sessionData.hierarchy || {};
+
     const session = {
       id,
       project: sessionData.project || 'unknown',
       path: sessionData.path || process.cwd(),
+      // Add projectKey for multi-project isolation (normalized path)
+      projectKey: sessionData.projectKey || this._normalizeProjectKey(sessionData.path || process.cwd()),
       status: sessionData.status || 'idle',
       startTime: now,
       currentTask: sessionData.currentTask || null,
@@ -79,14 +92,92 @@ class SessionRegistry extends EventEmitter {
         historical: 70
       },
       phaseHistory: sessionData.phaseHistory || [],
-      lastUpdate: now
+      lastUpdate: now,
+
+      // ========================================
+      // HIERARCHY TRACKING
+      // ========================================
+      hierarchyInfo: {
+        isRoot: !hierarchyData.parentSessionId,
+        parentSessionId: hierarchyData.parentSessionId || null,
+        childSessionIds: [],
+        delegationDepth: hierarchyData.delegationDepth || 0,
+        rootSessionId: hierarchyData.rootSessionId || id  // Self if root
+      },
+
+      // Active delegations from this session
+      activeDelegations: [],
+
+      // Aggregated metrics from child sessions (rollup)
+      rollupMetrics: {
+        totalTokens: 0,
+        totalCost: 0,
+        avgQuality: 0,
+        activeAgentCount: 0,
+        totalAgentCount: 0,
+        maxDelegationDepth: 0,
+        childSessionCount: 0
+      }
     };
 
+    // If this session has a parent, register the relationship
+    if (hierarchyData.parentSessionId) {
+      this._registerChildSession(hierarchyData.parentSessionId, id);
+    }
+
     this.sessions.set(id, session);
-    log.info('Session registered', { id, project: session.project });
+    log.info('Session registered', {
+      id,
+      project: session.project,
+      isRoot: session.hierarchyInfo.isRoot,
+      parentSessionId: session.hierarchyInfo.parentSessionId
+    });
     this.emit('session:registered', session);
 
     return id;
+  }
+
+  /**
+   * Normalize project path to a consistent key
+   * @private
+   */
+  _normalizeProjectKey(projectPath) {
+    if (!projectPath) return 'unknown';
+    // Normalize path separators and lowercase for Windows compatibility
+    return projectPath.replace(/\\/g, '/').toLowerCase();
+  }
+
+  /**
+   * Register a child session under a parent
+   * @private
+   */
+  _registerChildSession(parentSessionId, childSessionId) {
+    const parentSession = this.sessions.get(parentSessionId);
+    if (!parentSession) {
+      log.warn('Parent session not found for child registration', {
+        parentSessionId,
+        childSessionId
+      });
+      return false;
+    }
+
+    if (!parentSession.hierarchyInfo.childSessionIds.includes(childSessionId)) {
+      parentSession.hierarchyInfo.childSessionIds.push(childSessionId);
+      parentSession.rollupMetrics.childSessionCount++;
+
+      log.debug('Child session registered', {
+        parentSessionId,
+        childSessionId,
+        totalChildren: parentSession.hierarchyInfo.childSessionIds.length
+      });
+
+      this.emit('session:childAdded', {
+        parentSessionId,
+        childSessionId
+      });
+    }
+
+    return true;
   }
 
   /**
@@ -267,6 +358,374 @@ class SessionRegistry extends EventEmitter {
   _pruneCompletions() {
     const cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
     this.completions = this.completions.filter(c => new Date(c.completedAt).getTime() > cutoff);
+  }
+
+  // ============================================
+  // HIERARCHY METHODS
+  // ============================================
+
+  /**
+   * Add a delegation to a session
+   * @param {number} sessionId - Session ID
+   * @param {Object} delegation - Delegation data
+   * @returns {Object|null} Created delegation or null
+   */
+  addDelegation(sessionId, delegation) {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      log.warn('Session not found for delegation', { sessionId });
+      return null;
+    }
+
+    const delegationRecord = {
+      delegationId: delegation.delegationId || `del-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      targetAgentId: delegation.targetAgentId,
+      taskId: delegation.taskId,
+      status: DelegationStatus.PENDING,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      metadata: delegation.metadata || {}
+    };
+
+    session.activeDelegations.push(delegationRecord);
+    session.lastUpdate = new Date().toISOString();
+
+    log.debug('Delegation added to session', {
+      sessionId,
+      delegationId: delegationRecord.delegationId,
+      targetAgentId: delegation.targetAgentId
+    });
+
+    this.emit('delegation:added', {
+      sessionId,
+      delegation: delegationRecord
+    });
+
+    return delegationRecord;
+  }
+
+  /**
+   * Update a delegation status
+   * @param {number} sessionId - Session ID
+   * @param {string} delegationId - Delegation ID
+   * @param {string} status - New status
+   * @param {Object} data - Additional data (result, error)
+   * @returns {Object|null} Updated delegation or null
+   */
+  updateDelegation(sessionId, delegationId, status, data = {}) {
+    const session = this.sessions.get(sessionId);
+    if (!session) return null;
+
+    const delegation = session.activeDelegations.find(d => d.delegationId === delegationId);
+    if (!delegation) return null;
+
+    const oldStatus = delegation.status;
+    delegation.status = status;
+    delegation.updatedAt = new Date().toISOString();
+
+    if (data.result !== undefined) delegation.result = data.result;
+    if (data.error !== undefined) delegation.error = data.error;
+
+    // Remove from active if completed/failed
+    if (status === DelegationStatus.COMPLETED || status === DelegationStatus.FAILED || status === DelegationStatus.CANCELLED) {
+      session.activeDelegations = session.activeDelegations.filter(d => d.delegationId !== delegationId);
+    }
+
+    session.lastUpdate = new Date().toISOString();
+
+    log.debug('Delegation updated', {
+      sessionId,
+      delegationId,
+      oldStatus,
+      status
+    });
+
+    this.emit('delegation:updated', {
+      sessionId,
+      delegationId,
+      oldStatus,
+      status,
+      delegation
+    });
+
+    return delegation;
+  }
+
+  /**
+   * Get rollup metrics aggregated from child sessions
+   * @param {number} sessionId - Session ID
+   * @returns {Object|null} Rollup metrics or null
+   */
+  getRollupMetrics(sessionId) {
+    const session = this.sessions.get(sessionId);
+    if (!session) return null;
+
+    // Calculate fresh rollup from all descendants
+    const rollup = this._calculateRollup(sessionId);
+
+    // Update stored rollup metrics
+    session.rollupMetrics = rollup;
+
+    return rollup;
+  }
+
+  /**
+   * Calculate rollup metrics recursively from descendants
+   * @private
+   */
+  _calculateRollup(sessionId, visited = new Set()) {
+    // Prevent cycles
+    if (visited.has(sessionId)) {
+      return {
+        totalTokens: 0,
+        totalCost: 0,
+        avgQuality: 0,
+        activeAgentCount: 0,
+        totalAgentCount: 0,
+        maxDelegationDepth: 0,
+        childSessionCount: 0
+      };
+    }
+    visited.add(sessionId);
+
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return {
+        totalTokens: 0,
+        totalCost: 0,
+        avgQuality: 0,
+        activeAgentCount: 0,
+        totalAgentCount: 0,
+        maxDelegationDepth: 0,
+        childSessionCount: 0
+      };
+    }
+
+    // Start with this session's metrics
+    let rollup = {
+      totalTokens: session.tokens || 0,
+      totalCost: session.cost || 0,
+      qualitySum: (session.qualityScore || 0) * 1, // Weight by 1 session
+      qualityCount: 1,
+      activeAgentCount: session.status === 'active' ? 1 : 0,
+      totalAgentCount: 1,
+      maxDelegationDepth: session.hierarchyInfo.delegationDepth,
+      childSessionCount: session.hierarchyInfo.childSessionIds.length
+    };
+
+    // Aggregate from children
+    for (const childId of session.hierarchyInfo.childSessionIds) {
+      const childRollup = this._calculateRollup(childId, visited);
+
+      rollup.totalTokens += childRollup.totalTokens;
+      rollup.totalCost += childRollup.totalCost;
+      rollup.qualitySum += childRollup.avgQuality * childRollup.totalAgentCount;
+      rollup.qualityCount += childRollup.totalAgentCount;
+      rollup.activeAgentCount += childRollup.activeAgentCount;
+      rollup.totalAgentCount += childRollup.totalAgentCount;
+      rollup.maxDelegationDepth = Math.max(rollup.maxDelegationDepth, childRollup.maxDelegationDepth);
+      rollup.childSessionCount += childRollup.childSessionCount;
+    }
+
+    // Calculate average quality
+    rollup.avgQuality = rollup.qualityCount > 0
+      ? Math.round(rollup.qualitySum / rollup.qualityCount)
+      : 0;
+
+    // Clean up intermediate fields
+    delete rollup.qualitySum;
+    delete rollup.qualityCount;
+
+    // Round cost for display
+    rollup.totalCost = Math.round(rollup.totalCost * 100) / 100;
+
+    return rollup;
+  }
+
+  /**
+   * Get session with full hierarchy tree
+   * @param {number} sessionId - Session ID
+   * @returns {Object|null} Session with hierarchy tree or null
+   */
+  getSessionWithHierarchy(sessionId) {
+    const session = this.sessions.get(sessionId);
+    if (!session) return null;
+
+    return {
+      ...session,
+      hierarchy: this._buildHierarchyTree(sessionId),
+      rollupMetrics: this.getRollupMetrics(sessionId)
+    };
+  }
+
+  /**
+   * Build hierarchy tree for a session
+   * @private
+   */
+  _buildHierarchyTree(sessionId, visited = new Set()) {
+    if (visited.has(sessionId)) return null;
+    visited.add(sessionId);
+
+    const session = this.sessions.get(sessionId);
+    if (!session) return null;
+
+    return {
+      sessionId: session.id,
+      project: session.project,
+      status: session.status,
+      depth: session.hierarchyInfo.delegationDepth,
+      isRoot: session.hierarchyInfo.isRoot,
+      activeDelegationCount: session.activeDelegations.length,
+      metrics: {
+        tokens: session.tokens,
+        cost: session.cost,
+        quality: session.qualityScore,
+        context: session.contextPercent
+      },
+      children: session.hierarchyInfo.childSessionIds
+        .map(childId => this._buildHierarchyTree(childId, visited))
+        .filter(Boolean)
+    };
+  }
+
+  /**
+   * Get hierarchy for a session (just the tree structure)
+   * @param {number} sessionId - Session ID
+   * @returns {Object|null} Hierarchy tree or null
+   */
+  getHierarchy(sessionId) {
+    return this._buildHierarchyTree(sessionId);
+  }
+
+  /**
+   * Get all root sessions (no parent)
+   * @returns {Array<Object>} Array of root sessions
+   */
+  getRootSessions() {
+    return Array.from(this.sessions.values())
+      .filter(s => s.hierarchyInfo.isRoot && s.status !== 'ended');
+  }
+
+  /**
+   * Get parent session
+   * @param {number} sessionId - Session ID
+   * @returns {Object|null} Parent session or null
+   */
+  getParentSession(sessionId) {
+    const session = this.sessions.get(sessionId);
+    if (!session || !session.hierarchyInfo.parentSessionId) return null;
+    return this.sessions.get(session.hierarchyInfo.parentSessionId) || null;
+  }
+
+  /**
+   * Get child sessions
+   * @param {number} sessionId - Session ID
+   * @returns {Array<Object>} Array of child sessions
+   */
+  getChildSessions(sessionId) {
+    const session = this.sessions.get(sessionId);
+    if (!session) return [];
+
+    return session.hierarchyInfo.childSessionIds
+      .map(id => this.sessions.get(id))
+      .filter(Boolean);
+  }
+
+  /**
+   * Get all descendants of a session
+   * @param {number} sessionId - Session ID
+   * @returns {Array<Object>} Array of all descendant sessions
+   */
+  getDescendants(sessionId) {
+    const descendants = [];
+    const visited = new Set();
+
+    const collect = (id) => {
+      if (visited.has(id)) return;
+      visited.add(id);
+
+      const session = this.sessions.get(id);
+      if (!session) return;
+
+      for (const childId of session.hierarchyInfo.childSessionIds) {
+        const child = this.sessions.get(childId);
+        if (child) {
+          descendants.push(child);
+          collect(childId);
+        }
+      }
+    };
+
+    collect(sessionId);
+    return descendants;
+  }
+
+  /**
+   * Propagate a metric update up the hierarchy
+   * @param {number} sessionId - Session ID where update occurred
+   * @param {string} metricType - Type of metric ('tokens', 'cost', 'quality')
+   * @param {number} delta - Change in metric value
+   */
+  propagateMetricUpdate(sessionId, metricType, delta) {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    // Walk up to root, updating rollup metrics
+    let currentId = session.hierarchyInfo.parentSessionId;
+    while (currentId) {
+      const parent = this.sessions.get(currentId);
+      if (!parent) break;
+
+      // Trigger recalculation of rollup
+      this.getRollupMetrics(currentId);
+
+      // Emit update event for SSE
+      this.emit('session:rollupUpdated', {
+        sessionId: currentId,
+        sourceSessionId: sessionId,
+        metricType,
+        delta,
+        rollupMetrics: parent.rollupMetrics
+      });
+
+      currentId = parent.hierarchyInfo.parentSessionId;
+    }
+  }
+
+  /**
+   * Get summary with hierarchy information
+   * @returns {Object} Enhanced summary with hierarchy data
+   */
+  getSummaryWithHierarchy() {
+    const baseSummary = this.getSummary();
+
+    // Add hierarchy-specific metrics
+    const rootSessions = this.getRootSessions();
+    const totalHierarchyDepth = Math.max(
+      0,
+      ...Array.from(this.sessions.values()).map(s => s.hierarchyInfo.delegationDepth)
+    );
+
+    const activeDelegationCount = Array.from(this.sessions.values())
+      .reduce((sum, s) => sum + s.activeDelegations.length, 0);
+
+    return {
+      ...baseSummary,
+      hierarchyMetrics: {
+        rootSessionCount: rootSessions.length,
+        maxDelegationDepth: totalHierarchyDepth,
+        activeDelegationCount,
+        sessionsWithChildren: Array.from(this.sessions.values())
+          .filter(s => s.hierarchyInfo.childSessionIds.length > 0).length
+      },
+      rootSessions: rootSessions.map(s => ({
+        id: s.id,
+        project: s.project,
+        status: s.status,
+        childCount: s.hierarchyInfo.childSessionIds.length,
+        rollupMetrics: this.getRollupMetrics(s.id)
+      }))
+    };
   }
 }
 

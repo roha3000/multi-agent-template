@@ -15,6 +15,7 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const { createComponentLogger } = require('./logger');
+const { getSessionRegistry } = require('./session-registry');
 
 class EnhancedDashboardServer {
   constructor(components, options = {}) {
@@ -105,6 +106,73 @@ class EnhancedDashboardServer {
       } else {
         res.status(404).json({ error: 'No execution plan for session' });
       }
+    });
+
+    // ========================================
+    // HIERARCHY API ENDPOINTS
+    // ========================================
+
+    // Get session hierarchy tree
+    this.app.get('/api/sessions/:id/hierarchy', (req, res) => {
+      const sessionId = parseInt(req.params.id, 10);
+      const hierarchy = this._getSessionHierarchy(sessionId);
+      if (hierarchy) {
+        res.json(hierarchy);
+      } else {
+        res.status(404).json({ error: 'Session not found' });
+      }
+    });
+
+    // Get session rollup metrics (aggregated from children)
+    this.app.get('/api/sessions/:id/rollup', (req, res) => {
+      const sessionId = parseInt(req.params.id, 10);
+      const rollup = this._getSessionRollup(sessionId);
+      if (rollup) {
+        res.json(rollup);
+      } else {
+        res.status(404).json({ error: 'Session not found' });
+      }
+    });
+
+    // Get session with full hierarchy data
+    this.app.get('/api/sessions/:id/full', (req, res) => {
+      const sessionId = parseInt(req.params.id, 10);
+      const sessionWithHierarchy = this._getSessionWithHierarchy(sessionId);
+      if (sessionWithHierarchy) {
+        res.json(sessionWithHierarchy);
+      } else {
+        res.status(404).json({ error: 'Session not found' });
+      }
+    });
+
+    // Get child sessions
+    this.app.get('/api/sessions/:id/children', (req, res) => {
+      const sessionId = parseInt(req.params.id, 10);
+      const children = this._getChildSessions(sessionId);
+      res.json(children);
+    });
+
+    // Get active delegations for a session
+    this.app.get('/api/sessions/:id/delegations', (req, res) => {
+      const sessionId = parseInt(req.params.id, 10);
+      const delegations = this._getSessionDelegations(sessionId);
+      if (delegations !== null) {
+        res.json(delegations);
+      } else {
+        res.status(404).json({ error: 'Session not found' });
+      }
+    });
+
+    // Get all root sessions with rollup
+    this.app.get('/api/sessions/roots', (req, res) => {
+      const rootSessions = this._getRootSessions();
+      res.json(rootSessions);
+    });
+
+    // Get summary with hierarchy metrics
+    this.app.get('/api/sessions/summary/hierarchy', (req, res) => {
+      const summary = this._getSummaryWithHierarchy();
+      res.json(summary);
     });
 
     // Project-specific endpoints
@@ -703,6 +771,131 @@ class EnhancedDashboardServer {
         this.sseClients.delete(client);
       }
     }
+  }
+
+  // ============================================
+  // HIERARCHY HELPER METHODS
+  // ============================================
+
+  /**
+   * Get session hierarchy tree
+   * @private
+   */
+  _getSessionHierarchy(sessionId) {
+    try {
+      const registry = getSessionRegistry();
+      return registry.getHierarchy(sessionId);
+    } catch (error) {
+      this.logger.debug('Could not get session hierarchy', { sessionId, error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get session rollup metrics
+   * @private
+   */
+  _getSessionRollup(sessionId) {
+    try {
+      const registry = getSessionRegistry();
+      return registry.getRollupMetrics(sessionId);
+    } catch (error) {
+      this.logger.debug('Could not get session rollup', { sessionId, error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get session with full hierarchy data
+   * @private
+   */
+  _getSessionWithHierarchy(sessionId) {
+    try {
+      const registry = getSessionRegistry();
+      return registry.getSessionWithHierarchy(sessionId);
+    } catch (error) {
+      this.logger.debug('Could not get session with hierarchy', { sessionId, error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get child sessions
+   * @private
+   */
+  _getChildSessions(sessionId) {
+    try {
+      const registry = getSessionRegistry();
+      return registry.getChildSessions(sessionId);
+    } catch (error) {
+      this.logger.debug('Could not get child sessions', { sessionId, error: error.message });
+      return [];
+    }
+  }
+
+  /**
+   * Get session delegations
+   * @private
+   */
+  _getSessionDelegations(sessionId) {
+    try {
+      const registry = getSessionRegistry();
+      const session = registry.get(sessionId);
+      if (!session) return null;
+      return session.activeDelegations || [];
+    } catch (error) {
+      this.logger.debug('Could not get session delegations', { sessionId, error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get root sessions with rollup metrics
+   * @private
+   */
+  _getRootSessions() {
+    try {
+      const registry = getSessionRegistry();
+      const rootSessions = registry.getRootSessions();
+
+      return rootSessions.map(session => ({
+        id: session.id,
+        project: session.project,
+        status: session.status,
+        childCount: session.hierarchyInfo.childSessionIds.length,
+        activeDelegationCount: session.activeDelegations.length,
+        rollupMetrics: registry.getRollupMetrics(session.id)
+      }));
+    } catch (error) {
+      this.logger.debug('Could not get root sessions', { error: error.message });
+      return [];
+    }
+  }
+
+  /**
+   * Get summary with hierarchy metrics
+   * @private
+   */
+  _getSummaryWithHierarchy() {
+    try {
+      const registry = getSessionRegistry();
+      return registry.getSummaryWithHierarchy();
+    } catch (error) {
+      this.logger.debug('Could not get summary with hierarchy', { error: error.message });
+      return { hierarchyMetrics: {}, rootSessions: [] };
+    }
+  }
+
+  /**
+   * Broadcast hierarchy update to SSE clients
+   * @private
+   */
+  _broadcastHierarchyUpdate(sessionId, eventType, data) {
+    this._broadcastEvent(`hierarchy:${eventType}`, {
+      sessionId,
+      ...data,
+      timestamp: Date.now()
+    });
   }
 }
 

@@ -4,6 +4,7 @@
 
 const Agent = require('../../.claude/core/agent');
 const MessageBus = require('../../.claude/core/message-bus');
+const { resetHierarchyRegistry } = require('../../.claude/core/hierarchy-registry');
 
 // Test agent implementation
 class TestAgent extends Agent {
@@ -286,16 +287,353 @@ describe('Agent', () => {
 
   describe('Cleanup', () => {
     test('should unsubscribe all topics on destroy', () => {
+      // Base subscriptions from hierarchy setup (child-report topic)
+      const baseSubscriptions = agent.subscriptions.length;
+
       agent.subscribe('topic1', () => {});
       agent.subscribe('topic2', () => {});
       agent.subscribe('topic3', () => {});
 
-      expect(agent.subscriptions).toHaveLength(3);
+      expect(agent.subscriptions).toHaveLength(baseSubscriptions + 3);
 
       agent.destroy();
 
       expect(agent.subscriptions).toHaveLength(0);
       expect(agent.state).toBe('destroyed');
+    });
+  });
+});
+
+// ============================================
+// HIERARCHY TESTS
+// ============================================
+
+describe('Agent Hierarchy Extension', () => {
+  let messageBus;
+
+  beforeEach(() => {
+    resetHierarchyRegistry();
+    messageBus = new MessageBus();
+  });
+
+  afterEach(() => {
+    resetHierarchyRegistry();
+    messageBus.clear();
+  });
+
+  describe('Hierarchy Initialization', () => {
+    test('should initialize hierarchyInfo with defaults', () => {
+      const agent = new TestAgent('root-1', 'Root', messageBus);
+
+      expect(agent.hierarchyInfo).toBeDefined();
+      expect(agent.hierarchyInfo.parentAgentId).toBeNull();
+      expect(agent.hierarchyInfo.childAgentIds).toEqual([]);
+      expect(agent.hierarchyInfo.depth).toBe(0);
+      expect(agent.hierarchyInfo.isRoot).toBe(true);
+      expect(agent.hierarchyInfo.maxDepth).toBe(3);
+
+      agent.destroy();
+    });
+
+    test('should initialize with parent agent ID', () => {
+      const parent = new TestAgent('parent-1', 'Parent', messageBus);
+      const child = new TestAgent('child-1', 'Child', messageBus, {
+        hierarchy: { parentAgentId: 'parent-1' }
+      });
+
+      expect(child.hierarchyInfo.parentAgentId).toBe('parent-1');
+      expect(child.hierarchyInfo.isRoot).toBe(false);
+      expect(child.hierarchyInfo.depth).toBe(1);
+
+      child.destroy();
+      parent.destroy();
+    });
+
+    test('should track depth through multi-level hierarchy', () => {
+      const root = new TestAgent('root', 'Root', messageBus);
+      const level1 = new TestAgent('level1', 'L1', messageBus, {
+        hierarchy: { parentAgentId: 'root' }
+      });
+      const level2 = new TestAgent('level2', 'L2', messageBus, {
+        hierarchy: { parentAgentId: 'level1' }
+      });
+
+      expect(root.hierarchyInfo.depth).toBe(0);
+      expect(level1.hierarchyInfo.depth).toBe(1);
+      expect(level2.hierarchyInfo.depth).toBe(2);
+
+      level2.destroy();
+      level1.destroy();
+      root.destroy();
+    });
+  });
+
+  describe('Resource Quotas', () => {
+    test('should initialize with default quotas', () => {
+      const agent = new TestAgent('agent-1', 'Agent', messageBus);
+
+      expect(agent.quotas).toBeDefined();
+      expect(agent.quotas.maxTokens).toBe(Agent.DEFAULT_QUOTAS.maxTokens);
+      expect(agent.quotas.maxTime).toBe(Agent.DEFAULT_QUOTAS.maxTime);
+      expect(agent.quotas.maxChildren).toBe(Agent.DEFAULT_QUOTAS.maxChildren);
+
+      agent.destroy();
+    });
+
+    test('should allow custom quotas', () => {
+      const agent = new TestAgent('agent-1', 'Agent', messageBus, {
+        quotas: { maxTokens: 50000, maxChildren: 5 }
+      });
+
+      expect(agent.quotas.maxTokens).toBe(50000);
+      expect(agent.quotas.maxChildren).toBe(5);
+      expect(agent.quotas.maxTime).toBe(Agent.DEFAULT_QUOTAS.maxTime);
+
+      agent.destroy();
+    });
+
+    test('should track resource usage', () => {
+      const agent = new TestAgent('agent-1', 'Agent', messageBus);
+
+      expect(agent.resourceUsage.tokensUsed).toBe(0);
+      expect(agent.resourceUsage.timeUsed).toBe(0);
+      expect(agent.resourceUsage.childrenSpawned).toBe(0);
+
+      agent.updateResourceUsage({ tokens: 1000, time: 5000 });
+
+      expect(agent.resourceUsage.tokensUsed).toBe(1000);
+      expect(agent.resourceUsage.timeUsed).toBe(5000);
+
+      agent.destroy();
+    });
+
+    test('should calculate remaining quotas', () => {
+      const agent = new TestAgent('agent-1', 'Agent', messageBus, {
+        quotas: { maxTokens: 10000, maxTime: 60000, maxChildren: 5 }
+      });
+
+      agent.updateResourceUsage({ tokens: 3000, time: 20000 });
+      agent.resourceUsage.childrenSpawned = 2;
+
+      const remaining = agent.getRemainingQuotas();
+
+      expect(remaining.tokens).toBe(7000);
+      expect(remaining.time).toBe(40000);
+      expect(remaining.children).toBe(3);
+
+      agent.destroy();
+    });
+
+    test('should check quota status', () => {
+      const agent = new TestAgent('agent-1', 'Agent', messageBus, {
+        quotas: { maxTokens: 1000, maxTime: 1000, maxChildren: 2 }
+      });
+
+      agent.updateResourceUsage({ tokens: 500 });
+      let status = agent.checkQuotas();
+      expect(status.withinQuotas).toBe(true);
+      expect(status.tokensExceeded).toBe(false);
+
+      agent.updateResourceUsage({ tokens: 600 });
+      status = agent.checkQuotas();
+      expect(status.tokensExceeded).toBe(true);
+
+      agent.destroy();
+    });
+  });
+
+  describe('canDelegate()', () => {
+    test('should allow delegation for root agent', () => {
+      const agent = new TestAgent('root-1', 'Root', messageBus);
+
+      const result = agent.canDelegate();
+
+      expect(result.canDelegate).toBe(true);
+      expect(result.remainingDepth).toBe(3);
+      expect(result.currentDepth).toBe(0);
+
+      agent.destroy();
+    });
+
+    test('should prevent delegation at max depth', () => {
+      const root = new TestAgent('root', 'Root', messageBus, {
+        hierarchy: { maxDepth: 2 }
+      });
+      const level1 = new TestAgent('l1', 'L1', messageBus, {
+        hierarchy: { parentAgentId: 'root', maxDepth: 2 }
+      });
+      const level2 = new TestAgent('l2', 'L2', messageBus, {
+        hierarchy: { parentAgentId: 'l1', maxDepth: 2 }
+      });
+
+      const result = level2.canDelegate();
+      expect(result.canDelegate).toBe(false);
+      expect(result.reason).toContain('depth');
+
+      level2.destroy();
+      level1.destroy();
+      root.destroy();
+    });
+
+    test('should prevent delegation when children quota exceeded', () => {
+      const agent = new TestAgent('agent-1', 'Agent', messageBus, {
+        quotas: { maxChildren: 2 }
+      });
+
+      agent.resourceUsage.childrenSpawned = 2;
+      const result = agent.canDelegate();
+
+      expect(result.canDelegate).toBe(false);
+      expect(result.reason).toContain('children');
+
+      agent.destroy();
+    });
+  });
+
+  describe('Parent/Child Management', () => {
+    test('should register child agents', () => {
+      const parent = new TestAgent('parent-1', 'Parent', messageBus);
+
+      const result = parent.registerChild('child-1');
+
+      expect(result).toBe(true);
+      expect(parent.hierarchyInfo.childAgentIds).toContain('child-1');
+      expect(parent.resourceUsage.childrenSpawned).toBe(1);
+
+      parent.destroy();
+    });
+
+    test('should not duplicate child registration', () => {
+      const parent = new TestAgent('parent-1', 'Parent', messageBus);
+
+      parent.registerChild('child-1');
+      parent.registerChild('child-1');
+
+      expect(parent.hierarchyInfo.childAgentIds.length).toBe(1);
+      expect(parent.resourceUsage.childrenSpawned).toBe(1);
+
+      parent.destroy();
+    });
+
+    test('should unregister child agents', () => {
+      const parent = new TestAgent('parent-1', 'Parent', messageBus);
+
+      parent.registerChild('child-1');
+      parent.registerChild('child-2');
+
+      const result = parent.unregisterChild('child-1');
+
+      expect(result).toBe(true);
+      expect(parent.hierarchyInfo.childAgentIds).not.toContain('child-1');
+      expect(parent.hierarchyInfo.childAgentIds).toContain('child-2');
+
+      parent.destroy();
+    });
+
+    test('should return false when unregistering non-existent child', () => {
+      const parent = new TestAgent('parent-1', 'Parent', messageBus);
+
+      const result = parent.unregisterChild('non-existent');
+
+      expect(result).toBe(false);
+
+      parent.destroy();
+    });
+  });
+
+  describe('reportToParent()', () => {
+    test('should return false for root agents', () => {
+      const agent = new TestAgent('root-1', 'Root', messageBus);
+
+      const result = agent.reportToParent({ type: 'progress', data: { percent: 50 } });
+
+      expect(result).toBe(false);
+
+      agent.destroy();
+    });
+
+    test('should publish to parent child-report topic', (done) => {
+      const parent = new TestAgent('parent-1', 'Parent', messageBus);
+      const child = new TestAgent('child-1', 'Child', messageBus, {
+        hierarchy: { parentAgentId: 'parent-1' }
+      });
+
+      let progressReceived = false;
+
+      messageBus.subscribe(`agent:parent-1:child-report`, 'test', (message) => {
+        // Only check the progress message, not the status message from destroy
+        if (message.type === 'progress' && !progressReceived) {
+          progressReceived = true;
+          expect(message.childAgentId).toBe('child-1');
+          expect(message.data.percent).toBe(75);
+
+          // Clean up after receiving progress
+          child.destroy();
+          parent.destroy();
+          done();
+        }
+      });
+
+      setTimeout(() => {
+        child.reportToParent({ type: 'progress', data: { percent: 75 } });
+      }, 10);
+    });
+  });
+
+  describe('getStats() with hierarchy', () => {
+    test('should include hierarchy info in stats', () => {
+      const parent = new TestAgent('parent-1', 'Parent', messageBus);
+      parent.registerChild('child-1');
+      parent.registerChild('child-2');
+
+      const stats = parent.getStats();
+
+      expect(stats.hierarchy).toBeDefined();
+      expect(stats.hierarchy.parentAgentId).toBeNull();
+      expect(stats.hierarchy.childCount).toBe(2);
+      expect(stats.hierarchy.depth).toBe(0);
+      expect(stats.hierarchy.isRoot).toBe(true);
+
+      parent.destroy();
+    });
+
+    test('should include resource usage in stats', () => {
+      const agent = new TestAgent('agent-1', 'Agent', messageBus);
+      agent.updateResourceUsage({ tokens: 5000, time: 10000 });
+      agent.resourceUsage.childrenSpawned = 3;
+
+      const stats = agent.getStats();
+
+      expect(stats.resources).toBeDefined();
+      expect(stats.resources.tokensUsed).toBe(5000);
+      expect(stats.resources.timeUsed).toBe(10000);
+      expect(stats.resources.childrenSpawned).toBe(3);
+      expect(stats.resources.remaining).toBeDefined();
+
+      agent.destroy();
+    });
+  });
+
+  describe('getDelegationChain()', () => {
+    test('should return delegation chain from root', () => {
+      const root = new TestAgent('root', 'Root', messageBus);
+      const level1 = new TestAgent('level1', 'L1', messageBus, {
+        hierarchy: { parentAgentId: 'root' }
+      });
+      const level2 = new TestAgent('level2', 'L2', messageBus, {
+        hierarchy: { parentAgentId: 'level1' }
+      });
+
+      const chain = level2.getDelegationChain();
+
+      expect(chain.length).toBe(3);
+      expect(chain[0].agentId).toBe('root');
+      expect(chain[1].agentId).toBe('level1');
+      expect(chain[2].agentId).toBe('level2');
+
+      level2.destroy();
+      level1.destroy();
+      root.destroy();
     });
   });
 });

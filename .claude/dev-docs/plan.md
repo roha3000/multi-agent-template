@@ -1,93 +1,53 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Agent Hierarchy Delegation System - Phase 1
+**Status**: Agent Hierarchy Delegation System - Phase 1 Near Complete
 
 ---
 
-## Implementation Roadmap: Agent Hierarchy
-
-### Quick Wins - COMPLETED ✅
-
-| Task | Speedup | Status |
-|------|---------|--------|
-| `hierarchy-quickwin-parallel-loader` | 10x | ✅ Done |
-| `hierarchy-quickwin-parallel-planner` | 3x | ✅ Done |
-| `hierarchy-quickwin-parallel-synthesis` | 2.5x | ✅ Done |
-
-### Prerequisites - COMPLETED ✅
+## Phase 1 Foundation - COMPLETED ✅
 
 | Task | Status | Deliverable |
 |------|--------|-------------|
 | `hierarchy-prereq-failure-cascade` | ✅ Done | supervision-tree.js (42 tests) |
 | `hierarchy-prereq-state-management` | ✅ Done | hierarchical-state.js (42 tests) |
-
-### Phase 1 Foundation - COMPLETED ✅
-
-| Task | Status | Deliverable |
-|------|--------|-------------|
 | `dashboard-project-isolation` | ✅ Done | Per-project context isolation |
 | `hierarchy-phase1-registry` | ✅ Done | hierarchy-registry.js (67 tests) |
+| `hierarchy-phase1-agent-extension` | ✅ Done | agent.js hierarchy + quotas (40 tests) |
+| `hierarchy-phase1-session-extension` | ✅ Done | session-registry.js + 7 API endpoints (49 tests) |
 
 ### NOW Queue
 
 | Task | Est | Description |
 |------|-----|-------------|
-| `hierarchy-phase1-agent-extension` | 4h | Agent hierarchy metadata + canDelegate() |
-| `hierarchy-phase1-session-extension` | 6h | Session rollup for dashboard (critical) |
-
-### Phase 1: Remaining Tasks (NEXT)
-
-| Task | Est | Description |
-|------|-----|-------------|
 | `hierarchy-phase1-task-extension` | 4h | Task parent/child relationships |
-| `hierarchy-phase1-dashboard-api` | 4h | REST endpoints for hierarchy data |
+| `hierarchy-phase1-dashboard-api` | 4h | Remaining agent/delegation REST endpoints |
 
-### Phase 2: Delegation Primitives (LATER)
+### NEXT Queue
 
 | Task | Est | Description |
 |------|-----|-------------|
+| `taskjson-parallel-session-safety` | 4h | Research concurrency for tasks.json |
 | `hierarchy-phase2-delegation` | 8h | delegateTask(), spawnSubAgent(), aggregateResults() |
-| `hierarchy-phase2-context` | 4h | DelegationContext builder (67% token savings) |
-| `hierarchy-phase2-aggregation` | 4h | merge, selectBest, vote, chain strategies |
-
-### Phase 3: Automatic Decomposition (LATER)
-
-| Task | Est | Description |
-|------|-----|-------------|
-| `hierarchy-phase3-decomposer` | 6h | TaskDecomposer + ComplexityAnalyzer integration |
-| `hierarchy-phase3-auto-delegation` | 4h | Automatic delegation decisions |
-
-### Phase 4: Optimization & Observability (LATER)
-
-| Task | Est | Description |
-|------|-----|-------------|
-| `hierarchy-phase4-dashboard-viz` | 6h | Interactive hierarchy tree in dashboard |
-| `hierarchy-phase4-metrics` | 4h | Delegation analytics + /api/metrics/delegation |
-| `hierarchy-phase4-optimization` | 6h | Agent pooling, tiered timeouts, caching |
-
-### Testing (LATER)
-
-| Task | Est | Description |
-|------|-----|-------------|
-| `hierarchy-tests-unit` | 4h | Unit tests for all hierarchy components |
-| `hierarchy-tests-integration` | 4h | E2E tests for delegation flows |
 
 ---
 
-## Expected Outcomes
+## Key Endpoints Implemented
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Debate speed (3 rounds) | 360s | 140s (2.5x) |
-| Research (5 approaches) | 300s | 60s (5x) |
-| Token usage per task | 40K | 12.7K (67% savings) |
-| Dashboard visibility | Flat sessions | Hierarchical rollup |
+```
+GET /api/sessions/:id/hierarchy     - Hierarchy tree
+GET /api/sessions/:id/rollup        - Aggregated metrics
+GET /api/sessions/:id/full          - Session with hierarchy data
+GET /api/sessions/:id/children      - Child sessions
+GET /api/sessions/:id/delegations   - Active delegations
+GET /api/sessions/roots             - All root sessions
+GET /api/sessions/summary/hierarchy - Summary with hierarchy metrics
+```
 
 ---
 
-## Key Design Decisions
+## Next Steps
 
-1. **Session Rollup**: Sub-agent metrics (tokens, quality, progress) aggregate to parent session
-2. **Dashboard API**: `/api/sessions/:id/hierarchy` and `/api/sessions/:id/rollup` endpoints
-3. **Depth Limit**: Max 3 levels to prevent coordination overhead
-4. **Backward Compatible**: Existing flat execution unchanged when hierarchy disabled
+1. Implement task hierarchy (parentTaskId, childTaskIds, delegatedTo)
+2. Add agent hierarchy endpoints (/api/hierarchy/:agentId)
+3. Research parallel session safety patterns
+4. Begin Phase 2 delegation primitives

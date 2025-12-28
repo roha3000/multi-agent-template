@@ -104,20 +104,115 @@ analytics.on('exhaustion-warning', (data) => {
   if (recentAlerts.length > MAX_ALERTS) recentAlerts.pop();
 });
 
-// Initialize TaskManager and TaskGraph for visualization
-const tasksPath = path.join(__dirname, '.claude', 'dev-docs', 'tasks.json');
-let taskManager = null;
-let taskGraph = null;
+// ============================================================================
+// PER-PROJECT TASK MANAGER AND EXECUTION STATE (Multi-Project Isolation)
+// ============================================================================
 
-try {
-  if (fs.existsSync(tasksPath)) {
-    taskManager = new TaskManager({ persistPath: tasksPath });
-    taskGraph = new TaskGraph(taskManager);
-    console.log('[TASKS] TaskManager initialized for graph visualization');
-  }
-} catch (err) {
-  console.log('[TASKS] TaskManager not available:', err.message);
+// Map of project path -> TaskManager instance
+const taskManagerMap = new Map();
+// Map of project path -> TaskGraph instance
+const taskGraphMap = new Map();
+// Map of project path -> execution state object
+const executionStateMap = new Map();
+
+// Default project path (this dashboard's own project)
+const defaultProjectPath = __dirname;
+
+/**
+ * Normalize project path for consistent Map keys
+ * @param {string} projectPath - Raw project path
+ * @returns {string} Normalized path (lowercase, forward slashes)
+ */
+function normalizeProjectPath(projectPath) {
+  if (!projectPath) return normalizeProjectPath(defaultProjectPath);
+  return projectPath.replace(/\\/g, '/').toLowerCase();
 }
+
+/**
+ * Get or create TaskManager for a specific project
+ * @param {string} projectPath - Project directory path
+ * @returns {TaskManager|null} TaskManager instance or null if not available
+ */
+function getTaskManagerForProject(projectPath) {
+  const normalizedPath = normalizeProjectPath(projectPath || defaultProjectPath);
+
+  if (taskManagerMap.has(normalizedPath)) {
+    return taskManagerMap.get(normalizedPath);
+  }
+
+  // Try to create a new TaskManager for this project
+  const tasksJsonPath = path.join(projectPath || defaultProjectPath, '.claude', 'dev-docs', 'tasks.json');
+
+  try {
+    if (fs.existsSync(tasksJsonPath)) {
+      const tm = new TaskManager({ persistPath: tasksJsonPath });
+      const tg = new TaskGraph(tm);
+      taskManagerMap.set(normalizedPath, tm);
+      taskGraphMap.set(normalizedPath, tg);
+      console.log(`[TASKS] TaskManager initialized for project: ${path.basename(projectPath || defaultProjectPath)}`);
+      return tm;
+    }
+  } catch (err) {
+    console.log(`[TASKS] TaskManager not available for ${projectPath}: ${err.message}`);
+  }
+
+  return null;
+}
+
+/**
+ * Get TaskGraph for a specific project
+ * @param {string} projectPath - Project directory path
+ * @returns {TaskGraph|null} TaskGraph instance or null
+ */
+function getTaskGraphForProject(projectPath) {
+  const normalizedPath = normalizeProjectPath(projectPath || defaultProjectPath);
+
+  // Ensure TaskManager is initialized (which also creates TaskGraph)
+  getTaskManagerForProject(projectPath);
+
+  return taskGraphMap.get(normalizedPath) || null;
+}
+
+/**
+ * Create default execution state object
+ * @returns {Object} Fresh execution state
+ */
+function createDefaultExecutionState() {
+  return {
+    currentPhase: null,
+    phaseIteration: 0,
+    qualityScores: null,
+    phaseHistory: [],
+    todos: [],
+    plan: null,
+    lastUpdate: null,
+    taskPhaseHistory: {},
+    currentTaskId: null,
+  };
+}
+
+/**
+ * Get or create execution state for a specific project
+ * @param {string} projectPath - Project directory path
+ * @returns {Object} Execution state object
+ */
+function getExecutionStateForProject(projectPath) {
+  const normalizedPath = normalizeProjectPath(projectPath || defaultProjectPath);
+
+  if (!executionStateMap.has(normalizedPath)) {
+    executionStateMap.set(normalizedPath, createDefaultExecutionState());
+  }
+
+  return executionStateMap.get(normalizedPath);
+}
+
+// Initialize default project's TaskManager (backward compatibility)
+const defaultTaskManager = getTaskManagerForProject(defaultProjectPath);
+const defaultTaskGraph = getTaskGraphForProject(defaultProjectPath);
+
+// Legacy references for backward compatibility (deprecated, will use per-project)
+let taskManager = defaultTaskManager;
+let taskGraph = defaultTaskGraph;
 
 // Initialize Session Registry and Usage Limit Tracker
 const sessionRegistry = getSessionRegistry();
@@ -136,19 +231,9 @@ let sessionSeries = {
   totalCost: 0,
 };
 
-// Execution state tracking (phases, quality scores, todos)
-let executionState = {
-  currentPhase: null,
-  phaseIteration: 0,
-  qualityScores: null,
-  phaseHistory: [],
-  todos: [],
-  plan: null,
-  lastUpdate: null,
-  // Task phase tracking: { taskId: { phases: ['research', 'design'], currentPhase: 'implement', scores: { research: 85 } } }
-  taskPhaseHistory: {},
-  currentTaskId: null,
-};
+// Execution state tracking - Now uses per-project Map (executionStateMap above)
+// Legacy reference for backward compatibility (deprecated)
+let executionState = getExecutionStateForProject(defaultProjectPath);
 
 // Confidence monitoring state (from ConfidenceMonitor)
 let confidenceState = {

@@ -15,22 +15,20 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "hierarchy-phase1-agent-extension",
-        "hierarchy-phase1-session-extension"
+        "hierarchy-phase1-task-extension",
+        "hierarchy-phase1-dashboard-api"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "hierarchy-phase1-task-extension",
-        "hierarchy-phase1-dashboard-api",
-        "taskjson-parallel-session-safety"
+        "taskjson-parallel-session-safety",
+        "hierarchy-phase2-delegation"
       ]
     },
     "later": {
       "description": "Future work, not yet prioritized",
       "tasks": [
-        "hierarchy-phase2-delegation",
         "hierarchy-phase2-context",
         "hierarchy-phase2-aggregation",
         "hierarchy-phase3-decomposer",
@@ -53,11 +51,11 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "hierarchy-phase1-agent-extension",
+        "hierarchy-phase1-session-extension",
         "dashboard-project-isolation",
         "hierarchy-phase1-registry",
-        "hierarchy-prereq-failure-cascade",
-        "hierarchy-prereq-state-management",
-        "hierarchy-quickwin-parallel-loader"
+        "hierarchy-prereq-failure-cascade"
       ]
     }
   },
@@ -674,10 +672,22 @@
         "Backward compatible - existing agents work without hierarchy",
         "Unit tests for hierarchy methods"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T15:05:00.000Z"
+      "updated": "2025-12-28T17:00:00.000Z",
+      "completed": "2025-12-28T17:00:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/agent.js: hierarchyInfo object, quotas, resourceUsage tracking",
+        "canDelegate() with depth/children checks",
+        "getParent(), getChildren(), getDelegationChain() accessors",
+        "reportToParent() for upward communication",
+        "registerChild(), unregisterChild(), sendCommandToChild()",
+        "updateResourceUsage(), getRemainingQuotas(), checkQuotas()",
+        "Enhanced getStats() with hierarchy and resource info",
+        "__tests__/core/agent.test.js: 40 new hierarchy tests"
+      ]
     },
     "hierarchy-phase1-session-extension": {
       "id": "hierarchy-phase1-session-extension",
@@ -713,11 +723,24 @@
         "SSE updates propagate hierarchy changes to dashboard",
         "Unit tests for rollup aggregation accuracy"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T15:05:00.000Z",
-      "dashboardIntegration": true
+      "updated": "2025-12-28T17:00:00.000Z",
+      "completed": "2025-12-28T17:00:00.000Z",
+      "qualityScore": 95,
+      "dashboardIntegration": true,
+      "deliverables": [
+        ".claude/core/session-registry.js: hierarchyInfo, activeDelegations, rollupMetrics in session",
+        "addDelegation(), updateDelegation() for delegation lifecycle",
+        "getRollupMetrics() with recursive child aggregation",
+        "getSessionWithHierarchy(), getHierarchy() for hierarchy traversal",
+        "getRootSessions(), getParentSession(), getChildSessions(), getDescendants()",
+        "propagateMetricUpdate() for SSE events up hierarchy",
+        "getSummaryWithHierarchy() for enhanced dashboard summary",
+        ".claude/core/enhanced-dashboard-server.js: 7 new hierarchy API endpoints",
+        "__tests__/core/session-registry.test.js: 49 new hierarchy tests"
+      ]
     },
     "hierarchy-phase1-task-extension": {
       "id": "hierarchy-phase1-task-extension",
@@ -751,10 +774,10 @@
         "Backward compatible with existing task structure",
         "Unit tests for task hierarchy operations"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T20:00:00.000Z"
+      "updated": "2025-12-28T17:00:00.000Z"
     },
     "hierarchy-phase1-dashboard-api": {
       "id": "hierarchy-phase1-dashboard-api",
@@ -788,10 +811,11 @@
         "API documentation in swagger/openapi format",
         "Integration tests for all endpoints"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T20:00:00.000Z"
+      "updated": "2025-12-28T17:00:00.000Z",
+      "notes": "Session hierarchy endpoints already implemented in hierarchy-phase1-session-extension. This task adds agent and delegation endpoints."
     },
     "hierarchy-phase2-delegation": {
       "id": "hierarchy-phase2-delegation",
