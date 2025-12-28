@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "project": {
     "name": "multi-agent-template",
     "phases": [
@@ -15,7 +15,6 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "hierarchy-phase1-task-extension",
         "hierarchy-phase1-dashboard-api"
       ]
     },
@@ -55,12 +54,18 @@
         "hierarchy-phase1-session-extension",
         "dashboard-project-isolation",
         "hierarchy-phase1-registry",
-        "hierarchy-prereq-failure-cascade"
+        "hierarchy-prereq-failure-cascade",
+        "hierarchy-phase1-task-extension"
       ]
     }
   },
   "tasks": {
     "add-model-pricing": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "add-model-pricing",
       "title": "Add GPT-5.2 and Gemini 3 Pricing",
       "description": "Add pricing configuration for GPT-5.2 and Gemini 3 models to the cost calculator and fix hardcoded Claude defaults",
@@ -89,6 +94,11 @@
       "updated": "2025-12-28T03:00:00.000Z"
     },
     "dashboard-command-center": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-command-center",
       "title": "Cross-Session Summary Dashboard (Command Center)",
       "description": "A top-level summary view that aggregates information across ALL active sessions, showing usage, current/next tasks with status, and key metrics. Users can drill down into specific projects/sessions for details.",
@@ -127,6 +137,11 @@
       "notes": "PARTIAL: Backend complete, Level 2 Detail View complete. Level 1 Main View UI missing - split into subtasks."
     },
     "test-session-type-fields": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "test-session-type-fields",
       "title": "Add Unit Tests for sessionType/autonomous Fields",
       "description": "No unit tests exist for sessionType and autonomous fields in session-registry.js. The field was never tested, allowing the implementation gap to go unnoticed.",
@@ -163,6 +178,11 @@
       ]
     },
     "test-orchestrator-dashboard-integration": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "test-orchestrator-dashboard-integration",
       "title": "Add Integration Tests for Orchestrator → Dashboard Communication",
       "description": "The orchestrator was using local SessionRegistry class instead of HTTP API, so sessions registered by orchestrator were invisible to dashboard (separate process). Need E2E tests to verify cross-process communication.",
@@ -201,6 +221,11 @@
       ]
     },
     "dashboard-blocked-tasks-view": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-blocked-tasks-view",
       "title": "Show Blocked Tasks and Dependency Graph in Dashboard",
       "description": "Dashboard only shows ready/in-progress tasks, hiding blocked tasks completely. Should show blocked tasks with their dependencies so users understand what's preventing progress.",
@@ -234,6 +259,11 @@
       "updated": "2025-12-28T02:35:00.000Z"
     },
     "dashboard-project-isolation": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-project-isolation",
       "title": "Multi-Project Session Context Isolation",
       "description": "Dashboard shows same context for different projects because of single global TaskManager and executionState. Need per-project storage so each project displays its own tasks, metrics, and execution state independently.",
@@ -281,6 +311,11 @@
       "notes": "Implemented via 4 parallel agents. All acceptance criteria met. Backward compatible - APIs work without params."
     },
     "fix-autonomous-session-visibility": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "fix-autonomous-session-visibility",
       "title": "Investigate Why Autonomous Sessions Don't Appear as Separate Entries",
       "description": "Autonomous orchestrator sessions are not appearing as separate entries in the dashboard. Despite fixes in Session 32 to merge autonomous session data, the sessions may still be hidden or merged incorrectly. Need to trace the data flow from orchestrator registration through API to dashboard rendering.",
@@ -324,6 +359,11 @@
       "notes": "Root cause: Dashboard only iterated over /api/projects (CLI-detected projects). Autonomous sessions from /api/sessions/summary that didn't match any project were lost. Now unmatched sessions are added with 'auto-{id}' IDs."
     },
     "fix-queue-data-integrity": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "fix-queue-data-integrity",
       "title": "Investigate and Fix Queue Data Integrity Issues",
       "description": "Tasks are not being correctly tracked in queues. Issues found: (1) Tasks appear in both NOW and completed queues simultaneously, (2) Task status field shows 'blocked' when task is actually completed, (3) Completed tasks not removed from active queues. This is critical for the autonomous orchestrator which relies on accurate queue state.",
@@ -369,6 +409,11 @@
       "notes": "Root cause: _mergeChanges() used UNION of disk/memory queue arrays, causing tasks to appear in multiple queues when status changed during concurrent edits."
     },
     "dashboard-multiple-sessions-view": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-multiple-sessions-view",
       "title": "Show Individual Sessions Instead of Merged Projects",
       "description": "Dashboard currently merges all sessions by project path, showing only one entry per project. Should show separate entries for each CLI session plus all autonomous sessions, not just one merged view per project.",
@@ -414,6 +459,11 @@
       "notes": "Sessions are no longer merged by project. Each CLI session and autonomous session appears as a separate entry. Filter controls allow hiding idle/CLI/auto sessions. Collapsible groups by project prevent clutter. Additional fixes: CLI sessions show 'NA' for quality score (no tracking), traffic lights reflect no-score state, time-based filtering hides stale sessions (10min) and inactive projects (30min)."
     },
     "audit-cleanup-phase1": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "audit-cleanup-phase1",
       "title": "Audit Cleanup Phase 1 - Dead Code and Quick Wins",
       "description": "Address critical findings from audit-2025-12-28.json: delete 37 orphaned modules (~10K lines), remove 4 orphaned test databases, remove 4 unused npm dependencies, and fix broken documentation links. Focus on low-risk, high-impact cleanups first.",
@@ -454,6 +504,11 @@
       }
     },
     "hierarchy-quickwin-parallel-loader": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-quickwin-parallel-loader",
       "title": "Quick Win: Parallelize Agent Loader",
       "description": "Convert sequential agent loading in AgentLoader.loadAll() to parallel Promise.all(). Currently loads agents one-by-one which adds ~2s startup time. Parallelization achieves 10x faster init.",
@@ -494,6 +549,11 @@
       ]
     },
     "hierarchy-prereq-failure-cascade": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-prereq-failure-cascade",
       "title": "Prerequisite: Failure Cascade Handling",
       "description": "Implement supervision tree pattern for hierarchical error handling. Required before hierarchy implementation to prevent orphaned sub-agents, enable structured error propagation, and support partial result recovery.",
@@ -541,6 +601,11 @@
       ]
     },
     "hierarchy-prereq-state-management": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-prereq-state-management",
       "title": "Prerequisite: Hierarchical State Management",
       "description": "Extend state management to handle parent-child relationships, prevent race conditions with concurrent agent writes, and support aggregate state queries. Required before hierarchy to prevent state corruption.",
@@ -592,6 +657,11 @@
       ]
     },
     "hierarchy-phase1-registry": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase1-registry",
       "title": "Phase 1: Core Hierarchy Registry",
       "description": "Create HierarchyRegistry class for centralized tracking of parent-child agent relationships, delegation chains, and hierarchy metadata. Foundation for all subsequent hierarchy features.",
@@ -642,6 +712,11 @@
       ]
     },
     "hierarchy-phase1-agent-extension": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase1-agent-extension",
       "title": "Phase 1: Agent Class Hierarchy Extension",
       "description": "Extend Agent class with hierarchy metadata (parentAgentId, childAgentIds, delegationChain, depth) and delegation capability methods. Enables agents to track their position in hierarchy.",
@@ -690,6 +765,11 @@
       ]
     },
     "hierarchy-phase1-session-extension": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase1-session-extension",
       "title": "Phase 1: Session Registry Hierarchy Extension with Dashboard Rollup",
       "description": "Extend SessionRegistry with hierarchy tracking fields and rollup aggregation for dashboard display. Sessions must aggregate sub-agent metrics (tokens, quality, progress) for unified dashboard view.",
@@ -743,6 +823,11 @@
       ]
     },
     "hierarchy-phase1-task-extension": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase1-task-extension",
       "title": "Phase 1: Task Manager Hierarchy Extension",
       "description": "Extend TaskManager with parent-child task relationships, delegatedTo tracking, and decomposition metadata. Enables hierarchical task breakdown and progress tracking.",
@@ -774,12 +859,24 @@
         "Backward compatible with existing task structure",
         "Unit tests for task hierarchy operations"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T17:00:00.000Z"
+      "updated": "2025-12-28T17:00:00.000Z",
+      "completed": "2025-12-28T20:40:41.573Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/task-manager.js: 14 hierarchy methods (+540 lines)",
+        "scripts/migrate-tasks-hierarchy.js: Migration script",
+        "69 tasks migrated with explicit hierarchy fields"
+      ]
     },
     "hierarchy-phase1-dashboard-api": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase1-dashboard-api",
       "title": "Phase 1: Dashboard Hierarchy API Endpoints",
       "description": "Create REST API endpoints for hierarchy data access by dashboard. Enables global-dashboard.html to display agent hierarchies, delegation chains, and aggregated metrics per session.",
@@ -818,6 +915,11 @@
       "notes": "Session hierarchy endpoints already implemented in hierarchy-phase1-session-extension. This task adds agent and delegation endpoints."
     },
     "hierarchy-phase2-delegation": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase2-delegation",
       "title": "Phase 2: Delegation Primitives",
       "description": "Implement core delegation methods in AgentOrchestrator: delegateTask(), spawnSubAgent(), aggregateResults(). Enables parent agents to spawn sub-agents and collect results.",
@@ -856,6 +958,11 @@
       "updated": "2025-12-28T20:00:00.000Z"
     },
     "hierarchy-phase2-context": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase2-context",
       "title": "Phase 2: Delegation Context Builder",
       "description": "Implement DelegationContext builder for minimal, task-specific context passing to sub-agents. Reduces token overhead by 67-74% through context isolation.",
@@ -892,6 +999,11 @@
       "estimatedTokenSavings": "67%"
     },
     "hierarchy-phase2-aggregation": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase2-aggregation",
       "title": "Phase 2: Result Aggregation Strategies",
       "description": "Implement aggregation strategies for combining sub-agent results: merge, selectBest, vote, chain. Each strategy suited for different delegation patterns.",
@@ -928,6 +1040,11 @@
       "updated": "2025-12-28T20:00:00.000Z"
     },
     "hierarchy-phase3-decomposer": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase3-decomposer",
       "title": "Phase 3: Task Decomposer",
       "description": "Implement TaskDecomposer class for intelligent task breakdown. Analyzes task complexity and automatically generates subtasks with appropriate agent assignments.",
@@ -964,6 +1081,11 @@
       "updated": "2025-12-28T20:00:00.000Z"
     },
     "hierarchy-phase3-auto-delegation": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase3-auto-delegation",
       "title": "Phase 3: Automatic Delegation Decisions",
       "description": "Implement automatic delegation decision logic based on task complexity, context utilization, and agent confidence. Parent agents can auto-delegate without manual intervention.",
@@ -999,6 +1121,11 @@
       "updated": "2025-12-28T20:00:00.000Z"
     },
     "hierarchy-phase4-dashboard-viz": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase4-dashboard-viz",
       "title": "Phase 4: Dashboard Hierarchy Visualization",
       "description": "Add hierarchy visualization to global-dashboard.html showing agent trees, delegation chains, and real-time sub-agent status. Enables monitoring of hierarchical execution.",
@@ -1036,6 +1163,11 @@
       "updated": "2025-12-28T20:00:00.000Z"
     },
     "hierarchy-phase4-metrics": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase4-metrics",
       "title": "Phase 4: Delegation Metrics and Analytics",
       "description": "Implement comprehensive metrics for delegation performance: duration, success rates, token usage, speedups achieved. Enables optimization decisions.",
@@ -1072,6 +1204,11 @@
       "updated": "2025-12-28T20:00:00.000Z"
     },
     "hierarchy-phase4-optimization": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-phase4-optimization",
       "title": "Phase 4: Performance Optimization",
       "description": "Optimize hierarchy performance: agent pooling, pre-warming, caching, tiered timeouts. Target: minimize coordination overhead to maximize parallelism gains.",
@@ -1108,6 +1245,11 @@
       "updated": "2025-12-28T20:00:00.000Z"
     },
     "hierarchy-tests-unit": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-tests-unit",
       "title": "Hierarchy System Unit Tests",
       "description": "Comprehensive unit tests for all hierarchy components: registry, agent extensions, session extensions, task extensions, delegation primitives, aggregation strategies.",
@@ -1144,6 +1286,11 @@
       "updated": "2025-12-28T20:00:00.000Z"
     },
     "hierarchy-tests-integration": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "hierarchy-tests-integration",
       "title": "Hierarchy System Integration Tests",
       "description": "End-to-end integration tests for hierarchy flows: multi-level delegation, failure cascades, dashboard updates, metric collection.",
@@ -1177,6 +1324,11 @@
       "updated": "2025-12-28T20:00:00.000Z"
     },
     "taskjson-parallel-session-safety": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "taskjson-parallel-session-safety",
       "title": "Explore Parallel Session Safety for tasks.json",
       "description": "Multiple CLI sessions editing tasks.json concurrently can cause race conditions, lost updates, or unexpected auto-archival triggers. Research and implement safer patterns for multi-session task management.",

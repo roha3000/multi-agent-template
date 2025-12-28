@@ -2,6 +2,11 @@
   "archivedAt": "2025-12-28T16:34:51.507Z",
   "tasks": {
     "agent-verification-protocol": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "agent-verification-protocol",
       "title": "Establish Agent Task Verification Protocol",
       "description": "Tasks were marked complete by agents without actual verification. Need protocol: agents must demonstrate functionality works (run tests, show API response, etc.) before marking complete.",
@@ -45,6 +50,11 @@
       ]
     },
     "dashboard-v2-polish": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-v2-polish",
       "title": "Dashboard V2 Polish and Testing",
       "description": "Final polish for dashboard v2: responsive design testing, accessibility, autonomous orchestrator integration testing.",
@@ -88,6 +98,11 @@
       "notes": "All 5 acceptance criteria met. V2 dashboard ready to be made default. Recommendation documented in quality-scores.json."
     },
     "orchestrator-unification-implement": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "orchestrator-unification-implement",
       "title": "Implement Orchestrator Unification Plan",
       "description": "Implement the unified orchestrator system as designed in orchestrator-unification-plan.md. This task consolidates phase progression fix, swarm integration, and CLI hooks into a single implementation.",
@@ -145,6 +160,11 @@
       "notes": "Completed via 8-phase multi-agent parallel execution. All acceptance criteria satisfied."
     },
     "fix-dashboard-routes": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "fix-dashboard-routes",
       "title": "Fix Dashboard Routes After V2 Rename",
       "description": "After renaming global-dashboard-v2.html to global-dashboard.html, the routes in global-context-manager.js are broken. Route \"/\" points to non-existent global-dashboard-v2.html and classic route points to wrong file.",
@@ -179,6 +199,11 @@
       ]
     },
     "codebase-audit-system": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "codebase-audit-system",
       "title": "Multi-Agent Codebase Audit System",
       "description": "Comprehensive codebase audit system with 5 parallel analyzers: dead code detection, duplication detection, database inspection, documentation review, and dependency analysis. Includes CI/CD integration for weekly automated audits.",
@@ -231,6 +256,11 @@
       "notes": "Latest audit (2025-12-28) found: 104 issues, 38 orphaned modules, 10,283 lines potential dead code, 4 unused npm packages, 32 broken doc links. Estimated cleanup: 67.75 hours."
     },
     "dashboard-taskphase-tracking": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-taskphase-tracking",
       "title": "Add Task Phase Tracking to Dashboard",
       "description": "Incorporate taskPhaseHistory tracking from the unified orchestrator into the dashboard. Display which phases each task has completed (research → design → implement → test) with visual progress indicators.",
@@ -274,6 +304,11 @@
       ]
     },
     "taskmanager-concurrent-write-fix": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "taskmanager-concurrent-write-fix",
       "title": "Fix TaskManager Concurrent Write Race Condition",
       "description": "Tasks added to tasks.json can be silently lost when multiple processes (orchestrators, dashboard, CLI) modify the file concurrently. Implement file locking or merge-on-save to prevent overwrites.",
@@ -313,6 +348,11 @@
       ]
     },
     "orchestrator-phase-progression-fix": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "orchestrator-phase-progression-fix",
       "title": "Fix Orchestrator Phase Progression - Wire In ALL Existing Controls",
       "description": "Critical bug: Tasks marked 'completed' after research phase only. autonomous-orchestrator.js must wire in EXISTING infrastructure: (1) quality-gates.js for phase progression, (2) swarm components for safety checks. ContinuousLoopOrchestrator already has checkSafety() with SecurityValidator, ConfidenceMonitor, ComplexityAnalyzer - reuse this, don't reinvent.",
@@ -357,6 +397,11 @@
       "supersededBy": "orchestrator-unification-implement"
     },
     "orchestrator-unification-analysis": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "orchestrator-unification-analysis",
       "title": "Analysis: Unify Orchestrators and Enable Swarm Features in CLI",
       "description": "Research task to determine the best architecture for: (1) Deprecating ContinuousLoopOrchestrator, (2) Moving all swarm features into autonomous-orchestrator.js, (3) Making swarm features available in normal Claude CLI interactive mode via hooks. Output: detailed implementation plan with file changes, hook integration points, and migration steps.",
@@ -406,6 +451,11 @@
       "notes": "Complete analysis covering: (1) SwarmController unified module design, (2) Phase progression fix with spawnPhaseTask for auto-creating phase tasks, (3) CLI hooks for interactive swarm features, (4) 8-phase implementation plan with ~14h total effort"
     },
     "dashboard-v2-redesign": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-v2-redesign",
       "title": "Dashboard V2 Split-Pane Redesign",
       "description": "Complete redesign of the Command Center dashboard with Split-Pane layout, traffic light quality indicators, inline controls, and CLI session enrichment.",
@@ -447,6 +497,11 @@
       ]
     },
     "dashboard-log-session-id-fix": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-log-session-id-fix",
       "title": "Fix Multi-Session Log Streaming",
       "description": "Dashboard log viewer shows blank because session IDs don't match. Multiple orchestrator sessions can run in parallel (different projects), each writing to its own session-N.log. The dashboard needs to map each project's folder ID to its corresponding log session number.",
@@ -490,6 +545,11 @@
       ]
     },
     "dashboard-v2-lessons-api": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-v2-lessons-api",
       "title": "Add Lessons Learned API Endpoint",
       "description": "Create /api/lessons/:project endpoint to fetch lessons learned and notes captured per task for display in dashboard v2.",
@@ -529,6 +589,11 @@
       "notes": "Task was partially completed previously. Updated API response format to match dashboard expectations."
     },
     "dashboard-task-queue-management": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-task-queue-management",
       "title": "Task Priority and Queue Management UI",
       "description": "Enable users to manage task priority directly from the dashboard. Move tasks between backlog queues (now, next, later, someday) and reorder tasks within each queue by rank.",
@@ -567,6 +632,11 @@
       "completed": "2025-12-27T18:46:59.680Z"
     },
     "dashboard-live-task-refresh": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-live-task-refresh",
       "title": "Fix Dashboard Task List Live Refresh",
       "description": "The backlog tasks panel should automatically refresh when tasks.json changes or when task status updates occur. Currently it may not be updating in real-time.",
@@ -599,6 +669,11 @@
       "completed": "2025-12-27T18:43:05.863Z"
     },
     "dashboard-autonomous-tracking": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-autonomous-tracking",
       "title": "Track Autonomous Orchestrator Sessions in Dashboard",
       "description": "The dashboard should display real-time status of autonomous orchestrator sessions including current phase, active task, iteration count, quality scores, and session progress. The orchestrator must POST execution state updates to the dashboard.",
@@ -634,6 +709,11 @@
       "completed": "2025-12-27T18:34:56.290Z"
     },
     "dashboard-global-metrics-bar": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-global-metrics-bar",
       "title": "Global Metrics Bar (5 Stat Cards)",
       "description": "Add the 5-card metrics bar at the top of Command Center showing: Active Sessions, Tasks Done Today, Avg Health Score, Cost Today, Active Alerts. Per design spec section 4.1.",
@@ -673,6 +753,11 @@
       ]
     },
     "dashboard-usage-limits-panel": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-usage-limits-panel",
       "title": "Usage Limits Panel (5h/Daily/Weekly)",
       "description": "Add the 3-column usage limits panel showing Claude rate limits with progress bars, reset countdowns, and pace indicators. Per design spec section 4.1.",
@@ -712,6 +797,11 @@
       ]
     },
     "dashboard-recent-completions": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-recent-completions",
       "title": "Recent Completions Table",
       "description": "Add table at bottom of Command Center showing recently completed tasks across all projects. Per design spec section 4.1.",
@@ -749,6 +839,11 @@
       ]
     },
     "dashboard-title-rebrand": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-title-rebrand",
       "title": "Rebrand Dashboard Title to Command Center",
       "description": "Change header title from 'Context Monitor' to 'Command Center' and update any related branding.",
@@ -780,6 +875,11 @@
       ]
     },
     "dashboard-command-center-backend": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-command-center-backend",
       "title": "Command Center Backend Services",
       "description": "Backend infrastructure for Command Center including session registry, usage limit tracking, and log streaming services.",
@@ -817,6 +917,11 @@
       ]
     },
     "dashboard-session-detail-view": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-session-detail-view",
       "title": "Session Detail View (Level 2)",
       "description": "Drill-down view showing full session details including 3-column metrics, task queue, confidence gauges, and live log viewer.",
@@ -855,6 +960,11 @@
       ]
     },
     "swarm-documentation": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "swarm-documentation",
       "title": "Write Swarm Feature Documentation",
       "description": "Create user guides for COMPETITIVE_PLANNING.md, CONFIDENCE_MONITORING.md, and SECURITY_GUIDE.md",
@@ -886,6 +996,11 @@
       "completed": "2025-12-27T01:19:54.743Z"
     },
     "dashboard-log-viewer": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "dashboard-log-viewer",
       "title": "Add Real-Time Log Viewer Button to Dashboard",
       "description": "Add a button to the dashboard that opens a real-time tail view of the session log file (.claude/logs/session-N.log) so users can monitor orchestrator output live",
@@ -918,6 +1033,11 @@
       "completed": "2025-12-27T01:12:46.372Z"
     },
     "swarm-performance-testing": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "swarm-performance-testing",
       "title": "Implement Performance Benchmarks and Load Tests",
       "description": "Create benchmark-swarm.js for latency testing and load-test-swarm.js for stress testing swarm components",
@@ -953,6 +1073,11 @@
       "completed": "2025-12-27T01:05:00.388Z"
     },
     "swarm-database-schema": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "swarm-database-schema",
       "title": "Create Database Schema for Swarm History",
       "description": "Add confidence_history, complexity_analysis, and plan_comparisons tables to MemoryStore with migration script",
@@ -988,6 +1113,11 @@
       "completed": "2025-12-26T23:14:24.595Z"
     },
     "swarm-feature-flags": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "swarm-feature-flags",
       "title": "Implement Feature Flags for Swarm Components",
       "description": "Add environment variable toggles to enable/disable swarm features: ENABLE_COMPETITIVE_PLANNING, ENABLE_COMPLEXITY_DETECTION, ENABLE_CONFIDENCE_MONITORING, ENABLE_SECURITY_VALIDATION",
@@ -1029,6 +1159,11 @@
       "notes": "Feature flags allow runtime toggling of swarm components via env vars. Defaults to all enabled for backward compatibility."
     },
     "swarm-dashboard-ui": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "swarm-dashboard-ui",
       "title": "Swarm Dashboard UI Panels",
       "description": "Add confidence gauge, competitive planning panel, and complexity indicators to dashboard",
@@ -1069,6 +1204,11 @@
       ]
     },
     "swarm-integration-tests": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "swarm-integration-tests",
       "title": "Add SwarmController Integration Tests",
       "description": "Add integration tests for SwarmController + SecurityValidator to catch API mismatches. Current tests only check happy path and structure, not actual integration between components.",
@@ -1108,6 +1248,11 @@
       ]
     },
     "swarm-orchestrator-integration": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "swarm-orchestrator-integration",
       "title": "Integrate Claude-Swarm Components into ContinuousLoopOrchestrator",
       "description": "Integrate all 5 claude-swarm components into the autonomous agent continuous loop framework with full E2E testing",
@@ -1156,6 +1301,11 @@
       "notes": "Full integration with new orchestrator methods: validateInput(), analyzeTaskComplexity(), generateCompetingPlans(), comparePlans(), trackProgress(), getConfidenceState(). All components wired into checkSafety() pipeline."
     },
     "swarm-complexity-analyzer": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "swarm-complexity-analyzer",
       "title": "Complexity Analyzer Component",
       "description": "Build ComplexityAnalyzer that scores tasks 0-100 using heuristics: dependency depth, acceptance criteria, effort estimate, technical keywords, historical success",
@@ -1193,6 +1343,11 @@
       ]
     },
     "swarm-competitive-planner": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "swarm-competitive-planner",
       "title": "Competitive Planner Component",
       "description": "Build CompetitivePlanner that generates 2-3 planning strategies (Conservative, Balanced, Aggressive) for complex tasks",
@@ -1231,6 +1386,11 @@
       ]
     },
     "swarm-plan-evaluator": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "swarm-plan-evaluator",
       "title": "Plan Evaluator Component",
       "description": "Build PlanEvaluator that scores plans using weighted criteria: completeness, feasibility, risk, clarity, efficiency",
@@ -1267,6 +1427,11 @@
       ]
     },
     "swarm-security-validator": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "swarm-security-validator",
       "title": "Security Validation Layer",
       "description": "Build SecurityValidator with prompt injection detection, path traversal blocking, command allowlist. Audit mode by default.",
@@ -1302,6 +1467,11 @@
       ]
     },
     "swarm-confidence-monitor": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "swarm-confidence-monitor",
       "title": "Confidence Monitoring System",
       "description": "Build ConfidenceMonitor tracking 5 signals: quality score, velocity, iterations, error rate, historical success",
@@ -1338,6 +1508,11 @@
       ]
     },
     "add-health-endpoint": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "add-health-endpoint",
       "title": "Add Health Check Endpoint",
       "description": "Add a /api/health endpoint to global-context-manager.js that returns system status including: server uptime, active projects count, notification service status, and memory usage",
@@ -1369,6 +1544,11 @@
       "completed": "2025-12-24T20:43:58.453Z"
     },
     "option-d-sms-email-notifications": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "option-d-sms-email-notifications",
       "title": "Option D: SMS/Email Notifications",
       "description": "Implement Twilio SMS and email alerts for phase/task group completion, context threshold alerts, and configurable notification preferences",
@@ -1411,6 +1591,11 @@
       ]
     },
     "manual-test-continuous-loop": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "manual-test-continuous-loop",
       "title": "Fully Test Continuous Loop Framework",
       "description": "Manually test all use cases for the continuous loop framework to validate autonomous orchestration works end-to-end in real scenarios",
@@ -1459,6 +1644,11 @@
       "notes": "All tests passed. Framework is production ready. Minor issues: 2 E2E tests check code patterns that changed in workspace modifications - should update tests to check behavior."
     },
     "option-c-task-visualization": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "option-c-task-visualization",
       "title": "Option C: Task Dependency Graph Visualization",
       "description": "Create visual dependency graph in dashboard showing task relationships, blocking status, and interactive editing",
@@ -1502,6 +1692,11 @@
       ]
     },
     "option-b-predictive-analytics": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "option-b-predictive-analytics",
       "title": "Option B: Predictive Analytics",
       "description": "Build ML-based token usage forecasting, context exhaustion predictions, cost optimization recommendations, and session pattern analysis",
@@ -1544,6 +1739,11 @@
       ]
     },
     "option-a-test-autonomous": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
       "id": "option-a-test-autonomous",
       "title": "Option A: Test Autonomous Loop",
       "description": "Validate the autonomous orchestrator works correctly - phase transitions, quality gates, context monitoring, and state persistence across sessions",

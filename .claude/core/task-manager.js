@@ -209,6 +209,11 @@ class TaskManager extends EventEmitter {
       // This ensures completed tasks are archived and don't clutter active tiers
       this._moveToCompletedTier(taskId);
 
+      // Update parent progress if this task has a parent (hierarchy support)
+      if (task.parentTaskId) {
+        this._updateParentProgress(task.parentTaskId);
+      }
+
       this.emit('task:completed', { task, metadata });
     }
 
@@ -1178,6 +1183,541 @@ class TaskManager extends EventEmitter {
       console.warn('[TaskManager] Could not read archive:', e.message);
       return {};
     }
+  }
+
+  // ====================================================================
+  // HIERARCHY METHODS (parent-child task relationships)
+  // ====================================================================
+
+  /**
+   * Create a subtask under a parent task
+   * @param {string} parentTaskId - ID of the parent task
+   * @param {Object} subtaskData - Subtask data (title, description, etc.)
+   * @returns {Object} Created subtask
+   */
+  createSubtask(parentTaskId, subtaskData) {
+    const parent = this.getTask(parentTaskId);
+    if (!parent) {
+      throw new Error(`Parent task not found: ${parentTaskId}`);
+    }
+
+    // Calculate delegation depth
+    const delegationDepth = (parent.delegationDepth || 0) + 1;
+
+    // Generate subtask ID
+    const id = subtaskData.id || this._generateTaskId(subtaskData.title || 'subtask');
+
+    // Create subtask with parent reference
+    const subtask = {
+      id,
+      title: subtaskData.title,
+      description: subtaskData.description || '',
+      phase: subtaskData.phase || parent.phase,
+      priority: subtaskData.priority || parent.priority,
+      estimate: subtaskData.estimate || '1h',
+      tags: subtaskData.tags || [...(parent.tags || [])],
+      depends: subtaskData.depends || { blocks: [], requires: [], related: [] },
+      acceptance: subtaskData.acceptance || [],
+      status: 'ready',
+      assignee: subtaskData.assignee || null,
+      created: new Date().toISOString(),
+      updated: new Date().toISOString(),
+      started: null,
+      completed: null,
+      // Hierarchy fields
+      parentTaskId: parentTaskId,
+      childTaskIds: [],
+      delegatedTo: subtaskData.delegatedTo || null,
+      delegationDepth: delegationDepth,
+      decomposition: null
+    };
+
+    // Add subtask to tasks
+    this.tasks.tasks[id] = subtask;
+
+    // Update parent's childTaskIds
+    if (!parent.childTaskIds) {
+      parent.childTaskIds = [];
+    }
+    parent.childTaskIds.push(id);
+
+    // Initialize decomposition on parent if not exists
+    if (!parent.decomposition) {
+      parent.decomposition = {
+        strategy: 'manual',
+        estimatedSubtasks: null,
+        completedSubtasks: 0,
+        aggregationRule: 'average'
+      };
+    }
+
+    parent.updated = new Date().toISOString();
+
+    // Add subtask to same backlog tier as parent (or 'now' by default)
+    let parentTier = 'now';
+    for (const tier of ['now', 'next', 'later', 'someday']) {
+      if (this.tasks.backlog[tier]?.tasks?.includes(parentTaskId)) {
+        parentTier = tier;
+        break;
+      }
+    }
+    if (!this.tasks.backlog[parentTier].tasks.includes(id)) {
+      this.tasks.backlog[parentTier].tasks.push(id);
+    }
+
+    this.emit('task:subtask-created', { parent, subtask });
+    this.save();
+
+    return subtask;
+  }
+
+  /**
+   * Get full task hierarchy (tree structure)
+   * @param {string} taskId - Root task ID
+   * @returns {Object|null} Task with nested children array
+   */
+  getTaskHierarchy(taskId) {
+    const task = this.getTask(taskId);
+    if (!task) return null;
+
+    const hierarchy = { ...task };
+
+    if (task.childTaskIds && task.childTaskIds.length > 0) {
+      hierarchy.children = task.childTaskIds
+        .map(childId => this.getTaskHierarchy(childId))
+        .filter(child => child !== null);
+    } else {
+      hierarchy.children = [];
+    }
+
+    return hierarchy;
+  }
+
+  /**
+   * Get root task for any task in hierarchy
+   * @param {string} taskId - Task ID
+   * @returns {Object|null} Root task
+   */
+  getRootTask(taskId) {
+    let task = this.getTask(taskId);
+    if (!task) return null;
+
+    while (task.parentTaskId) {
+      const parent = this.getTask(task.parentTaskId);
+      if (!parent) break;
+      task = parent;
+    }
+
+    return task;
+  }
+
+  /**
+   * Get ancestor tasks (from immediate parent to root)
+   * Note: Different from _getAncestors which tracks dependency graph
+   * @param {string} taskId - Task ID
+   * @returns {Array} Array of ancestor tasks
+   */
+  getHierarchyAncestors(taskId) {
+    const ancestors = [];
+    let task = this.getTask(taskId);
+
+    if (!task) return ancestors;
+
+    while (task.parentTaskId) {
+      const parent = this.getTask(task.parentTaskId);
+      if (!parent) break;
+      ancestors.push(parent);
+      task = parent;
+    }
+
+    return ancestors;
+  }
+
+  /**
+   * Get all descendant tasks (flat array)
+   * Note: Different from _getDescendants which tracks dependency graph
+   * @param {string} taskId - Task ID
+   * @returns {Array} Flat array of descendant tasks
+   */
+  getHierarchyDescendants(taskId) {
+    const descendants = [];
+    const task = this.getTask(taskId);
+
+    if (!task || !task.childTaskIds) return descendants;
+
+    const collectDescendants = (childIds) => {
+      for (const childId of childIds) {
+        const child = this.getTask(childId);
+        if (child) {
+          descendants.push(child);
+          if (child.childTaskIds && child.childTaskIds.length > 0) {
+            collectDescendants(child.childTaskIds);
+          }
+        }
+      }
+    };
+
+    collectDescendants(task.childTaskIds);
+    return descendants;
+  }
+
+  /**
+   * Get sibling tasks (same parent)
+   * @param {string} taskId - Task ID
+   * @returns {Array} Array of sibling tasks
+   */
+  getSiblings(taskId) {
+    const task = this.getTask(taskId);
+    if (!task || !task.parentTaskId) return [];
+
+    const parent = this.getTask(task.parentTaskId);
+    if (!parent || !parent.childTaskIds) return [];
+
+    return parent.childTaskIds
+      .filter(id => id !== taskId)
+      .map(id => this.getTask(id))
+      .filter(t => t !== null);
+  }
+
+  /**
+   * Update parent progress when child is completed
+   * @param {string} parentTaskId - Parent task ID
+   */
+  _updateParentProgress(parentTaskId) {
+    const parent = this.getTask(parentTaskId);
+    if (!parent || !parent.childTaskIds || parent.childTaskIds.length === 0) return;
+
+    const children = parent.childTaskIds
+      .map(id => this.getTask(id))
+      .filter(t => t !== null);
+
+    if (children.length === 0) return;
+
+    const aggregationRule = parent.decomposition?.aggregationRule || 'average';
+    let completedCount = 0;
+
+    children.forEach(child => {
+      if (child.status === 'completed') {
+        completedCount++;
+      }
+    });
+
+    let progress = 0;
+    switch (aggregationRule) {
+      case 'all':
+        progress = completedCount === children.length ? 100 :
+          Math.floor((completedCount / children.length) * 100);
+        break;
+      case 'any':
+        progress = completedCount > 0 ? 100 : 0;
+        break;
+      case 'weighted':
+        const totalProgress = children.reduce((sum, child) => {
+          return sum + (child.progress || (child.status === 'completed' ? 100 : 0));
+        }, 0);
+        progress = Math.floor(totalProgress / children.length);
+        break;
+      case 'average':
+      default:
+        progress = Math.floor((completedCount / children.length) * 100);
+        break;
+    }
+
+    // Update decomposition tracking
+    if (!parent.decomposition) {
+      parent.decomposition = { strategy: 'manual', aggregationRule: 'average' };
+    }
+    parent.decomposition.completedSubtasks = completedCount;
+    parent.progress = progress;
+    parent.updated = new Date().toISOString();
+
+    this.emit('task:hierarchy-progress', { parent, progress, completedCount });
+
+    // Recursively update grandparent
+    if (parent.parentTaskId) {
+      this._updateParentProgress(parent.parentTaskId);
+    }
+  }
+
+  /**
+   * Set decomposition metadata on a task
+   * @param {string} taskId - Task ID
+   * @param {Object} decompositionData - { strategy, estimatedSubtasks, aggregationRule }
+   * @returns {Object|null} Updated task
+   */
+  setDecomposition(taskId, decompositionData) {
+    const task = this.getTask(taskId);
+    if (!task) return null;
+
+    task.decomposition = {
+      strategy: decompositionData.strategy || 'manual',
+      estimatedSubtasks: decompositionData.estimatedSubtasks || null,
+      completedSubtasks: decompositionData.completedSubtasks || 0,
+      aggregationRule: decompositionData.aggregationRule || 'average',
+      ...decompositionData
+    };
+
+    task.updated = new Date().toISOString();
+    this.save();
+    return task;
+  }
+
+  /**
+   * Delegate task to an agent
+   * @param {string} taskId - Task ID
+   * @param {Object} delegationInfo - { agentId, sessionId, ... }
+   * @returns {Object|null} Updated task
+   */
+  delegateToAgent(taskId, delegationInfo) {
+    const task = this.getTask(taskId);
+    if (!task) return null;
+
+    task.delegatedTo = {
+      agentId: delegationInfo.agentId || null,
+      sessionId: delegationInfo.sessionId || null,
+      delegatedAt: new Date().toISOString(),
+      ...delegationInfo
+    };
+
+    task.updated = new Date().toISOString();
+    this.emit('task:delegated', { task, delegationInfo });
+    this.save();
+    return task;
+  }
+
+  /**
+   * Complete task with optional cascade to children
+   * @param {string} taskId - Task ID
+   * @param {Object} options - { cascadeComplete: boolean }
+   * @param {Object} metadata - Completion metadata
+   * @returns {Object|null} Completed task
+   */
+  completeTaskWithCascade(taskId, options = {}, metadata = {}) {
+    const task = this.getTask(taskId);
+    if (!task) return null;
+
+    // Cascade complete children first
+    if (options.cascadeComplete && task.childTaskIds && task.childTaskIds.length > 0) {
+      for (const childId of task.childTaskIds) {
+        this.completeTaskWithCascade(childId, { cascadeComplete: true }, metadata);
+      }
+    }
+
+    // Complete this task
+    return this.updateStatus(taskId, 'completed', metadata);
+  }
+
+  /**
+   * Delete task and all descendants
+   * @param {string} taskId - Task ID
+   * @returns {number} Number of tasks deleted
+   */
+  deleteTaskWithDescendants(taskId) {
+    const descendants = this.getHierarchyDescendants(taskId);
+    let deletedCount = 0;
+
+    // Sort by depth (deepest first) to avoid orphan issues
+    const sortedDescendants = descendants.sort((a, b) =>
+      (b.delegationDepth || 0) - (a.delegationDepth || 0)
+    );
+
+    // Delete descendants first
+    for (const descendant of sortedDescendants) {
+      try {
+        this.deleteTask(descendant.id);
+        deletedCount++;
+      } catch (e) {
+        // Task may already be deleted
+      }
+    }
+
+    // Delete the task itself
+    try {
+      this.deleteTask(taskId);
+      deletedCount++;
+    } catch (e) {
+      // Task may already be deleted
+    }
+
+    return deletedCount;
+  }
+
+  /**
+   * Get hierarchy statistics
+   * @returns {Object} Hierarchy stats
+   */
+  getHierarchyStats() {
+    const allTasks = this._getAllTasks();
+    const stats = {
+      rootTasks: 0,
+      parentTasks: 0,
+      childTasks: 0,
+      maxDepth: 0,
+      avgChildrenPerParent: 0
+    };
+
+    let totalChildren = 0;
+    let parentCount = 0;
+
+    allTasks.forEach(task => {
+      if (!task.parentTaskId) {
+        stats.rootTasks++;
+      }
+      if (task.parentTaskId) {
+        stats.childTasks++;
+      }
+      if (task.childTaskIds && task.childTaskIds.length > 0) {
+        stats.parentTasks++;
+        totalChildren += task.childTaskIds.length;
+        parentCount++;
+      }
+      if ((task.delegationDepth || 0) > stats.maxDepth) {
+        stats.maxDepth = task.delegationDepth;
+      }
+    });
+
+    stats.avgChildrenPerParent = parentCount > 0
+      ? Math.round((totalChildren / parentCount) * 100) / 100
+      : 0;
+
+    return stats;
+  }
+
+  /**
+   * Validate hierarchy integrity
+   * @returns {Object} { valid, issueCount, issues }
+   */
+  validateHierarchy() {
+    const issues = [];
+    const allTasks = this._getAllTasks();
+
+    allTasks.forEach(task => {
+      // Check parent exists
+      if (task.parentTaskId) {
+        const parent = this.getTask(task.parentTaskId);
+        if (!parent) {
+          issues.push({
+            type: 'orphan',
+            taskId: task.id,
+            message: `Parent task ${task.parentTaskId} not found`
+          });
+        } else if (!parent.childTaskIds || !parent.childTaskIds.includes(task.id)) {
+          issues.push({
+            type: 'missing-child-ref',
+            taskId: task.id,
+            parentId: task.parentTaskId,
+            message: `Parent ${task.parentTaskId} does not list ${task.id} as child`
+          });
+        }
+      }
+
+      // Check children exist
+      if (task.childTaskIds && task.childTaskIds.length > 0) {
+        task.childTaskIds.forEach(childId => {
+          const child = this.getTask(childId);
+          if (!child) {
+            issues.push({
+              type: 'missing-child',
+              taskId: task.id,
+              childId: childId,
+              message: `Child task ${childId} not found`
+            });
+          } else if (child.parentTaskId !== task.id) {
+            issues.push({
+              type: 'wrong-parent-ref',
+              taskId: task.id,
+              childId: childId,
+              message: `Child ${childId} points to different parent`
+            });
+          }
+        });
+      }
+
+      // Check delegation depth
+      if (task.parentTaskId) {
+        const parent = this.getTask(task.parentTaskId);
+        if (parent) {
+          const expectedDepth = (parent.delegationDepth || 0) + 1;
+          if (task.delegationDepth !== expectedDepth) {
+            issues.push({
+              type: 'depth-mismatch',
+              taskId: task.id,
+              expected: expectedDepth,
+              actual: task.delegationDepth,
+              message: `Depth should be ${expectedDepth}, is ${task.delegationDepth}`
+            });
+          }
+        }
+      }
+    });
+
+    return {
+      valid: issues.length === 0,
+      issueCount: issues.length,
+      issues
+    };
+  }
+
+  /**
+   * Repair hierarchy issues
+   * @returns {Object} { repairsPerformed, repairs }
+   */
+  repairHierarchy() {
+    const validation = this.validateHierarchy();
+    const repairs = [];
+
+    validation.issues.forEach(issue => {
+      const task = this.getTask(issue.taskId);
+      if (!task) return;
+
+      switch (issue.type) {
+        case 'orphan':
+          task.parentTaskId = null;
+          task.delegationDepth = 0;
+          repairs.push(`Cleared parent reference for orphan ${issue.taskId}`);
+          break;
+
+        case 'missing-child-ref':
+          const parent = this.getTask(issue.parentId);
+          if (parent) {
+            if (!parent.childTaskIds) parent.childTaskIds = [];
+            if (!parent.childTaskIds.includes(issue.taskId)) {
+              parent.childTaskIds.push(issue.taskId);
+              repairs.push(`Added ${issue.taskId} to parent ${issue.parentId} children`);
+            }
+          }
+          break;
+
+        case 'missing-child':
+          if (task.childTaskIds) {
+            task.childTaskIds = task.childTaskIds.filter(id => id !== issue.childId);
+            repairs.push(`Removed missing child ${issue.childId} from ${issue.taskId}`);
+          }
+          break;
+
+        case 'wrong-parent-ref':
+          const child = this.getTask(issue.childId);
+          if (child) {
+            child.parentTaskId = issue.taskId;
+            repairs.push(`Fixed parent reference for ${issue.childId} to ${issue.taskId}`);
+          }
+          break;
+
+        case 'depth-mismatch':
+          task.delegationDepth = issue.expected;
+          repairs.push(`Fixed delegation depth for ${issue.taskId} to ${issue.expected}`);
+          break;
+      }
+    });
+
+    if (repairs.length > 0) {
+      this.save();
+    }
+
+    return {
+      repairsPerformed: repairs.length,
+      repairs
+    };
   }
 }
 

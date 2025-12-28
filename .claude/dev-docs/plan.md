@@ -14,12 +14,12 @@
 | `hierarchy-phase1-registry` | ✅ Done | hierarchy-registry.js (67 tests) |
 | `hierarchy-phase1-agent-extension` | ✅ Done | agent.js hierarchy + quotas (40 tests) |
 | `hierarchy-phase1-session-extension` | ✅ Done | session-registry.js + 7 API endpoints (49 tests) |
+| `hierarchy-phase1-task-extension` | ✅ Done | task-manager.js hierarchy methods (14 methods) |
 
 ### NOW Queue
 
 | Task | Est | Description |
 |------|-----|-------------|
-| `hierarchy-phase1-task-extension` | 4h | Task parent/child relationships |
 | `hierarchy-phase1-dashboard-api` | 4h | Remaining agent/delegation REST endpoints |
 
 ### NEXT Queue

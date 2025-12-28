@@ -1,11 +1,61 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-28 (Session 42)
+**Last Updated**: 2025-12-28 (Session 43)
 **Current Phase**: IMPLEMENTATION
-**Status**: Hierarchy Phase 1 Agent + Session Extensions Complete
+**Status**: Hierarchy Phase 1 Task Extension Complete
 
 ---
 
-## Session 42: Agent & Session Hierarchy Extensions (CURRENT)
+## Session 43: Task Hierarchy Extension (CURRENT)
+
+### Work Completed
+
+| Task | Status | Description |
+|------|--------|-------------|
+| hierarchy-phase1-task-extension | ✅ (95) | TaskManager hierarchy methods + migration (14 methods) |
+
+### Implementation Details
+
+**TaskManager Hierarchy Extension (task-manager.js)**
+- createSubtask(parentTaskId, subtaskData) - Create child tasks
+- getTaskHierarchy(taskId) - Full nested tree structure
+- getRootTask(taskId), getHierarchyAncestors(), getHierarchyDescendants()
+- getSiblings(taskId) - Same-parent tasks
+- setDecomposition() - Strategy, estimatedSubtasks, aggregationRule
+- delegateToAgent() - Agent/session delegation tracking
+- completeTaskWithCascade() - Optional child completion
+- deleteTaskWithDescendants() - Remove entire subtree
+- getHierarchyStats() - Root/parent/child counts, maxDepth
+- validateHierarchy(), repairHierarchy() - Integrity checks
+- _updateParentProgress() - Auto-update on child completion
+
+**Migration (scripts/migrate-tasks-hierarchy.js)**
+- Added explicit hierarchy fields to 69 tasks (29 active + 40 archived)
+- Fields: parentTaskId, childTaskIds, delegatedTo, delegationDepth, decomposition
+- No backward compatibility needed - data is self-describing
+
+### Files Modified
+
+| File | Purpose |
+|------|---------|
+| `.claude/core/task-manager.js` | +540 lines hierarchy methods |
+| `.claude/dev-docs/tasks.json` | Migrated with hierarchy fields |
+| `.claude/dev-docs/archives/tasks-archive.json` | Migrated with hierarchy fields |
+| `scripts/migrate-tasks-hierarchy.js` | One-time migration script |
+
+### Tests
+- 124 task-manager tests passing
+- Total: 1540+ tests passing
+
+---
+
+## Session 42: Agent & Session Hierarchy Extensions ✅
+- **Tasks**: hierarchy-phase1-agent-extension (95), hierarchy-phase1-session-extension (95)
+- **Key changes**: Agent hierarchyInfo + quotas, Session rollup + 7 API endpoints
+- **Files**: agent.js (40 tests), session-registry.js (49 tests), enhanced-dashboard-server.js
+
+---
+
+## Session 41: HierarchyRegistry Implementation ✅
 
 ### Work Completed
 
@@ -83,9 +133,9 @@
 |-----------|--------|
 | Orchestrator | Unified + parallel patterns + hierarchy foundations |
 | Dashboard | Command Center - project isolation + hierarchy endpoints |
-| Task System | Concurrent write protection + auto-archival |
+| Task System | Hierarchy support + concurrent write protection + auto-archival |
 | Tests | 1540+ passing |
-| Hierarchy | Phase 1 complete (Registry + Agent + Session) |
+| Hierarchy | Phase 1 near complete (Registry + Agent + Session + Task) |
 
 ---
 
@@ -94,5 +144,5 @@
 - **Dashboard**: http://localhost:3033/
 - **Archives**: `.claude/dev-docs/archives/`
 - **Task Graph**: http://localhost:3033/task-graph.html
-- **NOW**: hierarchy-phase1-task-extension, hierarchy-phase1-dashboard-api
+- **NOW**: hierarchy-phase1-dashboard-api
 - **NEXT**: taskjson-parallel-session-safety, hierarchy-phase2-delegation
