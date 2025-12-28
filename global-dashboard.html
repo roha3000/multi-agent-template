@@ -1694,10 +1694,11 @@
           }
         });
 
-        // Map projects to session format, enriching with autonomous session data if matched
-        const projectSessions = (projectsData.projects || []).map(p => {
-          const existingSession = sessions.find(s => s.id === (p.folder || p.name));
-          // Try matching by path first, then by folder ID
+        // Expand projects into individual CLI sessions
+        // Each project can have multiple CLI sessions (from p.sessions array)
+        const projectSessions = [];
+
+        for (const p of (projectsData.projects || [])) {
           const autoSession = autonomousByPath[p.path] || autonomousByFolder[p.folder];
 
           // Track matched autonomous sessions
@@ -1705,34 +1706,76 @@
             matchedAutoSessionIds.add(autoSession.id);
           }
 
-          // Prefer autonomous session data when available
-          return {
-            id: p.folder || p.name,
-            project: p.name,
-            path: p.path,
-            sessionType: autoSession ? 'autonomous' : 'cli',
-            status: autoSession?.status === 'active' ? 'active' : (p.status === 'active' ? 'active' : 'idle'),
-            contextPercent: p.metrics?.contextPercent || 0,
-            qualityScore: autoSession?.qualityScore || existingSession?.qualityScore || 0,
-            qualityBreakdown: existingSession?.qualityBreakdown || {},
-            cost: p.metrics?.cost || 0,
-            tokens: p.metrics?.contextUsed || 0,
-            model: p.metrics?.model,
-            messageCount: p.metrics?.messageCount || 0,
-            currentTask: autoSession?.currentTask || existingSession?.currentTask || null,
-            taskQueue: existingSession?.taskQueue || [],
-            taskStats: existingSession?.taskStats || {},
-            phase: autoSession?.phase || existingSession?.phase || null,
-            autonomous: autoSession?.autonomous || autoSession?.sessionType === 'autonomous' || false,
-            iteration: autoSession?.iteration || existingSession?.iteration || 1,
-            safetyStatus: p.safetyStatus,
-            // Critical: Use autonomous session's logSessionId for log streaming
-            logSessionId: autoSession?.logSessionId || null,
-            orchestratorInfo: autoSession?.orchestratorInfo || null,
-            confidenceScore: autoSession?.confidenceScore || null,
-            registryId: autoSession?.id || null  // Track the registry ID for autonomous sessions
-          };
-        });
+          // If project has multiple sessions, create an entry for each
+          const cliSessions = p.sessions || [];
+
+          if (cliSessions.length > 1) {
+            // Multiple CLI sessions - show each separately
+            for (const cliSession of cliSessions) {
+              const sessionId = `${p.folder}-${cliSession.id}`;
+              const existingSession = sessions.find(s => s.id === sessionId);
+              const isActive = cliSession.isActive && p.status === 'active';
+
+              projectSessions.push({
+                id: sessionId,
+                project: p.name,
+                path: p.path,
+                cliSessionId: cliSession.id,  // The actual session file ID
+                sessionType: 'cli',
+                status: isActive ? 'active' : 'idle',
+                // For active session, use project metrics; for inactive, use session-specific
+                contextPercent: isActive ? (p.metrics?.contextPercent || 0) : 0,
+                qualityScore: existingSession?.qualityScore || 0,
+                qualityBreakdown: existingSession?.qualityBreakdown || {},
+                cost: p.metrics?.cost || 0,  // Cost is aggregated at project level
+                tokens: isActive ? (p.metrics?.contextUsed || 0) : (cliSession.inputTokens + cliSession.outputTokens),
+                model: p.metrics?.model,
+                messageCount: cliSession.messageCount || 0,
+                currentTask: existingSession?.currentTask || null,
+                taskQueue: existingSession?.taskQueue || [],
+                taskStats: existingSession?.taskStats || {},
+                phase: existingSession?.phase || null,
+                autonomous: false,
+                iteration: existingSession?.iteration || 1,
+                safetyStatus: isActive ? p.safetyStatus : 'OK',
+                logSessionId: null,
+                orchestratorInfo: null,
+                confidenceScore: null,
+                registryId: null,
+                lastUpdate: cliSession.lastUpdate
+              });
+            }
+          } else {
+            // Single session or no sessions - show as before (merged with autonomous if matched)
+            const existingSession = sessions.find(s => s.id === (p.folder || p.name));
+
+            projectSessions.push({
+              id: p.folder || p.name,
+              project: p.name,
+              path: p.path,
+              sessionType: autoSession ? 'autonomous' : 'cli',
+              status: autoSession?.status === 'active' ? 'active' : (p.status === 'active' ? 'active' : 'idle'),
+              contextPercent: p.metrics?.contextPercent || 0,
+              qualityScore: autoSession?.qualityScore || existingSession?.qualityScore || 0,
+              qualityBreakdown: existingSession?.qualityBreakdown || {},
+              cost: p.metrics?.cost || 0,
+              tokens: p.metrics?.contextUsed || 0,
+              model: p.metrics?.model,
+              messageCount: p.metrics?.messageCount || 0,
+              currentTask: autoSession?.currentTask || existingSession?.currentTask || null,
+              taskQueue: existingSession?.taskQueue || [],
+              taskStats: existingSession?.taskStats || {},
+              phase: autoSession?.phase || existingSession?.phase || null,
+              autonomous: autoSession?.autonomous || autoSession?.sessionType === 'autonomous' || false,
+              iteration: autoSession?.iteration || existingSession?.iteration || 1,
+              safetyStatus: p.safetyStatus,
+              logSessionId: autoSession?.logSessionId || null,
+              orchestratorInfo: autoSession?.orchestratorInfo || null,
+              confidenceScore: autoSession?.confidenceScore || null,
+              registryId: autoSession?.id || null
+            });
+          }
+        }
 
         // Add autonomous sessions that weren't matched to any project as separate entries
         const unmatchedAutoSessions = (summaryData.sessions || [])
@@ -1852,44 +1895,88 @@
             // Preserve autonomous sessions that aren't linked to projects (start with 'auto-')
             const autonomousSessions = sessions.filter(s => s.id?.toString().startsWith('auto-'));
 
-            const newProjectSessions = data.projects.map(p => {
-              const existingSession = sessions.find(s => s.id === (p.folder || p.name));
-              const newContextPercent = p.metrics?.contextPercent || 0;
+            // Expand projects into individual CLI sessions (same logic as fetchSessions)
+            const newProjectSessions = [];
 
-              // Check if context changed for this session
-              if (!existingSession || Math.abs(existingSession.contextPercent - newContextPercent) > 0.1) {
-                contextChanged = true;
+            for (const p of data.projects) {
+              const cliSessions = p.sessions || [];
+
+              if (cliSessions.length > 1) {
+                // Multiple CLI sessions - update each separately
+                for (const cliSession of cliSessions) {
+                  const sessionId = `${p.folder}-${cliSession.id}`;
+                  const existingSession = sessions.find(s => s.id === sessionId);
+                  const isActive = cliSession.isActive && p.status === 'active';
+                  const newContextPercent = isActive ? (p.metrics?.contextPercent || 0) : 0;
+
+                  if (!existingSession || Math.abs(existingSession.contextPercent - newContextPercent) > 0.1) {
+                    contextChanged = true;
+                  }
+
+                  newProjectSessions.push({
+                    id: sessionId,
+                    project: p.name,
+                    path: p.path,
+                    cliSessionId: cliSession.id,
+                    sessionType: 'cli',
+                    status: isActive ? 'active' : 'idle',
+                    contextPercent: newContextPercent,
+                    cost: p.metrics?.cost || 0,
+                    tokens: isActive ? (p.metrics?.contextUsed || 0) : (cliSession.inputTokens + cliSession.outputTokens),
+                    model: p.metrics?.model,
+                    messageCount: cliSession.messageCount || 0,
+                    safetyStatus: isActive ? p.safetyStatus : 'OK',
+                    qualityScore: existingSession?.qualityScore || 0,
+                    qualityBreakdown: existingSession?.qualityBreakdown || {},
+                    currentTask: existingSession?.currentTask || null,
+                    taskQueue: existingSession?.taskQueue || [],
+                    taskStats: existingSession?.taskStats || {},
+                    phase: existingSession?.phase || null,
+                    iteration: existingSession?.iteration || 1,
+                    autonomous: false,
+                    logSessionId: null,
+                    orchestratorInfo: null,
+                    confidenceScore: null,
+                    registryId: null,
+                    lastUpdate: cliSession.lastUpdate
+                  });
+                }
+              } else {
+                // Single session - preserve existing behavior
+                const existingSession = sessions.find(s => s.id === (p.folder || p.name));
+                const newContextPercent = p.metrics?.contextPercent || 0;
+
+                if (!existingSession || Math.abs(existingSession.contextPercent - newContextPercent) > 0.1) {
+                  contextChanged = true;
+                }
+
+                newProjectSessions.push({
+                  id: p.folder || p.name,
+                  project: p.name,
+                  path: p.path,
+                  sessionType: existingSession?.sessionType || 'cli',
+                  status: existingSession?.autonomous ? (existingSession.status || 'active') : (p.status === 'active' ? 'active' : 'idle'),
+                  contextPercent: newContextPercent,
+                  cost: p.metrics?.cost || 0,
+                  tokens: p.metrics?.contextUsed || 0,
+                  model: p.metrics?.model,
+                  messageCount: p.metrics?.messageCount || 0,
+                  safetyStatus: p.safetyStatus,
+                  qualityScore: existingSession?.qualityScore || 0,
+                  qualityBreakdown: existingSession?.qualityBreakdown || {},
+                  currentTask: existingSession?.currentTask || null,
+                  taskQueue: existingSession?.taskQueue || [],
+                  taskStats: existingSession?.taskStats || {},
+                  phase: existingSession?.phase || null,
+                  iteration: existingSession?.iteration || 1,
+                  autonomous: existingSession?.autonomous || false,
+                  logSessionId: existingSession?.logSessionId || null,
+                  orchestratorInfo: existingSession?.orchestratorInfo || null,
+                  confidenceScore: existingSession?.confidenceScore || null,
+                  registryId: existingSession?.registryId || null
+                });
               }
-
-              return {
-                id: p.folder || p.name,
-                project: p.name,
-                path: p.path,
-                sessionType: existingSession?.sessionType || 'cli',
-                status: existingSession?.autonomous ? (existingSession.status || 'active') : (p.status === 'active' ? 'active' : 'idle'),
-                // Update from SSE
-                contextPercent: newContextPercent,
-                cost: p.metrics?.cost || 0,
-                tokens: p.metrics?.contextUsed || 0,
-                model: p.metrics?.model,
-                messageCount: p.metrics?.messageCount || 0,
-                safetyStatus: p.safetyStatus,
-                // Preserve enriched data from previous state
-                qualityScore: existingSession?.qualityScore || 0,
-                qualityBreakdown: existingSession?.qualityBreakdown || {},
-                currentTask: existingSession?.currentTask || null,
-                taskQueue: existingSession?.taskQueue || [],
-                taskStats: existingSession?.taskStats || {},
-                phase: existingSession?.phase || null,
-                iteration: existingSession?.iteration || 1,
-                autonomous: existingSession?.autonomous || false,
-                // Preserve autonomous session data
-                logSessionId: existingSession?.logSessionId || null,
-                orchestratorInfo: existingSession?.orchestratorInfo || null,
-                confidenceScore: existingSession?.confidenceScore || null,
-                registryId: existingSession?.registryId || null
-              };
-            });
+            }
 
             // Combine project sessions with preserved autonomous sessions
             sessions = [...newProjectSessions, ...autonomousSessions];

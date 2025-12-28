@@ -817,6 +817,17 @@ class GlobalContextTracker extends EventEmitter {
         status: project.status,
         currentSessionId: project.currentSessionId,
         sessionCount: project.sessions.size,
+        // Include individual session data for multi-session display
+        sessions: Array.from(project.sessions.values()).map(s => ({
+          id: s.id,
+          inputTokens: s.inputTokens,
+          outputTokens: s.outputTokens,
+          cacheCreationTokens: s.cacheCreationTokens,
+          cacheReadTokens: s.cacheReadTokens,
+          messageCount: s.messageCount,
+          lastUpdate: s.lastUpdate,
+          isActive: s.id === project.currentSessionId
+        })),
         metrics: { ...project.metrics },
         checkpointState: { ...project.checkpointState },
         safetyStatus: this._getSafetyStatus(project)
