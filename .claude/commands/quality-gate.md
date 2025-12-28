@@ -92,7 +92,20 @@ QUALITY GATE COORDINATOR (Claude Opus 4): Execute comprehensive quality assessme
 - **Documentation**: Is it properly documented?
 - **Testing**: Is testing adequate and effective?
 - **Compliance**: Does it follow standards and guidelines?
-- **Innovation**: Does it leverage best practices?
+- **Verification**: Has working functionality been demonstrated?
+
+#### Verification Scoring (MANDATORY):
+The **Verification** dimension requires evidence that the implementation works:
+
+| Score | Criteria |
+|-------|----------|
+| 0-2   | No verification evidence provided |
+| 3-4   | Only descriptions of expected behavior |
+| 5-6   | Partial test execution shown |
+| 7-8   | Tests run with output, functionality demonstrated |
+| 9-10  | Full verification: tests pass, output shown, integration verified |
+
+**Tasks with Verification score < 7 cannot pass quality gate.**
 
 #### Quality Gate Calculation:
 ```

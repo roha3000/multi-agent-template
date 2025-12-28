@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "multi-agent-template",
+    "phases": [
+      "research",
+      "planning",
+      "design",
+      "implementation",
+      "testing",
+      "validation"
+    ]
+  },
+  "backlog": {
+    "now": {
+      "description": "Active tasks for current sprint/iteration",
+      "tasks": []
+    },
+    "next": {
+      "description": "Next priority after \"now\" is complete",
+      "tasks": []
+    },
+    "later": {
+      "description": "Future work, not yet prioritized",
+      "tasks": []
+    },
+    "someday": {
+      "description": "Ideas and possibilities, lowest priority",
+      "tasks": []
+    }
+  },
+  "tasks": {}
+}

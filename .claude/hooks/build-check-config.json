@@ -1,0 +1,36 @@
+{
+  "$schema": "Configuration for after-code-change.js build checking hook",
+  "$documentation": "See docs/AGENT-VERIFICATION-PROTOCOL.md for verification requirements",
+
+  "enabled": true,
+  "buildCommand": "npm run build",
+  "testCommand": "npm test",
+  "timeout": 120000,
+
+  "runBuild": true,
+  "runTests": true,
+  "blockOnTestFailure": true,
+
+  "includePatterns": [
+    "**/*.js",
+    "**/*.ts",
+    "**/*.jsx",
+    "**/*.tsx"
+  ],
+  "excludePatterns": [
+    "**/*.test.js",
+    "**/*.spec.js",
+    "**/node_modules/**",
+    "**/*.md",
+    "**/coverage/**",
+    "**/dist/**"
+  ],
+
+  "verification": {
+    "requireTestEvidence": true,
+    "requireOutputEvidence": true,
+    "requireIntegrationCheck": true,
+    "minimumTestCoverage": 0,
+    "blockWithoutVerification": false
+  }
+}

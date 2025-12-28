@@ -1,79 +1,57 @@
 {
-  "phase": "research",
-  "taskId": "dashboard-v2-polish",
+  "phase": "design",
+  "taskId": "agent-verification-protocol",
   "scores": {
-    "requirementsComplete": 95,
-    "technicalAnalysis": 92,
-    "riskAssessment": 88,
-    "competitiveAnalysis": 85,
-    "feasibilityValidation": 95,
-    "stakeholderAlignment": 90
+    "architectureComplete": 95,
+    "apiContracts": 90,
+    "dataModels": 88,
+    "securityDesign": 92,
+    "testabilityDesign": 95,
+    "scalabilityPlan": 85
   },
   "recommendation": "proceed",
   "improvements": [
-    "Consider adding automated visual regression tests for responsive breakpoints",
-    "Could add more granular ARIA live regions for real-time updates",
-    "Future: Implement touch gestures for mobile (swipe to navigate sessions)"
+    "Consider adding pre-commit hook to enforce verification evidence in commits",
+    "Could add dashboard widget showing verification status per task",
+    "Future: Automated screenshot capture for UI verification"
   ],
   "evaluatedAt": "2025-12-27T23:45:00.000Z",
-  "totalScore": 91,
   "summary": {
-    "weightedScore": 91,
+    "totalScore": 91,
     "breakdown": {
-      "requirementsComplete": "All 5 acceptance criteria fully addressed: (1) Responsive design with 768px and 480px breakpoints, (2) Keyboard navigation with j/k/p/s/Escape/? shortcuts plus Tab/Enter/Space, (3) Autonomous orchestrator integration via executionState and logSessionId, (4) No console errors - fixed null check, (5) V2 evaluated and ready to be default.",
-      "technicalAnalysis": "Analyzed global-dashboard-v2.html (2400+ lines). Added 150+ lines of responsive CSS, 50+ lines of ARIA accessibility markup, fixed logSessionId null check. No external dependencies added.",
-      "riskAssessment": "Low risk changes. Responsive CSS is additive (won't break existing layouts). ARIA additions are progressive enhancement. logSessionId fix improves robustness.",
-      "competitiveAnalysis": "Compared mobile-first vs desktop-first responsive patterns. Chose additive breakpoints (max-width) to preserve existing desktop experience while enhancing mobile.",
-      "feasibilityValidation": "All acceptance criteria validated. Responsive breakpoints tested via CSS analysis. Keyboard navigation validated via code review of event handlers. Orchestrator integration verified via grep of integration points.",
-      "stakeholderAlignment": "Dashboard v2 polish aligns with user goals: mobile accessibility, keyboard-driven workflows, orchestrator visibility. Recommendation to make v2 default documented."
+      "architectureComplete": "Protocol architecture fully documented in docs/AGENT-VERIFICATION-PROTOCOL.md with clear hierarchy: verification requirements → checklist → phase-specific rules → enforcement mechanisms",
+      "apiContracts": "task-completion.json schema defined with verification section schema. build-check-config.json defines hook interface. No API endpoints required as this is process documentation.",
+      "dataModels": "Verification data structure defined: testsRun, testCommand, testResults, outputDemonstrated, outputEvidence, integrationVerified, integrationPoints. Scoring rubric 0-10 defined.",
+      "securityDesign": "Protocol prevents unverified code from being marked complete. Forbidden patterns documented. Quality gate blocks tasks with verification score < 7.",
+      "testabilityDesign": "Verification checklist template provided. Each phase has specific test requirements. Quality gate includes Verification as 10th dimension.",
+      "scalabilityPlan": "Protocol applies to all phases and agent types. Enforcement via quality gate scales across all tasks. Future hooks for automated enforcement considered."
     }
   },
-  "details": {
-    "changesApplied": [
-      {
-        "category": "Responsive Design",
-        "changes": [
-          "Added 480px mobile breakpoint with 20+ style rules",
-          "Enhanced 768px tablet breakpoint with metrics grid and header adjustments",
-          "Phase progression now scrollable on mobile",
-          "Usage dropdown repositioned for mobile"
-        ]
-      },
-      {
-        "category": "Keyboard Accessibility",
-        "changes": [
-          "Added skip link for screen readers",
-          "Session items now have tabindex=0, role=option, aria-selected",
-          "Keyboard handlers for Enter/Space on session items",
-          "Focus visible styles for all interactive elements"
-        ]
-      },
-      {
-        "category": "ARIA Accessibility",
-        "changes": [
-          "Header: role=banner, status dot with aria-label",
-          "Status bar: role=region, aria-labelledby for traffic lights, aria-live for status summary",
-          "Main content: role=main, nav role=navigation, section role=region",
-          "Session list: role=listbox, items with role=option",
-          "Modal: role=dialog, aria-modal=true, aria-labelledby",
-          "Usage dropdown: aria-expanded, aria-controls"
-        ]
-      },
-      {
-        "category": "Bug Fixes",
-        "changes": [
-          "Fixed logSessionId null check: changed !== null to != null to handle both null and undefined"
-        ]
-      }
-    ],
-    "recommendation": {
-      "makeV2Default": true,
-      "reason": "V2 dashboard has superior responsive design, full accessibility support, and complete orchestrator integration. Recommend changing global-context-manager.js line 978 to serve global-dashboard-v2.html",
-      "migrationSteps": [
-        "Change res.sendFile to serve 'global-dashboard-v2.html'",
-        "Update console log message on line 1599",
-        "Keep v1 accessible at /global-dashboard-classic.html for fallback"
-      ]
+  "acceptanceCriteriaStatus": [
+    {
+      "criterion": "Document verification protocol in CLAUDE.md or project docs",
+      "met": true,
+      "evidence": "docs/AGENT-VERIFICATION-PROTOCOL.md (235 lines) + CLAUDE.md Section 4"
+    },
+    {
+      "criterion": "Protocol requires agents to: run tests, show output, verify integration",
+      "met": true,
+      "evidence": "Three core requirements documented: Run Tests, Show Working Output, Verify Integration Points"
+    },
+    {
+      "criterion": "Update skill prompts to include verification step",
+      "met": true,
+      "evidence": "4 commands updated: implement-phase.md, test-first-phase.md, validate-phase.md, agent-handoff.md"
+    },
+    {
+      "criterion": "Add verification checklist to task completion workflow",
+      "met": true,
+      "evidence": "task-completion-template.json with verification section, checklist in AGENT-VERIFICATION-PROTOCOL.md"
+    },
+    {
+      "criterion": "Consider automated verification hooks",
+      "met": true,
+      "evidence": "build-check-config.json created with verification settings, future enhancements documented"
     }
-  }
+  ]
 }

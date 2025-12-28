@@ -500,16 +500,22 @@ function runSession(prompt) {
     const promptFile = path.join(CONFIG.projectPath, '.claude', 'logs', `prompt-${state.totalSessions}.txt`);
     fs.writeFileSync(promptFile, prompt, 'utf8');
 
-    // Use input redirection on Windows, cat pipe on Unix
-    const cmd = process.platform === 'win32'
-      ? `claude -p --dangerously-skip-permissions < "${promptFile}"`
-      : `cat "${promptFile}" | claude -p --dangerously-skip-permissions`;
-    console.log(`[CMD] ${cmd}`);
+    // Use spawn with shell for proper stdout capture on all platforms
+    const args = ['-p', '--dangerously-skip-permissions'];
+    console.log(`[CMD] claude ${args.join(' ')} < ${promptFile}`);
 
-    claudeProcess = exec(cmd, {
+    // Read prompt content and pipe via stdin
+    const promptContent = fs.readFileSync(promptFile, 'utf8');
+
+    claudeProcess = spawn('claude', args, {
       cwd: CONFIG.projectPath,
-      maxBuffer: 50 * 1024 * 1024,
+      shell: true,
+      stdio: ['pipe', 'pipe', 'pipe']
     });
+
+    // Write prompt to stdin
+    claudeProcess.stdin.write(promptContent);
+    claudeProcess.stdin.end();
 
     // Stream stdout to console and log
     claudeProcess.stdout.on('data', (data) => {

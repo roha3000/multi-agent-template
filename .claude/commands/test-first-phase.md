@@ -91,3 +91,31 @@ After test completion:
 1. Run tests to confirm they fail (Red phase)
 2. Commit test suite with proper documentation
 3. Proceed to implementation phase only after test validation
+
+### MANDATORY: Verification Before Completion
+
+**DO NOT mark this task complete until you have:**
+
+1. **Run Tests and Show They Fail (Red Phase)**
+   ```bash
+   npm test -- --testPathPattern="<new-test-files>"
+   ```
+   - Paste actual test output showing failures
+   - Tests MUST fail (proving they test real behavior)
+   - If tests pass, implementation already exists or tests are invalid
+
+2. **Show Test Discovery**
+   - Verify test runner finds new test files
+   - Show test count increased from baseline
+
+3. **Document Test Coverage**
+   - List which acceptance criteria each test covers
+   - Identify any gaps in coverage
+
+**Verification Checklist:**
+- [ ] Tests executed with actual output shown
+- [ ] Tests fail appropriately (Red phase confirmed)
+- [ ] Test discovery verified (tests found by runner)
+- [ ] Coverage mapped to acceptance criteria
+
+See `docs/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.

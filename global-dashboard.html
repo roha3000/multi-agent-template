@@ -1610,11 +1610,14 @@
         activeSession.phase = executionState.currentPhase;
         activeSession.iteration = executionState.phaseIteration || 1;
 
-        // Extract quality score
+        // Extract quality score (can be in scores.summary.totalScore or scores.totalScore)
         const scores = executionState.qualityScores;
-        if (scores && scores.totalScore) {
-          activeSession.qualityScore = scores.totalScore;
-          activeSession.qualityBreakdown = scores.scores || {};
+        if (scores) {
+          const totalScore = scores.summary?.totalScore || scores.totalScore || 0;
+          if (totalScore) {
+            activeSession.qualityScore = totalScore;
+            activeSession.qualityBreakdown = scores.scores || {};
+          }
         }
       }
 
@@ -1667,34 +1670,57 @@
     // ===== DATA FETCHING =====
     async function fetchSessions() {
       try {
-        // Use /api/projects which has the actual data
-        const res = await fetch('/api/projects');
-        const data = await res.json();
+        // Fetch both projects (CLI sessions) and sessions/summary (autonomous orchestrator sessions)
+        const [projectsRes, summaryRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch('/api/sessions/summary')
+        ]);
+        const projectsData = await projectsRes.json();
+        const summaryData = await summaryRes.json();
 
-        // Map projects to session format
-        // Preserve existing enriched data if available
-        sessions = (data.projects || []).map(p => {
+        // Build maps of autonomous sessions by path AND folder for matching
+        const autonomousByPath = {};
+        const autonomousByFolder = {};
+        (summaryData.sessions || []).forEach(s => {
+          if (s.path) {
+            autonomousByPath[s.path] = s;
+            // Also index by folder format (convert path to folder ID format)
+            // e.g., C:\Users\roha3\Claude\multi-agent-template -> C--Users-roha3-Claude-multi-agent-template
+            const folder = s.path.replace(/:/g, '').replace(/[\\/]/g, '-');
+            autonomousByFolder[folder] = s;
+          }
+        });
+
+        // Map projects to session format, merging autonomous session data
+        sessions = (projectsData.projects || []).map(p => {
           const existingSession = sessions.find(s => s.id === (p.folder || p.name));
+          // Try matching by path first, then by folder ID
+          const autoSession = autonomousByPath[p.path] || autonomousByFolder[p.folder];
+
+          // Prefer autonomous session data when available
           return {
             id: p.folder || p.name,
             project: p.name,
             path: p.path,
-            status: p.status === 'active' ? 'active' : 'idle',
+            status: autoSession?.status === 'active' ? 'active' : (p.status === 'active' ? 'active' : 'idle'),
             contextPercent: p.metrics?.contextPercent || 0,
-            // Preserve enriched quality score, don't use placeholder
-            qualityScore: existingSession?.qualityScore || 0,
+            qualityScore: autoSession?.qualityScore || existingSession?.qualityScore || 0,
             qualityBreakdown: existingSession?.qualityBreakdown || {},
             cost: p.metrics?.cost || 0,
             tokens: p.metrics?.contextUsed || 0,
             model: p.metrics?.model,
             messageCount: p.metrics?.messageCount || 0,
-            currentTask: existingSession?.currentTask || null,
+            currentTask: autoSession?.currentTask || existingSession?.currentTask || null,
             taskQueue: existingSession?.taskQueue || [],
             taskStats: existingSession?.taskStats || {},
-            phase: existingSession?.phase || null,
-            autonomous: existingSession?.autonomous || false,
-            iteration: existingSession?.iteration || 1,
-            safetyStatus: p.safetyStatus
+            phase: autoSession?.phase || existingSession?.phase || null,
+            autonomous: autoSession?.autonomous || autoSession?.sessionType === 'autonomous' || false,
+            iteration: autoSession?.iteration || existingSession?.iteration || 1,
+            safetyStatus: p.safetyStatus,
+            // Critical: Use autonomous session's logSessionId for log streaming
+            logSessionId: autoSession?.logSessionId || null,
+            orchestratorInfo: autoSession?.orchestratorInfo || null,
+            confidenceScore: autoSession?.confidenceScore || null
           };
         });
 
@@ -1785,7 +1811,7 @@
                 id: p.folder || p.name,
                 project: p.name,
                 path: p.path,
-                status: p.status === 'active' ? 'active' : 'idle',
+                status: existingSession?.autonomous ? (existingSession.status || 'active') : (p.status === 'active' ? 'active' : 'idle'),
                 // Update from SSE
                 contextPercent: newContextPercent,
                 cost: p.metrics?.cost || 0,
@@ -1801,7 +1827,11 @@
                 taskStats: existingSession?.taskStats || {},
                 phase: existingSession?.phase || null,
                 iteration: existingSession?.iteration || 1,
-                autonomous: existingSession?.autonomous || false
+                autonomous: existingSession?.autonomous || false,
+                // Preserve autonomous session data
+                logSessionId: existingSession?.logSessionId || null,
+                orchestratorInfo: existingSession?.orchestratorInfo || null,
+                confidenceScore: existingSession?.confidenceScore || null
               };
             });
 

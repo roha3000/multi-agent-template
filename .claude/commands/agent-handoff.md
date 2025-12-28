@@ -144,6 +144,45 @@ CURRENT AGENT: Document handoff to next agent:
 - [ ] Stakeholder communication sent
 - [ ] Handoff documentation reviewed
 
+#### MANDATORY: Verification Evidence
+
+**Before handoff, agent MUST provide:**
+
+1. **Test Execution Evidence**
+   - Paste actual `npm test` output
+   - Show pass/fail counts and duration
+   - All relevant tests must pass
+
+2. **Functionality Demonstration**
+   - Show actual execution output (API responses, CLI output)
+   - Include timestamps and real data
+   - Do NOT describe expected behavior
+
+3. **Integration Verification**
+   - Evidence that components work together
+   - Show actual integration test results
+   - Confirm external dependencies work
+
+**Example Verification Block:**
+```
+## Verification Evidence
+
+### Tests Run
+$ npm test -- --testNamePattern="feature-name"
+PASS  __tests__/feature.test.js (15 tests, 0 failures)
+Time: 2.4s
+
+### Feature Demonstrated
+$ curl http://localhost:3033/api/feature
+{"status":"ok","data":[...]}
+
+### Integration Confirmed
+- Database connection: Working (query returned 5 rows)
+- External API: Responding (200 OK in 142ms)
+```
+
+See `docs/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.
+
 #### Files and Resources:
 
 1. **Modified Files**

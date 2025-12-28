@@ -15,22 +15,20 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "test-session-type-fields",
-        "test-orchestrator-dashboard-integration",
-        "agent-verification-protocol"
+        "swarm-integration-tests",
+        "agent-verification-protocol",
+        "add-model-pricing",
+        "dashboard-blocked-tasks-view",
+        "dashboard-multiple-sessions-view"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
-      "tasks": [
-        "add-model-pricing"
-      ]
+      "tasks": []
     },
     "later": {
       "description": "Future work, not yet prioritized",
-      "tasks": [
-        "swarm-integration-tests"
-      ]
+      "tasks": []
     },
     "someday": {
       "description": "Ideas and possibilities, lowest priority",
@@ -39,6 +37,9 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "test-session-type-fields",
+        "test-orchestrator-dashboard-integration",
+        "agent-verification-protocol",
         "dashboard-v2-polish",
         "dashboard-log-session-id-fix",
         "dashboard-v2-lessons-api",
@@ -107,11 +108,12 @@
         "Test integration with real SecurityValidator (not mocked)",
         "Add negative test cases (invalid taskId, malicious description)"
       ],
-      "status": "ready",
+      "status": "blocked",
       "assignee": null,
       "created": "2025-12-27T19:30:00.000Z",
-      "updated": "2025-12-27T19:30:00.000Z",
-      "notes": "Created after discovering API mismatch between SwarmController (checking .allowed) and SecurityValidator (returning .valid) that caused all tasks to fail safety checks."
+      "updated": "2025-12-28T02:11:43.447Z",
+      "notes": "Created after discovering API mismatch between SwarmController (checking .allowed) and SecurityValidator (returning .valid) that caused all tasks to fail safety checks.",
+      "started": "2025-12-28T02:11:43.427Z"
     },
     "dashboard-v2-redesign": {
       "id": "dashboard-v2-redesign",
@@ -554,10 +556,10 @@
         "Claude defaults configurable",
         "Tests pass"
       ],
-      "status": "ready",
+      "status": "blocked",
       "assignee": null,
       "created": "2025-12-19T04:07:23.583Z",
-      "updated": "2025-12-24T20:05:59.543Z",
+      "updated": "2025-12-28T02:11:43.497Z",
       "started": "2025-12-24T19:55:02.117Z",
       "completed": null
     },
@@ -1625,10 +1627,17 @@
         "Tests cover CLI vs autonomous session types",
         "API endpoint tests verify fields are returned in /api/sessions/summary"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-27T22:58:27.953Z",
-      "updated": "2025-12-27T22:58:27.953Z"
+      "updated": "2025-12-28T02:30:00.000Z",
+      "started": "2025-12-28T02:11:43.352Z",
+      "completed": "2025-12-28T02:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "__tests__/core/session-registry.test.js (26 tests)",
+        "Tests cover sessionType, autonomous, orchestratorInfo, logSessionId fields"
+      ]
     },
     "test-orchestrator-dashboard-integration": {
       "id": "test-orchestrator-dashboard-integration",
@@ -1656,10 +1665,17 @@
         "E2E test verifies session deregisters on orchestrator shutdown",
         "Tests use real HTTP calls, not mocked"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-27T22:58:27.953Z",
-      "updated": "2025-12-27T22:58:27.953Z"
+      "updated": "2025-12-28T02:30:00.000Z",
+      "started": "2025-12-28T02:11:43.390Z",
+      "completed": "2025-12-28T02:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "tests/e2e/orchestrator-dashboard.e2e.test.js (9 tests)",
+        "Tests: register, update, end, sessionType differentiation, logSessionId mapping"
+      ]
     },
     "agent-verification-protocol": {
       "id": "agent-verification-protocol",
@@ -1685,10 +1701,22 @@
         "Add verification checklist to task completion workflow",
         "Consider automated verification hooks"
       ],
-      "status": "ready",
+      "status": "blocked",
       "assignee": null,
       "created": "2025-12-27T22:58:27.953Z",
-      "updated": "2025-12-27T22:58:27.953Z"
+      "updated": "2025-12-28T02:11:43.327Z",
+      "started": "2025-12-28T01:59:07.716Z",
+      "deliverables": [
+        "docs/AGENT-VERIFICATION-PROTOCOL.md",
+        "CLAUDE.md - Section 4 Task Verification Protocol",
+        ".claude/commands/implement-phase.md - verification section",
+        ".claude/commands/test-first-phase.md - verification section",
+        ".claude/commands/validate-phase.md - verification section",
+        ".claude/commands/agent-handoff.md - verification evidence section",
+        ".claude/commands/quality-gate.md - verification dimension",
+        ".claude/dev-docs/task-completion-template.json",
+        ".claude/hooks/build-check-config.json"
+      ]
     },
     "fix-dashboard-routes": {
       "id": "fix-dashboard-routes",
@@ -1723,6 +1751,72 @@
         "Removed obsolete classic dashboard route",
         "Added fallback message for CLI sessions without logs"
       ]
+    },
+    "dashboard-blocked-tasks-view": {
+      "id": "dashboard-blocked-tasks-view",
+      "title": "Show Blocked Tasks and Dependency Graph in Dashboard",
+      "description": "Dashboard only shows ready/in-progress tasks, hiding blocked tasks completely. Should show blocked tasks with their dependencies so users understand what's preventing progress.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "ux",
+        "task-management",
+        "visualization"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-v2-redesign"
+        ]
+      },
+      "acceptance": [
+        "Dashboard shows blocked tasks (not just ready/in-progress)",
+        "Blocked tasks display what's blocking them (dependency names)",
+        "Visual indicator distinguishes blocked vs ready tasks",
+        "Optional: Mini dependency graph or tree view",
+        "Clicking blocked task shows full dependency chain",
+        "Integration with existing task-graph.html visualization"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-28T02:35:00.000Z",
+      "updated": "2025-12-28T02:35:00.000Z"
+    },
+    "dashboard-multiple-sessions-view": {
+      "id": "dashboard-multiple-sessions-view",
+      "title": "Show Individual Sessions Instead of Merged Projects",
+      "description": "Dashboard currently merges all sessions by project path, showing only one entry per project. Should show separate entries for each CLI session plus all autonomous sessions, not just one merged view per project.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "ux",
+        "sessions",
+        "multi-session"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-v2-redesign"
+        ]
+      },
+      "acceptance": [
+        "Each CLI session shows as separate entry (not merged by project)",
+        "All autonomous sessions show as separate entries",
+        "Session entries show unique session ID or timestamp",
+        "Can distinguish between CLI and autonomous sessions visually",
+        "Inactive/ended sessions can be hidden via filter",
+        "Session list doesn't become cluttered (collapsible groups or pagination)"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-28T02:38:00.000Z",
+      "updated": "2025-12-28T02:38:00.000Z"
     }
   }
 }

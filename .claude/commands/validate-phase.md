@@ -105,3 +105,40 @@ PERFORMANCE REVIEWER: Validate performance characteristics:
 Minimum Overall Quality Score Required: 90/100
 
 If validation fails, provide specific recommendations for remediation and return to appropriate phase for fixes.
+
+### MANDATORY: Verification Before Completion
+
+**DO NOT mark validation complete until you have:**
+
+1. **Run Full Test Suite**
+   ```bash
+   npm test
+   ```
+   - Paste actual test output with full pass/fail summary
+   - 100% of tests MUST pass for validation to complete
+
+2. **Execute Quality Gate**
+   ```bash
+   /quality-gate
+   ```
+   - Show actual quality scores for each dimension
+   - All scores MUST meet minimum thresholds
+
+3. **Verify End-to-End Flows**
+   - Execute critical user workflows
+   - Show actual system responses
+   - Confirm data flows correctly end-to-end
+
+4. **Show Integration Evidence**
+   - Demonstrate all components work together
+   - Paste actual API responses or system output
+   - Verify external dependencies are reachable
+
+**Verification Checklist:**
+- [ ] Full test suite executed: `npm test` with output shown
+- [ ] Quality gate passed with scores displayed
+- [ ] E2E workflows demonstrated with actual output
+- [ ] Integration verified across all touchpoints
+- [ ] No critical issues remaining
+
+See `docs/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.

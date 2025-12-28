@@ -376,14 +376,43 @@ class GlobalContextTracker extends EventEmitter {
   /**
    * Convert folder name back to readable path
    * e.g., "C--Users-roha3-Claude-project" -> "C:/Users/roha3/Claude/project"
+   *
+   * Note: The folder naming convention uses single dashes for path separators,
+   * but folder names may also contain dashes (e.g., "multi-agent-template").
+   * We recursively try to find the path that exists on disk.
    * @private
    */
   _folderToPath(folder) {
     // Handle Windows drive letter (C- -> C:)
-    let result = folder.replace(/^([A-Z])-/, '$1:');
-    // Replace remaining dashes with path separators
-    result = result.replace(/-/g, path.sep);
-    return result;
+    const withDrive = folder.replace(/^([A-Z])-/, '$1:');
+
+    // Split by dashes
+    const parts = withDrive.split('-').filter(p => p);
+
+    // Recursively find the valid path
+    const findPath = (base, remaining) => {
+      if (remaining.length === 0) return base;
+
+      // Try each possible split point
+      for (let i = remaining.length; i >= 1; i--) {
+        // Join first i parts with dashes (potential folder name with dashes)
+        const segment = remaining.slice(0, i).join('-');
+        const testPath = base + path.sep + segment;
+
+        // Check if this path exists
+        if (fs.existsSync(testPath) && fs.statSync(testPath).isDirectory()) {
+          // Found valid path, continue with remaining parts
+          const result = findPath(testPath, remaining.slice(i));
+          if (result) return result;
+        }
+      }
+
+      // No valid path found - return the simple concatenation as fallback
+      return base + path.sep + remaining.join(path.sep);
+    };
+
+    // Start with drive letter
+    return findPath(parts[0], parts.slice(1));
   }
 
   /**

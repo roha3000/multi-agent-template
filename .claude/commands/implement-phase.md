@@ -87,3 +87,31 @@ CODE ASSISTANT (Cursor/Copilot/External Tools): Handle supplementary development
 Minimum Quality Score Required: 90/100
 
 Continue iterating with the test-code-refactor cycle until all tests pass and quality standards are met.
+
+### MANDATORY: Verification Before Completion
+
+**DO NOT mark this task complete until you have:**
+
+1. **Run Tests and Show Output**
+   ```bash
+   npm test -- --testPathPattern="<affected-files>"
+   ```
+   - Paste actual test output with pass/fail counts
+   - All relevant tests MUST pass
+
+2. **Demonstrate Working Functionality**
+   - Execute the implemented feature
+   - Show actual output (API response, CLI output, etc.)
+   - Do NOT describe expected behavior - show real results
+
+3. **Verify Integration Points**
+   - Test component works with real dependencies
+   - Show evidence of successful integration
+
+**Verification Checklist:**
+- [ ] Tests executed: `npm test -- [pattern]` with output shown
+- [ ] Functionality demonstrated with actual output
+- [ ] Integration points verified and working
+- [ ] Build passes: `npm run build` (if applicable)
+
+See `docs/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.

@@ -1,0 +1,48 @@
+{
+  "$schema": "Task completion file with mandatory verification evidence",
+  "$documentation": "See docs/AGENT-VERIFICATION-PROTOCOL.md for full requirements",
+
+  "taskId": "example-task-id",
+  "status": "completed",
+  "acceptanceMet": [true, true, true],
+
+  "deliverables": [
+    "file1.js - Description of what was done",
+    "file2.js - Description of what was done"
+  ],
+
+  "verification": {
+    "testsRun": true,
+    "testCommand": "npm test -- --testNamePattern='example'",
+    "testResults": {
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "duration": "2.4s"
+    },
+    "testOutput": "Paste actual npm test output here showing pass/fail",
+
+    "outputDemonstrated": true,
+    "outputEvidence": "Paste actual API response, CLI output, or system behavior here",
+
+    "integrationVerified": true,
+    "integrationPoints": [
+      {
+        "component": "database",
+        "status": "working",
+        "evidence": "Query returned expected 5 rows"
+      },
+      {
+        "component": "external-api",
+        "status": "working",
+        "evidence": "200 OK in 142ms"
+      }
+    ],
+
+    "buildPassed": true,
+    "buildOutput": "npm run build completed with no errors"
+  },
+
+  "notes": "Summary of what was accomplished and any important context",
+  "completedAt": "2025-12-27T12:00:00.000Z"
+}

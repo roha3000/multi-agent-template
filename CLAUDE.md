@@ -140,6 +140,20 @@ When agents disagree:
 - Senior Developer (Opus 4.5) makes implementation decisions
 - All Agents (Opus 4.5) reach consensus through superior reasoning
 
+### 4. Task Verification Protocol (MANDATORY)
+**Before marking ANY task complete, agents MUST:**
+
+1. **Run Tests**: Execute `npm test -- [pattern]` and show actual output
+2. **Show Output**: Demonstrate working functionality with real results
+3. **Verify Integration**: Confirm components work together in situ
+
+**Forbidden completion patterns:**
+- "Tests should pass" (speculative)
+- "This will work" (assumption)
+- "The API returns..." (hypothetical)
+
+**See `docs/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.**
+
 ## Quality Gates & Standards
 
 ### Research Phase Gate
