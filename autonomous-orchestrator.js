@@ -623,7 +623,14 @@ function postToDashboard(endpoint, data) {
       const req = http.request(options, (res) => {
         let body = '';
         res.on('data', (chunk) => body += chunk);
-        res.on('end', () => resolve({ success: true }));
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(body);
+            resolve({ success: true, ...parsed });
+          } catch {
+            resolve({ success: res.statusCode === 200 });
+          }
+        });
       });
 
       req.on('error', () => resolve({ success: false }));
@@ -641,21 +648,23 @@ function postToDashboard(endpoint, data) {
 
 /**
  * Initialize Command Center integration
- * Registers session and sets up usage tracking
+ * Registers session via HTTP API to dashboard
  */
-function initializeCommandCenter() {
+async function initializeCommandCenter() {
   try {
-    // Initialize singletons
-    sessionRegistry = getSessionRegistry();
-    usageLimitTracker = getUsageLimitTracker();
-
-    // Register this orchestrator session
-    // logSessionId maps to the actual log file (session-N.log)
-    registeredSessionId = sessionRegistry.register({
+    // Register this orchestrator session via HTTP API
+    const response = await postToDashboard('/api/sessions/register', {
       project: path.basename(CONFIG.projectPath),
       path: CONFIG.projectPath,
       status: 'active',
-      logSessionId: state.totalSessions, // Maps to session-N.log
+      sessionType: 'autonomous',
+      autonomous: true,
+      orchestratorInfo: {
+        version: '1.0.0',
+        startTime: new Date().toISOString(),
+        mode: 'autonomous'
+      },
+      logSessionId: state.totalSessions,
       currentTask: state.currentTask ? {
         id: state.currentTask.id,
         title: state.currentTask.title,
@@ -670,8 +679,14 @@ function initializeCommandCenter() {
       iteration: state.phaseIteration,
     });
 
-    console.log(`[COMMAND CENTER] Session registered: ${registeredSessionId}`);
-    return true;
+    if (response.success && response.id) {
+      registeredSessionId = response.id;
+      console.log(`[COMMAND CENTER] Session registered: ${registeredSessionId} 🤖`);
+      return true;
+    } else {
+      console.log('[COMMAND CENTER] Registration failed - dashboard may not be running');
+      return false;
+    }
   } catch (err) {
     console.error('[COMMAND CENTER] Failed to initialize:', err.message);
     return false;
@@ -681,23 +696,24 @@ function initializeCommandCenter() {
 /**
  * Update Command Center with current session state
  */
-function updateCommandCenter(updates = {}) {
-  if (!sessionRegistry || !registeredSessionId) return;
+async function updateCommandCenter(updates = {}) {
+  if (!registeredSessionId) return;
 
   try {
     const sessionUpdates = {
       status: 'active',
-      logSessionId: state.totalSessions, // Keep dashboard synced with current log file
+      logSessionId: state.totalSessions,
       currentTask: state.currentTask ? {
         id: state.currentTask.id,
         title: state.currentTask.title,
         phase: state.currentPhase,
       } : null,
       iteration: state.phaseIteration,
+      phase: state.currentPhase,
       ...updates,
     };
 
-    sessionRegistry.update(registeredSessionId, sessionUpdates);
+    await postToDashboard(`/api/sessions/${registeredSessionId}/update`, sessionUpdates);
   } catch (err) {
     // Silently handle errors - dashboard integration is non-critical
   }
@@ -727,16 +743,14 @@ function recordMessageUsage() {
 /**
  * Record task completion in Command Center
  */
-function recordTaskCompletionToCommandCenter(task, score, cost = 0) {
-  if (!sessionRegistry) return;
-
+async function recordTaskCompletionToCommandCenter(task, score, cost = 0) {
   try {
-    sessionRegistry.recordCompletion(
-      path.basename(CONFIG.projectPath),
-      task,
+    await postToDashboard('/api/sessions/completion', {
+      project: path.basename(CONFIG.projectPath),
+      task: { id: task.id, title: task.title },
       score,
       cost
-    );
+    });
   } catch (err) {
     // Silently handle
   }
@@ -745,11 +759,11 @@ function recordTaskCompletionToCommandCenter(task, score, cost = 0) {
 /**
  * Deregister session from Command Center
  */
-function deregisterFromCommandCenter() {
-  if (!sessionRegistry || !registeredSessionId) return;
+async function deregisterFromCommandCenter() {
+  if (!registeredSessionId) return;
 
   try {
-    sessionRegistry.deregister(registeredSessionId);
+    await postToDashboard(`/api/sessions/${registeredSessionId}/end`, {});
     console.log(`[COMMAND CENTER] Session deregistered: ${registeredSessionId}`);
     registeredSessionId = null;
   } catch (err) {

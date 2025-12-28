@@ -973,8 +973,14 @@ app.get('/api/events', (req, res) => {
   });
 });
 
-// Serve the dashboard
+// Serve the dashboard (v2 is now the default, renamed to global-dashboard.html)
 app.get('/', (req, res) => {
+  // Set no-cache headers to ensure fresh content
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
   res.sendFile(path.join(__dirname, 'global-dashboard.html'));
 });
 
@@ -1120,7 +1126,13 @@ app.get('/api/sessions/summary', (req, res) => {
       tokens: s.tokens,
       cost: s.cost,
       runtime: s.runtime,
-      iteration: s.iteration
+      iteration: s.iteration,
+      phase: s.phase,
+      // Session type tracking
+      sessionType: s.sessionType,
+      autonomous: s.autonomous,
+      orchestratorInfo: s.orchestratorInfo,
+      logSessionId: s.logSessionId
     })),
     recentCompletions: summary.recentCompletions
   });
@@ -1140,16 +1152,20 @@ app.get('/api/sessions/:id', (req, res) => {
 
 // Register a new session (called by orchestrator on startup)
 app.post('/api/sessions/register', (req, res) => {
-  const { project, path: projectPath, currentTask, status } = req.body;
+  const { project, path: projectPath, currentTask, status, sessionType, autonomous, orchestratorInfo, logSessionId } = req.body;
 
   const id = sessionRegistry.register({
     project: project || 'unknown',
     path: projectPath || process.cwd(),
     status: status || 'active',
-    currentTask: currentTask || null
+    currentTask: currentTask || null,
+    sessionType: sessionType || 'cli',
+    autonomous: autonomous || sessionType === 'autonomous',
+    orchestratorInfo: orchestratorInfo || null,
+    logSessionId: logSessionId || null
   });
 
-  console.log(`[COMMAND CENTER] Session registered: ${id} (${project})`);
+  console.log(`[COMMAND CENTER] Session registered: ${id} (${project}) [${sessionType || 'cli'}]`);
   res.json({ success: true, id });
 });
 
@@ -1596,7 +1612,8 @@ app.listen(PORT, async () => {
   console.log('GLOBAL CONTEXT MANAGER');
   console.log('='.repeat(70));
   console.log(`Server: http://localhost:${PORT}`);
-  console.log(`Dashboard: http://localhost:${PORT}/global-dashboard.html`);
+  console.log(`Dashboard: http://localhost:${PORT}/ (v2)`);
+  console.log(`  Classic: http://localhost:${PORT}/global-dashboard-classic.html`);
   console.log('');
   console.log('Endpoints:');
   console.log(`  GET  /api/projects     - All projects with metrics`);

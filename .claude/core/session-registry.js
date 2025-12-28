@@ -61,6 +61,10 @@ class SessionRegistry extends EventEmitter {
       runtime: 0,
       iteration: sessionData.iteration || 0,
       phase: sessionData.phase || 'idle',
+      // Session type tracking
+      sessionType: sessionData.sessionType || 'cli', // 'cli' | 'autonomous' | 'loop'
+      autonomous: sessionData.autonomous || sessionData.sessionType === 'autonomous',
+      orchestratorInfo: sessionData.orchestratorInfo || null,
       // Log session ID - maps to the actual log file (session-N.log)
       // This may differ from the registry ID when multiple orchestrators run
       logSessionId: sessionData.logSessionId || null,

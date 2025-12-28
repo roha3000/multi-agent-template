@@ -1455,33 +1455,48 @@
     // ===== DATA FETCHING =====
     async function fetchSessions() {
       try {
-        // Use /api/projects which has the actual data
-        const res = await fetch('/api/projects');
-        const data = await res.json();
+        // Fetch both project data and session registry data
+        const [projectsRes, sessionsRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch('/api/sessions/summary').catch(() => ({ json: () => ({ sessions: [] }) }))
+        ]);
 
-        // Map projects to session format
-        // Preserve existing enriched data if available
-        sessions = (data.projects || []).map(p => {
+        const projectData = await projectsRes.json();
+        const sessionData = await sessionsRes.json().catch(() => ({ sessions: [] }));
+
+        // Create a map of registered sessions by project path
+        const registeredSessions = new Map();
+        (sessionData.sessions || []).forEach(s => {
+          registeredSessions.set(s.path, s);
+        });
+
+        // Map projects to session format, merging with registry data
+        sessions = (projectData.projects || []).map(p => {
           const existingSession = sessions.find(s => s.id === (p.folder || p.name));
+          const registeredSession = registeredSessions.get(p.path);
+
           return {
             id: p.folder || p.name,
+            registryId: registeredSession?.id || null,
             project: p.name,
             path: p.path,
-            status: p.status === 'active' ? 'active' : 'idle',
-            contextPercent: p.metrics?.contextPercent || 0,
-            // Preserve enriched quality score, don't use placeholder
-            qualityScore: existingSession?.qualityScore || 0,
+            status: registeredSession?.status || (p.status === 'active' ? 'active' : 'idle'),
+            contextPercent: registeredSession?.contextPercent || p.metrics?.contextPercent || 0,
+            qualityScore: registeredSession?.qualityScore || existingSession?.qualityScore || 0,
             qualityBreakdown: existingSession?.qualityBreakdown || {},
-            cost: p.metrics?.cost || 0,
-            tokens: p.metrics?.contextUsed || 0,
+            cost: registeredSession?.cost || p.metrics?.cost || 0,
+            tokens: registeredSession?.tokens || p.metrics?.contextUsed || 0,
             model: p.metrics?.model,
             messageCount: p.metrics?.messageCount || 0,
-            currentTask: existingSession?.currentTask || null,
+            currentTask: registeredSession?.currentTask || existingSession?.currentTask || null,
             taskQueue: existingSession?.taskQueue || [],
             taskStats: existingSession?.taskStats || {},
-            phase: existingSession?.phase || null,
-            autonomous: existingSession?.autonomous || false,
-            iteration: existingSession?.iteration || 1,
+            phase: registeredSession?.phase || existingSession?.phase || null,
+            // Use autonomous flag from registry
+            autonomous: registeredSession?.autonomous || registeredSession?.sessionType === 'autonomous' || false,
+            sessionType: registeredSession?.sessionType || 'cli',
+            iteration: registeredSession?.iteration || existingSession?.iteration || 1,
+            logSessionId: registeredSession?.logSessionId || null,
             safetyStatus: p.safetyStatus
           };
         });

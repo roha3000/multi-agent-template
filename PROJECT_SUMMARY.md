@@ -1,8 +1,41 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-27 (Session 30)
+**Last Updated**: 2025-12-27 (Session 31)
 
-**Current Phase**: MAINTENANCE - NOW QUEUE CLEARED
-**Status**: All NOW tasks completed, NEXT queue ready for promotion
+**Current Phase**: TESTING - Session Type & Dashboard Verification
+**Status**: Testing tasks promoted to NOW queue
+
+---
+
+## Session 31: Dashboard V2 Default + Session Type Fixes
+
+### Work Completed
+
+| Task | Status | Description |
+|------|--------|-------------|
+| Dashboard V2 Default | ✅ | Renamed v2 to default (global-dashboard.html) |
+| Session Type Tracking | ✅ | Added sessionType/autonomous fields to session-registry |
+| Log Content Preservation | ✅ | Fixed log panel losing "No logs available" message on refresh |
+| Cache-Busting Headers | ✅ | Added no-cache headers to prevent stale JS |
+| Route Fixes | ✅ | Fixed dashboard routes after v2 rename |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `global-dashboard.html` | V2 is now the default; log content preserved on refresh |
+| `global-dashboard-v2.html` | DELETED (merged into global-dashboard.html) |
+| `.claude/core/session-registry.js` | Added sessionType, autonomous, orchestratorInfo, logSessionId fields |
+| `autonomous-orchestrator.js` | Uses HTTP API for session registration (not local class) |
+| `global-context-manager.js` | Cache-busting headers; fixed session API to return new fields |
+| `.claude/dev-docs/tasks.json` | Swapped NOW/NEXT queues - testing tasks now active |
+
+### Current Queue Status
+
+| Queue | Count | Tasks |
+|-------|-------|-------|
+| NOW | 3 | test-session-type-fields, test-orchestrator-dashboard-integration, agent-verification-protocol |
+| NEXT | 1 | add-model-pricing |
+| LATER | 1 | swarm-integration-tests |
 
 ---
 
@@ -14,22 +47,6 @@
 |------|--------|-------------|
 | dashboard-log-session-id-fix | ✅ | Added logSessionId for proper multi-session log streaming |
 | dashboard-v2-lessons-api | ✅ | Fixed API response format for dashboard compatibility |
-
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `.claude/core/session-registry.js` | Added `logSessionId` field to session schema |
-| `autonomous-orchestrator.js` | Pass `state.totalSessions` as logSessionId |
-| `global-dashboard-v2.html` | Use `session.logSessionId` for log streaming |
-| `global-context-manager.js` | Updated lessons API response format |
-
-### Current Queue Status
-
-| Queue | Count | Tasks |
-|-------|-------|-------|
-| NOW | 0 | *Empty - all completed* |
-| NEXT | 2 | dashboard-v2-polish, add-model-pricing |
 
 ---
 
@@ -146,9 +163,8 @@ Unified `autonomous-orchestrator.js` with swarm integration via multi-agent para
 | CLI Session Enrichment | ✅ |
 | Keyboard Shortcuts | ✅ |
 
-### Dashboard URLs
-- **v2 (new)**: http://localhost:3033/global-dashboard-v2.html
-- **v1 (classic)**: http://localhost:3033/global-dashboard.html
+### Dashboard URL
+- **Dashboard**: http://localhost:3033/ (V2 is now the default)
 
 ---
 

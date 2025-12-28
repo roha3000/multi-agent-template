@@ -15,13 +15,16 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "dashboard-v2-polish",
-        "add-model-pricing"
+        "test-session-type-fields",
+        "test-orchestrator-dashboard-integration",
+        "agent-verification-protocol"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
-      "tasks": []
+      "tasks": [
+        "add-model-pricing"
+      ]
     },
     "later": {
       "description": "Future work, not yet prioritized",
@@ -36,6 +39,7 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "dashboard-v2-polish",
         "dashboard-log-session-id-fix",
         "dashboard-v2-lessons-api",
         "orchestrator-unification-implement",
@@ -70,7 +74,8 @@
         "dashboard-title-rebrand",
         "dashboard-autonomous-tracking",
         "dashboard-live-task-refresh",
-        "dashboard-task-queue-management"
+        "dashboard-task-queue-management",
+        "fix-dashboard-routes"
       ]
     }
   },
@@ -82,11 +87,18 @@
       "phase": "testing",
       "priority": "medium",
       "estimate": "1h",
-      "tags": ["testing", "swarm", "integration", "quality"],
+      "tags": [
+        "testing",
+        "swarm",
+        "integration",
+        "quality"
+      ],
       "depends": {
         "blocks": [],
         "requires": [],
-        "related": ["swarm-orchestrator-integration"]
+        "related": [
+          "swarm-orchestrator-integration"
+        ]
       },
       "acceptance": [
         "Test SecurityValidator.validate() is called with correct params from SwarmController",
@@ -250,11 +262,22 @@
         "No console errors",
         "Consider making v2 the default dashboard"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-27T20:00:00.000Z",
-      "updated": "2025-12-27T22:25:24.549Z",
-      "started": "2025-12-27T22:25:24.530Z"
+      "updated": "2025-12-27T23:45:00.000Z",
+      "started": "2025-12-27T22:25:24.530Z",
+      "completed": "2025-12-27T23:45:00.000Z",
+      "qualityScore": 91,
+      "deliverables": [
+        "global-dashboard-v2.html - 480px mobile responsive breakpoint (150+ lines CSS)",
+        "global-dashboard-v2.html - ARIA accessibility markup (50+ additions)",
+        "global-dashboard-v2.html - Keyboard focus styles and skip link",
+        "global-dashboard-v2.html - Fixed logSessionId null check",
+        ".claude/dev-docs/task-completion.json",
+        ".claude/dev-docs/quality-scores.json"
+      ],
+      "notes": "All 5 acceptance criteria met. V2 dashboard ready to be made default. Recommendation documented in quality-scores.json."
     },
     "add-health-endpoint": {
       "id": "add-health-endpoint",
@@ -1576,6 +1599,129 @@
         "Merge-on-save with conflict resolution",
         "Save lock to prevent concurrent writes",
         "External change detection with warning logs"
+      ]
+    },
+    "test-session-type-fields": {
+      "id": "test-session-type-fields",
+      "title": "Add Unit Tests for sessionType/autonomous Fields",
+      "description": "No unit tests exist for sessionType and autonomous fields in session-registry.js. The field was never tested, allowing the implementation gap to go unnoticed.",
+      "phase": "testing",
+      "priority": "high",
+      "estimate": "1h",
+      "tags": [
+        "testing",
+        "session-registry",
+        "coverage"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Unit tests for session-registry.js verify sessionType field is stored",
+        "Unit tests verify autonomous flag derived from sessionType",
+        "Unit tests verify orchestratorInfo is stored",
+        "Tests cover CLI vs autonomous session types",
+        "API endpoint tests verify fields are returned in /api/sessions/summary"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-27T22:58:27.953Z",
+      "updated": "2025-12-27T22:58:27.953Z"
+    },
+    "test-orchestrator-dashboard-integration": {
+      "id": "test-orchestrator-dashboard-integration",
+      "title": "Add Integration Tests for Orchestrator → Dashboard Communication",
+      "description": "The orchestrator was using local SessionRegistry class instead of HTTP API, so sessions registered by orchestrator were invisible to dashboard (separate process). Need E2E tests to verify cross-process communication.",
+      "phase": "testing",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "testing",
+        "integration",
+        "orchestrator",
+        "dashboard"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "E2E test verifies orchestrator POSTs to /api/sessions/register",
+        "E2E test verifies session appears in /api/sessions/summary",
+        "E2E test verifies autonomous=true and sessionType=autonomous in response",
+        "E2E test verifies session updates via /api/sessions/:id/update",
+        "E2E test verifies session deregisters on orchestrator shutdown",
+        "Tests use real HTTP calls, not mocked"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-27T22:58:27.953Z",
+      "updated": "2025-12-27T22:58:27.953Z"
+    },
+    "agent-verification-protocol": {
+      "id": "agent-verification-protocol",
+      "title": "Establish Agent Task Verification Protocol",
+      "description": "Tasks were marked complete by agents without actual verification. Need protocol: agents must demonstrate functionality works (run tests, show API response, etc.) before marking complete.",
+      "phase": "planning",
+      "priority": "critical",
+      "estimate": "1h",
+      "tags": [
+        "process",
+        "quality",
+        "verification"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Document verification protocol in CLAUDE.md or project docs",
+        "Protocol requires agents to: (1) run relevant tests, (2) show working output, (3) verify integration points",
+        "Update skill prompts to include verification step",
+        "Add verification checklist to task completion workflow",
+        "Consider automated verification hooks"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-27T22:58:27.953Z",
+      "updated": "2025-12-27T22:58:27.953Z"
+    },
+    "fix-dashboard-routes": {
+      "id": "fix-dashboard-routes",
+      "title": "Fix Dashboard Routes After V2 Rename",
+      "description": "After renaming global-dashboard-v2.html to global-dashboard.html, the routes in global-context-manager.js are broken. Route \"/\" points to non-existent global-dashboard-v2.html and classic route points to wrong file.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "15m",
+      "tags": [
+        "dashboard",
+        "bug-fix",
+        "routes"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Route \"/\" serves global-dashboard.html (the v2 dashboard)",
+        "Remove or update classic dashboard route since v1 was deleted",
+        "All dashboard URLs work correctly",
+        "No 404 errors when accessing dashboard"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-27T23:01:05.820Z",
+      "updated": "2025-12-27T23:01:05.820Z",
+      "completed": "2025-12-27T23:05:33.750Z",
+      "deliverables": [
+        "Fixed route \"/\" to serve global-dashboard.html",
+        "Removed obsolete classic dashboard route",
+        "Added fallback message for CLI sessions without logs"
       ]
     }
   }
