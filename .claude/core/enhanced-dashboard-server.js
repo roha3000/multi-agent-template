@@ -219,6 +219,60 @@ class EnhancedDashboardServer {
       res.json(metrics);
     });
 
+    // ====================================================================
+    // SHADOW MODE ENDPOINTS (Phase 3)
+    // ====================================================================
+
+    // Get shadow mode status and metrics
+    this.app.get('/api/shadow-mode', (req, res) => {
+      const status = this._getShadowModeStatus();
+      res.json(status);
+    });
+
+    // Get shadow mode metrics only
+    this.app.get('/api/shadow-mode/metrics', (req, res) => {
+      const metrics = this._getShadowModeMetrics();
+      res.json(metrics);
+    });
+
+    // Get shadow mode health assessment
+    this.app.get('/api/shadow-mode/health', (req, res) => {
+      const health = this._getShadowModeHealth();
+      res.json(health);
+    });
+
+    // Get divergence history
+    this.app.get('/api/shadow-mode/divergences', (req, res) => {
+      const unresolvedOnly = req.query.unresolved === 'true';
+      const limit = parseInt(req.query.limit) || 50;
+      const divergences = this._getShadowDivergences({ unresolvedOnly, limit });
+      res.json(divergences);
+    });
+
+    // Toggle shadow mode
+    this.app.post('/api/shadow-mode/toggle', (req, res) => {
+      const { enabled } = req.body;
+      const result = this._toggleShadowMode(enabled);
+      res.json(result);
+    });
+
+    // Resolve a divergence
+    this.app.post('/api/shadow-mode/divergences/:id/resolve', (req, res) => {
+      const { resolution } = req.body;
+      const result = this._resolveDivergence(req.params.id, resolution);
+      if (result) {
+        res.json({ success: true, divergence: result });
+      } else {
+        res.status(404).json({ error: 'Divergence not found' });
+      }
+    });
+
+    // Force shadow sync
+    this.app.post('/api/shadow-mode/sync', (req, res) => {
+      const result = this._forceShadowSync();
+      res.json(result);
+    });
+
     // Project-specific endpoints
     this.app.get('/api/otlp/project/:id', (req, res) => {
       const projectData = this._getProjectDetails(req.params.id);
@@ -1115,6 +1169,165 @@ class EnhancedDashboardServer {
       ...data,
       timestamp: Date.now()
     });
+  }
+
+  // ====================================================================
+  // SHADOW MODE HELPER METHODS (Phase 3)
+  // ====================================================================
+
+  /**
+   * Get TaskManager instance (lazy load)
+   * @private
+   */
+  _getTaskManager() {
+    if (!this._taskManager) {
+      try {
+        const TaskManager = require('./task-manager');
+        const path = require('path');
+        const tasksPath = path.join(this.projectPath || process.cwd(), '.claude', 'dev-docs', 'tasks.json');
+        this._taskManager = new TaskManager({ tasksPath, shadowMode: true });
+      } catch (error) {
+        this.logger.debug('Could not initialize TaskManager for shadow mode', { error: error.message });
+        return null;
+      }
+    }
+    return this._taskManager;
+  }
+
+  /**
+   * Get shadow mode status and metrics
+   * @private
+   */
+  _getShadowModeStatus() {
+    const tm = this._getTaskManager();
+    if (!tm) {
+      return {
+        available: false,
+        enabled: false,
+        reason: 'TaskManager not available'
+      };
+    }
+
+    return {
+      available: true,
+      enabled: tm.isShadowModeEnabled(),
+      metrics: tm.getShadowMetrics(),
+      health: tm.getShadowHealth(),
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Get shadow mode metrics only
+   * @private
+   */
+  _getShadowModeMetrics() {
+    const tm = this._getTaskManager();
+    if (!tm) {
+      return { available: false };
+    }
+
+    const metrics = tm.getShadowMetrics();
+    return metrics || { available: true, enabled: false };
+  }
+
+  /**
+   * Get shadow mode health assessment
+   * @private
+   */
+  _getShadowModeHealth() {
+    const tm = this._getTaskManager();
+    if (!tm) {
+      return { available: false, status: 'unknown' };
+    }
+
+    const health = tm.getShadowHealth();
+    return health || { available: true, enabled: false, status: 'off' };
+  }
+
+  /**
+   * Get shadow divergences
+   * @private
+   */
+  _getShadowDivergences(options = {}) {
+    const tm = this._getTaskManager();
+    if (!tm || !tm._shadowMetrics) {
+      return [];
+    }
+
+    return tm._shadowMetrics.getDivergences(options);
+  }
+
+  /**
+   * Toggle shadow mode
+   * @private
+   */
+  _toggleShadowMode(enabled) {
+    const tm = this._getTaskManager();
+    if (!tm) {
+      return { success: false, reason: 'TaskManager not available' };
+    }
+
+    tm.enableShadowMode(enabled);
+
+    // Broadcast status change
+    this._broadcastEvent('shadow:mode-changed', {
+      enabled,
+      timestamp: Date.now()
+    });
+
+    return {
+      success: true,
+      enabled: tm.isShadowModeEnabled()
+    };
+  }
+
+  /**
+   * Resolve a divergence
+   * @private
+   */
+  _resolveDivergence(divergenceId, resolution = 'manual') {
+    const tm = this._getTaskManager();
+    if (!tm || !tm._shadowMetrics) {
+      return null;
+    }
+
+    const result = tm._shadowMetrics.resolveDivergence(divergenceId, resolution);
+
+    if (result) {
+      // Broadcast resolution
+      this._broadcastEvent('shadow:divergence-resolved', {
+        divergenceId,
+        resolution,
+        timestamp: Date.now()
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Force shadow sync
+   * @private
+   */
+  _forceShadowSync() {
+    const tm = this._getTaskManager();
+    if (!tm) {
+      return { synced: false, reason: 'TaskManager not available' };
+    }
+
+    const result = tm.forceShadowSync();
+
+    if (result.synced) {
+      // Broadcast sync event
+      this._broadcastEvent('shadow:synced', {
+        hash: result.hash,
+        version: result.version,
+        timestamp: Date.now()
+      });
+    }
+
+    return result;
   }
 }
 

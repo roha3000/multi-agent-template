@@ -242,7 +242,114 @@
         "global-dashboard.html: enrichAllActiveSessions() with per-project enrichment"
       ],
       "notes": "Implemented via 4 parallel agents. All acceptance criteria met. Backward compatible - APIs work without params."
+    },
+    "parallel-safety-phase1-optimistic-locking": {
+      "parentTaskId": "taskjson-parallel-session-safety",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "parallel-safety-phase1-optimistic-locking",
+      "title": "Phase 1: Optimistic Locking with Version Numbers",
+      "description": "Add version field to tasks.json and implement optimistic locking in TaskManager. Quick win that detects conflicts and enables automatic retry with merge.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "task-manager",
+        "concurrency",
+        "optimistic-locking",
+        "quick-win"
+      ],
+      "depends": {
+        "blocks": [
+          "parallel-safety-phase2-sqlite-coordinator"
+        ],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Add _concurrency field to tasks.json: {version, lastModifiedBy, lastModifiedAt}",
+        "TaskManager.save() checks version before write",
+        "Version mismatch triggers merge and retry (max 3 attempts)",
+        "Session ID tracked in TaskManager constructor",
+        "Conflict events emitted for logging/debugging",
+        "Backward compatible - works without _concurrency field",
+        "Unit tests for version conflict detection",
+        "Unit tests for automatic merge and retry"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T22:00:00.000Z",
+      "updated": "2025-12-28T21:03:40.609Z",
+      "implementationNotes": {
+        "files_to_modify": [
+          ".claude/core/task-manager.js"
+        ],
+        "schema_change": {
+          "_concurrency": {
+            "version": "integer, increments on each save",
+            "lastModifiedBy": "session ID string",
+            "lastModifiedAt": "ISO timestamp"
+          }
+        },
+        "key_methods": [
+          "_checkVersionConflict()",
+          "_incrementVersion()",
+          "save() - add retry loop"
+        ]
+      },
+      "completed": "2025-12-28T21:03:40.610Z"
+    },
+    "hierarchy-phase1-task-extension": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "hierarchy-phase1-task-extension",
+      "title": "Phase 1: Task Manager Hierarchy Extension",
+      "description": "Extend TaskManager with parent-child task relationships, delegatedTo tracking, and decomposition metadata. Enables hierarchical task breakdown and progress tracking.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "phase1",
+        "task-manager",
+        "extension"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase2-delegation"
+        ],
+        "requires": [
+          "hierarchy-phase1-agent-extension"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Task schema has parentTaskId, childTaskIds, delegatedTo fields",
+        "Task has delegationDepth tracking",
+        "Task has decomposition object: {strategy, estimatedSubtasks, completedSubtasks, aggregationRule}",
+        "createSubtask(parentTaskId, subtaskData) method",
+        "getTaskHierarchy(taskId) returns full task tree",
+        "Subtask completion auto-updates parent progress",
+        "Backward compatible with existing task structure",
+        "Unit tests for task hierarchy operations"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T17:00:00.000Z",
+      "completed": "2025-12-28T20:40:41.573Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/task-manager.js: 14 hierarchy methods (+540 lines)",
+        "scripts/migrate-tasks-hierarchy.js: Migration script",
+        "69 tasks migrated with explicit hierarchy fields"
+      ]
     }
   },
-  "lastArchived": "2025-12-28T21:48:46.987Z"
+  "lastArchived": "2025-12-28T22:45:33.735Z"
 }

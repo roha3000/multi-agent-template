@@ -25,6 +25,15 @@ const getCoordinationDB = () => {
   return CoordinationDB;
 };
 
+// Lazy-load ShadowModeMetrics
+let ShadowModeMetrics = null;
+const getShadowModeMetrics = () => {
+  if (!ShadowModeMetrics) {
+    ShadowModeMetrics = require('./shadow-mode-metrics');
+  }
+  return ShadowModeMetrics;
+};
+
 class TaskManager extends EventEmitter {
   constructor(options = {}) {
     super();
@@ -50,6 +59,21 @@ class TaskManager extends EventEmitter {
     this._lockResource = 'tasks.json';
     this._lockTTL = options.lockTTL || 60000; // 60 seconds default
     this._lockTimeout = options.lockTimeout || 5000; // 5 seconds wait for lock
+
+    // Phase 3: Shadow Mode Validation
+    this._shadowMode = options.shadowMode ||
+                       process.env.SHADOW_MODE_ENABLED === 'true' ||
+                       false;
+    this._shadowModeConfig = {
+      enabled: this._shadowMode,
+      validateOnSave: options.shadowValidateOnSave !== false,
+      validateOnLoad: options.shadowValidateOnLoad !== false,
+      logDivergence: options.shadowLogDivergence !== false,
+      abortOnDivergence: options.shadowAbortOnDivergence || false,
+      continueOnFailure: options.shadowContinueOnFailure !== false
+    };
+    this._shadowMetrics = null;
+    this._shadowInitialized = false;
 
     this.load();
   }
@@ -142,6 +166,303 @@ class TaskManager extends EventEmitter {
    */
   getCoordinationDb() {
     return this._coordinationDb;
+  }
+
+  // ====================================================================
+  // SHADOW MODE METHODS (Phase 3)
+  // ====================================================================
+
+  /**
+   * Initialize shadow mode (Phase 3)
+   * Called lazily on first shadow operation
+   * @private
+   */
+  _initShadowMode() {
+    if (this._shadowInitialized) return;
+    if (!this._shadowMode) return;
+
+    try {
+      const MetricsClass = getShadowModeMetrics();
+      this._shadowMetrics = new MetricsClass({
+        sessionId: this.sessionId
+      });
+      this._shadowMetrics.enable();
+
+      // Connect to coordination DB if available
+      if (this._coordinationDb) {
+        this._shadowMetrics.setCoordinationDb(this._coordinationDb);
+        this._shadowMetrics.startPersistTimer();
+      }
+
+      this._shadowInitialized = true;
+      this.emit('shadow:initialized', { sessionId: this.sessionId });
+    } catch (error) {
+      console.warn('[TaskManager] Could not initialize shadow mode:', error.message);
+      this._shadowMode = false;
+    }
+  }
+
+  /**
+   * Compute deterministic content hash using SHA-256
+   * @param {Object|string} content - Content to hash
+   * @returns {string} SHA-256 hex hash
+   * @private
+   */
+  _computeContentHash(content) {
+    const startTime = Date.now();
+
+    const obj = typeof content === 'string' ? JSON.parse(content) : content;
+    const normalized = JSON.stringify(this._sortKeysDeep(obj));
+    const hash = crypto.createHash('sha256').update(normalized, 'utf8').digest('hex');
+
+    if (this._shadowMetrics) {
+      this._shadowMetrics.recordHash(Date.now() - startTime);
+    }
+
+    return hash;
+  }
+
+  /**
+   * Recursively sort object keys for deterministic serialization
+   * @param {*} obj - Object to sort
+   * @returns {*} Sorted object
+   * @private
+   */
+  _sortKeysDeep(obj) {
+    if (obj === null || typeof obj !== 'object') {
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => this._sortKeysDeep(item));
+    }
+
+    const sorted = {};
+    Object.keys(obj).sort().forEach(key => {
+      sorted[key] = this._sortKeysDeep(obj[key]);
+    });
+    return sorted;
+  }
+
+  /**
+   * Validate save operation in shadow mode
+   * @param {string} jsonData - JSON data that was written
+   * @returns {Object} Validation result
+   * @private
+   */
+  _shadowValidateSave(jsonData) {
+    if (!this._shadowMode || !this._coordinationDb) {
+      return { valid: true, skipped: true };
+    }
+
+    const startTime = Date.now();
+
+    try {
+      const jsonHash = this._computeContentHash(jsonData);
+      const jsonParsed = JSON.parse(jsonData);
+
+      // Record current state in SQLite change journal
+      this._coordinationDb.recordChange(
+        this.sessionId,
+        this._lockResource,
+        'SHADOW_VALIDATE',
+        {
+          version: jsonParsed._concurrency?.version,
+          taskCount: Object.keys(jsonParsed.tasks || {}).length,
+          contentHash: jsonHash,
+          timestamp: Date.now()
+        }
+      );
+
+      // Get recent changes from other sessions
+      const recentChanges = this._coordinationDb.getChangesByResource(this._lockResource);
+      const foreignSaves = recentChanges.filter(c =>
+        c.sessionId !== this.sessionId &&
+        c.operation === 'SHADOW_VALIDATE' &&
+        c.changeData?.contentHash &&
+        c.createdAt > Date.now() - 60000 // Last minute
+      );
+
+      // Check for version consistency
+      if (foreignSaves.length > 0) {
+        const latestForeign = foreignSaves[0];
+        const foreignVersion = latestForeign.changeData.version || 0;
+        const ourVersion = jsonParsed._concurrency?.version || 0;
+
+        if (foreignVersion > ourVersion) {
+          // Potential divergence - foreign session has newer version
+          const result = {
+            valid: false,
+            divergent: true,
+            divergenceType: 'VERSION_BEHIND',
+            jsonHash,
+            foreignHash: latestForeign.changeData.contentHash,
+            details: {
+              ourVersion,
+              foreignVersion,
+              foreignSession: latestForeign.sessionId
+            }
+          };
+
+          this._recordShadowDivergence(result);
+          return result;
+        }
+      }
+
+      // Validate: Read back and verify
+      if (this._shadowModeConfig.validateOnSave) {
+        const diskData = fs.readFileSync(this.tasksPath, 'utf8');
+        const diskHash = this._computeContentHash(diskData);
+
+        if (diskHash !== jsonHash) {
+          const result = {
+            valid: false,
+            divergent: true,
+            divergenceType: 'WRITE_MISMATCH',
+            jsonHash,
+            diskHash,
+            details: {
+              message: 'Disk content differs from written content'
+            }
+          };
+
+          this._recordShadowDivergence(result);
+          return result;
+        }
+      }
+
+      // Validation passed
+      if (this._shadowMetrics) {
+        this._shadowMetrics.recordValidation(true, Date.now() - startTime);
+      }
+
+      return { valid: true, jsonHash };
+
+    } catch (error) {
+      if (this._shadowMetrics) {
+        this._shadowMetrics.recordError('validation');
+        this._shadowMetrics.recordValidation(false, Date.now() - startTime);
+      }
+
+      if (this._shadowModeConfig.continueOnFailure) {
+        console.warn('[TaskManager] Shadow validation error:', error.message);
+        return { valid: true, error: error.message };
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Record shadow mode divergence
+   * @param {Object} divergence - Divergence details
+   * @private
+   */
+  _recordShadowDivergence(divergence) {
+    if (!this._shadowMetrics) return;
+
+    const record = this._shadowMetrics.recordDivergence({
+      type: divergence.divergenceType,
+      severity: divergence.divergenceType === 'VERSION_BEHIND' ? 'warning' : 'critical',
+      jsonHash: divergence.jsonHash,
+      sqliteHash: divergence.foreignHash || divergence.diskHash,
+      version: divergence.details?.ourVersion,
+      details: divergence.details
+    });
+
+    // Log if configured
+    if (this._shadowModeConfig.logDivergence) {
+      console.warn('[TaskManager] SHADOW DIVERGENCE:', JSON.stringify(record, null, 2));
+    }
+
+    this.emit('shadow:divergence', record);
+
+    // Abort if configured
+    if (this._shadowModeConfig.abortOnDivergence) {
+      throw new Error(`Shadow mode divergence: ${divergence.divergenceType}`);
+    }
+  }
+
+  /**
+   * Check if shadow mode is enabled
+   * @returns {boolean}
+   */
+  isShadowModeEnabled() {
+    return this._shadowMode;
+  }
+
+  /**
+   * Get shadow mode metrics
+   * @returns {Object|null} Shadow metrics or null if not enabled
+   */
+  getShadowMetrics() {
+    if (!this._shadowMetrics) return null;
+    return this._shadowMetrics.getSummary();
+  }
+
+  /**
+   * Get shadow mode health
+   * @returns {Object|null} Health assessment or null if not enabled
+   */
+  getShadowHealth() {
+    if (!this._shadowMetrics) return null;
+    return this._shadowMetrics.getHealth();
+  }
+
+  /**
+   * Enable shadow mode at runtime
+   * @param {boolean} enabled - Enable or disable
+   */
+  enableShadowMode(enabled = true) {
+    this._shadowMode = enabled;
+    this._shadowModeConfig.enabled = enabled;
+
+    if (enabled) {
+      this._initShadowMode();
+    } else if (this._shadowMetrics) {
+      this._shadowMetrics.disable();
+    }
+
+    this.emit('shadow:mode-changed', { enabled });
+  }
+
+  /**
+   * Force synchronize shadow state with current file
+   * @returns {Object} Sync result
+   */
+  forceShadowSync() {
+    if (!this._shadowMode) {
+      return { synced: false, reason: 'shadow_mode_not_enabled' };
+    }
+
+    this._initShadowMode();
+
+    const fileData = fs.readFileSync(this.tasksPath, 'utf8');
+    const fileHash = this._computeContentHash(fileData);
+    const parsed = JSON.parse(fileData);
+
+    // Record sync in journal
+    if (this._coordinationDb) {
+      this._coordinationDb.recordChange(
+        this.sessionId,
+        this._lockResource,
+        'SHADOW_SYNC',
+        {
+          version: parsed._concurrency?.version,
+          taskCount: Object.keys(parsed.tasks || {}).length,
+          contentHash: fileHash,
+          reason: 'manual_sync'
+        }
+      );
+    }
+
+    this.emit('shadow:synced', { hash: fileHash });
+
+    return {
+      synced: true,
+      hash: fileHash,
+      version: parsed._concurrency?.version
+    };
   }
 
   // ====================================================================
@@ -1149,6 +1470,7 @@ class TaskManager extends EventEmitter {
    */
   save(_retryAttempt = 0) {
     const MAX_RETRIES = 3;
+    const saveStartTime = Date.now();
 
     // Prevent concurrent saves within this process
     if (this._saveLock) {
@@ -1160,6 +1482,11 @@ class TaskManager extends EventEmitter {
 
     // Initialize coordination layer on first save (Phase 2)
     this._initCoordination();
+
+    // Initialize shadow mode on first save (Phase 3)
+    if (this._shadowMode) {
+      this._initShadowMode();
+    }
 
     // Acquire cross-process lock (Phase 2)
     if (!this._acquireSaveLock()) {
@@ -1233,6 +1560,17 @@ class TaskManager extends EventEmitter {
       // Update tracking state
       this._lastFileHash = this._calculateHash(data);
       this._lastFileMtime = this._getFileStats().mtime;
+
+      // Shadow mode validation (Phase 3)
+      if (this._shadowMode) {
+        const shadowResult = this._shadowValidateSave(data);
+        if (this._shadowMetrics) {
+          this._shadowMetrics.recordSave(Date.now() - saveStartTime);
+          if (shadowResult.divergent) {
+            // Divergence already recorded in _shadowValidateSave
+          }
+        }
+      }
 
       // Record change in journal (Phase 2)
       this._recordChange('SAVE', {
