@@ -43,6 +43,51 @@ describe('AggregationStrategies', () => {
 
       expect(merged.merged).toEqual(['yes', 'no']);
     });
+
+    it('should merge objects with weightByQuality option', () => {
+      const results = [
+        { agentId: 'a1', result: { priority: 'low', extra: 'data' }, quality: 0.3 },
+        { agentId: 'a2', result: { priority: 'high', value: 2 }, quality: 0.9 }
+      ];
+      const merged = AggregationStrategies.merge(results, { weightByQuality: true });
+
+      expect(merged.merged).toBeDefined();
+      expect(merged.merged.extra).toBe('data');
+      expect(merged.merged.value).toBe(2);
+    });
+
+    it('should deep merge nested objects', () => {
+      const results = [
+        { agentId: 'a1', result: { outer: { inner1: 'a' } } },
+        { agentId: 'a2', result: { outer: { inner2: 'b' } } }
+      ];
+      const merged = AggregationStrategies.merge(results);
+
+      expect(merged.merged.outer.inner1).toBe('a');
+      expect(merged.merged.outer.inner2).toBe('b');
+    });
+
+    it('should concatenate arrays in deep merge', () => {
+      const results = [
+        { agentId: 'a1', result: { items: [1, 2] } },
+        { agentId: 'a2', result: { items: [3, 4] } }
+      ];
+      const merged = AggregationStrategies.merge(results);
+
+      expect(merged.merged.items).toEqual([1, 2, 3, 4]);
+    });
+
+    it('should handle null values in merge', () => {
+      const results = [
+        { agentId: 'a1', result: { a: 1, b: null } },
+        { agentId: 'a2', result: { b: 2, c: 3 } }
+      ];
+      const merged = AggregationStrategies.merge(results);
+
+      expect(merged.merged.a).toBe(1);
+      expect(merged.merged.b).toBe(2);
+      expect(merged.merged.c).toBe(3);
+    });
   });
 
   describe('selectBest', () => {
@@ -89,6 +134,36 @@ describe('AggregationStrategies', () => {
       });
 
       expect(best.best.len).toBe(10);
+    });
+
+    it('should handle ties with last tieBreaker', () => {
+      const results = [
+        { agentId: 'a1', result: 'first', quality: 0.8 },
+        { agentId: 'a2', result: 'second', quality: 0.8 }
+      ];
+      const best = AggregationStrategies.selectBest(results, { tieBreaker: 'last' });
+
+      expect(best.best).toBe('second');
+      expect(best.agentId).toBe('a2');
+    });
+
+    it('should handle ties with random tieBreaker', () => {
+      const results = [
+        { agentId: 'a1', result: 'first', quality: 0.8 },
+        { agentId: 'a2', result: 'second', quality: 0.8 },
+        { agentId: 'a3', result: 'third', quality: 0.8 }
+      ];
+      const best = AggregationStrategies.selectBest(results, { tieBreaker: 'random' });
+
+      expect(['first', 'second', 'third']).toContain(best.best);
+      expect(best.score).toBe(0.8);
+    });
+
+    it('should handle empty results', () => {
+      const best = AggregationStrategies.selectBest([]);
+      expect(best.best).toBeNull();
+      expect(best.agentId).toBeNull();
+      expect(best.score).toBe(0);
     });
   });
 
@@ -140,6 +215,13 @@ describe('AggregationStrategies', () => {
 
       expect(vote.winner).toBe('approve');
     });
+
+    it('should handle empty results', () => {
+      const vote = AggregationStrategies.vote([]);
+      expect(vote.winner).toBeNull();
+      expect(vote.consensus).toBe(false);
+      expect(vote.confidence).toBe(0);
+    });
   });
 
   describe('chain', () => {
@@ -182,6 +264,66 @@ describe('AggregationStrategies', () => {
 
       expect(chained.history.length).toBe(1);
       expect(chained.history[0].success).toBe(true);
+    });
+
+    it('should execute transform stage with mapper', () => {
+      const results = [
+        { agentId: 'a1', result: { value: 5 } },
+        { agentId: 'a2', result: { value: 10 } }
+      ];
+      const chained = AggregationStrategies.chain(results, {
+        pipeline: [
+          { type: 'transform', config: { mapper: (r) => ({ ...r, result: { value: r.result.value * 2 } }) } }
+        ]
+      });
+
+      expect(chained.final[0].result.value).toBe(10);
+      expect(chained.final[1].result.value).toBe(20);
+    });
+
+    it('should execute validate stage with required fields', () => {
+      const results = [
+        { agentId: 'a1', result: { name: 'test', score: 10 } },
+        { agentId: 'a2', result: { name: 'incomplete' } },
+        { agentId: 'a3', result: { name: 'valid', score: 20 } }
+      ];
+      const chained = AggregationStrategies.chain(results, {
+        pipeline: [
+          { type: 'validate', config: { required: ['name', 'score'] } }
+        ]
+      });
+
+      expect(chained.final.length).toBe(2);
+      expect(chained.final.every(r => r.result.score !== undefined)).toBe(true);
+    });
+
+    it('should execute aggregate stage with best method', () => {
+      const results = [
+        { agentId: 'a1', result: 'low', quality: 0.3 },
+        { agentId: 'a2', result: 'high', quality: 0.9 }
+      ];
+      const chained = AggregationStrategies.chain(results, {
+        pipeline: [
+          { type: 'aggregate', config: { method: 'best' } }
+        ]
+      });
+
+      expect(chained.final.best).toBe('high');
+    });
+
+    it('should execute aggregate stage with vote method', () => {
+      const results = [
+        { agentId: 'a1', result: 'yes' },
+        { agentId: 'a2', result: 'yes' },
+        { agentId: 'a3', result: 'no' }
+      ];
+      const chained = AggregationStrategies.chain(results, {
+        pipeline: [
+          { type: 'aggregate', config: { method: 'vote' } }
+        ]
+      });
+
+      expect(chained.final.winner).toBe('yes');
     });
   });
 
