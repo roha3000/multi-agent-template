@@ -62,6 +62,10 @@ class MemoryStore {
       this.db.pragma('synchronous = NORMAL');
       this.db.pragma('cache_size = -64000'); // 64MB cache
 
+      // CRITICAL: Set busy timeout to prevent immediate lock failures
+      // Default is 0ms which causes crashes when parallel sessions compete for locks
+      this.db.pragma('busy_timeout = 5000'); // 5 second timeout for lock acquisition
+
       this.logger.info('Database initialized', {
         path: this.dbPath,
         readonly: this.options.readonly

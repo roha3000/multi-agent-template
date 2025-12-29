@@ -42,6 +42,7 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "parallel-session-crash-fix",
         "session-task-claiming",
         "hierarchy-phase4-dashboard-viz",
         "hierarchy-tests-integration",
@@ -1230,6 +1231,70 @@
         "global-dashboard.html: Claim stats summary in queue view"
       ],
       "notes": "Dashboard now shows per-session claimed tasks. Session cards display claimedTaskId with ✓ (owned) or ⚠ (stale) indicators. Task queue has filter buttons and claim badges. SSE events update UI in real-time. All 76 claim tests passing."
+    },
+    "parallel-session-crash-fix": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "parallel-session-crash-fix",
+      "title": "Fix Parallel Session Crashes",
+      "description": "Claude Code CLI crashes when 2 sessions run in parallel on the same project. Root causes: (1) Missing SQLite busy_timeout PRAGMA (0ms default), (2) No server port error handler, (3) Missing process-level error handlers, (4) Cleanup timer race conditions, (5) TaskManager.close() not called on shutdown.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "2h",
+      "tags": [
+        "concurrency",
+        "crash-fix",
+        "sqlite",
+        "error-handling",
+        "critical"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "taskjson-parallel-session-safety",
+          "session-task-claiming"
+        ]
+      },
+      "acceptance": [
+        "SQLite busy_timeout set to 5000ms in coordination-db.js",
+        "SQLite busy_timeout set to 5000ms in memory-store.js",
+        "Server port EADDRINUSE error handled gracefully",
+        "process.on('uncaughtException') handler added",
+        "process.on('unhandledRejection') handler added",
+        "Cleanup timer serialized with mutex flag",
+        "TaskManager.close() called in SIGINT/SIGTERM handlers",
+        "2 parallel sessions can run without crashes"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-29T15:00:00.000Z",
+      "updated": "2025-12-29T15:30:00.000Z",
+      "started": "2025-12-29T15:00:00.000Z",
+      "completed": "2025-12-29T15:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "coordination-db.js: Added PRAGMA busy_timeout = 5000 (lines 92-94)",
+        "memory-store.js: Added PRAGMA busy_timeout = 5000 (lines 65-67)",
+        "global-context-manager.js: Added server.on('error') for EADDRINUSE (lines 2178-2190)",
+        "global-context-manager.js: Added process.on('uncaughtException') (lines 39-47)",
+        "global-context-manager.js: Added process.on('unhandledRejection') (lines 49-57)",
+        "coordination-db.js: Added _cleanupInProgress mutex and serialization (lines 56, 2030-2051)",
+        "global-context-manager.js: Added cleanupTaskManagers() and SIGINT/SIGTERM cleanup (lines 2192-2225)"
+      ],
+      "investigation": {
+        "agents": ["SQLite Expert", "Concurrency Expert", "Crash Handling Expert"],
+        "rootCauses": [
+          "Missing PRAGMA busy_timeout (default 0ms causes immediate lock failure)",
+          "No error handler on app.listen() for EADDRINUSE",
+          "Cleanup timers run concurrently without serialization",
+          "TaskManager.close() never called on crash",
+          "Unhandled Promise rejections in async startup"
+        ]
+      }
     }
   },
   "archival": {

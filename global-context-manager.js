@@ -32,6 +32,32 @@ const { getUsageLimitTracker } = require('./.claude/core/usage-limit-tracker');
 const { getLogStreamer } = require('./.claude/core/log-streamer');
 const CoordinationDB = require('./.claude/core/coordination-db');
 
+// ============================================================================
+// CRITICAL: Process-level error handlers to prevent silent crashes
+// ============================================================================
+
+// Handle uncaught exceptions - log and exit gracefully
+process.on('uncaughtException', (err, origin) => {
+  console.error('\n[FATAL] Uncaught exception:', err.message);
+  console.error('Origin:', origin);
+  console.error('Stack:', err.stack);
+  console.error('\nShutting down due to uncaught exception...');
+  // Note: TaskManager cleanup happens in SIGTERM/SIGINT handlers
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('\n[ERROR] Unhandled Promise rejection:', reason);
+  if (reason instanceof Error) {
+    console.error('Stack:', reason.stack);
+  }
+  // Don't exit for unhandled rejections, but log them prominently
+  // This allows the server to continue running for non-critical async errors
+});
+
+// ============================================================================
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -57,9 +83,13 @@ let coordinationDb = null;
 function getCoordinationDb() {
   if (!coordinationDb) {
     try {
-      coordinationDb = new CoordinationDB({
-        dbPath: path.join(__dirname, '.coordination', 'sessions.db')
-      });
+      const coordDbPath = path.join(__dirname, '.coordination', 'sessions.db');
+      // Ensure directory exists
+      const coordDir = path.dirname(coordDbPath);
+      if (!fs.existsSync(coordDir)) {
+        fs.mkdirSync(coordDir, { recursive: true });
+      }
+      coordinationDb = new CoordinationDB(coordDbPath, { autoCleanup: false });
     } catch (error) {
       console.warn('[COORDINATION] Could not initialize CoordinationDB:', error.message);
     }
@@ -285,6 +315,25 @@ let devDocsWatcher = null;
 
 // Event emitter for task changes (used to trigger SSE broadcasts)
 const taskEvents = new EventEmitter();
+
+// SSE clients for claim events
+const sseClaimClients = new Set();
+
+/**
+ * Broadcast an event to all connected SSE clients
+ * @param {Object} event - Event data to broadcast
+ */
+function broadcastSSE(event) {
+  const data = JSON.stringify(event);
+  for (const client of sseClaimClients) {
+    try {
+      client.write(`data: ${data}\n\n`);
+    } catch (error) {
+      // Client disconnected, remove from set
+      sseClaimClients.delete(client);
+    }
+  }
+}
 
 // ============================================================================
 // EVENT HANDLERS
@@ -1051,6 +1100,268 @@ app.post('/api/tasks/:id/status', (req, res) => {
   }
 });
 
+// ====================================================================
+// TASK CLAIMS ENDPOINTS (Session-Task Claiming)
+// ====================================================================
+
+// Claim a task for a session
+app.post('/api/tasks/:taskId/claim', (req, res) => {
+  const { taskId } = req.params;
+  const { sessionId, ttlMs, metadata } = req.body;
+
+  if (!sessionId) {
+    return res.status(400).json({ error: 'SESSION_ID_REQUIRED', message: 'sessionId is required' });
+  }
+
+  const db = getCoordinationDb();
+  if (!db) {
+    return res.status(503).json({ error: 'COORDINATION_DB_UNAVAILABLE' });
+  }
+
+  try {
+    const result = db.claimTask(taskId, sessionId, { ttlMs, metadata });
+    if (result.success) {
+      // Broadcast SSE event
+      broadcastSSE({ type: 'task:claimed', taskId, sessionId, claim: result.claim });
+      res.json(result);
+    } else if (result.error === 'TASK_ALREADY_CLAIMED') {
+      res.status(409).json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error('[CLAIM] Error claiming task:', error);
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: error.message });
+  }
+});
+
+// Release a task claim
+app.post('/api/tasks/:taskId/release', (req, res) => {
+  const { taskId } = req.params;
+  const { sessionId, reason } = req.body;
+
+  if (!sessionId) {
+    return res.status(400).json({ error: 'SESSION_ID_REQUIRED', message: 'sessionId is required' });
+  }
+
+  const db = getCoordinationDb();
+  if (!db) {
+    return res.status(503).json({ error: 'COORDINATION_DB_UNAVAILABLE' });
+  }
+
+  try {
+    const result = db.releaseClaim(taskId, sessionId, reason || 'manual_release');
+    if (result.success) {
+      // Broadcast SSE event
+      broadcastSSE({ type: 'task:released', taskId, sessionId, reason: reason || 'manual_release' });
+      res.json(result);
+    } else if (result.error === 'CLAIM_NOT_FOUND') {
+      res.status(404).json(result);
+    } else if (result.error === 'NOT_CLAIM_OWNER') {
+      res.status(403).json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error('[CLAIM] Error releasing claim:', error);
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: error.message });
+  }
+});
+
+// Refresh/extend claim TTL (heartbeat)
+app.post('/api/tasks/:taskId/claim/heartbeat', (req, res) => {
+  const { taskId } = req.params;
+  const { sessionId, ttlMs } = req.body;
+
+  if (!sessionId) {
+    return res.status(400).json({ error: 'SESSION_ID_REQUIRED', message: 'sessionId is required' });
+  }
+
+  const db = getCoordinationDb();
+  if (!db) {
+    return res.status(503).json({ error: 'COORDINATION_DB_UNAVAILABLE' });
+  }
+
+  try {
+    const result = db.refreshClaim(taskId, sessionId, ttlMs);
+    if (result.success) {
+      res.json(result);
+    } else if (result.error === 'CLAIM_NOT_FOUND') {
+      res.status(404).json(result);
+    } else if (result.error === 'NOT_CLAIM_OWNER') {
+      res.status(403).json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error('[CLAIM] Error refreshing claim:', error);
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: error.message });
+  }
+});
+
+// Get all in-flight (claimed) tasks
+app.get('/api/tasks/in-flight', (req, res) => {
+  const db = getCoordinationDb();
+  if (!db) {
+    return res.status(503).json({ error: 'COORDINATION_DB_UNAVAILABLE' });
+  }
+
+  try {
+    const sessionId = req.query.session || null;
+    const includeExpired = req.query.includeExpired === 'true';
+    const limit = parseInt(req.query.limit) || 100;
+
+    let claims;
+    if (sessionId) {
+      claims = db.getClaimsBySession(sessionId);
+    } else {
+      claims = db.getActiveClaims();
+    }
+
+    // Filter expired if needed
+    if (!includeExpired) {
+      const now = Date.now();
+      claims = claims.filter(c => c.expiresAt > now);
+    }
+
+    // Apply limit
+    claims = claims.slice(0, limit);
+
+    res.json({
+      success: true,
+      claims,
+      count: claims.length
+    });
+  } catch (error) {
+    console.error('[CLAIM] Error getting in-flight tasks:', error);
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: error.message });
+  }
+});
+
+// Get current task for a session
+app.get('/api/sessions/:sessionId/current-task', (req, res) => {
+  const { sessionId } = req.params;
+  const db = getCoordinationDb();
+  if (!db) {
+    return res.status(503).json({ error: 'COORDINATION_DB_UNAVAILABLE' });
+  }
+
+  try {
+    const claims = db.getClaimsBySession(sessionId);
+    const now = Date.now();
+    const activeClaims = claims.filter(c => c.expiresAt > now);
+
+    if (activeClaims.length === 0) {
+      return res.json({ sessionId, currentTask: null });
+    }
+
+    // Return most recent claim
+    const currentClaim = activeClaims.sort((a, b) => b.claimedAt - a.claimedAt)[0];
+
+    // Get task details if TaskManager available
+    let taskDetails = null;
+    if (taskManager) {
+      try {
+        taskDetails = taskManager.getTask(currentClaim.taskId);
+      } catch (e) {
+        // Ignore - task might not exist
+      }
+    }
+
+    res.json({
+      sessionId,
+      currentTask: {
+        taskId: currentClaim.taskId,
+        claimedAt: currentClaim.claimedAt,
+        expiresAt: currentClaim.expiresAt,
+        lastHeartbeat: currentClaim.lastHeartbeat,
+        metadata: currentClaim.metadata,
+        task: taskDetails
+      }
+    });
+  } catch (error) {
+    console.error('[CLAIM] Error getting current task:', error);
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: error.message });
+  }
+});
+
+// Trigger cleanup of orphaned/expired claims
+app.post('/api/tasks/claims/cleanup', (req, res) => {
+  const db = getCoordinationDb();
+  if (!db) {
+    return res.status(503).json({ error: 'COORDINATION_DB_UNAVAILABLE' });
+  }
+
+  try {
+    const expiredResult = db.cleanupExpiredClaims();
+    const orphanedResult = db.cleanupOrphanedClaims();
+
+    const totalCleaned = (expiredResult.cleaned || 0) + (orphanedResult.cleaned || 0);
+
+    if (totalCleaned > 0) {
+      broadcastSSE({ type: 'claims:cleanup', cleaned: totalCleaned });
+    }
+
+    res.json({
+      success: true,
+      expired: expiredResult,
+      orphaned: orphanedResult,
+      totalCleaned
+    });
+  } catch (error) {
+    console.error('[CLAIM] Error cleaning up claims:', error);
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: error.message });
+  }
+});
+
+// Get claim statistics
+app.get('/api/tasks/claims/stats', (req, res) => {
+  const db = getCoordinationDb();
+  if (!db) {
+    return res.status(503).json({ error: 'COORDINATION_DB_UNAVAILABLE' });
+  }
+
+  try {
+    const stats = db.getClaimStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('[CLAIM] Error getting claim stats:', error);
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: error.message });
+  }
+});
+
+// ====================================================================
+
+// SSE for claim events real-time updates
+app.get('/api/sse/claims', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*'
+  });
+
+  // Add client to broadcast set
+  sseClaimClients.add(res);
+
+  // Send initial claim state
+  const db = getCoordinationDb();
+  if (db) {
+    try {
+      const claims = db.getActiveClaims();
+      const stats = db.getClaimStats();
+      res.write(`data: ${JSON.stringify({ type: 'claims:initial', claims, stats })}\n\n`);
+    } catch (error) {
+      console.error('[SSE/CLAIMS] Error sending initial state:', error);
+    }
+  }
+
+  // Remove client on disconnect
+  req.on('close', () => {
+    sseClaimClients.delete(res);
+  });
+});
+
 // SSE for real-time updates
 app.get('/api/events', (req, res) => {
   res.writeHead(200, {
@@ -1059,6 +1370,9 @@ app.get('/api/events', (req, res) => {
     'Connection': 'keep-alive',
     'Access-Control-Allow-Origin': '*'
   });
+
+  // Also add to claim clients for claim events
+  sseClaimClients.add(res);
 
   const sendUpdate = () => {
     // Get fresh task data from tasks.json
@@ -1115,6 +1429,8 @@ app.get('/api/events', (req, res) => {
     tracker.removeListener('alert', onUpdate);
     tracker.removeListener('session:new', onUpdate);
     taskEvents.removeListener('tasks:changed', onUpdate);
+    // Also remove from claim clients
+    sseClaimClients.delete(res);
   });
 });
 
@@ -1788,7 +2104,7 @@ app.get('/api/lessons', (req, res) => {
 
 const PORT = process.env.PORT || 3033;
 
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   console.log('\n' + '='.repeat(70));
   console.log('GLOBAL CONTEXT MANAGER');
   console.log('='.repeat(70));
@@ -1859,9 +2175,40 @@ app.listen(PORT, async () => {
   await tracker.start();
 });
 
+// CRITICAL: Handle server port binding errors (e.g., EADDRINUSE when another session is running)
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n[ERROR] Port ${PORT} is already in use.`);
+    console.error('Another session may be running. Options:');
+    console.error('  1. Stop the other session first');
+    console.error('  2. Use a different port: PORT=3034 node global-context-manager.js');
+    console.error('');
+    process.exit(1);
+  }
+  console.error('[ERROR] Server error:', err.message);
+  process.exit(1);
+});
+
+// Graceful shutdown helper - closes all TaskManagers to release locks and claims
+async function cleanupTaskManagers() {
+  console.log('[SHUTDOWN] Closing TaskManagers to release locks and claims...');
+  for (const [projectPath, tm] of taskManagerMap.entries()) {
+    try {
+      if (tm && typeof tm.close === 'function') {
+        tm.close();
+        console.log(`[SHUTDOWN] TaskManager closed for: ${path.basename(projectPath)}`);
+      }
+    } catch (error) {
+      console.error(`[SHUTDOWN] Error closing TaskManager for ${projectPath}:`, error.message);
+    }
+  }
+  taskManagerMap.clear();
+}
+
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\nShutting down...');
+  await cleanupTaskManagers(); // CRITICAL: Release locks and claims before exit
   if (devDocsWatcher) await devDocsWatcher.close();
   logStreamer.shutdown();
   await tracker.stop();
@@ -1870,6 +2217,7 @@ process.on('SIGINT', async () => {
 
 process.on('SIGTERM', async () => {
   console.log('\nShutting down...');
+  await cleanupTaskManagers(); // CRITICAL: Release locks and claims before exit
   if (devDocsWatcher) await devDocsWatcher.close();
   logStreamer.shutdown();
   await tracker.stop();

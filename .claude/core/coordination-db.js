@@ -53,6 +53,7 @@ class CoordinationDB extends EventEmitter {
     this._heartbeatTimer = null;
     this._cleanupTimer = null;
     this._currentSessionId = null;
+    this._cleanupInProgress = false; // Mutex to prevent concurrent cleanup operations
 
     // Initialize database
     this._ensureDirectory();
@@ -88,6 +89,10 @@ class CoordinationDB extends EventEmitter {
 
     // Enable WAL mode for better concurrent access
     this.db.pragma('journal_mode = WAL');
+
+    // CRITICAL: Set busy timeout to prevent immediate lock failures
+    // Default is 0ms which causes crashes when parallel sessions compete for locks
+    this.db.pragma('busy_timeout = 5000'); // 5 second timeout for lock acquisition
 
     // Create tables
     this.db.exec(`
@@ -2024,11 +2029,25 @@ class CoordinationDB extends EventEmitter {
    */
   _startCleanupTimer() {
     this._cleanupTimer = setInterval(() => {
-      this.cleanupExpiredLocks();
-      this.cleanupStaleSessions();
-      this.pruneOldChanges();
-      this.cleanupExpiredClaims();
-      this.cleanupOrphanedClaims();
+      // CRITICAL: Serialize cleanup operations to prevent race conditions
+      // When multiple sessions run in parallel, their cleanup timers could conflict
+      if (this._cleanupInProgress) {
+        return; // Skip this cleanup cycle if another is in progress
+      }
+
+      this._cleanupInProgress = true;
+      try {
+        this.cleanupExpiredLocks();
+        this.cleanupStaleSessions();
+        this.pruneOldChanges();
+        this.cleanupExpiredClaims();
+        this.cleanupOrphanedClaims();
+      } catch (error) {
+        // Log but don't crash on cleanup errors
+        console.error('[CoordinationDB] Cleanup error:', error.message);
+      } finally {
+        this._cleanupInProgress = false;
+      }
     }, this.options.cleanupInterval);
 
     // Don't prevent process exit

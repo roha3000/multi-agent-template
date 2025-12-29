@@ -1,61 +1,67 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Session-Task Claiming System - 100% COMPLETE
+**Status**: Parallel Session Crash Fix - COMPLETE
 
 ---
 
-## Primary Focus: Session-Task Claiming
+## Primary Focus: Parallel Session Crash Fix
 
-**Goal**: Fix dashboard showing same task for all sessions by implementing atomic task claiming.
+**Goal**: Fix Claude Code CLI crashes when 2+ sessions run in parallel on same project.
 
-**Design Doc**: `docs/SESSION-TASK-CLAIMING-DESIGN.md`
-
----
-
-## Implementation Phases
-
-### Phase 1: Core Infrastructure - ✅ COMPLETE
-**Task**: `session-task-claiming-phase1` (95)
-- task_claims table + atomic claim methods
-- 66 tests passing
-
-### Phase 2: TaskManager Integration - ✅ COMPLETE
-**Task**: `session-task-claiming-phase2` (95)
-- claimNextTask(), heartbeat system
-- 97 tests passing
-
-### Phase 3: Dashboard API - ✅ COMPLETE
-**Task**: `session-task-claiming-phase3` (95)
-- 7 API endpoints + SSE events
-- 35 tests passing
-
-### Phase 4: Dashboard UI - ✅ COMPLETE
-**Task**: `session-task-claiming-phase4` (95)
-- Per-session task display in session cards
-- Claim badges in task queue
-- Stale claim indicators
-- SSE event handlers
-- Filter buttons (All/Available/Claimed/Mine)
+**Investigation**: Multi-agent analysis identified 5 root causes.
 
 ---
 
-## Progress: 100% (4 of 4 phases)
+## Implementation Fixes
+
+### Fix 1: SQLite busy_timeout PRAGMA - COMPLETE
+- Added `PRAGMA busy_timeout = 5000` to coordination-db.js:92-94
+- Added `PRAGMA busy_timeout = 5000` to memory-store.js:65-67
+- Sessions now wait up to 5 seconds for lock acquisition
+
+### Fix 2: Server Port Error Handler - COMPLETE
+- Added `.on('error')` handler to server in global-context-manager.js:2178-2190
+- EADDRINUSE now shows helpful message instead of crash
+
+### Fix 3: Process-Level Error Handlers - COMPLETE
+- Added `process.on('uncaughtException')` in global-context-manager.js:39-47
+- Added `process.on('unhandledRejection')` in global-context-manager.js:49-57
+- Prevents silent crashes from unhandled errors
+
+### Fix 4: Serialize Cleanup Operations - COMPLETE
+- Added `_cleanupInProgress` mutex flag in coordination-db.js:56
+- Cleanup timer now skips if another cleanup is running (lines 2030-2051)
+- Prevents race conditions between parallel sessions
+
+### Fix 5: TaskManager.close() on Shutdown - COMPLETE
+- Added `cleanupTaskManagers()` helper in global-context-manager.js:2192-2206
+- SIGINT/SIGTERM handlers now close all TaskManagers
+- Releases locks and claims on graceful shutdown
 
 ---
 
-## Key Deliverables
+## Test Results
 
-| Component | Status |
-|-----------|--------|
-| CoordinationDB | ✅ task_claims table, atomic claim methods |
-| TaskManager | ✅ claimNextTask(), heartbeat system |
-| Dashboard API | ✅ 7 endpoints, SSE events |
-| SessionRegistry | ✅ currentTaskId in /api/sessions/summary |
-| Dashboard UI | ✅ per-session display, claim badges, filters |
+- **359 tests passed** across coordination-db, memory-store, and task-manager
+- All existing functionality preserved
+- No regressions introduced
+
+---
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `.claude/core/coordination-db.js` | busy_timeout PRAGMA, cleanup mutex |
+| `.claude/core/memory-store.js` | busy_timeout PRAGMA |
+| `global-context-manager.js` | Port error handler, process handlers, TaskManager cleanup |
+
+---
+
+## Progress: 100% (5 of 5 fixes)
 
 ---
 
 ## Next Steps
 
 1. `audit-cleanup-phase1` - Clean up dead code from audit
-2. `hierarchy-tests-integration` - Integration tests for hierarchy
