@@ -1186,37 +1186,60 @@ class TaskManager extends EventEmitter {
   }
 
   /**
-   * Load tasks from file with change tracking
+   * Load tasks from file with change tracking and retry logic
+   * Retries on read/parse errors in case another session is writing
    */
   load() {
-    try {
-      const data = fs.readFileSync(this.tasksPath, 'utf8');
-      this.tasks = JSON.parse(data);
+    const MAX_READ_RETRIES = 3;
+    const RETRY_DELAY_MS = 50;
 
-      // Track file state for concurrency detection
-      this._lastFileHash = this._calculateHash(data);
-      this._lastFileMtime = this._getFileStats().mtime;
+    for (let attempt = 0; attempt < MAX_READ_RETRIES; attempt++) {
+      try {
+        const data = fs.readFileSync(this.tasksPath, 'utf8');
+        this.tasks = JSON.parse(data);
 
-      // Initialize concurrency tracking (backward compatibility)
-      this._initConcurrency();
+        // Track file state for concurrency detection
+        this._lastFileHash = this._calculateHash(data);
+        this._lastFileMtime = this._getFileStats().mtime;
 
-      // Check and fix queue integrity on load
-      const integrityFixed = this._checkAndFixIntegrityOnLoad();
-      if (integrityFixed) {
-        // Save the fixed state
-        this.save();
-      }
-
-      this.emit('tasks:loaded', { count: this._getAllTasks().length });
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        // File doesn't exist, create default structure
-        this.tasks = this._createDefaultStructure();
+        // Initialize concurrency tracking (backward compatibility)
         this._initConcurrency();
-        this.save();
-        this.emit('tasks:initialized');
-      } else {
-        throw error;
+
+        // Check and fix queue integrity on load
+        const integrityFixed = this._checkAndFixIntegrityOnLoad();
+        if (integrityFixed) {
+          // Save the fixed state (use delay to reduce collision chance)
+          setTimeout(() => this.save(), Math.random() * 100);
+        }
+
+        this.emit('tasks:loaded', { count: this._getAllTasks().length });
+        return; // Success - exit the retry loop
+      } catch (error) {
+        if (error.code === 'ENOENT') {
+          // File doesn't exist, create default structure
+          this.tasks = this._createDefaultStructure();
+          this._initConcurrency();
+          this.save();
+          this.emit('tasks:initialized');
+          return;
+        } else if (error instanceof SyntaxError && attempt < MAX_READ_RETRIES - 1) {
+          // JSON parse error - file might be mid-write, retry after delay
+          console.warn(`[TaskManager] Read attempt ${attempt + 1} failed (${error.message}), retrying...`);
+          // Synchronous delay (simple but effective for this use case)
+          const start = Date.now();
+          while (Date.now() - start < RETRY_DELAY_MS * (attempt + 1)) {
+            // busy wait
+          }
+        } else if (error.code === 'EBUSY' && attempt < MAX_READ_RETRIES - 1) {
+          // File busy - another process has it locked
+          console.warn(`[TaskManager] File busy, retrying...`);
+          const start = Date.now();
+          while (Date.now() - start < RETRY_DELAY_MS * (attempt + 1)) {
+            // busy wait
+          }
+        } else {
+          throw error;
+        }
       }
     }
   }
@@ -1553,9 +1576,18 @@ class TaskManager extends EventEmitter {
       // Increment version before saving
       this._incrementVersion();
 
-      // Save merged state
+      // Save merged state using atomic write (temp file + rename)
+      // This prevents corruption when parallel sessions write simultaneously
       const data = JSON.stringify(this.tasks, null, 2);
-      fs.writeFileSync(this.tasksPath, data, 'utf8');
+      const tempPath = `${this.tasksPath}.${process.pid}.${Date.now()}.tmp`;
+      try {
+        fs.writeFileSync(tempPath, data, 'utf8');
+        fs.renameSync(tempPath, this.tasksPath);
+      } catch (writeErr) {
+        // Clean up temp file on error
+        try { fs.unlinkSync(tempPath); } catch (e) { /* ignore */ }
+        throw writeErr;
+      }
 
       // Update tracking state
       this._lastFileHash = this._calculateHash(data);
@@ -1691,8 +1723,16 @@ class TaskManager extends EventEmitter {
     });
     archive.lastArchived = new Date().toISOString();
 
-    // Write archive
-    fs.writeFileSync(archivePath, JSON.stringify(archive, null, 2), 'utf8');
+    // Write archive using atomic write (temp file + rename)
+    const archiveData = JSON.stringify(archive, null, 2);
+    const tempArchivePath = `${archivePath}.${process.pid}.${Date.now()}.tmp`;
+    try {
+      fs.writeFileSync(tempArchivePath, archiveData, 'utf8');
+      fs.renameSync(tempArchivePath, archivePath);
+    } catch (writeErr) {
+      try { fs.unlinkSync(tempArchivePath); } catch (e) { /* ignore */ }
+      throw writeErr;
+    }
 
     // Update in-memory state
     this.tasks.backlog.completed.tasks = tasksToKeep.map(t => t.id);
