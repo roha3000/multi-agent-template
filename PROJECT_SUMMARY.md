@@ -1,79 +1,68 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-29 (Session 50)
-**Current Phase**: IMPLEMENTATION COMPLETE
-**Status**: Hierarchy Phase 4 - COMPLETE (Metrics + Optimization)
+**Last Updated**: 2025-12-29 (Session 51)
+**Current Phase**: IMPLEMENTATION
+**Status**: Session-Task Claiming Phase 1 - COMPLETE
 
 ---
 
-## Session 50: Hierarchy Phase 4 - Metrics + Optimization (CURRENT)
+## Session 51: Session-Task Claiming Phase 1 (CURRENT)
 
 ### Work Completed
 
 | Task | Status | Description |
 |------|--------|-------------|
-| hierarchy-phase4-metrics | ✅ (95) | Delegation metrics and analytics system |
-| hierarchy-phase4-optimization | ✅ (95) | Performance optimization module |
+| session-task-claiming-phase1 | ✅ (95) | Atomic task claiming with TTL and heartbeat |
 
 ### Implementation Details
 
-**DelegationMetrics Class** (`.claude/core/delegation-metrics.js`):
-- Histogram, RollingWindow, AtomicCounter utility classes
-- 8 histograms: delegationDuration, aggregationDuration, childExecutionDuration, subtaskCountDistribution, depthDistribution, subAgentQualityScore, aggregationQuality, tokenBudgetUsed
-- 4 counters: delegationSuccess, delegationFailure, retryCount, timeoutCount
-- Rolling windows: delegations_1m, delegations_5m, delegations_1h
-- Snapshot system with bounded history
-- Trend analysis and serialization
+**task_claims Table** (`.claude/core/coordination-db.js`):
+- Schema: task_id (PK), session_id (FK), claimed_at, expires_at, claim_type, claim_reason
+- 3 indexes: idx_claims_session, idx_claims_expires, idx_claims_type
+- Foreign key constraint to sessions table with CASCADE delete
 
-**Dashboard API Endpoints** (`.claude/core/enhanced-dashboard-server.js`):
-- `GET /api/metrics/delegation/summary` - Complete metrics summary
-- `GET /api/metrics/delegation/patterns` - Pattern distribution
-- `GET /api/metrics/delegation/quality` - Quality metrics
-- `GET /api/metrics/delegation/resources` - Resource utilization
-- `GET /api/metrics/delegation/rolling/:windowName` - Rolling stats
-- `GET /api/metrics/delegation/trends` - Metrics trends
-- `GET /api/metrics/delegation/snapshots` - Historical snapshots
-- `POST /api/metrics/delegation/snapshot` - Trigger snapshot
-- `POST /api/metrics/delegation/reset` - Reset metrics
+**Core Claim Methods**:
+- `claimTask()` - Atomic claiming with transaction, TTL, conflict detection
+- `releaseClaim()` - Release with reason tracking and event emission
+- `refreshClaim()` - Heartbeat/TTL extension for long-running tasks
 
-**Storage Schema** (`.claude/core/coordination-db.js`):
-- `delegation_metrics` table - Aggregated metrics persistence
-- `delegation_snapshots` table - Historical snapshot storage
-- Save/query/cleanup methods
+**Query Methods**:
+- `getActiveClaims()` - Filter by session, type, expiring status
+- `getClaim()` - Single claim with computed fields and auto-cleanup
+- `getClaimsBySession()` - All claims for a session
+- `isTaskClaimed()` - Quick status check
+- `getClaimStats()` - Dashboard statistics (total, byType, bySession, expiringSoon)
+
+**Computed Fields** (via `_formatTaskClaimRow()`):
+- remainingMs, healthStatus (healthy/expiring/stale/expired)
+- isExpiring, isStale, formattedExpiresAt
 
 ### Agent Swarm Approach
 5 expert agents spawned in parallel:
-1. Schema Expert - Data structures design
-2. Collection Expert - Instrumentation plan
-3. API Expert - REST endpoint specification
-4. Dashboard UI Expert - Panel design
-5. Storage Expert - SQLite schema
+1. Schema Expert - task_claims table design
+2. Claim Operations Expert - claimTask/releaseClaim/refreshClaim
+3. Query Expert - getActiveClaims/getClaim/getClaimsBySession
+4. Cleanup Expert - cleanupExpiredClaims/cleanupOrphanedClaims
+5. Test Expert - unit test design
 
 ### Files Modified
 
 | File | Purpose |
 |------|---------|
-| `.claude/core/delegation-metrics.js` | DelegationMetrics class (~1100 lines) |
-| `.claude/core/enhanced-dashboard-server.js` | 9 new API endpoints (+200 lines) |
-| `.claude/core/coordination-db.js` | 2 new tables, storage methods (+250 lines) |
-| `__tests__/core/delegation-metrics.test.js` | 58 unit tests |
-
-**HierarchyOptimizationManager** (`.claude/core/hierarchy-optimizations.js`):
-- TieredTimeoutCalculator: Depth-based timeouts (L1: 60s, L2: 30s, L3: 15s, L4+: 10s)
-- ContextCache: LRU-TTL eviction, parent-child sharing protocol
-- AgentPool: Pre-warmed agents, checkout/checkin pattern, auto-scaling
-- HierarchyOptimizationManager: Unified interface for all optimizations
-
-### Additional Files
-
-| File | Purpose |
-|------|---------|
-| `.claude/core/hierarchy-optimizations.js` | Optimization module (~600 lines) |
-| `__tests__/core/hierarchy-optimizations.test.js` | 52 unit tests |
+| `.claude/core/coordination-db.js` | task_claims table + 8 claim methods (+450 lines) |
+| `__tests__/core/task-claims.test.js` | 41 comprehensive unit tests |
+| `__tests__/core/claim-cleanup.test.js` | FK constraint fixes for orphan tests |
 
 ### Tests
-- 58 DelegationMetrics tests
-- 52 HierarchyOptimizations tests
-- 110 new tests total, all passing
+- 41 task-claims tests (claim ops, queries, cleanup, concurrency, edge cases)
+- 25 claim-cleanup tests (existing + fixes)
+- 66 new/fixed tests, all passing
+
+---
+
+## Session 50: Hierarchy Phase 4 - Metrics + Optimization ✅
+- **Tasks**: hierarchy-phase4-metrics (95), hierarchy-phase4-optimization (95)
+- **Key changes**: DelegationMetrics, 9 API endpoints, TieredTimeoutCalculator, ContextCache, AgentPool
+- **Files**: delegation-metrics.js, hierarchy-optimizations.js, coordination-db.js (110 tests)
 
 ---
 
@@ -104,22 +93,21 @@
 |-----------|--------|
 | Orchestrator | Unified + parallel patterns + delegation primitives + metrics |
 | Dashboard | Command Center + hierarchy + conflicts API + metrics endpoints |
-| Task System | Hierarchy + concurrent write + shadow mode + conflict resolution |
+| Task System | Hierarchy + concurrent write + shadow mode + conflict resolution + claiming |
 | Tests | 2200+ passing |
 | Parallel Safety | 100% COMPLETE (4/4 phases) |
 | Hierarchy Phase 4 | ✅ COMPLETE (Metrics + Optimization) |
+| Session-Task Claiming | Phase 1 COMPLETE |
 
 ---
 
-## Hierarchy Progress Summary
+## Session-Task Claiming Progress
 
 | Phase | Description | Status | Tests |
 |-------|-------------|--------|-------|
-| Phase 1 | Agent/Session/Task Extensions + Dashboard API | ✅ Complete | 94+ |
-| Phase 2 | Delegation Primitives + Context + Aggregation | ✅ Complete | 44 |
-| Phase 3 | Task Decomposer + Auto-Delegation | ✅ Complete | 167 |
-| Phase 4 | Metrics | ✅ Complete | 58 |
-| Phase 4 | Optimization | ✅ Complete | 52 |
+| Phase 1 | task_claims table + atomic claim methods | ✅ Complete | 66 |
+| Phase 2 | Dashboard API + UI integration | Pending | - |
+| Phase 3 | Heartbeat service + auto-refresh | Pending | - |
 
 ---
 
@@ -129,4 +117,4 @@
 - **Archives**: `.claude/dev-docs/archives/`
 - **Task Graph**: http://localhost:3033/task-graph.html
 - **Parallel Safety**: COMPLETE
-- **NEXT**: audit-cleanup-phase1, hierarchy-phase4-dashboard-viz
+- **NEXT**: session-task-claiming-phase2, audit-cleanup-phase1
