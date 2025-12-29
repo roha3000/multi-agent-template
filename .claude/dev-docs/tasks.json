@@ -19,7 +19,10 @@
   "backlog": {
     "now": {
       "description": "Current sprint tasks",
-      "tasks": []
+      "tasks": [
+        "hierarchy-phase4-metrics",
+        "hierarchy-phase4-optimization"
+      ]
     },
     "next": {
       "description": "Next priority after now is complete",
@@ -31,8 +34,6 @@
       "description": "Future work, not yet prioritized",
       "tasks": [
         "hierarchy-phase4-dashboard-viz",
-        "hierarchy-phase4-metrics",
-        "hierarchy-phase4-optimization",
         "hierarchy-tests-unit",
         "hierarchy-tests-integration",
         "dashboard-blocked-tasks-view"
