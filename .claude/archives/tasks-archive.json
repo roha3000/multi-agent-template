@@ -736,7 +736,81 @@
       "started": "2025-12-29T09:00:00.000Z",
       "completedAt": "2025-12-29T10:00:00.000Z",
       "notes": "563 tests passing, 89% statement coverage, 80% branch coverage, 94% function coverage"
+    },
+    "parallel-safety-phase2-sqlite-coordinator": {
+      "parentTaskId": "taskjson-parallel-session-safety",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "parallel-safety-phase2-sqlite-coordinator",
+      "title": "Phase 2: SQLite Coordination Layer",
+      "description": "Create CoordinationDB class using SQLite for cross-process locking, session tracking, and change journaling. JSON remains human-readable, SQLite handles concurrency.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "6h",
+      "tags": [
+        "task-manager",
+        "concurrency",
+        "sqlite",
+        "coordination"
+      ],
+      "depends": {
+        "blocks": [
+          "parallel-safety-phase3-shadow-mode"
+        ],
+        "requires": [
+          "parallel-safety-phase1-optimistic-locking"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "CoordinationDB class in .claude/core/coordination-db.js",
+        "SQLite schema: sessions, locks, change_journal tables",
+        "acquireLock(resource, sessionId, timeout) method",
+        "releaseLock(resource, sessionId) method",
+        "Lock auto-expiration (60s default) for crash recovery",
+        "Session heartbeat tracking (stale after 5min)",
+        "Change journal for audit trail",
+        "Integration with existing TaskManager",
+        "Unit tests for lock acquisition/release",
+        "Unit tests for stale lock cleanup"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T22:00:00.000Z",
+      "updated": "2025-12-28T23:30:00.000Z",
+      "completed": "2025-12-28T23:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/coordination-db.js: 550+ lines CoordinationDB class",
+        "SQLite schema: sessions, locks, change_journal tables with indexes",
+        "acquireLock(), releaseLock(), refreshLock(), isLockHeld() methods",
+        "withLock() convenience wrapper for atomic operations",
+        "Session management: register, heartbeat, deregister, stale detection",
+        "Change journal: recordChange, query methods, pruning",
+        "Auto-cleanup timers for expired locks and stale sessions",
+        "TaskManager integration: lazy init, lock on save, journal changes",
+        "__tests__/core/coordination-db.test.js: 49 unit tests",
+        ".gitignore updated for .coordination/ database files"
+      ],
+      "implementationNotes": {
+        "files_created": [
+          ".claude/core/coordination-db.js",
+          "__tests__/core/coordination-db.test.js"
+        ],
+        "files_modified": [
+          ".claude/core/task-manager.js",
+          ".gitignore"
+        ],
+        "schema": {
+          "sessions": "id, project_path, agent_type, started_at, last_heartbeat, metadata, pid",
+          "locks": "resource, session_id, acquired_at, expires_at, lock_type, refresh_count",
+          "change_journal": "id, session_id, resource, operation, change_data, created_at, applied, checksum"
+        },
+        "approach": "5 expert agents in parallel: Schema Designer, Pattern Researcher, Lock Management, Session Heartbeat, Test Engineer"
+      }
     }
   },
-  "lastArchived": "2025-12-29T03:11:30.331Z"
+  "lastArchived": "2025-12-29T04:47:27.251Z"
 }

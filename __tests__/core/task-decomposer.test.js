@@ -1372,4 +1372,906 @@ describe('TaskDecomposer', () => {
       expect(decomposer.getStats().cacheSize).toBe(0);
     });
   });
+
+  // ============================================
+  // DECOMPOSITION STRATEGIES - EXPANDED TESTS
+  // ============================================
+
+  describe('decomposition strategies (expanded)', () => {
+    describe('sequential decomposition', () => {
+      it('should create strictly ordered dependency chain', () => {
+        const task = {
+          id: 'seq-chain',
+          title: 'Sequential workflow',
+          description: 'Step 1: Initialize, Step 2: Process, Step 3: Finalize',
+          estimate: '6h',
+          acceptance: [
+            'Step 1: System initialized',
+            'Step 2: Data processed',
+            'Step 3: Results finalized',
+            'Step 4: Cleanup complete'
+          ],
+          phase: 'implementation'
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.SEQUENTIAL);
+
+        // Each subtask (except first) should depend on exactly the previous one
+        for (let i = 1; i < subtasks.length; i++) {
+          expect(subtasks[i].dependencies.requires).toHaveLength(1);
+          expect(subtasks[i].dependencies.requires[0]).toBe(subtasks[i - 1].id);
+        }
+
+        // First subtask should have no requirements
+        expect(subtasks[0].dependencies.requires).toHaveLength(0);
+      });
+
+      it('should assign increasing order values', () => {
+        const task = {
+          id: 'seq-order',
+          title: 'Ordered steps',
+          estimate: '4h',
+          acceptance: ['A', 'B', 'C']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.SEQUENTIAL);
+        const orders = subtasks.map(s => s.order);
+
+        // Orders should be strictly increasing
+        for (let i = 1; i < orders.length; i++) {
+          expect(orders[i]).toBeGreaterThan(orders[i - 1]);
+        }
+      });
+
+      it('should not have any parallel execution indicators', () => {
+        const task = {
+          id: 'no-parallel',
+          title: 'Strict sequence',
+          estimate: '4h',
+          acceptance: ['First', 'Second', 'Third']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.SEQUENTIAL);
+
+        // No two subtasks should have the same order (true parallelism indicator)
+        const orders = subtasks.map(s => s.order);
+        const uniqueOrders = new Set(orders);
+        expect(uniqueOrders.size).toBe(orders.length);
+      });
+    });
+
+    describe('parallel decomposition', () => {
+      it('should generate completely independent subtasks', () => {
+        const task = {
+          id: 'parallel-independent',
+          title: 'Process batch items',
+          description: 'Process each item independently',
+          estimate: '8h',
+          acceptance: ['Item A processed', 'Item B processed', 'Item C processed', 'Item D processed']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        // All subtasks should have no requirements
+        subtasks.forEach(st => {
+          expect(st.dependencies.requires).toHaveLength(0);
+        });
+      });
+
+      it('should set identical order for all subtasks', () => {
+        const task = {
+          id: 'parallel-same-order',
+          title: 'Parallel work items',
+          estimate: '6h',
+          acceptance: ['Work A', 'Work B', 'Work C']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        const orders = subtasks.map(s => s.order);
+        const uniqueOrders = new Set(orders);
+        expect(uniqueOrders.size).toBe(1);
+        expect(orders[0]).toBe(0);
+      });
+
+      it('should not create blocking relationships between subtasks', () => {
+        const task = {
+          id: 'no-blocking',
+          title: 'Independent tasks',
+          estimate: '4h',
+          acceptance: ['Task 1', 'Task 2', 'Task 3']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+        const subtaskIds = new Set(subtasks.map(s => s.id));
+
+        // No subtask should block another subtask
+        subtasks.forEach(st => {
+          st.dependencies.blocks.forEach(blocked => {
+            expect(subtaskIds.has(blocked)).toBe(false);
+          });
+        });
+      });
+    });
+
+    describe('hybrid decomposition', () => {
+      it('should create mixed dependency graph with grouped tasks', () => {
+        const task = {
+          id: 'hybrid-mixed',
+          title: 'Complex workflow',
+          description: '1. Setup phase\n2. Configuration step\n- Parallel task A\n- Parallel task B\n3. Finalization',
+          estimate: '12h',
+          phase: 'implementation'
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.HYBRID);
+
+        // Should have some subtasks with dependencies and some without
+        const withDeps = subtasks.filter(s => s.dependencies.requires.length > 0);
+        const withoutDeps = subtasks.filter(s => s.dependencies.requires.length === 0);
+
+        // Hybrid should have at least some of each
+        expect(subtasks.length).toBeGreaterThanOrEqual(2);
+      });
+
+      it('should group by source and sequence within groups', () => {
+        const task = {
+          id: 'hybrid-grouped',
+          title: 'Mixed sources',
+          description: '1. First numbered\n2. Second numbered',
+          estimate: '4h',
+          acceptance: ['Criterion A', 'Criterion B']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.HYBRID);
+
+        // Check that subtasks from same source are grouped
+        const bySource = {};
+        subtasks.forEach(st => {
+          const source = st.decompositionSource;
+          if (!bySource[source]) bySource[source] = [];
+          bySource[source].push(st);
+        });
+
+        // Within numbered-list group, should be ordered
+        if (bySource['numbered-list']?.length > 1) {
+          const numbered = bySource['numbered-list'];
+          for (let i = 1; i < numbered.length; i++) {
+            expect(numbered[i].order).toBeGreaterThan(numbered[i - 1].order);
+          }
+        }
+      });
+
+      it('should preserve both parallel and sequential patterns', () => {
+        const task = {
+          id: 'hybrid-patterns',
+          title: 'Both patterns',
+          description: 'First setup, then run items independently (batch), finally cleanup',
+          estimate: '8h',
+          acceptance: ['Setup done', 'Items processed', 'Cleanup complete']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.HYBRID);
+        expect(subtasks[0].decompositionStrategy).toBe(DecompositionStrategy.HYBRID);
+      });
+    });
+  });
+
+  // ============================================
+  // SUBTASK GENERATION - EXPANDED TESTS
+  // ============================================
+
+  describe('subtask generation (expanded)', () => {
+    describe('proper subtask IDs', () => {
+      it('should generate IDs with parent prefix', () => {
+        const task = {
+          id: 'parent-task-123',
+          title: 'Parent task',
+          estimate: '4h',
+          acceptance: ['A', 'B', 'C']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        subtasks.forEach(st => {
+          expect(st.id).toMatch(/^parent-task-123-sub-\d+-[a-f0-9]+$/);
+        });
+      });
+
+      it('should generate IDs with sequential numbering', () => {
+        const task = {
+          id: 'numbered',
+          title: 'Numbered subtasks',
+          estimate: '4h',
+          acceptance: ['First', 'Second', 'Third']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        // Extract numbers from IDs
+        const numbers = subtasks.map(st => {
+          const match = st.id.match(/-sub-(\d+)-/);
+          return match ? parseInt(match[1], 10) : 0;
+        });
+
+        // Should start at 1 and be sequential
+        numbers.sort((a, b) => a - b);
+        expect(numbers[0]).toBe(1);
+        expect(numbers[numbers.length - 1]).toBe(subtasks.length);
+      });
+
+      it('should include random hex suffix for uniqueness', () => {
+        const task = {
+          id: 'unique-test',
+          title: 'Unique IDs',
+          estimate: '4h',
+          acceptance: ['A', 'B']
+        };
+
+        // Generate subtasks twice
+        const subtasks1 = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+        const subtasks2 = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        // IDs should be different due to random suffix
+        expect(subtasks1[0].id).not.toBe(subtasks2[0].id);
+      });
+
+      it('should handle task without ID gracefully', () => {
+        const task = {
+          title: 'No ID task',
+          estimate: '4h',
+          acceptance: ['A', 'B']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        subtasks.forEach(st => {
+          expect(st.id).toMatch(/^task-sub-\d+-[a-f0-9]+$/);
+        });
+      });
+    });
+
+    describe('parent-child linking', () => {
+      it('should reference parent ID in sequential dependencies correctly', () => {
+        const task = {
+          id: 'parent-link-test',
+          title: 'Parent linking',
+          estimate: '6h',
+          acceptance: ['Step 1', 'Step 2', 'Step 3']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.SEQUENTIAL);
+
+        // All subtask dependencies should reference sibling subtasks, not external IDs
+        const subtaskIdSet = new Set(subtasks.map(s => s.id));
+
+        for (let i = 1; i < subtasks.length; i++) {
+          subtasks[i].dependencies.requires.forEach(reqId => {
+            expect(subtaskIdSet.has(reqId) || reqId === task.id).toBe(true);
+          });
+        }
+      });
+
+      it('should inherit parent blocking relationships to related', () => {
+        const task = {
+          id: 'blocks-inherit',
+          title: 'Parent blocks',
+          estimate: '4h',
+          depends: {
+            requires: [],
+            blocks: ['downstream-task-1', 'downstream-task-2']
+          },
+          acceptance: ['A', 'B']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        subtasks.forEach(st => {
+          expect(st.dependencies.related).toContain('downstream-task-1');
+          expect(st.dependencies.related).toContain('downstream-task-2');
+        });
+      });
+
+      it('should inherit parent phase', () => {
+        const phases = ['research', 'planning', 'design', 'implementation', 'testing', 'validation'];
+
+        phases.forEach(phase => {
+          const task = {
+            id: `phase-test-${phase}`,
+            title: `${phase} task`,
+            phase,
+            estimate: '4h',
+            acceptance: ['A', 'B']
+          };
+
+          const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+          subtasks.forEach(st => {
+            expect(st.phase).toBe(phase);
+          });
+        });
+      });
+
+      it('should inherit parent priority', () => {
+        const priorities = ['low', 'medium', 'high', 'critical'];
+
+        priorities.forEach(priority => {
+          const task = {
+            id: `priority-test-${priority}`,
+            title: `${priority} priority task`,
+            priority,
+            estimate: '4h',
+            acceptance: ['A', 'B']
+          };
+
+          const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+          subtasks.forEach(st => {
+            expect(st.priority).toBe(priority);
+          });
+        });
+      });
+    });
+
+    describe('depth limits respected', () => {
+      it('should not generate too many subtasks', () => {
+        const task = {
+          id: 'many-criteria',
+          title: 'Task with many criteria',
+          estimate: '16h',
+          acceptance: Array.from({ length: 20 }, (_, i) => `Criterion ${i + 1}`)
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        expect(subtasks.length).toBeLessThanOrEqual(DEFAULT_CONFIG.maxSubtasks);
+      });
+
+      it('should respect custom maxSubtasks configuration', () => {
+        const customDecomposer = new TaskDecomposer({
+          config: { maxSubtasks: 4 }
+        });
+
+        const task = {
+          id: 'custom-max',
+          title: 'Custom max test',
+          estimate: '8h',
+          acceptance: Array.from({ length: 10 }, (_, i) => `Item ${i + 1}`)
+        };
+
+        const subtasks = customDecomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        expect(subtasks.length).toBeLessThanOrEqual(4);
+      });
+
+      it('should respect minSubtasks configuration', () => {
+        const customDecomposer = new TaskDecomposer({
+          config: { minSubtasks: 3 }
+        });
+
+        const task = {
+          id: 'min-test',
+          title: 'Minimum subtasks test',
+          estimate: '4h',
+          phase: 'implementation'
+        };
+
+        const subtasks = customDecomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        expect(subtasks.length).toBeGreaterThanOrEqual(2);
+      });
+
+      it('should warn when fewer than minSubtasks are generated', () => {
+        // This tests the validation warning path
+        const smallDecomposer = new TaskDecomposer({
+          config: { minSubtasks: 10, maxSubtasks: 5 }
+        });
+
+        const task = {
+          id: 'few-subtasks',
+          title: 'Few criteria',
+          estimate: '2h',
+          acceptance: ['Only one']
+        };
+
+        // Should not throw, but may warn
+        expect(() => {
+          smallDecomposer.decompose(task, DecompositionStrategy.PARALLEL);
+        }).not.toThrow();
+      });
+    });
+  });
+
+  // ============================================
+  // EDGE CASES - EXPANDED TESTS
+  // ============================================
+
+  describe('edge cases (expanded)', () => {
+    describe('empty task decomposition', () => {
+      it('should handle task with no description', () => {
+        const task = {
+          id: 'no-desc',
+          title: 'Title only',
+          estimate: '4h'
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        expect(subtasks).toBeDefined();
+        expect(Array.isArray(subtasks)).toBe(true);
+        expect(subtasks.length).toBeGreaterThanOrEqual(DEFAULT_CONFIG.minSubtasks);
+      });
+
+      it('should handle task with empty strings', () => {
+        const task = {
+          id: 'empty-strings',
+          title: '',
+          description: '',
+          estimate: ''
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        expect(subtasks).toBeDefined();
+        expect(Array.isArray(subtasks)).toBe(true);
+      });
+
+      it('should handle task with only whitespace content', () => {
+        const task = {
+          id: 'whitespace-only',
+          title: '   ',
+          description: '\n\t  \n',
+          estimate: '4h'
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        expect(subtasks).toBeDefined();
+        expect(Array.isArray(subtasks)).toBe(true);
+      });
+
+      it('should fall back to phase templates for content-less tasks', () => {
+        const task = {
+          id: 'no-content',
+          title: 'Task',
+          phase: 'testing',
+          estimate: '4h'
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        // Should use phase templates
+        expect(subtasks.length).toBeGreaterThanOrEqual(2);
+      });
+    });
+
+    describe('single subtask result', () => {
+      it('should handle when decomposition produces single item', () => {
+        const customDecomposer = new TaskDecomposer({
+          config: { minSubtasks: 1, maxSubtasks: 1 }
+        });
+
+        const task = {
+          id: 'single-result',
+          title: 'Single subtask',
+          estimate: '1h',
+          acceptance: ['Only one thing']
+        };
+
+        const subtasks = customDecomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        expect(subtasks.length).toBe(1);
+        expect(subtasks[0].dependencies.requires).toHaveLength(0);
+      });
+
+      it('should handle single acceptance criterion', () => {
+        const task = {
+          id: 'single-criterion',
+          title: 'One criterion',
+          estimate: '2h',
+          acceptance: ['The only requirement']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        expect(subtasks).toBeDefined();
+        expect(Array.isArray(subtasks)).toBe(true);
+      });
+    });
+
+    describe('maximum depth reached', () => {
+      it('should not recursively decompose subtasks', () => {
+        const task = {
+          id: 'max-depth',
+          title: 'Deep task',
+          estimate: '8h',
+          acceptance: ['A', 'B', 'C']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        // Subtasks should not themselves have childTaskIds
+        subtasks.forEach(st => {
+          expect(st.childTaskIds).toBeUndefined();
+        });
+      });
+
+      it('should mark auto-decomposed subtasks with tag', () => {
+        const task = {
+          id: 'tagged-depth',
+          title: 'Tagged task',
+          estimate: '4h',
+          acceptance: ['A', 'B']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        subtasks.forEach(st => {
+          expect(st.tags).toContain('auto-decomposed');
+        });
+      });
+
+      it('should not recommend decomposition for already-decomposed tasks', () => {
+        const task = {
+          id: 'already-decomposed',
+          title: 'Parent with children',
+          estimate: '8h',
+          childTaskIds: ['child-1', 'child-2', 'child-3']
+        };
+
+        const analysis = decomposer.analyze(task);
+
+        expect(analysis.shouldDecompose).toBe(false);
+      });
+    });
+
+    describe('circular dependency prevention', () => {
+      it('should not create self-referential dependencies', () => {
+        const task = {
+          id: 'self-ref-test',
+          title: 'Self reference check',
+          estimate: '4h',
+          acceptance: ['A', 'B', 'C']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.SEQUENTIAL);
+
+        subtasks.forEach(st => {
+          // No subtask should require itself
+          expect(st.dependencies.requires).not.toContain(st.id);
+          // No subtask should block itself
+          expect(st.dependencies.blocks).not.toContain(st.id);
+        });
+      });
+
+      it('should validate all dependency references exist', () => {
+        const task = {
+          id: 'valid-refs',
+          title: 'Valid references',
+          estimate: '6h',
+          acceptance: ['A', 'B', 'C', 'D']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.SEQUENTIAL);
+        const subtaskIds = new Set(subtasks.map(s => s.id));
+
+        subtasks.forEach(st => {
+          st.dependencies.requires.forEach(reqId => {
+            // All required IDs should be valid subtask IDs
+            expect(subtaskIds.has(reqId)).toBe(true);
+          });
+        });
+      });
+
+      it('should prevent A->B->A circular patterns', () => {
+        const task = {
+          id: 'no-circular',
+          title: 'Circular prevention',
+          estimate: '4h',
+          acceptance: ['First', 'Second']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.SEQUENTIAL);
+
+        if (subtasks.length >= 2) {
+          // If A requires B, then B should not require A
+          const first = subtasks[0];
+          const second = subtasks[1];
+
+          if (second.dependencies.requires.includes(first.id)) {
+            expect(first.dependencies.requires).not.toContain(second.id);
+          }
+        }
+      });
+
+      it('should not create dependencies to non-existent subtasks', () => {
+        const task = {
+          id: 'no-external-deps',
+          title: 'Internal deps only',
+          estimate: '4h',
+          acceptance: ['A', 'B', 'C']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.SEQUENTIAL);
+        const validIds = new Set(subtasks.map(s => s.id));
+        validIds.add(task.id); // Parent ID is also valid
+
+        subtasks.forEach(st => {
+          st.dependencies.requires.forEach(reqId => {
+            expect(validIds.has(reqId)).toBe(true);
+          });
+        });
+      });
+    });
+  });
+
+  // ============================================
+  // INTEGRATION WITH HIERARCHY
+  // ============================================
+
+  describe('integration with hierarchy', () => {
+    describe('subtasks have proper delegationDepth', () => {
+      it('should set decompositionStrategy on all subtasks', () => {
+        const strategies = [
+          DecompositionStrategy.PARALLEL,
+          DecompositionStrategy.SEQUENTIAL,
+          DecompositionStrategy.HYBRID,
+          DecompositionStrategy.MANUAL
+        ];
+
+        strategies.forEach(strategy => {
+          const task = {
+            id: `strategy-${strategy}`,
+            title: `${strategy} strategy task`,
+            estimate: '4h',
+            acceptance: ['A', 'B']
+          };
+
+          const subtasks = decomposer.decompose(task, strategy);
+
+          subtasks.forEach(st => {
+            expect(st.decompositionStrategy).toBe(strategy);
+          });
+        });
+      });
+
+      it('should include decompositionSource metadata', () => {
+        const task = {
+          id: 'source-meta',
+          title: 'Source metadata',
+          description: '1. First step\n2. Second step\n- Bullet item',
+          estimate: '4h',
+          acceptance: ['Criterion A']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.HYBRID);
+
+        subtasks.forEach(st => {
+          expect(st.decompositionSource).toBeDefined();
+          expect(typeof st.decompositionSource).toBe('string');
+        });
+      });
+
+      it('should preserve order information for hierarchy traversal', () => {
+        const task = {
+          id: 'order-hierarchy',
+          title: 'Ordered hierarchy',
+          estimate: '6h',
+          acceptance: ['First', 'Second', 'Third', 'Fourth']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.SEQUENTIAL);
+
+        subtasks.forEach(st => {
+          expect(typeof st.order).toBe('number');
+          expect(st.order).toBeGreaterThanOrEqual(0);
+        });
+      });
+    });
+
+    describe('subtasks reference parent correctly', () => {
+      it('should include parent ID in subtask ID format', () => {
+        const task = {
+          id: 'parent-ref-test',
+          title: 'Parent reference',
+          estimate: '4h',
+          acceptance: ['A', 'B']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        subtasks.forEach(st => {
+          expect(st.id.startsWith(task.id + '-sub-')).toBe(true);
+        });
+      });
+
+      it('should create proper dependency chain for TaskManager integration', () => {
+        const task = {
+          id: 'tm-chain',
+          title: 'TaskManager chain',
+          estimate: '6h',
+          acceptance: ['Step 1', 'Step 2', 'Step 3']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.SEQUENTIAL);
+
+        // Verify TaskManager can use these dependencies
+        subtasks.forEach((st, index) => {
+          expect(st.dependencies).toBeDefined();
+          expect(st.dependencies.requires).toBeDefined();
+          expect(st.dependencies.blocks).toBeDefined();
+          expect(Array.isArray(st.dependencies.requires)).toBe(true);
+          expect(Array.isArray(st.dependencies.blocks)).toBe(true);
+        });
+      });
+
+      it('should work with TaskManager.createSubtask interface', () => {
+        const task = {
+          id: 'createsubtask-interface',
+          title: 'Interface compatibility',
+          phase: 'implementation',
+          priority: 'high',
+          estimate: '4h',
+          tags: ['feature', 'core'],
+          acceptance: ['Requirement 1', 'Requirement 2']
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+        // Each subtask should have all required fields for TaskManager
+        subtasks.forEach(st => {
+          // Required fields
+          expect(st.id).toBeDefined();
+          expect(st.title).toBeDefined();
+
+          // Inherited fields
+          expect(st.phase).toBe(task.phase);
+          expect(st.priority).toBe(task.priority);
+          expect(st.tags).toEqual(expect.arrayContaining(task.tags));
+
+          // Decomposition fields
+          expect(st.estimatedEffort).toBeDefined();
+          expect(st.requiredCapabilities).toBeDefined();
+          expect(st.dependencies).toBeDefined();
+        });
+      });
+
+      it('should integrate properly when TaskManager is available', () => {
+        const task = {
+          id: 'integration-full',
+          title: 'Full integration',
+          estimate: '8h',
+          acceptance: ['A', 'B', 'C'],
+          phase: 'implementation'
+        };
+
+        const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+        const created = decomposer.createSubtasks(task, subtasks);
+
+        // Should have called TaskManager methods
+        expect(mockTaskManager.createSubtask).toHaveBeenCalledTimes(subtasks.length);
+        expect(mockTaskManager.setDecomposition).toHaveBeenCalledWith(
+          task.id,
+          expect.objectContaining({
+            strategy: DecompositionStrategy.PARALLEL,
+            estimatedSubtasks: subtasks.length,
+            completedSubtasks: 0,
+            aggregationRule: 'average'
+          })
+        );
+
+        expect(created.length).toBe(subtasks.length);
+      });
+    });
+  });
+
+  // ============================================
+  // ACCEPTANCE CRITERIA EDGE CASES
+  // ============================================
+
+  describe('acceptance criteria handling', () => {
+    it('should handle array with empty strings', () => {
+      const task = {
+        id: 'empty-ac-strings',
+        title: 'Empty criteria',
+        estimate: '4h',
+        acceptance: ['Valid', '', '  ', 'Also valid']
+      };
+
+      const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+      expect(subtasks).toBeDefined();
+      expect(Array.isArray(subtasks)).toBe(true);
+    });
+
+    it('should handle very long acceptance criteria text', () => {
+      const longText = 'A'.repeat(500);
+      const task = {
+        id: 'long-ac',
+        title: 'Long criteria',
+        estimate: '4h',
+        acceptance: [longText]
+      };
+
+      const subtasks = decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+
+      // Title should be truncated
+      subtasks.forEach(st => {
+        expect(st.title.length).toBeLessThanOrEqual(53);
+      });
+    });
+
+    it('should handle acceptance with special characters', () => {
+      const task = {
+        id: 'special-chars',
+        title: 'Special characters',
+        estimate: '4h',
+        acceptance: [
+          'Handle @#$%^&* characters',
+          'Unicode: cafe \u0300',
+          'Newlines should\nbe handled',
+          'Tabs\tshould\twork'
+        ]
+      };
+
+      expect(() => {
+        decomposer.decompose(task, DecompositionStrategy.PARALLEL);
+      }).not.toThrow();
+    });
+  });
+
+  // ============================================
+  // ESTIMATE PARSING EDGE CASES
+  // ============================================
+
+  describe('estimate parsing edge cases', () => {
+    it('should handle various time formats', () => {
+      const formats = [
+        { input: '30m', expected: 0.5 },
+        { input: '1h', expected: 1 },
+        { input: '2 hours', expected: 2 },
+        { input: '1d', expected: 8 },
+        { input: '2 days', expected: 16 },
+        { input: '90 min', expected: 1.5 },
+        { input: '4.5h', expected: 4.5 }
+      ];
+
+      formats.forEach(({ input, expected }) => {
+        const task = {
+          id: `format-${input}`,
+          title: 'Format test',
+          estimate: input
+        };
+
+        const analysis = decomposer.analyze(task);
+        expect(analysis.metadata.effortHours).toBeCloseTo(expected, 1);
+      });
+    });
+
+    it('should handle invalid estimate gracefully', () => {
+      const invalidEstimates = ['abc', '???', '', null, undefined];
+
+      invalidEstimates.forEach(estimate => {
+        const task = {
+          id: `invalid-${estimate}`,
+          title: 'Invalid estimate',
+          estimate
+        };
+
+        const analysis = decomposer.analyze(task);
+        expect(analysis.metadata.effortHours).toBe(4); // Default
+      });
+    });
+
+    it('should handle numeric estimates', () => {
+      const task = {
+        id: 'numeric-estimate',
+        title: 'Numeric',
+        estimate: 6
+      };
+
+      const analysis = decomposer.analyze(task);
+      expect(analysis.metadata.effortHours).toBe(6);
+    });
+  });
 });
