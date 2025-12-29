@@ -1,58 +1,64 @@
 # Current Plan
-**Phase**: IMPLEMENTATION COMPLETE
-**Status**: Parallel Session Safety - 100% Complete
+**Phase**: IMPLEMENTATION
+**Status**: Session-Task Claiming System - Ready to Start
 
 ---
 
-## Primary Focus: Parallel Session Safety for tasks.json
+## Primary Focus: Session-Task Claiming
 
-**Goal**: Eliminate race conditions when multiple CLI sessions edit tasks.json concurrently.
+**Goal**: Fix dashboard showing same task for all sessions by implementing atomic task claiming.
 
-**Solution**: Hybrid SQLite Coordinator + JSON (preserves human-readability, adds proper locking)
+**Design Doc**: `docs/SESSION-TASK-CLAIMING-DESIGN.md`
 
 ---
 
 ## Implementation Phases
 
-### Phase 1: Optimistic Locking - COMPLETED ✅
-**Task**: `parallel-safety-phase1-optimistic-locking` (95/100)
+### Phase 1: Core Infrastructure - READY
+**Task**: `session-task-claiming-phase1` (3h)
+- Add `task_claims` table to CoordinationDB
+- Implement `claimTask()`, `releaseClaim()`, `refreshClaim()`
+- Add cleanup timer for expired claims
+- Unit tests
 
-### Phase 2: SQLite Coordinator - COMPLETED ✅
-**Task**: `parallel-safety-phase2-sqlite-coordinator` (95/100)
+### Phase 2: TaskManager Integration - BLOCKED (Phase 1)
+**Task**: `session-task-claiming-phase2` (2h)
+- Add `claim` field to task schema
+- Implement `claimNextTask()` atomic operation
+- Handle orphaned claims on session cleanup
 
-### Phase 3: Shadow Mode - COMPLETED ✅
-**Task**: `parallel-safety-phase3-shadow-mode` (95/100)
+### Phase 3: Dashboard API - BLOCKED (Phase 2)
+**Task**: `session-task-claiming-phase3` (2h)
+- 7 new API endpoints for claim management
+- SSE events for real-time updates
 
-### Phase 4: Dashboard Conflicts - COMPLETED ✅
-**Task**: `parallel-safety-phase4-dashboard-conflicts` (95/100)
-
-**Delivered**:
-- Conflicts table in CoordinationDB (4 types: VERSION_CONFLICT, CONCURRENT_EDIT, STALE_LOCK, MERGE_FAILURE)
-- 8 new API endpoints (conflicts + change-journal)
-- SSE broadcasting for conflict:detected, conflict:resolved, journal:entry
-- Conflict resolution with version_a, version_b, merged, manual options
-- 39 unit tests in `conflict-management.test.js`
+### Phase 4: Dashboard UI - BLOCKED (Phase 3)
+**Task**: `session-task-claiming-phase4` (2h)
+- Per-session task display in session cards
+- Claim badges in task queue
+- Stale claim indicators
 
 ---
 
-## Progress: 100% Complete (4 of 4 phases)
+## Progress: 0% (0 of 4 phases)
 
 ---
 
-## Parallel Safety Summary
+## Key Deliverables
 
-**Total Deliverables**:
-- CoordinationDB: 1100+ lines (locks, sessions, journal, conflicts)
-- ShadowModeMetrics: 400+ lines (validation, health scoring)
-- TaskManager integration: 500+ lines (shadow mode, conflict detection)
-- Dashboard API: 14 new endpoints (shadow + conflicts + journal)
-- Tests: 136 new tests (49 coordination + 48 shadow + 39 conflicts)
+| Component | Changes |
+|-----------|---------|
+| CoordinationDB | `task_claims` table, atomic claim methods |
+| TaskManager | `claim` field, `claimNextTask()` |
+| SessionRegistry | `currentTaskId` field |
+| Dashboard API | 7 new endpoints, 4 SSE event types |
+| Dashboard UI | Per-session task display, claim badges |
 
 ---
 
 ## Next Steps
 
-Initiative complete. Possible next work:
-1. `hierarchy-phase3-decomposer` - TaskDecomposer for intelligent task breakdown
-2. `audit-cleanup-phase1` - Delete orphaned modules (~10K lines)
-3. UI polish for conflict resolution modal in dashboard
+1. Start `session-task-claiming-phase1`
+2. Add `task_claims` table to coordination-db.js
+3. Implement atomic claim/release operations
+4. Write unit tests

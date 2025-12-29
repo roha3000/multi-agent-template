@@ -20,7 +20,7 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "hierarchy-phase4-metrics",
+        "session-task-claiming",
         "hierarchy-phase4-optimization"
       ]
     },
@@ -48,6 +48,7 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "hierarchy-phase4-metrics",
         "hierarchy-phase3-auto-delegation",
         "taskjson-parallel-session-safety",
         "parallel-safety-phase2-sqlite-coordinator",
@@ -943,10 +944,12 @@
         "Metrics exported to MemoryStore for historical analysis",
         "Dashboard metrics panel integration"
       ],
-      "status": "ready",
+      "status": "done",
+      "score": 95,
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T23:45:00.000Z"
+      "updated": "2025-12-29T04:00:00.000Z",
+      "completedAt": "2025-12-29T04:00:00.000Z"
     },
     "hierarchy-phase4-optimization": {
       "parentTaskId": null,
@@ -1316,6 +1319,210 @@
         "__tests__/core/conflict-management.test.js: 39 unit tests",
         "Expert agent swarm design: API, UI, SSE, Detection, Test Strategy"
       ]
+    },
+    "session-task-claiming": {
+      "parentTaskId": null,
+      "childTaskIds": [
+        "session-task-claiming-phase1",
+        "session-task-claiming-phase2",
+        "session-task-claiming-phase3",
+        "session-task-claiming-phase4"
+      ],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": {
+        "strategy": "sequential",
+        "estimatedSubtasks": 4,
+        "completedSubtasks": 0,
+        "aggregationRule": "all-complete"
+      },
+      "id": "session-task-claiming",
+      "title": "Session-Task Claiming System",
+      "description": "Implement atomic task claiming so each session can exclusively claim tasks. Dashboard currently shows same task for all sessions because tasks.json has no session binding. Solution: Add task_claims table to CoordinationDB, claim field to tasks, currentTaskId to sessions, plus API endpoints and SSE events.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "9h",
+      "tags": [
+        "dashboard",
+        "concurrency",
+        "task-manager",
+        "sessions",
+        "multi-session"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "parallel-safety-phase2-sqlite-coordinator"
+        ]
+      },
+      "acceptance": [
+        "Dashboard shows correct current task per session (not same for all)",
+        "Tasks can only be claimed by one session at a time",
+        "Claimed tasks show owner session in task queue view",
+        "SSE events broadcast claim/release in real-time",
+        "Orphaned claims auto-released after timeout",
+        "All tests pass"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-28T23:50:00.000Z",
+      "updated": "2025-12-28T23:50:00.000Z",
+      "designDoc": "docs/SESSION-TASK-CLAIMING-DESIGN.md"
+    },
+    "session-task-claiming-phase1": {
+      "parentTaskId": "session-task-claiming",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "session-task-claiming-phase1",
+      "title": "Phase 1: Core Infrastructure - task_claims Table",
+      "description": "Add task_claims table to CoordinationDB with atomic claim/release operations. Implement claimTask(), releaseClaim(), refreshClaim(), getActiveClaims() methods. Add cleanup timer for expired claims.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "3h",
+      "tags": [
+        "coordination-db",
+        "sqlite",
+        "concurrency"
+      ],
+      "depends": {
+        "blocks": [
+          "session-task-claiming-phase2"
+        ],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "task_claims table created in CoordinationDB schema",
+        "claimTask() atomically claims task for session",
+        "releaseClaim() releases with reason tracking",
+        "refreshClaim() extends TTL via heartbeat",
+        "getActiveClaims() returns all active claims",
+        "Cleanup timer removes expired claims every 5 min",
+        "Unit tests for all claim operations"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-28T23:50:00.000Z",
+      "updated": "2025-12-28T23:50:00.000Z"
+    },
+    "session-task-claiming-phase2": {
+      "parentTaskId": "session-task-claiming",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "session-task-claiming-phase2",
+      "title": "Phase 2: TaskManager Integration",
+      "description": "Add claim field to task schema in tasks.json. Implement claimNextTask() that atomically claims. Add heartbeat refresh during long operations. Handle orphaned claims on session cleanup.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "task-manager",
+        "integration"
+      ],
+      "depends": {
+        "blocks": [
+          "session-task-claiming-phase3"
+        ],
+        "requires": [
+          "session-task-claiming-phase1"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Task schema has claim object with sessionId, claimedAt, expiresAt, lastHeartbeat",
+        "claimNextTask() atomically gets and claims next available task",
+        "Heartbeat sent automatically during long operations",
+        "releaseSessionTasks() called on session deregistration",
+        "Integration tests for claim flow"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T23:50:00.000Z",
+      "updated": "2025-12-28T23:50:00.000Z"
+    },
+    "session-task-claiming-phase3": {
+      "parentTaskId": "session-task-claiming",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "session-task-claiming-phase3",
+      "title": "Phase 3: Dashboard API Endpoints",
+      "description": "Add 7 claim API endpoints to enhanced-dashboard-server.js. Add SSE events for claim/release. Update /api/sessions/summary to include currentTaskId.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "api",
+        "sse"
+      ],
+      "depends": {
+        "blocks": [
+          "session-task-claiming-phase4"
+        ],
+        "requires": [
+          "session-task-claiming-phase2"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "POST /api/tasks/:taskId/claim endpoint",
+        "POST /api/tasks/:taskId/release endpoint",
+        "POST /api/tasks/:taskId/claim/heartbeat endpoint",
+        "GET /api/tasks/in-flight endpoint",
+        "GET /api/sessions/:sessionId/current-task endpoint",
+        "POST /api/tasks/claims/cleanup endpoint",
+        "GET /api/tasks/claims/stats endpoint",
+        "SSE events: task:claimed, task:released, task:claim-expired, task:claim-orphaned",
+        "Integration tests for all endpoints"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T23:50:00.000Z",
+      "updated": "2025-12-28T23:50:00.000Z"
+    },
+    "session-task-claiming-phase4": {
+      "parentTaskId": "session-task-claiming",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "session-task-claiming-phase4",
+      "title": "Phase 4: Dashboard UI Updates",
+      "description": "Update global-dashboard.html to show per-session current tasks. Add claim badges to task queue. Add stale claim indicators. Handle SSE events for real-time updates.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "ui",
+        "sse"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "session-task-claiming-phase3"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Session cards show per-session claimed task (not same for all)",
+        "Task queue shows claim status with session badges",
+        "Stale claims show warning indicator",
+        "SSE events update UI in real-time",
+        "Filter/sort options for claimed vs available tasks",
+        "Visual distinction between CLI and autonomous claims"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-28T23:50:00.000Z",
+      "updated": "2025-12-28T23:50:00.000Z"
     }
   },
   "archival": {
