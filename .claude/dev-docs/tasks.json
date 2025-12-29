@@ -20,8 +20,7 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "session-task-claiming",
-        "hierarchy-phase4-optimization"
+        "session-task-claiming"
       ]
     },
     "next": {
@@ -48,6 +47,7 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "hierarchy-phase4-optimization",
         "hierarchy-phase4-metrics",
         "hierarchy-phase3-auto-delegation",
         "taskjson-parallel-session-safety",
@@ -987,10 +987,12 @@
         "Performance benchmarks vs baseline flat execution",
         "Configuration options in CLAUDE.md"
       ],
-      "status": "ready",
+      "status": "done",
+      "score": 95,
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T23:45:00.000Z"
+      "updated": "2025-12-29T05:00:00.000Z",
+      "completedAt": "2025-12-29T05:00:00.000Z"
     },
     "hierarchy-tests-unit": {
       "parentTaskId": null,

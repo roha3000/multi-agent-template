@@ -38,6 +38,14 @@ class CoordinationDB extends EventEmitter {
       cleanupInterval: options.cleanupInterval || 60000, // 1 minute
       autoCleanup: options.autoCleanup !== false,
       journalRetention: options.journalRetention || 7 * 24 * 60 * 60 * 1000, // 7 days
+      // Claim configuration
+      claimConfig: {
+        defaultTTL: (options.claimConfig && options.claimConfig.defaultTTL) || 30 * 60 * 1000, // 30 minutes
+        cleanupInterval: (options.claimConfig && options.claimConfig.cleanupInterval) || 5 * 60 * 1000, // 5 minutes
+        orphanThreshold: (options.claimConfig && options.claimConfig.orphanThreshold) || 10 * 60 * 1000, // 10 minutes
+        warningThreshold: (options.claimConfig && options.claimConfig.warningThreshold) || 5 * 60 * 1000, // 5 minutes remaining
+        ...(options.claimConfig || {})
+      },
       ...options
     };
 
@@ -164,6 +172,109 @@ class CoordinationDB extends EventEmitter {
       CREATE INDEX IF NOT EXISTS idx_conflicts_resource ON conflicts(resource, detected_at DESC);
       CREATE INDEX IF NOT EXISTS idx_conflicts_session_a ON conflicts(session_a_id);
       CREATE INDEX IF NOT EXISTS idx_conflicts_detected_at ON conflicts(detected_at DESC);
+
+      -- Delegation metrics table: Track aggregated delegation performance metrics
+      CREATE TABLE IF NOT EXISTS delegation_metrics (
+        id TEXT PRIMARY KEY NOT NULL,
+        session_id TEXT,
+        metrics_type TEXT NOT NULL DEFAULT 'delegation',
+
+        -- Counters
+        total_delegations INTEGER NOT NULL DEFAULT 0,
+        successful_delegations INTEGER NOT NULL DEFAULT 0,
+        failed_delegations INTEGER NOT NULL DEFAULT 0,
+        retries INTEGER NOT NULL DEFAULT 0,
+        timeouts INTEGER NOT NULL DEFAULT 0,
+
+        -- Duration stats (in milliseconds)
+        avg_duration_ms REAL NOT NULL DEFAULT 0,
+        min_duration_ms REAL,
+        max_duration_ms REAL,
+        p50_duration_ms REAL,
+        p95_duration_ms REAL,
+        p99_duration_ms REAL,
+
+        -- Quality metrics (0-100)
+        avg_quality_score REAL NOT NULL DEFAULT 0,
+        min_quality_score REAL,
+        max_quality_score REAL,
+
+        -- Pattern distribution (JSON object)
+        pattern_distribution TEXT,
+
+        -- Resource utilization
+        peak_concurrent_children INTEGER NOT NULL DEFAULT 0,
+        total_tokens_consumed INTEGER NOT NULL DEFAULT 0,
+
+        -- Timestamps
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+        updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+
+        -- Full metrics data (JSON blob for complete state)
+        metrics_data TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_delegation_metrics_session ON delegation_metrics(session_id);
+      CREATE INDEX IF NOT EXISTS idx_delegation_metrics_type ON delegation_metrics(metrics_type);
+      CREATE INDEX IF NOT EXISTS idx_delegation_metrics_updated ON delegation_metrics(updated_at DESC);
+
+      -- Delegation snapshots table: Historical point-in-time metrics captures
+      CREATE TABLE IF NOT EXISTS delegation_snapshots (
+        id TEXT PRIMARY KEY NOT NULL,
+        metrics_id TEXT NOT NULL,
+        session_id TEXT,
+
+        -- Snapshot timestamp
+        snapshot_time INTEGER NOT NULL,
+
+        -- Counters at snapshot time
+        success_count INTEGER NOT NULL DEFAULT 0,
+        failure_count INTEGER NOT NULL DEFAULT 0,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        timeout_count INTEGER NOT NULL DEFAULT 0,
+
+        -- Duration histogram summary (JSON)
+        duration_histogram TEXT,
+
+        -- Quality metrics at snapshot
+        avg_quality REAL,
+
+        -- Pattern distribution at snapshot (JSON)
+        pattern_snapshot TEXT,
+
+        -- Resource state at snapshot
+        active_children INTEGER NOT NULL DEFAULT 0,
+
+        -- Full snapshot data (JSON blob)
+        snapshot_data TEXT,
+
+        -- Created timestamp
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_delegation_snapshots_metrics ON delegation_snapshots(metrics_id);
+      CREATE INDEX IF NOT EXISTS idx_delegation_snapshots_session ON delegation_snapshots(session_id);
+      CREATE INDEX IF NOT EXISTS idx_delegation_snapshots_time ON delegation_snapshots(snapshot_time DESC);
+
+      -- Task Claims table: Atomic cross-process task claiming with session binding
+      -- Purpose: Prevent multiple sessions from working on the same task simultaneously
+      CREATE TABLE IF NOT EXISTS task_claims (
+        task_id TEXT PRIMARY KEY NOT NULL,
+        session_id TEXT NOT NULL,
+        claimed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+        expires_at INTEGER NOT NULL,
+        last_heartbeat INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+        heartbeat_count INTEGER NOT NULL DEFAULT 0,
+        agent_type TEXT CHECK(agent_type IN ('cli', 'autonomous', 'unknown')),
+        release_reason TEXT CHECK(release_reason IN (NULL, 'completed', 'failed', 'manual', 'expired', 'session_dead', 'timeout')),
+        metadata TEXT,
+
+        FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_task_claims_session ON task_claims(session_id);
+      CREATE INDEX IF NOT EXISTS idx_task_claims_expires ON task_claims(expires_at);
+      CREATE INDEX IF NOT EXISTS idx_task_claims_heartbeat ON task_claims(last_heartbeat);
     `);
 
     // Prepare commonly used statements
@@ -280,6 +391,106 @@ class CoordinationDB extends EventEmitter {
       `),
       deleteOldConflicts: this.db.prepare(`
         DELETE FROM conflicts WHERE resolved_at < ? AND status IN ('resolved', 'auto-resolved')
+      `),
+
+      // Delegation metrics statements
+      upsertDelegationMetrics: this.db.prepare(`
+        INSERT INTO delegation_metrics (id, session_id, metrics_type, total_delegations, successful_delegations,
+          failed_delegations, retries, timeouts, avg_duration_ms, min_duration_ms, max_duration_ms,
+          p50_duration_ms, p95_duration_ms, p99_duration_ms, avg_quality_score, min_quality_score,
+          max_quality_score, pattern_distribution, peak_concurrent_children, total_tokens_consumed,
+          created_at, updated_at, metrics_data)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          total_delegations = excluded.total_delegations,
+          successful_delegations = excluded.successful_delegations,
+          failed_delegations = excluded.failed_delegations,
+          retries = excluded.retries,
+          timeouts = excluded.timeouts,
+          avg_duration_ms = excluded.avg_duration_ms,
+          min_duration_ms = excluded.min_duration_ms,
+          max_duration_ms = excluded.max_duration_ms,
+          p50_duration_ms = excluded.p50_duration_ms,
+          p95_duration_ms = excluded.p95_duration_ms,
+          p99_duration_ms = excluded.p99_duration_ms,
+          avg_quality_score = excluded.avg_quality_score,
+          min_quality_score = excluded.min_quality_score,
+          max_quality_score = excluded.max_quality_score,
+          pattern_distribution = excluded.pattern_distribution,
+          peak_concurrent_children = excluded.peak_concurrent_children,
+          total_tokens_consumed = excluded.total_tokens_consumed,
+          updated_at = excluded.updated_at,
+          metrics_data = excluded.metrics_data
+      `),
+      getDelegationMetrics: this.db.prepare(`
+        SELECT * FROM delegation_metrics WHERE id = ?
+      `),
+      getDelegationMetricsBySession: this.db.prepare(`
+        SELECT * FROM delegation_metrics WHERE session_id = ? ORDER BY updated_at DESC
+      `),
+      getAllDelegationMetrics: this.db.prepare(`
+        SELECT * FROM delegation_metrics ORDER BY updated_at DESC LIMIT ?
+      `),
+      deleteDelegationMetrics: this.db.prepare(`
+        DELETE FROM delegation_metrics WHERE id = ?
+      `),
+
+      // Delegation snapshots statements
+      insertDelegationSnapshot: this.db.prepare(`
+        INSERT INTO delegation_snapshots (id, metrics_id, session_id, snapshot_time, success_count,
+          failure_count, retry_count, timeout_count, duration_histogram, avg_quality,
+          pattern_snapshot, active_children, snapshot_data, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `),
+      getDelegationSnapshot: this.db.prepare(`
+        SELECT * FROM delegation_snapshots WHERE id = ?
+      `),
+      getDelegationSnapshotsByMetrics: this.db.prepare(`
+        SELECT * FROM delegation_snapshots WHERE metrics_id = ? ORDER BY snapshot_time DESC LIMIT ?
+      `),
+      getDelegationSnapshotsSince: this.db.prepare(`
+        SELECT * FROM delegation_snapshots WHERE metrics_id = ? AND snapshot_time > ? ORDER BY snapshot_time DESC
+      `),
+      getRecentDelegationSnapshots: this.db.prepare(`
+        SELECT * FROM delegation_snapshots ORDER BY snapshot_time DESC LIMIT ?
+      `),
+      deleteOldDelegationSnapshots: this.db.prepare(`
+        DELETE FROM delegation_snapshots WHERE created_at < ?
+      `),
+
+      // Task claim statements
+      getTaskClaim: this.db.prepare(`
+        SELECT * FROM task_claims WHERE task_id = ?
+      `),
+      insertTaskClaim: this.db.prepare(`
+        INSERT INTO task_claims (task_id, session_id, claimed_at, expires_at, last_heartbeat, heartbeat_count, agent_type, metadata)
+        VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+      `),
+      updateTaskClaimHeartbeat: this.db.prepare(`
+        UPDATE task_claims
+        SET expires_at = ?, last_heartbeat = ?, heartbeat_count = heartbeat_count + 1
+        WHERE task_id = ? AND session_id = ?
+      `),
+      deleteTaskClaim: this.db.prepare(`
+        DELETE FROM task_claims WHERE task_id = ? AND session_id = ?
+      `),
+      deleteTaskClaimByTaskId: this.db.prepare(`
+        DELETE FROM task_claims WHERE task_id = ?
+      `),
+      getClaimsBySession: this.db.prepare(`
+        SELECT * FROM task_claims WHERE session_id = ?
+      `),
+      getActiveTaskClaims: this.db.prepare(`
+        SELECT * FROM task_claims WHERE expires_at > ?
+      `),
+      deleteExpiredTaskClaims: this.db.prepare(`
+        DELETE FROM task_claims WHERE expires_at < ?
+      `),
+      deleteAllSessionClaims: this.db.prepare(`
+        DELETE FROM task_claims WHERE session_id = ?
+      `),
+      getExpiredTaskClaims: this.db.prepare(`
+        SELECT * FROM task_claims WHERE expires_at < ?
       `)
     };
   }
@@ -347,17 +558,20 @@ class CoordinationDB extends EventEmitter {
   }
 
   /**
-   * Deregister session and release all its locks
+   * Deregister session and release all its locks and claims
    * @param {string} sessionId - Session ID to deregister
    * @returns {Object} Deregistration result
    */
   deregisterSession(sessionId = null) {
     const sid = sessionId || this._currentSessionId;
-    if (!sid) return { deregistered: false, locksReleased: 0 };
+    if (!sid) return { deregistered: false, locksReleased: 0, claimsReleased: 0 };
 
     // Release all locks held by this session
     const locks = this._stmts.getLocksBySession.all(sid);
     this._stmts.deleteAllSessionLocks.run(sid);
+
+    // Release all task claims held by this session
+    const claimResult = this.releaseSessionClaims(sid, 'session_deregistered');
 
     // Remove session
     const result = this._stmts.deleteSession.run(sid);
@@ -368,13 +582,15 @@ class CoordinationDB extends EventEmitter {
 
     this.emit('session:deregistered', {
       sessionId: sid,
-      locksReleased: locks.length
+      locksReleased: locks.length,
+      claimsReleased: claimResult.count
     });
 
     return {
       sessionId: sid,
       deregistered: result.changes > 0,
-      locksReleased: locks.length
+      locksReleased: locks.length,
+      claimsReleased: claimResult.count
     };
   }
 
@@ -697,6 +913,707 @@ class CoordinationDB extends EventEmitter {
     } finally {
       this.releaseLock(resource, sessionId);
     }
+  }
+
+  // ============================================================================
+  // TASK CLAIM CLEANUP
+  // ============================================================================
+
+  /**
+   * Clean up expired task claims
+   * Removes claims where expires_at < now and emits events for each
+   * @returns {Object} Cleanup result with count and expired claim details
+   */
+  cleanupExpiredClaims() {
+    // Skip if database is closed
+    if (!this.db) return { count: 0, claims: [] };
+
+    const now = Date.now();
+
+    // Get all expired claims before deleting for event emission
+    const expiredClaims = this.db.prepare(`
+      SELECT task_id, session_id, claimed_at, expires_at
+      FROM task_claims
+      WHERE expires_at < ?
+    `).all(now);
+
+    if (expiredClaims.length === 0) {
+      return { count: 0, claims: [] };
+    }
+
+    // Delete expired claims
+    const result = this.db.prepare(`
+      DELETE FROM task_claims WHERE expires_at < ?
+    `).run(now);
+
+    // Emit events for each expired claim
+    for (const claim of expiredClaims) {
+      this.emit('claim:expired', {
+        taskId: claim.task_id,
+        sessionId: claim.session_id,
+        claimedAt: claim.claimed_at,
+        expiresAt: claim.expires_at,
+        expiredAt: now,
+        ageMs: now - claim.claimed_at
+      });
+    }
+
+    // Emit summary event
+    if (result.changes > 0) {
+      this.emit('claims:cleanup', {
+        type: 'expired',
+        count: result.changes,
+        timestamp: now
+      });
+    }
+
+    return {
+      count: result.changes,
+      claims: expiredClaims.map(c => ({
+        taskId: c.task_id,
+        sessionId: c.session_id,
+        claimedAt: c.claimed_at,
+        expiresAt: c.expires_at
+      }))
+    };
+  }
+
+  /**
+   * Clean up orphaned task claims from dead/stale sessions
+   * Identifies claims where the session is missing or stale, then releases them
+   * @param {Object} options - Cleanup options
+   * @param {boolean} options.checkPid - Whether to verify process is dead via PID (default: false)
+   * @returns {Object} Cleanup result with count and orphaned claim details
+   */
+  cleanupOrphanedClaims(options = {}) {
+    // Skip if database is closed
+    if (!this.db) return { count: 0, claims: [] };
+
+    const { checkPid = false } = options;
+    const now = Date.now();
+    const staleThreshold = now - this.options.claimConfig.orphanThreshold;
+
+    // Find claims with missing or stale sessions
+    const orphanedClaims = this.db.prepare(`
+      SELECT
+        tc.task_id,
+        tc.session_id,
+        tc.claimed_at,
+        tc.expires_at,
+        tc.last_heartbeat,
+        s.last_heartbeat as session_heartbeat,
+        s.pid
+      FROM task_claims tc
+      LEFT JOIN sessions s ON tc.session_id = s.id
+      WHERE
+        s.id IS NULL                              -- Session doesn't exist
+        OR s.last_heartbeat < ?                   -- Session is stale
+    `).all(staleThreshold);
+
+    if (orphanedClaims.length === 0) {
+      return { count: 0, claims: [] };
+    }
+
+    // Optional PID checking for additional validation
+    const confirmedOrphans = [];
+    if (checkPid) {
+      for (const claim of orphanedClaims) {
+        if (claim.pid && this._isProcessAlive(claim.pid)) {
+          // Process is still alive, skip this one
+          continue;
+        }
+        confirmedOrphans.push(claim);
+      }
+    } else {
+      confirmedOrphans.push(...orphanedClaims);
+    }
+
+    if (confirmedOrphans.length === 0) {
+      return { count: 0, claims: [] };
+    }
+
+    // Delete orphaned claims
+    const taskIds = confirmedOrphans.map(c => c.task_id);
+    const placeholders = taskIds.map(() => '?').join(',');
+    const result = this.db.prepare(`
+      DELETE FROM task_claims WHERE task_id IN (${placeholders})
+    `).run(...taskIds);
+
+    // Emit events for each orphaned claim
+    for (const claim of confirmedOrphans) {
+      this.emit('claim:orphaned', {
+        taskId: claim.task_id,
+        sessionId: claim.session_id,
+        claimedAt: claim.claimed_at,
+        expiresAt: claim.expires_at,
+        lastHeartbeat: claim.last_heartbeat,
+        sessionHeartbeat: claim.session_heartbeat,
+        staleForMs: claim.session_heartbeat ? now - claim.session_heartbeat : null,
+        reason: claim.session_heartbeat === null ? 'session_missing' : 'session_stale',
+        cleanedAt: now
+      });
+    }
+
+    // Emit summary event
+    if (result.changes > 0) {
+      this.emit('claims:cleanup', {
+        type: 'orphaned',
+        count: result.changes,
+        timestamp: now
+      });
+    }
+
+    return {
+      count: result.changes,
+      claims: confirmedOrphans.map(c => ({
+        taskId: c.task_id,
+        sessionId: c.session_id,
+        claimedAt: c.claimed_at,
+        reason: c.session_heartbeat === null ? 'session_missing' : 'session_stale',
+        staleForMs: c.session_heartbeat ? now - c.session_heartbeat : null
+      }))
+    };
+  }
+
+  /**
+   * Release all task claims for a specific session
+   * Called when session deregisters or during session cleanup
+   * @param {string} sessionId - Session ID to release claims for
+   * @param {string} reason - Reason for release (e.g., 'session_ended', 'cleanup', 'manual')
+   * @returns {Object} Release result with count and released claim details
+   */
+  releaseSessionClaims(sessionId, reason = 'session_ended') {
+    const now = Date.now();
+
+    // Get all claims for this session before deleting
+    const claims = this.db.prepare(`
+      SELECT task_id, claimed_at, expires_at, last_heartbeat
+      FROM task_claims
+      WHERE session_id = ?
+    `).all(sessionId);
+
+    if (claims.length === 0) {
+      return { count: 0, sessionId, reason, claims: [] };
+    }
+
+    // Delete all claims for this session
+    const result = this.db.prepare(`
+      DELETE FROM task_claims WHERE session_id = ?
+    `).run(sessionId);
+
+    // Emit events for each released claim
+    for (const claim of claims) {
+      this.emit('claim:released', {
+        taskId: claim.task_id,
+        sessionId,
+        claimedAt: claim.claimed_at,
+        expiresAt: claim.expires_at,
+        lastHeartbeat: claim.last_heartbeat,
+        releasedAt: now,
+        reason,
+        heldForMs: now - claim.claimed_at
+      });
+    }
+
+    // Emit summary event
+    if (result.changes > 0) {
+      this.emit('claims:session_cleanup', {
+        sessionId,
+        count: result.changes,
+        reason,
+        timestamp: now
+      });
+    }
+
+    return {
+      count: result.changes,
+      sessionId,
+      reason,
+      claims: claims.map(c => ({
+        taskId: c.task_id,
+        claimedAt: c.claimed_at,
+        expiresAt: c.expires_at,
+        heldForMs: now - c.claimed_at
+      }))
+    };
+  }
+
+  /**
+   * Check if a process is alive (for PID validation)
+   * @param {number} pid - Process ID to check
+   * @returns {boolean} True if process is alive
+   * @private
+   */
+  _isProcessAlive(pid) {
+    if (!pid) return false;
+
+    try {
+      // Signal 0 doesn't kill, just checks if process exists
+      // Throws if process doesn't exist or we don't have permission
+      process.kill(pid, 0);
+      return true;
+    } catch (err) {
+      // ESRCH means no such process
+      // EPERM means process exists but we don't have permission (still alive)
+      return err.code === 'EPERM';
+    }
+  }
+
+  // ============================================================================
+  // TASK CLAIM OPERATIONS
+  // ============================================================================
+
+  /**
+   * Claim a task for exclusive execution by a session
+   * Uses atomic transaction to prevent race conditions
+   * @param {string} taskId - Task ID to claim
+   * @param {string} sessionId - Session claiming the task
+   * @param {Object} options - Claim options
+   * @param {number} options.ttlMs - Claim TTL in milliseconds (default: 30 min)
+   * @param {string} options.agentType - Type of agent claiming (cli/autonomous)
+   * @param {Object} options.metadata - Additional claim metadata
+   * @param {boolean} options.force - Force claim even if held by same session
+   * @returns {Object} Claim result { claimed, claim?, error?, existingClaim? }
+   */
+  claimTask(taskId, sessionId, options = {}) {
+    const now = Date.now();
+    const {
+      ttlMs = this.options.claimConfig.defaultTTL,
+      agentType = 'unknown',
+      metadata = {},
+      force = false
+    } = options;
+
+    const expiresAt = now + ttlMs;
+
+    // Use transaction for atomicity
+    const txn = this.db.transaction(() => {
+      // Check for existing claim
+      const existing = this._stmts.getTaskClaim.get(taskId);
+
+      if (existing) {
+        const isExpired = existing.expires_at < now;
+        const isSameSession = existing.session_id === sessionId;
+
+        if (!isExpired && !isSameSession) {
+          // Task claimed by different session
+          return {
+            claimed: false,
+            error: 'TASK_ALREADY_CLAIMED',
+            existingClaim: {
+              sessionId: existing.session_id,
+              claimedAt: existing.claimed_at,
+              expiresAt: existing.expires_at,
+              remainingMs: existing.expires_at - now,
+              agentType: existing.agent_type
+            }
+          };
+        }
+
+        if (isSameSession && !force) {
+          // Same session re-claiming - extend TTL
+          this._stmts.updateTaskClaimHeartbeat.run(expiresAt, now, taskId, sessionId);
+          this.emit('claim:extended', { taskId, sessionId, expiresAt });
+
+          return {
+            claimed: true,
+            extended: true,
+            claim: {
+              taskId,
+              sessionId,
+              claimedAt: existing.claimed_at,
+              expiresAt,
+              heartbeatCount: existing.heartbeat_count + 1
+            }
+          };
+        }
+
+        // Expired or forced - delete old claim
+        this._stmts.deleteTaskClaimByTaskId.run(taskId);
+        if (isExpired) {
+          this.emit('claim:expired', { taskId, previousHolder: existing.session_id });
+        }
+      }
+
+      // Create new claim
+      try {
+        this._stmts.insertTaskClaim.run(
+          taskId,
+          sessionId,
+          now,
+          expiresAt,
+          now,
+          agentType,
+          JSON.stringify(metadata)
+        );
+
+        this.emit('claim:acquired', { taskId, sessionId, expiresAt, agentType });
+
+        return {
+          claimed: true,
+          claim: {
+            taskId,
+            sessionId,
+            claimedAt: now,
+            expiresAt,
+            agentType
+          }
+        };
+      } catch (error) {
+        // Race condition - another session claimed it
+        const current = this._stmts.getTaskClaim.get(taskId);
+        return {
+          claimed: false,
+          error: 'RACE_CONDITION',
+          existingClaim: current ? {
+            sessionId: current.session_id,
+            claimedAt: current.claimed_at,
+            expiresAt: current.expires_at
+          } : null
+        };
+      }
+    });
+
+    // Execute transaction with immediate locking
+    return txn.immediate();
+  }
+
+  /**
+   * Release a task claim
+   * @param {string} taskId - Task ID to release
+   * @param {string} sessionId - Session releasing the task
+   * @param {string} reason - Release reason (completed, failed, manual, timeout)
+   * @returns {Object} Release result { released, claim?, error?, actualOwner? }
+   */
+  releaseClaim(taskId, sessionId, reason = 'manual') {
+    const now = Date.now();
+    const existing = this._stmts.getTaskClaim.get(taskId);
+
+    if (!existing) {
+      return {
+        released: false,
+        error: 'CLAIM_NOT_FOUND'
+      };
+    }
+
+    if (existing.expires_at < now) {
+      // Claim already expired - clean it up
+      this._stmts.deleteTaskClaimByTaskId.run(taskId);
+      return {
+        released: true,
+        wasExpired: true,
+        error: 'CLAIM_EXPIRED'
+      };
+    }
+
+    if (existing.session_id !== sessionId) {
+      // Different session trying to release
+      return {
+        released: false,
+        error: 'NOT_CLAIM_OWNER',
+        actualOwner: existing.session_id
+      };
+    }
+
+    // Release the claim
+    const result = this._stmts.deleteTaskClaim.run(taskId, sessionId);
+
+    if (result.changes > 0) {
+      const claimDuration = now - existing.claimed_at;
+
+      this.emit('claim:released', {
+        taskId,
+        sessionId,
+        reason,
+        claimDuration,
+        heartbeatCount: existing.heartbeat_count
+      });
+
+      return {
+        released: true,
+        claim: {
+          taskId,
+          sessionId,
+          claimedAt: existing.claimed_at,
+          releasedAt: now,
+          claimDuration,
+          heartbeatCount: existing.heartbeat_count,
+          reason
+        }
+      };
+    }
+
+    return {
+      released: false,
+      error: 'RELEASE_FAILED'
+    };
+  }
+
+  /**
+   * Refresh (extend) a task claim TTL via heartbeat
+   * @param {string} taskId - Task ID
+   * @param {string} sessionId - Session holding the claim
+   * @param {number} extendMs - Additional time to extend (optional)
+   * @returns {Object} Refresh result { success, expiresAt?, heartbeatCount?, error? }
+   */
+  refreshClaim(taskId, sessionId, extendMs = null) {
+    const now = Date.now();
+    const existing = this._stmts.getTaskClaim.get(taskId);
+
+    if (!existing) {
+      return {
+        success: false,
+        error: 'CLAIM_NOT_FOUND'
+      };
+    }
+
+    if (existing.expires_at < now) {
+      // Claim expired
+      this._stmts.deleteTaskClaimByTaskId.run(taskId);
+      return {
+        success: false,
+        error: 'CLAIM_EXPIRED'
+      };
+    }
+
+    if (existing.session_id !== sessionId) {
+      return {
+        success: false,
+        error: 'NOT_CLAIM_OWNER',
+        actualOwner: existing.session_id
+      };
+    }
+
+    // Calculate new expiry
+    const extension = extendMs !== null ? extendMs : this.options.claimConfig.defaultTTL;
+    const newExpiresAt = now + extension;
+
+    // Update claim
+    const result = this._stmts.updateTaskClaimHeartbeat.run(newExpiresAt, now, taskId, sessionId);
+
+    if (result.changes > 0) {
+      this.emit('claim:refreshed', {
+        taskId,
+        sessionId,
+        expiresAt: newExpiresAt,
+        heartbeatCount: existing.heartbeat_count + 1
+      });
+
+      return {
+        success: true,
+        expiresAt: newExpiresAt,
+        heartbeatCount: existing.heartbeat_count + 1,
+        remainingMs: newExpiresAt - now
+      };
+    }
+
+    return {
+      success: false,
+      error: 'REFRESH_FAILED'
+    };
+  }
+
+  /**
+   * Get all active (non-expired) task claims
+   * @param {Object} options - Query options
+   * @param {string} options.sessionId - Filter by session
+   * @param {string} options.agentType - Filter by agent type
+   * @param {boolean} options.includeExpired - Include expired claims
+   * @param {number} options.limit - Limit results
+   * @returns {Array} Active claims with computed fields
+   */
+  getActiveClaims(options = {}) {
+    const {
+      sessionId = null,
+      agentType = null,
+      includeExpired = false,
+      limit = null
+    } = options;
+
+    const now = Date.now();
+
+    let rows;
+    if (sessionId) {
+      rows = this._stmts.getClaimsBySession.all(sessionId);
+    } else if (includeExpired) {
+      rows = this.db.prepare('SELECT * FROM task_claims ORDER BY claimed_at DESC').all();
+    } else {
+      rows = this._stmts.getActiveTaskClaims.all(now);
+    }
+
+    // Filter by agent type if specified
+    if (agentType) {
+      rows = rows.filter(row => row.agent_type === agentType);
+    }
+
+    // Filter out expired if not including them
+    if (!includeExpired) {
+      rows = rows.filter(row => row.expires_at > now);
+    }
+
+    // Apply limit
+    if (limit) {
+      rows = rows.slice(0, limit);
+    }
+
+    return rows.map(row => this._formatTaskClaimRow(row, now));
+  }
+
+  /**
+   * Get claim for a specific task
+   * @param {string} taskId - Task ID
+   * @returns {Object|null} Claim details or null if no active claim
+   */
+  getClaim(taskId) {
+    const row = this._stmts.getTaskClaim.get(taskId);
+    if (!row) return null;
+
+    const now = Date.now();
+
+    // Check if expired
+    if (row.expires_at < now) {
+      // Clean up expired claim
+      this._stmts.deleteTaskClaimByTaskId.run(taskId);
+      return null;
+    }
+
+    return this._formatTaskClaimRow(row, now);
+  }
+
+  /**
+   * Get all claims for a specific session
+   * @param {string} sessionId - Session ID
+   * @returns {Array} Claims owned by this session
+   */
+  getClaimsBySession(sessionId) {
+    const now = Date.now();
+    const rows = this._stmts.getClaimsBySession.all(sessionId);
+
+    // Filter out expired claims and format
+    return rows
+      .filter(row => row.expires_at > now)
+      .map(row => this._formatTaskClaimRow(row, now));
+  }
+
+  /**
+   * Check if a task has an active claim
+   * @param {string} taskId - Task ID
+   * @returns {Object} Claim status { claimed, holder?, remainingMs? }
+   */
+  isTaskClaimed(taskId) {
+    const claim = this.getClaim(taskId);
+
+    if (!claim) {
+      return {
+        claimed: false,
+        holder: null,
+        remainingMs: null
+      };
+    }
+
+    return {
+      claimed: true,
+      holder: claim.sessionId,
+      remainingMs: claim.remainingMs,
+      claimedAt: claim.claimedAt,
+      expiresAt: claim.expiresAt
+    };
+  }
+
+  /**
+   * Get claim statistics for dashboard
+   * @returns {Object} Aggregate claim statistics
+   */
+  getClaimStats() {
+    const now = Date.now();
+
+    // Get all active claims
+    const activeClaims = this.getActiveClaims();
+
+    // Count by agent type
+    const byAgentType = {};
+    const bySession = {};
+    let expiringCount = 0;
+    let staleCount = 0;
+
+    const EXPIRING_THRESHOLD = this.options.claimConfig.warningThreshold;
+    const STALE_THRESHOLD = 5 * 60 * 1000; // 5 minutes since last heartbeat
+
+    for (const claim of activeClaims) {
+      // Count by agent type
+      const type = claim.agentType || 'unknown';
+      byAgentType[type] = (byAgentType[type] || 0) + 1;
+
+      // Count by session
+      bySession[claim.sessionId] = (bySession[claim.sessionId] || 0) + 1;
+
+      // Count expiring soon
+      if (claim.remainingMs < EXPIRING_THRESHOLD) {
+        expiringCount++;
+      }
+
+      // Count stale (no heartbeat)
+      const timeSinceHeartbeat = now - claim.lastHeartbeat;
+      if (timeSinceHeartbeat > STALE_THRESHOLD) {
+        staleCount++;
+      }
+    }
+
+    return {
+      totalActive: activeClaims.length,
+      byAgentType,
+      bySession,
+      expiringSoon: expiringCount,
+      stale: staleCount,
+      timestamp: now
+    };
+  }
+
+  /**
+   * Format a task claim row with computed fields
+   * @private
+   * @param {Object} row - Database row
+   * @param {number} now - Current timestamp
+   * @returns {Object} Formatted claim object
+   */
+  _formatTaskClaimRow(row, now = Date.now()) {
+    const EXPIRING_THRESHOLD = this.options.claimConfig.warningThreshold;
+    const STALE_THRESHOLD = 5 * 60 * 1000; // 5 minutes since last heartbeat
+
+    const remainingMs = row.expires_at - now;
+    const timeSinceHeartbeat = now - row.last_heartbeat;
+
+    // Calculate health status
+    let healthStatus = 'healthy';
+    if (remainingMs <= 0) {
+      healthStatus = 'expired';
+    } else if (timeSinceHeartbeat > STALE_THRESHOLD) {
+      healthStatus = 'stale';
+    } else if (remainingMs < 60000) {
+      healthStatus = 'critical'; // <1 min
+    } else if (remainingMs < EXPIRING_THRESHOLD) {
+      healthStatus = 'warning';
+    }
+
+    return {
+      taskId: row.task_id,
+      sessionId: row.session_id,
+      claimedAt: row.claimed_at,
+      expiresAt: row.expires_at,
+      lastHeartbeat: row.last_heartbeat,
+      heartbeatCount: row.heartbeat_count,
+      agentType: row.agent_type,
+      metadata: row.metadata ? JSON.parse(row.metadata) : null,
+
+      // Computed fields
+      remainingMs: Math.max(0, remainingMs),
+      remainingSeconds: Math.max(0, Math.round(remainingMs / 1000)),
+      isExpired: remainingMs <= 0,
+      isExpiring: remainingMs > 0 && remainingMs < EXPIRING_THRESHOLD,
+      isStale: timeSinceHeartbeat > STALE_THRESHOLD,
+      timeSinceHeartbeatMs: timeSinceHeartbeat,
+      healthStatus
+    };
   }
 
   // ============================================================================
@@ -1110,6 +2027,8 @@ class CoordinationDB extends EventEmitter {
       this.cleanupExpiredLocks();
       this.cleanupStaleSessions();
       this.pruneOldChanges();
+      this.cleanupExpiredClaims();
+      this.cleanupOrphanedClaims();
     }, this.options.cleanupInterval);
 
     // Don't prevent process exit
@@ -1142,6 +2061,25 @@ class CoordinationDB extends EventEmitter {
     const lockCount = this.db.prepare('SELECT COUNT(*) as count FROM locks').get().count;
     const changeCount = this.db.prepare('SELECT COUNT(*) as count FROM change_journal').get().count;
 
+    // Get claim statistics if table exists
+    let claimStats = { total: 0, active: 0, expiring: 0 };
+    try {
+      const now = Date.now();
+      const warningThreshold = now + this.options.claimConfig.warningThreshold;
+
+      const claimCount = this.db.prepare('SELECT COUNT(*) as count FROM task_claims').get();
+      const activeCount = this.db.prepare('SELECT COUNT(*) as count FROM task_claims WHERE expires_at > ?').get(now);
+      const expiringCount = this.db.prepare('SELECT COUNT(*) as count FROM task_claims WHERE expires_at > ? AND expires_at <= ?').get(now, warningThreshold);
+
+      claimStats = {
+        total: claimCount?.count || 0,
+        active: activeCount?.count || 0,
+        expiring: expiringCount?.count || 0
+      };
+    } catch (err) {
+      // Table might not exist yet, ignore
+    }
+
     return {
       sessions: {
         total: sessionCount,
@@ -1151,6 +2089,7 @@ class CoordinationDB extends EventEmitter {
       locks: {
         total: lockCount
       },
+      claims: claimStats,
       changes: {
         total: changeCount
       },
@@ -1175,6 +2114,239 @@ class CoordinationDB extends EventEmitter {
    */
   _setChangeTimestampForTesting(changeId, timestamp) {
     this.db.prepare('UPDATE change_journal SET created_at = ? WHERE id = ?').run(timestamp, changeId);
+  }
+
+  // ============================================================================
+  // DELEGATION METRICS STORAGE
+  // ============================================================================
+
+  /**
+   * Save or update delegation metrics
+   * @param {Object} metricsData - DelegationMetrics data object
+   * @returns {Object} Saved metrics info
+   */
+  saveDelegationMetrics(metricsData) {
+    const now = Date.now();
+    const id = metricsData.metricsId || `dm-${now}-${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = metricsData.sessionId || this._currentSessionId;
+
+    const summary = metricsData.summary || {};
+    const durationStats = summary.duration || {};
+    const qualityStats = summary.quality || {};
+    const patterns = metricsData.patternDistribution || {};
+    const resources = summary.resources || {};
+
+    this._stmts.upsertDelegationMetrics.run(
+      id,
+      sessionId,
+      'delegation',
+      summary.totalDelegations || 0,
+      summary.successfulDelegations || 0,
+      summary.failedDelegations || 0,
+      summary.retries || 0,
+      summary.timeouts || 0,
+      durationStats.avg || 0,
+      durationStats.min || null,
+      durationStats.max || null,
+      durationStats.p50 || null,
+      durationStats.p95 || null,
+      durationStats.p99 || null,
+      qualityStats.avgQuality || 0,
+      qualityStats.minQuality || null,
+      qualityStats.maxQuality || null,
+      JSON.stringify(patterns),
+      resources.peakChildCount || 0,
+      resources.totalTokensConsumed || 0,
+      metricsData.createdAt || now,
+      now,
+      JSON.stringify(metricsData)
+    );
+
+    this.emit('metrics:saved', { id, sessionId, timestamp: now });
+
+    return { id, sessionId, savedAt: now };
+  }
+
+  /**
+   * Get delegation metrics by ID
+   * @param {string} metricsId - Metrics ID
+   * @returns {Object|null} Metrics data or null if not found
+   */
+  getDelegationMetrics(metricsId) {
+    const row = this._stmts.getDelegationMetrics.get(metricsId);
+    if (!row) return null;
+    return this._parseDelegationMetricsRow(row);
+  }
+
+  /**
+   * Get delegation metrics by session
+   * @param {string} sessionId - Session ID
+   * @returns {Array} Array of metrics records
+   */
+  getDelegationMetricsBySession(sessionId) {
+    const rows = this._stmts.getDelegationMetricsBySession.all(sessionId);
+    return rows.map(row => this._parseDelegationMetricsRow(row));
+  }
+
+  /**
+   * Get all delegation metrics
+   * @param {number} limit - Maximum records to return
+   * @returns {Array} Array of metrics records
+   */
+  getAllDelegationMetrics(limit = 100) {
+    const rows = this._stmts.getAllDelegationMetrics.all(limit);
+    return rows.map(row => this._parseDelegationMetricsRow(row));
+  }
+
+  /**
+   * Delete delegation metrics
+   * @param {string} metricsId - Metrics ID to delete
+   * @returns {boolean} True if deleted
+   */
+  deleteDelegationMetrics(metricsId) {
+    const result = this._stmts.deleteDelegationMetrics.run(metricsId);
+    return result.changes > 0;
+  }
+
+  /**
+   * Parse a delegation metrics row from the database
+   * @private
+   */
+  _parseDelegationMetricsRow(row) {
+    return {
+      id: row.id,
+      sessionId: row.session_id,
+      metricsType: row.metrics_type,
+      counters: {
+        total: row.total_delegations,
+        successful: row.successful_delegations,
+        failed: row.failed_delegations,
+        retries: row.retries,
+        timeouts: row.timeouts
+      },
+      duration: {
+        avg: row.avg_duration_ms,
+        min: row.min_duration_ms,
+        max: row.max_duration_ms,
+        p50: row.p50_duration_ms,
+        p95: row.p95_duration_ms,
+        p99: row.p99_duration_ms
+      },
+      quality: {
+        avg: row.avg_quality_score,
+        min: row.min_quality_score,
+        max: row.max_quality_score
+      },
+      patternDistribution: row.pattern_distribution ? JSON.parse(row.pattern_distribution) : {},
+      resources: {
+        peakChildren: row.peak_concurrent_children,
+        totalTokens: row.total_tokens_consumed
+      },
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      fullData: row.metrics_data ? JSON.parse(row.metrics_data) : null
+    };
+  }
+
+  /**
+   * Save a delegation metrics snapshot
+   * @param {string} metricsId - Parent metrics ID
+   * @param {Object} snapshotData - Snapshot data
+   * @returns {Object} Saved snapshot info
+   */
+  saveDelegationSnapshot(metricsId, snapshotData) {
+    const now = Date.now();
+    const id = snapshotData.snapshotId || `snap-${now}-${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = snapshotData.sessionId || this._currentSessionId;
+
+    const counters = snapshotData.counters || {};
+    const histograms = snapshotData.histograms || {};
+    const quality = snapshotData.quality || {};
+
+    this._stmts.insertDelegationSnapshot.run(
+      id,
+      metricsId,
+      sessionId,
+      snapshotData.timestamp || now,
+      counters.success || 0,
+      counters.failure || 0,
+      counters.retries || 0,
+      counters.timeouts || 0,
+      JSON.stringify(histograms.delegationDuration || {}),
+      quality.avgQuality || null,
+      JSON.stringify(snapshotData.patterns || {}),
+      snapshotData.activeChildren || 0,
+      JSON.stringify(snapshotData),
+      now
+    );
+
+    this.emit('snapshot:saved', { id, metricsId, timestamp: now });
+
+    return { id, metricsId, savedAt: now };
+  }
+
+  /**
+   * Get delegation snapshots by metrics ID
+   * @param {string} metricsId - Parent metrics ID
+   * @param {Object} options - Query options
+   * @returns {Array} Array of snapshots
+   */
+  getDelegationSnapshots(metricsId, options = {}) {
+    const { since, limit = 100 } = options;
+
+    let rows;
+    if (since) {
+      rows = this._stmts.getDelegationSnapshotsSince.all(metricsId, since);
+    } else {
+      rows = this._stmts.getDelegationSnapshotsByMetrics.all(metricsId, limit);
+    }
+
+    return rows.map(row => this._parseDelegationSnapshotRow(row));
+  }
+
+  /**
+   * Get recent delegation snapshots across all metrics
+   * @param {number} limit - Maximum records to return
+   * @returns {Array} Array of snapshots
+   */
+  getRecentDelegationSnapshots(limit = 50) {
+    const rows = this._stmts.getRecentDelegationSnapshots.all(limit);
+    return rows.map(row => this._parseDelegationSnapshotRow(row));
+  }
+
+  /**
+   * Clean up old delegation snapshots
+   * @param {number} olderThanMs - Delete snapshots older than this timestamp
+   * @returns {number} Number of deleted records
+   */
+  cleanupOldDelegationSnapshots(olderThanMs) {
+    const result = this._stmts.deleteOldDelegationSnapshots.run(olderThanMs);
+    return result.changes;
+  }
+
+  /**
+   * Parse a delegation snapshot row from the database
+   * @private
+   */
+  _parseDelegationSnapshotRow(row) {
+    return {
+      id: row.id,
+      metricsId: row.metrics_id,
+      sessionId: row.session_id,
+      snapshotTime: row.snapshot_time,
+      counters: {
+        success: row.success_count,
+        failure: row.failure_count,
+        retries: row.retry_count,
+        timeouts: row.timeout_count
+      },
+      durationHistogram: row.duration_histogram ? JSON.parse(row.duration_histogram) : null,
+      avgQuality: row.avg_quality,
+      patternSnapshot: row.pattern_snapshot ? JSON.parse(row.pattern_snapshot) : null,
+      activeChildren: row.active_children,
+      fullData: row.snapshot_data ? JSON.parse(row.snapshot_data) : null,
+      createdAt: row.created_at
+    };
   }
 
   // ============================================================================

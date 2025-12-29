@@ -414,6 +414,75 @@ class EnhancedDashboardServer {
       res.json(metrics);
     });
 
+    // ========================================================================
+    // DELEGATION METRICS ENDPOINTS
+    // ========================================================================
+
+    // Get complete delegation metrics summary
+    this.app.get('/api/metrics/delegation/summary', (req, res) => {
+      const metricsData = this._getDelegationMetricsSummary();
+      res.json(metricsData);
+    });
+
+    // Get pattern distribution
+    this.app.get('/api/metrics/delegation/patterns', (req, res) => {
+      const patterns = this._getDelegationPatterns();
+      res.json(patterns);
+    });
+
+    // Get quality metrics
+    this.app.get('/api/metrics/delegation/quality', (req, res) => {
+      const quality = this._getDelegationQuality();
+      res.json(quality);
+    });
+
+    // Get resource utilization
+    this.app.get('/api/metrics/delegation/resources', (req, res) => {
+      const resources = this._getDelegationResources();
+      res.json(resources);
+    });
+
+    // Get rolling window statistics
+    this.app.get('/api/metrics/delegation/rolling/:windowName', (req, res) => {
+      const windowName = req.params.windowName;
+      const stats = this._getDelegationRollingStats(windowName);
+      if (stats) {
+        res.json(stats);
+      } else {
+        res.status(404).json({ error: `Rolling window '${windowName}' not found` });
+      }
+    });
+
+    // Get metrics trends
+    this.app.get('/api/metrics/delegation/trends', (req, res) => {
+      const metric = req.query.metric || 'counters.success';
+      const windowMs = parseInt(req.query.window) || 300000; // 5 min default
+      const trends = this._getDelegationTrends(metric, windowMs);
+      res.json(trends);
+    });
+
+    // Get historical snapshots
+    this.app.get('/api/metrics/delegation/snapshots', (req, res) => {
+      const options = {
+        since: req.query.since ? parseInt(req.query.since) : undefined,
+        limit: req.query.limit ? parseInt(req.query.limit) : undefined
+      };
+      const snapshots = this._getDelegationSnapshots(options);
+      res.json(snapshots);
+    });
+
+    // Trigger a metrics snapshot
+    this.app.post('/api/metrics/delegation/snapshot', (req, res) => {
+      const snapshot = this._triggerDelegationSnapshot();
+      res.json(snapshot);
+    });
+
+    // Reset delegation metrics
+    this.app.post('/api/metrics/delegation/reset', (req, res) => {
+      this._resetDelegationMetrics();
+      res.json({ success: true, timestamp: Date.now() });
+    });
+
     // Project-specific endpoints
     this.app.get('/api/otlp/project/:id', (req, res) => {
       const projectData = this._getProjectDetails(req.params.id);
@@ -1778,6 +1847,194 @@ class EnhancedDashboardServer {
       stats: decider.getStats(),
       timestamp: Date.now()
     };
+  }
+
+  // ============================================================================
+  // DELEGATION METRICS IMPLEMENTATION METHODS
+  // ============================================================================
+
+  /**
+   * Get or create DelegationMetrics instance
+   * @private
+   */
+  _getDelegationMetricsInstance() {
+    // Try to get from orchestrator
+    if (this.orchestrator?.delegationMetrics) {
+      return this.orchestrator.delegationMetrics;
+    }
+
+    // Create a new instance if needed
+    if (!this._delegationMetricsInstance) {
+      try {
+        const { DelegationMetrics } = require('./delegation-metrics');
+        this._delegationMetricsInstance = new DelegationMetrics();
+      } catch (error) {
+        this.logger?.error('Failed to create DelegationMetrics:', error);
+        return null;
+      }
+    }
+
+    return this._delegationMetricsInstance;
+  }
+
+  /**
+   * Get complete delegation metrics summary
+   * @private
+   */
+  _getDelegationMetricsSummary() {
+    const metricsInstance = this._getDelegationMetricsInstance();
+    if (!metricsInstance) {
+      return { error: 'DELEGATION_METRICS_NOT_AVAILABLE', timestamp: Date.now() };
+    }
+
+    return {
+      ...metricsInstance.getSummary(),
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Get delegation pattern distribution
+   * @private
+   */
+  _getDelegationPatterns() {
+    const metricsInstance = this._getDelegationMetricsInstance();
+    if (!metricsInstance) {
+      return { error: 'DELEGATION_METRICS_NOT_AVAILABLE', timestamp: Date.now() };
+    }
+
+    return {
+      ...metricsInstance.getPatternDistribution(),
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Get delegation quality metrics
+   * @private
+   */
+  _getDelegationQuality() {
+    const metricsInstance = this._getDelegationMetricsInstance();
+    if (!metricsInstance) {
+      return { error: 'DELEGATION_METRICS_NOT_AVAILABLE', timestamp: Date.now() };
+    }
+
+    return {
+      ...metricsInstance.getQualityStats(),
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Get delegation resource utilization
+   * @private
+   */
+  _getDelegationResources() {
+    const metricsInstance = this._getDelegationMetricsInstance();
+    if (!metricsInstance) {
+      return { error: 'DELEGATION_METRICS_NOT_AVAILABLE', timestamp: Date.now() };
+    }
+
+    return {
+      ...metricsInstance.getResourceStats(),
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Get rolling window statistics
+   * @private
+   */
+  _getDelegationRollingStats(windowName) {
+    const metricsInstance = this._getDelegationMetricsInstance();
+    if (!metricsInstance) {
+      return null;
+    }
+
+    const stats = metricsInstance.getRollingStats(windowName);
+    if (!stats) {
+      return null;
+    }
+
+    return {
+      ...stats,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Get metrics trends
+   * @private
+   */
+  _getDelegationTrends(metric, windowMs) {
+    const metricsInstance = this._getDelegationMetricsInstance();
+    if (!metricsInstance) {
+      return { error: 'DELEGATION_METRICS_NOT_AVAILABLE', timestamp: Date.now() };
+    }
+
+    return {
+      metric,
+      window: windowMs,
+      ...metricsInstance.getTrend(metric, windowMs),
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Get historical snapshots
+   * @private
+   */
+  _getDelegationSnapshots(options) {
+    const metricsInstance = this._getDelegationMetricsInstance();
+    if (!metricsInstance) {
+      return { error: 'DELEGATION_METRICS_NOT_AVAILABLE', snapshots: [], timestamp: Date.now() };
+    }
+
+    return {
+      snapshots: metricsInstance.getSnapshots(options),
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Trigger a metrics snapshot
+   * @private
+   */
+  _triggerDelegationSnapshot() {
+    const metricsInstance = this._getDelegationMetricsInstance();
+    if (!metricsInstance) {
+      return { error: 'DELEGATION_METRICS_NOT_AVAILABLE', timestamp: Date.now() };
+    }
+
+    const snapshot = metricsInstance.takeSnapshot();
+
+    // Broadcast via SSE
+    this._broadcastSSE({
+      type: 'metrics:snapshot',
+      snapshot,
+      timestamp: Date.now()
+    });
+
+    return snapshot;
+  }
+
+  /**
+   * Reset delegation metrics
+   * @private
+   */
+  _resetDelegationMetrics() {
+    const metricsInstance = this._getDelegationMetricsInstance();
+    if (!metricsInstance) {
+      return;
+    }
+
+    metricsInstance.reset();
+
+    // Broadcast via SSE
+    this._broadcastSSE({
+      type: 'metrics:reset',
+      timestamp: Date.now()
+    });
   }
 
   /**
