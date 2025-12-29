@@ -1051,7 +1051,7 @@
       "decomposition": {
         "strategy": "sequential",
         "estimatedSubtasks": 4,
-        "completedSubtasks": 2,
+        "completedSubtasks": 3,
         "aggregationRule": "all-complete"
       },
       "id": "session-task-claiming",
@@ -1088,7 +1088,7 @@
       "updated": "2025-12-29T07:30:00.000Z",
       "started": "2025-12-29T06:00:00.000Z",
       "designDoc": "docs/SESSION-TASK-CLAIMING-DESIGN.md",
-      "progress": 50
+      "progress": 75
     },
     "session-task-claiming-phase1": {
       "parentTaskId": "session-task-claiming",
@@ -1229,10 +1229,20 @@
         "SSE events: task:claimed, task:released, task:claim-expired, task:claim-orphaned",
         "Integration tests for all endpoints"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-28T23:50:00.000Z",
-      "updated": "2025-12-29T09:30:00.000Z"
+      "updated": "2025-12-29T11:00:00.000Z",
+      "completed": "2025-12-29T11:00:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/enhanced-dashboard-server.js: 7 claim API endpoints (lines 362-461)",
+        ".claude/core/enhanced-dashboard-server.js: Helper methods _claimTask, _releaseTaskClaim, _refreshTaskClaim, _getInFlightTasks, _getSessionCurrentTask, _cleanupOrphanedClaims, _getClaimStats (lines 1807-2115)",
+        ".claude/core/enhanced-dashboard-server.js: _setupClaimEventListeners() for SSE broadcasting",
+        "global-context-manager.js: Updated /api/sessions/summary to include currentTaskId and claimInfo",
+        "__tests__/integration/claims-dashboard-api.test.js: 35 integration tests"
+      ],
+      "notes": "All 7 API endpoints implemented with proper error handling, SSE event broadcasting for claim/release/cleanup events. /api/sessions/summary now includes currentTaskId from claims. 101 claim-related tests passing."
     },
     "session-task-claiming-phase4": {
       "parentTaskId": "session-task-claiming",
@@ -1266,10 +1276,10 @@
         "Filter/sort options for claimed vs available tasks",
         "Visual distinction between CLI and autonomous claims"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2025-12-28T23:50:00.000Z",
-      "updated": "2025-12-28T23:50:00.000Z"
+      "updated": "2025-12-29T11:00:00.000Z"
     }
   },
   "archival": {

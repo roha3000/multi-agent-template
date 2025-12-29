@@ -1,61 +1,72 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-29 (Session 53)
+**Last Updated**: 2025-12-29 (Session 54)
 **Current Phase**: IMPLEMENTATION
-**Status**: Session-Task Claiming Phase 2 - COMPLETE
+**Status**: Session-Task Claiming Phase 3 - COMPLETE
 
 ---
 
-## Session 53: Session-Task Claiming Phase 2 (CURRENT)
+## Session 54: Session-Task Claiming Phase 3 (CURRENT)
 
 ### Work Completed
 
 | Task | Status | Description |
 |------|--------|-------------|
-| session-task-claiming-phase2 | ✅ (95) | TaskManager claim integration with heartbeat |
+| session-task-claiming-phase3 | ✅ (95) | Dashboard API endpoints + SSE events |
 
 ### Implementation Details
 
-**TaskManager Integration** (`task-manager.js:2290-2697`):
-- `CLAIM_CONFIG` - Static configuration for TTL, heartbeat intervals
-- `claimNextTask(phase, options)` - Atomically claim next available task
-- `releaseTaskClaim(taskId, reason)` - Release specific claim
-- `releaseAllClaims(reason)` - Bulk release all session claims
-- `extendClaim(taskId, ttlMs)` - Extend TTL (heartbeat)
-- `getMyClaimedTasks()` - Get all tasks claimed by session
+**API Endpoints** (`enhanced-dashboard-server.js:362-461`):
+- `POST /api/tasks/:taskId/claim` - Claim task for session
+- `POST /api/tasks/:taskId/release` - Release task claim
+- `POST /api/tasks/:taskId/claim/heartbeat` - Refresh claim TTL
+- `GET /api/tasks/in-flight` - Get all active claims
+- `GET /api/sessions/:sessionId/current-task` - Get current task for session
+- `POST /api/tasks/claims/cleanup` - Trigger orphan cleanup
+- `GET /api/tasks/claims/stats` - Get claim statistics
 
-**Heartbeat System**:
-- `_startClaimHeartbeat(taskId)` - Auto-refresh claim every 60s
-- `_stopClaimHeartbeat(taskId)` - Stop timer on release
-- `_stopAllHeartbeats()` - Cleanup on close
-- Emits `task:claim-lost` if heartbeat fails
+**Helper Methods** (`enhanced-dashboard-server.js:1807-2115`):
+- `_claimTask()`, `_releaseTaskClaim()`, `_refreshTaskClaim()`
+- `_getInFlightTasks()`, `_getSessionCurrentTask()`
+- `_cleanupOrphanedClaims()`, `_getClaimStats()`
+- `_setupClaimEventListeners()` for SSE
 
-**Events Emitted**:
-- `task:claimed` - Task successfully claimed
-- `task:claim-released` - Single claim released
-- `task:claims-released` - Bulk claims released
-- `manager:closed` - TaskManager closed
+**SSE Events**:
+- `task:claimed`, `task:released`, `task:claim-expired`
+- `task:claim-orphaned`, `task:claims-cleaned`
+
+**Sessions Summary Update** (`global-context-manager.js`):
+- `/api/sessions/summary` now includes `currentTaskId` and `claimInfo`
 
 ### Test Results
 
 ```
+Claims Dashboard API:    35 passed ✓
 Task Claims Tests:       41 passed ✓
 Claim Cleanup Tests:     25 passed ✓
-TaskManager Tests:       97 passed ✓
-Total Core Tests:        2319 passed ✓
+Total Claim Tests:       101 passed ✓
 ```
 
 ### Files Modified
 
 | File | Purpose |
 |------|---------|
-| `.claude/core/task-manager.js` | +400 lines: claim methods, heartbeat system |
+| `.claude/core/enhanced-dashboard-server.js` | 7 API endpoints + helpers + SSE |
+| `global-context-manager.js` | /api/sessions/summary with claims |
+| `__tests__/integration/claims-dashboard-api.test.js` | 35 integration tests |
+
+---
+
+## Session 53: Session-Task Claiming Phase 2 ✅
+- **Tasks**: session-task-claiming-phase2 (95)
+- **Key changes**: TaskManager claim methods, heartbeat system, events
+- **Files**: task-manager.js (+400 lines)
 
 ---
 
 ## Session 52: Hierarchy Dashboard Visualization ✅
 - **Tasks**: hierarchy-phase4-dashboard-viz (90)
 - **Key changes**: Interactive hierarchy tree, SSE updates, expand/collapse
-- **Files**: global-dashboard.html (+400 lines), hierarchy-viz.js, styles/
+- **Files**: global-dashboard.html, hierarchy-viz.js
 
 ---
 
@@ -66,24 +77,16 @@ Total Core Tests:        2319 passed ✓
 
 ---
 
-## Session 50: Hierarchy Phase 4 - Metrics + Optimization ✅
-- **Tasks**: hierarchy-phase4-metrics (95), hierarchy-phase4-optimization (95)
-- **Key changes**: DelegationMetrics, 9 API endpoints, TieredTimeoutCalculator
-- **Files**: delegation-metrics.js, hierarchy-optimizations.js (110 tests)
-
----
-
 ## Project Health
 
 | Component | Status |
 |-----------|--------|
 | Orchestrator | Unified + parallel patterns + delegation primitives + metrics |
-| Dashboard | Command Center + hierarchy viz + conflicts API + metrics endpoints |
-| Task System | Hierarchy + concurrent write + shadow mode + conflict resolution + claiming |
-| Tests | 2300+ passing |
+| Dashboard | Command Center + hierarchy viz + conflicts API + claims API |
+| Task System | Hierarchy + concurrent write + shadow mode + claiming (75%) |
+| Tests | 2400+ passing |
 | Parallel Safety | 100% COMPLETE (4/4 phases) |
-| Hierarchy Phase 4 | ✅ COMPLETE |
-| Session-Task Claiming | Phase 2 COMPLETE (2/4) |
+| Session-Task Claiming | Phase 3 COMPLETE (3/4) |
 
 ---
 
@@ -93,8 +96,8 @@ Total Core Tests:        2319 passed ✓
 |-------|-------------|--------|-------|
 | Phase 1 | task_claims table + atomic claim methods | ✅ Complete | 66 |
 | Phase 2 | TaskManager integration + heartbeat | ✅ Complete | 97 |
-| Phase 3 | Dashboard API + SSE events | Pending | - |
-| Phase 4 | Dashboard UI updates | Pending | - |
+| Phase 3 | Dashboard API + SSE events | ✅ Complete | 35 |
+| Phase 4 | Dashboard UI updates | **READY** | - |
 
 ---
 
@@ -103,4 +106,4 @@ Total Core Tests:        2319 passed ✓
 - **Dashboard**: http://localhost:3033/
 - **Archives**: `.claude/dev-docs/archives/`
 - **Task Graph**: http://localhost:3033/task-graph.html
-- **NEXT**: session-task-claiming-phase3, audit-cleanup-phase1
+- **NEXT**: session-task-claiming-phase4, audit-cleanup-phase1

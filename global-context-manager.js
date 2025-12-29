@@ -30,6 +30,7 @@ const NotificationService = require('./.claude/core/notification-service');
 const { getSessionRegistry } = require('./.claude/core/session-registry');
 const { getUsageLimitTracker } = require('./.claude/core/usage-limit-tracker');
 const { getLogStreamer } = require('./.claude/core/log-streamer');
+const CoordinationDB = require('./.claude/core/coordination-db');
 
 const app = express();
 app.use(cors());
@@ -50,6 +51,21 @@ const tracker = new GlobalContextTracker({
 // Store recent alerts for dashboard
 const recentAlerts = [];
 const MAX_ALERTS = 50;
+
+// Initialize CoordinationDB for task claims (lazy-loaded)
+let coordinationDb = null;
+function getCoordinationDb() {
+  if (!coordinationDb) {
+    try {
+      coordinationDb = new CoordinationDB({
+        dbPath: path.join(__dirname, '.coordination', 'sessions.db')
+      });
+    } catch (error) {
+      console.warn('[COORDINATION] Could not initialize CoordinationDB:', error.message);
+    }
+  }
+  return coordinationDb;
+}
 
 // Initialize Notification Service for SMS/Email alerts
 const notificationService = new NotificationService();
@@ -1234,6 +1250,26 @@ app.post('/api/notifications/alert/taskgroup', async (req, res) => {
 // Get all sessions summary (Command Center main data)
 app.get('/api/sessions/summary', (req, res) => {
   const summary = sessionRegistry.getSummary();
+
+  // Get claimed tasks for each session from CoordinationDB
+  const db = getCoordinationDb();
+  const sessionClaimsMap = new Map();
+
+  if (db) {
+    try {
+      // Get all active claims and map by session
+      const activeClaims = db.getActiveClaims();
+      for (const claim of activeClaims) {
+        if (!sessionClaimsMap.has(claim.sessionId)) {
+          sessionClaimsMap.set(claim.sessionId, []);
+        }
+        sessionClaimsMap.get(claim.sessionId).push(claim);
+      }
+    } catch (error) {
+      console.warn('[SESSIONS/SUMMARY] Could not get claims:', error.message);
+    }
+  }
+
   res.json({
     globalMetrics: {
       activeCount: summary.metrics.activeCount,
@@ -1242,27 +1278,43 @@ app.get('/api/sessions/summary', (req, res) => {
       totalCostToday: summary.metrics.totalCostToday,
       alertCount: summary.metrics.alertCount
     },
-    sessions: summary.sessions.map(s => ({
-      id: s.id,
-      project: s.project,
-      path: s.path,
-      status: s.status,
-      contextPercent: s.contextPercent,
-      currentTask: s.currentTask,
-      nextTask: s.nextTask,
-      qualityScore: s.qualityScore,
-      confidenceScore: s.confidenceScore,
-      tokens: s.tokens,
-      cost: s.cost,
-      runtime: s.runtime,
-      iteration: s.iteration,
-      phase: s.phase,
-      // Session type tracking
-      sessionType: s.sessionType,
-      autonomous: s.autonomous,
-      orchestratorInfo: s.orchestratorInfo,
-      logSessionId: s.logSessionId
-    })),
+    sessions: summary.sessions.map(s => {
+      // Find claimed task for this session
+      const claims = sessionClaimsMap.get(s.id) || [];
+      const currentClaim = claims.length > 0
+        ? claims.sort((a, b) => b.claimedAt - a.claimedAt)[0]
+        : null;
+
+      return {
+        id: s.id,
+        project: s.project,
+        path: s.path,
+        status: s.status,
+        contextPercent: s.contextPercent,
+        currentTask: s.currentTask,
+        nextTask: s.nextTask,
+        qualityScore: s.qualityScore,
+        confidenceScore: s.confidenceScore,
+        tokens: s.tokens,
+        cost: s.cost,
+        runtime: s.runtime,
+        iteration: s.iteration,
+        phase: s.phase,
+        // Session type tracking
+        sessionType: s.sessionType,
+        autonomous: s.autonomous,
+        orchestratorInfo: s.orchestratorInfo,
+        logSessionId: s.logSessionId,
+        // Task claim tracking (Phase 3)
+        currentTaskId: currentClaim?.taskId || null,
+        claimInfo: currentClaim ? {
+          taskId: currentClaim.taskId,
+          claimedAt: currentClaim.claimedAt,
+          expiresAt: currentClaim.expiresAt,
+          lastHeartbeat: currentClaim.lastHeartbeat
+        } : null
+      };
+    }),
     recentCompletions: summary.recentCompletions
   });
 });

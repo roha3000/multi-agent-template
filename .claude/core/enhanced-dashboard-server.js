@@ -356,6 +356,111 @@ class EnhancedDashboardServer {
     });
 
     // ====================================================================
+    // TASK CLAIMS ENDPOINTS (Session-Task Claiming Phase 3)
+    // ====================================================================
+
+    // Claim a task for a session
+    this.app.post('/api/tasks/:taskId/claim', (req, res) => {
+      const { taskId } = req.params;
+      const { sessionId, ttlMs, metadata } = req.body;
+
+      if (!sessionId) {
+        return res.status(400).json({ error: 'SESSION_ID_REQUIRED' });
+      }
+
+      const result = this._claimTask(taskId, sessionId, { ttlMs, metadata });
+
+      if (result.success) {
+        res.json(result);
+      } else if (result.error === 'TASK_ALREADY_CLAIMED') {
+        res.status(409).json(result);
+      } else if (result.error === 'TASK_NOT_FOUND') {
+        res.status(404).json(result);
+      } else {
+        res.status(500).json(result);
+      }
+    });
+
+    // Release a task claim
+    this.app.post('/api/tasks/:taskId/release', (req, res) => {
+      const { taskId } = req.params;
+      const { sessionId, reason } = req.body;
+
+      if (!sessionId) {
+        return res.status(400).json({ error: 'SESSION_ID_REQUIRED' });
+      }
+
+      const result = this._releaseTaskClaim(taskId, sessionId, reason);
+
+      if (result.success) {
+        res.json(result);
+      } else if (result.error === 'CLAIM_NOT_FOUND') {
+        res.status(404).json(result);
+      } else if (result.error === 'NOT_CLAIM_OWNER') {
+        res.status(403).json(result);
+      } else {
+        res.status(500).json(result);
+      }
+    });
+
+    // Refresh/extend claim TTL (heartbeat)
+    this.app.post('/api/tasks/:taskId/claim/heartbeat', (req, res) => {
+      const { taskId } = req.params;
+      const { sessionId, ttlMs } = req.body;
+
+      if (!sessionId) {
+        return res.status(400).json({ error: 'SESSION_ID_REQUIRED' });
+      }
+
+      const result = this._refreshTaskClaim(taskId, sessionId, ttlMs);
+
+      if (result.success) {
+        res.json(result);
+      } else if (result.error === 'CLAIM_NOT_FOUND') {
+        res.status(404).json(result);
+      } else if (result.error === 'NOT_CLAIM_OWNER') {
+        res.status(403).json(result);
+      } else {
+        res.status(500).json(result);
+      }
+    });
+
+    // Get all in-flight (claimed) tasks
+    this.app.get('/api/tasks/in-flight', (req, res) => {
+      const options = {
+        sessionId: req.query.session || null,
+        includeExpired: req.query.includeExpired === 'true',
+        limit: parseInt(req.query.limit) || 100
+      };
+      const result = this._getInFlightTasks(options);
+      res.json(result);
+    });
+
+    // Get current task for a session
+    this.app.get('/api/sessions/:sessionId/current-task', (req, res) => {
+      const { sessionId } = req.params;
+      const result = this._getSessionCurrentTask(sessionId);
+
+      if (result.error === 'SESSION_NOT_FOUND') {
+        return res.status(404).json(result);
+      }
+      res.json(result);
+    });
+
+    // Trigger cleanup of orphaned/expired claims
+    this.app.post('/api/tasks/claims/cleanup', (req, res) => {
+      const { force } = req.body;
+      const result = this._cleanupOrphanedClaims(force);
+      res.json(result);
+    });
+
+    // Get claim statistics
+    this.app.get('/api/tasks/claims/stats', (req, res) => {
+      const stats = this._getClaimStats();
+      res.json(stats);
+    });
+
+    // ====================================================================
     // DELEGATION HINTS ENDPOINTS (Phase 3 - Auto-Delegation)
     // ====================================================================
 
@@ -611,6 +716,9 @@ class EnhancedDashboardServer {
 
     // Setup conflict and change journal event listeners
     this._setupConflictEventListeners();
+
+    // Setup task claim event listeners for SSE
+    this._setupClaimEventListeners();
   }
 
   /**
@@ -1690,6 +1798,337 @@ class EnhancedDashboardServer {
       entries: entries.slice(0, limit),
       available: true
     };
+  }
+
+  // ============================================================================
+  // TASK CLAIMS HELPER METHODS (Session-Task Claiming Phase 3)
+  // ============================================================================
+
+  /**
+   * Claim a task for a session
+   * @private
+   */
+  _claimTask(taskId, sessionId, options = {}) {
+    const db = this._getCoordinationDb();
+    if (!db) {
+      return { success: false, error: 'DATABASE_UNAVAILABLE' };
+    }
+
+    try {
+      const result = db.claimTask(taskId, sessionId, options);
+
+      // Transform claimed -> success for API consistency
+      if (result.claimed) {
+        // Broadcast claim event via SSE
+        this._broadcastEvent('task:claimed', {
+          taskId,
+          sessionId,
+          claimedAt: result.claim?.claimedAt,
+          expiresAt: result.claim?.expiresAt,
+          timestamp: Date.now()
+        });
+        return { success: true, claim: result.claim };
+      }
+
+      return { success: false, error: result.error, existingClaim: result.existingClaim };
+    } catch (error) {
+      this.logger.error('Failed to claim task', { taskId, sessionId, error: error.message });
+      return { success: false, error: 'CLAIM_FAILED', message: error.message };
+    }
+  }
+
+  /**
+   * Release a task claim
+   * @private
+   */
+  _releaseTaskClaim(taskId, sessionId, reason = 'manual') {
+    const db = this._getCoordinationDb();
+    if (!db) {
+      return { success: false, error: 'DATABASE_UNAVAILABLE' };
+    }
+
+    try {
+      const result = db.releaseClaim(taskId, sessionId, reason);
+
+      // Transform released -> success for API consistency
+      if (result.released) {
+        // Broadcast release event via SSE
+        this._broadcastEvent('task:released', {
+          taskId,
+          sessionId,
+          reason,
+          releasedAt: Date.now(),
+          timestamp: Date.now()
+        });
+        return { success: true, releasedAt: Date.now() };
+      }
+
+      return { success: false, error: result.error, actualOwner: result.actualOwner };
+    } catch (error) {
+      this.logger.error('Failed to release task claim', { taskId, sessionId, error: error.message });
+      return { success: false, error: 'RELEASE_FAILED', message: error.message };
+    }
+  }
+
+  /**
+   * Refresh/extend a task claim TTL (heartbeat)
+   * @private
+   */
+  _refreshTaskClaim(taskId, sessionId, ttlMs = null) {
+    const db = this._getCoordinationDb();
+    if (!db) {
+      return { success: false, error: 'DATABASE_UNAVAILABLE' };
+    }
+
+    try {
+      const result = db.refreshClaim(taskId, sessionId, ttlMs);
+
+      if (result.success) {
+        // Broadcast heartbeat event (optional, may be too noisy for SSE)
+        // Only broadcast if explicitly requested or for debugging
+        if (this.options.broadcastHeartbeats) {
+          this._broadcastEvent('task:claim-heartbeat', {
+            taskId,
+            sessionId,
+            newExpiresAt: result.expiresAt,
+            refreshCount: result.heartbeatCount,
+            timestamp: Date.now()
+          });
+        }
+        return {
+          success: true,
+          claim: {
+            taskId,
+            sessionId,
+            expiresAt: result.expiresAt,
+            refreshCount: result.heartbeatCount,
+            remainingMs: result.remainingMs
+          }
+        };
+      }
+
+      return { success: false, error: result.error, actualOwner: result.actualOwner };
+    } catch (error) {
+      this.logger.error('Failed to refresh task claim', { taskId, sessionId, error: error.message });
+      return { success: false, error: 'REFRESH_FAILED', message: error.message };
+    }
+  }
+
+  /**
+   * Get all in-flight (claimed) tasks
+   * @private
+   */
+  _getInFlightTasks(options = {}) {
+    const db = this._getCoordinationDb();
+    if (!db) {
+      return { claims: [], available: false };
+    }
+
+    try {
+      const claims = db.getActiveClaims(options);
+
+      // Enrich claims with task info if TaskManager available
+      const tm = this._getTaskManager();
+      const enrichedClaims = claims.map(claim => {
+        const task = tm ? tm.getTask(claim.taskId) : null;
+        return {
+          ...claim,
+          task: task ? {
+            id: task.id,
+            title: task.title,
+            status: task.status,
+            phase: task.phase,
+            priority: task.priority
+          } : null
+        };
+      });
+
+      return {
+        claims: enrichedClaims,
+        count: enrichedClaims.length,
+        available: true,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      this.logger.error('Failed to get in-flight tasks', { error: error.message });
+      return { claims: [], available: true, error: error.message };
+    }
+  }
+
+  /**
+   * Get the current task claimed by a session
+   * @private
+   */
+  _getSessionCurrentTask(sessionId) {
+    const db = this._getCoordinationDb();
+    if (!db) {
+      return { currentTask: null, available: false };
+    }
+
+    try {
+      // Get claims for this session
+      const claims = db.getClaimsBySession(sessionId);
+
+      if (!claims || claims.length === 0) {
+        return {
+          sessionId,
+          currentTask: null,
+          available: true,
+          timestamp: Date.now()
+        };
+      }
+
+      // Get the most recent active claim
+      const activeClaims = claims.filter(c => !c.released && c.expiresAt > Date.now());
+
+      if (activeClaims.length === 0) {
+        return {
+          sessionId,
+          currentTask: null,
+          available: true,
+          timestamp: Date.now()
+        };
+      }
+
+      // Get the claim with the most recent claimedAt timestamp
+      const currentClaim = activeClaims.sort((a, b) => b.claimedAt - a.claimedAt)[0];
+
+      // Enrich with task info
+      const tm = this._getTaskManager();
+      const task = tm ? tm.getTask(currentClaim.taskId) : null;
+
+      return {
+        sessionId,
+        currentTask: {
+          claim: currentClaim,
+          task: task ? {
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            status: task.status,
+            phase: task.phase,
+            priority: task.priority,
+            estimate: task.estimate,
+            acceptance: task.acceptance
+          } : { id: currentClaim.taskId }
+        },
+        available: true,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      this.logger.error('Failed to get session current task', { sessionId, error: error.message });
+      return { sessionId, currentTask: null, available: true, error: error.message };
+    }
+  }
+
+  /**
+   * Trigger cleanup of orphaned/expired claims
+   * @private
+   */
+  _cleanupOrphanedClaims(force = false) {
+    const db = this._getCoordinationDb();
+    if (!db) {
+      return { success: false, error: 'DATABASE_UNAVAILABLE' };
+    }
+
+    try {
+      // Get counts before cleanup
+      const statsBefore = db.getClaimStats();
+
+      // Run cleanup
+      const expiredCount = db.cleanupExpiredClaims();
+      const orphanedCount = db.cleanupOrphanedClaims();
+
+      // Get counts after cleanup
+      const statsAfter = db.getClaimStats();
+
+      const result = {
+        success: true,
+        cleaned: {
+          expired: expiredCount,
+          orphaned: orphanedCount,
+          total: expiredCount + orphanedCount
+        },
+        statsBefore,
+        statsAfter,
+        timestamp: Date.now()
+      };
+
+      // Broadcast cleanup event if anything was cleaned
+      if (result.cleaned.total > 0) {
+        this._broadcastEvent('task:claims-cleaned', {
+          expiredCount,
+          orphanedCount,
+          timestamp: Date.now()
+        });
+
+        // Broadcast individual orphan events for dashboard updates
+        // Note: This would require tracking which claims were cleaned,
+        // which the current API doesn't provide. For now, just broadcast summary.
+        this._broadcastEvent('task:claim-orphaned', {
+          count: orphanedCount,
+          timestamp: Date.now()
+        });
+      }
+
+      return result;
+    } catch (error) {
+      this.logger.error('Failed to cleanup orphaned claims', { error: error.message });
+      return { success: false, error: 'CLEANUP_FAILED', message: error.message };
+    }
+  }
+
+  /**
+   * Get claim statistics
+   * @private
+   */
+  _getClaimStats() {
+    const db = this._getCoordinationDb();
+    if (!db) {
+      return { available: false };
+    }
+
+    try {
+      const stats = db.getClaimStats();
+
+      return {
+        ...stats,
+        available: true,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      this.logger.error('Failed to get claim stats', { error: error.message });
+      return { available: true, error: error.message };
+    }
+  }
+
+  /**
+   * Setup claim event listeners for SSE broadcasting
+   * @private
+   */
+  _setupClaimEventListeners() {
+    const db = this._getCoordinationDb();
+    if (!db) return;
+
+    // Listen for claim expiration events from cleanup timer
+    db.on('claim:expired', (claim) => {
+      this._broadcastEvent('task:claim-expired', {
+        taskId: claim.taskId,
+        sessionId: claim.sessionId,
+        expiredAt: Date.now(),
+        timestamp: Date.now()
+      });
+    });
+
+    // Listen for orphaned claim events
+    db.on('claim:orphaned', (claim) => {
+      this._broadcastEvent('task:claim-orphaned', {
+        taskId: claim.taskId,
+        sessionId: claim.sessionId,
+        reason: 'session_stale',
+        timestamp: Date.now()
+      });
+    });
   }
 
   // ============================================
