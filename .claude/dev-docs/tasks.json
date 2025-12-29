@@ -32,7 +32,6 @@
     "later": {
       "description": "Future work, not yet prioritized",
       "tasks": [
-        "hierarchy-phase4-dashboard-viz",
         "hierarchy-tests-unit",
         "hierarchy-tests-integration",
         "dashboard-blocked-tasks-view"
@@ -47,6 +46,7 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "hierarchy-phase4-dashboard-viz",
         "hierarchy-phase4-optimization",
         "hierarchy-phase4-metrics",
         "hierarchy-phase3-auto-delegation",
@@ -903,11 +903,13 @@
         "Rollup metrics displayed at each tree level",
         "Responsive design for different screen sizes"
       ],
-      "status": "in_progress",
+      "status": "complete",
+      "qualityScore": 90,
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-29T06:00:00.000Z",
-      "started": "2025-12-29T06:00:00.000Z"
+      "updated": "2025-12-29T08:00:00.000Z",
+      "started": "2025-12-29T06:00:00.000Z",
+      "completed": "2025-12-29T08:00:00.000Z"
     },
     "hierarchy-phase4-metrics": {
       "parentTaskId": null,
@@ -1336,7 +1338,7 @@
       "decomposition": {
         "strategy": "sequential",
         "estimatedSubtasks": 4,
-        "completedSubtasks": 0,
+        "completedSubtasks": 1,
         "aggregationRule": "all-complete"
       },
       "id": "session-task-claiming",
@@ -1367,11 +1369,13 @@
         "Orphaned claims auto-released after timeout",
         "All tests pass"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "assignee": null,
       "created": "2025-12-28T23:50:00.000Z",
-      "updated": "2025-12-28T23:50:00.000Z",
-      "designDoc": "docs/SESSION-TASK-CLAIMING-DESIGN.md"
+      "updated": "2025-12-29T07:30:00.000Z",
+      "started": "2025-12-29T06:00:00.000Z",
+      "designDoc": "docs/SESSION-TASK-CLAIMING-DESIGN.md",
+      "progress": 25
     },
     "session-task-claiming-phase1": {
       "parentTaskId": "session-task-claiming",
@@ -1454,10 +1458,10 @@
         "releaseSessionTasks() called on session deregistration",
         "Integration tests for claim flow"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2025-12-28T23:50:00.000Z",
-      "updated": "2025-12-28T23:50:00.000Z"
+      "updated": "2025-12-29T07:30:00.000Z"
     },
     "session-task-claiming-phase3": {
       "parentTaskId": "session-task-claiming",

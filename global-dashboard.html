@@ -1385,6 +1385,225 @@
     .skip-link:focus {
       top: 0;
     }
+
+    /* ===== HIERARCHY VISUALIZATION ===== */
+    .hierarchy-panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 200px;
+    }
+
+    .hierarchy-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .hierarchy-panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hierarchy-panel-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .hierarchy-panel-actions button {
+      padding: 4px 8px;
+      font-size: 11px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .hierarchy-panel-actions button:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .hierarchy-panel-body {
+      flex: 1;
+      overflow: auto;
+      padding: 12px;
+      max-height: 300px;
+    }
+
+    .hierarchy-tree {
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .hierarchy-tree__node {
+      position: relative;
+      margin: 2px 0;
+    }
+
+    .hierarchy-tree__node-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      background: transparent;
+      border: 1px solid transparent;
+    }
+
+    .hierarchy-tree__node-row:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-color);
+    }
+
+    .hierarchy-tree__toggle {
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      cursor: pointer;
+      flex-shrink: 0;
+      font-size: 10px;
+    }
+
+    .hierarchy-tree__toggle:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .hierarchy-tree__toggle-placeholder {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .hierarchy-tree__status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .hierarchy-tree__status-dot--active {
+      background: var(--color-success);
+      box-shadow: 0 0 6px var(--color-success);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .hierarchy-tree__status-dot--completed {
+      background: var(--color-success);
+    }
+
+    .hierarchy-tree__status-dot--failed {
+      background: var(--color-danger);
+    }
+
+    .hierarchy-tree__status-dot--pending {
+      background: var(--color-warning);
+    }
+
+    .hierarchy-tree__status-dot--idle {
+      background: var(--text-muted);
+    }
+
+    .hierarchy-tree__icon {
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .hierarchy-tree__name {
+      flex: 1;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hierarchy-tree__badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background-color: var(--bg-tertiary);
+      border-radius: 8px;
+    }
+
+    .hierarchy-tree__children {
+      margin-left: 16px;
+      padding-left: 12px;
+      border-left: 1px dashed var(--border-color);
+    }
+
+    .hierarchy-tree__node--expanded > .hierarchy-tree__node-row .hierarchy-tree__toggle {
+      transform: rotate(90deg);
+    }
+
+    .hierarchy-tree__node--selected > .hierarchy-tree__node-row {
+      background: rgba(88, 166, 255, 0.1);
+      border-color: var(--color-info);
+    }
+
+    .hierarchy-tree__node--root > .hierarchy-tree__node-row {
+      background: var(--bg-tertiary);
+      border-color: var(--border-color);
+      padding: 8px 12px;
+    }
+
+    .hierarchy-tree__metrics {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+      padding-left: 10px;
+    }
+
+    .hierarchy-tree__metric {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .hierarchy-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .hierarchy-empty-icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+      opacity: 0.5;
+    }
   </style>
 </head>
 <body>
@@ -2223,6 +2442,33 @@
               throttledUIUpdate();
             }
           }
+
+          // Handle hierarchy updates from SSE
+          if (data.hierarchyUpdate) {
+            const update = data.hierarchyUpdate;
+            // Refresh hierarchy if it's for the currently selected session
+            if (update.sessionId === HierarchyTreeState.currentSessionId) {
+              if (update.type === 'full') {
+                // Full refresh
+                loadHierarchy(update.sessionId);
+              } else if (update.type === 'node' && update.node) {
+                // Incremental update - update specific node
+                const existingNode = HierarchyTreeState.getNode(update.node.id);
+                if (existingNode) {
+                  existingNode.status = normalizeHierarchyStatus(update.node.status);
+                  existingNode.metrics = update.node.metrics || existingNode.metrics;
+                  // Re-render just that node's status
+                  const nodeEl = document.querySelector(`[data-node-id="${update.node.id}"]`);
+                  if (nodeEl) {
+                    const statusDot = nodeEl.querySelector('.hierarchy-tree__status-dot');
+                    if (statusDot) {
+                      statusDot.className = `hierarchy-tree__status-dot hierarchy-tree__status-dot--${existingNode.status}`;
+                    }
+                  }
+                }
+              }
+            }
+          }
         } catch (err) {
           console.error('SSE parse error:', err);
         }
@@ -2699,6 +2945,25 @@
           </div>
 
           <div class="detail-section">
+            <h3>Agent Hierarchy</h3>
+            <div class="hierarchy-panel">
+              <div class="hierarchy-panel-header">
+                <span class="hierarchy-panel-title">Delegation Tree</span>
+                <div class="hierarchy-panel-actions">
+                  <button onclick="expandAllHierarchy()">Expand</button>
+                  <button onclick="collapseAllHierarchy()">Collapse</button>
+                  <button onclick="refreshHierarchy('${session.id}')">Refresh</button>
+                </div>
+              </div>
+              <div class="hierarchy-panel-body" id="hierarchyTreeContainer">
+                <div class="hierarchy-empty">
+                  <div class="hierarchy-empty-icon">Loading...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-section">
             <h3>Lessons Learned</h3>
             <div class="lessons-section" id="lessonsSection">
               <div class="lessons-header" onclick="toggleLessons()">
@@ -2760,6 +3025,9 @@
       if (sessionChanged) {
         startLogStream(logId);
       }
+
+      // Load hierarchy for selected session
+      loadHierarchy(session.id);
     }
 
     // ===== USAGE DISPLAY =====
@@ -3086,6 +3354,235 @@
           break;
       }
     });
+
+    // ===== HIERARCHY VISUALIZATION =====
+    const HierarchyTreeState = {
+      rootNode: null,
+      nodeMap: new Map(),
+      selectedNodeId: null,
+      expandedNodeIds: new Set(),
+      currentSessionId: null,
+
+      reset() {
+        this.rootNode = null;
+        this.nodeMap.clear();
+        this.selectedNodeId = null;
+        this.expandedNodeIds.clear();
+      },
+
+      registerNode(node) {
+        this.nodeMap.set(node.id, node);
+      },
+
+      getNode(nodeId) {
+        return this.nodeMap.get(nodeId);
+      }
+    };
+
+    async function loadHierarchy(sessionId) {
+      if (!sessionId) return;
+      HierarchyTreeState.currentSessionId = sessionId;
+      HierarchyTreeState.reset();
+
+      const container = document.getElementById('hierarchyTreeContainer');
+      if (!container) return;
+
+      container.innerHTML = '<div class="hierarchy-empty"><div class="hierarchy-empty-icon">Loading...</div></div>';
+
+      try {
+        const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/hierarchy`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            container.innerHTML = '<div class="hierarchy-empty"><div class="hierarchy-empty-icon">No delegation data</div></div>';
+            return;
+          }
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const hierarchyData = await response.json();
+        const rootNode = transformHierarchyData(hierarchyData, null, 0);
+
+        HierarchyTreeState.rootNode = rootNode;
+        HierarchyTreeState.expandedNodeIds.add(rootNode.id);
+
+        renderHierarchyTree(container);
+      } catch (error) {
+        console.error('Failed to load hierarchy:', error);
+        container.innerHTML = `<div class="hierarchy-empty"><div class="hierarchy-empty-icon">Error loading hierarchy</div></div>`;
+      }
+    }
+
+    function transformHierarchyData(apiNode, parentId, depth) {
+      const node = {
+        id: apiNode.id || apiNode.agentId || `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: apiNode.name || apiNode.persona || apiNode.agentId || 'Unknown Agent',
+        type: apiNode.type || (depth === 0 ? 'root' : 'agent'),
+        status: normalizeHierarchyStatus(apiNode.status),
+        children: [],
+        parentId: parentId,
+        depth: depth,
+        metrics: {
+          tokensUsed: apiNode.metrics?.tokensUsed || 0,
+          qualityScore: apiNode.metrics?.qualityScore || 0,
+          durationMs: apiNode.metrics?.durationMs || 0
+        }
+      };
+
+      HierarchyTreeState.registerNode(node);
+
+      const childNodes = apiNode.children || apiNode.delegates || apiNode.subAgents || [];
+      node.children = childNodes.map(child => transformHierarchyData(child, node.id, depth + 1));
+
+      return node;
+    }
+
+    function normalizeHierarchyStatus(status) {
+      const statusMap = {
+        'running': 'active', 'in_progress': 'active',
+        'success': 'completed', 'done': 'completed',
+        'error': 'failed', 'waiting': 'pending', 'queued': 'pending'
+      };
+      return statusMap[status] || status || 'idle';
+    }
+
+    function renderHierarchyTree(container) {
+      if (!HierarchyTreeState.rootNode) {
+        container.innerHTML = '<div class="hierarchy-empty"><div class="hierarchy-empty-icon">No hierarchy data</div></div>';
+        return;
+      }
+
+      const treeHtml = renderHierarchyNode(HierarchyTreeState.rootNode);
+      container.innerHTML = `<div class="hierarchy-tree">${treeHtml}</div>`;
+      attachHierarchyEvents(container);
+    }
+
+    function renderHierarchyNode(node) {
+      const hasChildren = node.children && node.children.length > 0;
+      const isExpanded = HierarchyTreeState.expandedNodeIds.has(node.id);
+      const isSelected = HierarchyTreeState.selectedNodeId === node.id;
+
+      const nodeClasses = [
+        'hierarchy-tree__node',
+        `hierarchy-tree__node--${node.type}`,
+        `hierarchy-tree__node--${node.status}`,
+        hasChildren ? 'hierarchy-tree__node--has-children' : '',
+        isExpanded ? 'hierarchy-tree__node--expanded' : '',
+        isSelected ? 'hierarchy-tree__node--selected' : ''
+      ].filter(Boolean).join(' ');
+
+      const icons = { root: '&#x1F3E0;', session: '&#x1F4CB;', agent: '&#x1F916;' };
+      const icon = icons[node.type] || '&#x1F4C4;';
+
+      return `
+        <div class="${nodeClasses}" data-node-id="${escapeHtmlAttr(node.id)}" data-depth="${node.depth}">
+          <div class="hierarchy-tree__node-row">
+            ${hasChildren ? `
+              <button class="hierarchy-tree__toggle" data-action="toggle" data-node-id="${escapeHtmlAttr(node.id)}">
+                ${isExpanded ? '&#9660;' : '&#9654;'}
+              </button>
+            ` : '<span class="hierarchy-tree__toggle-placeholder"></span>'}
+            <span class="hierarchy-tree__status-dot hierarchy-tree__status-dot--${node.status}"></span>
+            <span class="hierarchy-tree__icon">${icon}</span>
+            <span class="hierarchy-tree__name" data-action="select" data-node-id="${escapeHtmlAttr(node.id)}">${escapeHtmlContent(node.name)}</span>
+            ${node.metrics.tokensUsed > 0 ? `<span class="hierarchy-tree__metric" title="Tokens">${formatTokens(node.metrics.tokensUsed)}</span>` : ''}
+            ${hasChildren ? `<span class="hierarchy-tree__badge">${node.children.length}</span>` : ''}
+          </div>
+          ${hasChildren ? `
+            <div class="hierarchy-tree__children" style="display: ${isExpanded ? 'block' : 'none'}">
+              ${node.children.map(child => renderHierarchyNode(child)).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function escapeHtmlAttr(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function escapeHtmlContent(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function formatTokens(num) {
+      if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+      if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+      return num.toString();
+    }
+
+    function attachHierarchyEvents(container) {
+      container.addEventListener('click', (e) => {
+        const target = e.target.closest('[data-action]');
+        if (!target) return;
+
+        const action = target.dataset.action;
+        const nodeId = target.dataset.nodeId;
+        if (!nodeId) return;
+
+        if (action === 'toggle') {
+          toggleHierarchyNode(nodeId);
+        } else if (action === 'select') {
+          selectHierarchyNode(nodeId);
+        }
+      });
+    }
+
+    function toggleHierarchyNode(nodeId) {
+      const node = HierarchyTreeState.getNode(nodeId);
+      if (!node || !node.children || node.children.length === 0) return;
+
+      const isExpanded = HierarchyTreeState.expandedNodeIds.has(nodeId);
+      if (isExpanded) {
+        HierarchyTreeState.expandedNodeIds.delete(nodeId);
+      } else {
+        HierarchyTreeState.expandedNodeIds.add(nodeId);
+      }
+
+      const nodeEl = document.querySelector(`[data-node-id="${nodeId}"]`);
+      if (nodeEl) {
+        nodeEl.classList.toggle('hierarchy-tree__node--expanded', !isExpanded);
+        const toggleIcon = nodeEl.querySelector('.hierarchy-tree__toggle');
+        if (toggleIcon) toggleIcon.innerHTML = !isExpanded ? '&#9660;' : '&#9654;';
+        const childrenEl = nodeEl.querySelector(':scope > .hierarchy-tree__children');
+        if (childrenEl) childrenEl.style.display = !isExpanded ? 'block' : 'none';
+      }
+    }
+
+    function selectHierarchyNode(nodeId) {
+      const previousId = HierarchyTreeState.selectedNodeId;
+      HierarchyTreeState.selectedNodeId = nodeId;
+
+      if (previousId) {
+        const prevEl = document.querySelector(`[data-node-id="${previousId}"]`);
+        if (prevEl) prevEl.classList.remove('hierarchy-tree__node--selected');
+      }
+
+      const nodeEl = document.querySelector(`[data-node-id="${nodeId}"]`);
+      if (nodeEl) nodeEl.classList.add('hierarchy-tree__node--selected');
+    }
+
+    function expandAllHierarchy() {
+      HierarchyTreeState.nodeMap.forEach((node, id) => {
+        if (node.children && node.children.length > 0 && !HierarchyTreeState.expandedNodeIds.has(id)) {
+          toggleHierarchyNode(id);
+        }
+      });
+    }
+
+    function collapseAllHierarchy() {
+      HierarchyTreeState.nodeMap.forEach((node, id) => {
+        if (node.depth > 0 && HierarchyTreeState.expandedNodeIds.has(id)) {
+          toggleHierarchyNode(id);
+        }
+      });
+    }
+
+    function refreshHierarchy(sessionId) {
+      loadHierarchy(sessionId || HierarchyTreeState.currentSessionId);
+    }
 
     // Initialize
     init();

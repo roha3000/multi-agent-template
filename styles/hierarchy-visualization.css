@@ -1,0 +1,465 @@
+/* ============================================================
+   HIERARCHY VISUALIZATION CSS
+   Complete styles for tree views, delegation chains, and metrics
+   Version: 1.0.0
+   ============================================================ */
+
+/* =========================
+   1. HIERARCHY PANEL & CONTAINER
+   ========================= */
+
+.hierarchy-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 300px;
+    margin-top: 16px;
+}
+
+.hierarchy-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.hierarchy-panel-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hierarchy-panel-title::before {
+    content: '';
+    width: 12px;
+    height: 12px;
+    background: var(--color-purple);
+    border-radius: 3px;
+}
+
+.hierarchy-panel-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.hierarchy-panel-body {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+    max-height: 400px;
+}
+
+/* =========================
+   2. HIERARCHY TREE
+   ========================= */
+
+.hierarchy-tree {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 8px 0;
+}
+
+.hierarchy-tree__node {
+    position: relative;
+    margin: 2px 0;
+}
+
+.hierarchy-tree__node-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background: transparent;
+    border: 1px solid transparent;
+}
+
+.hierarchy-tree__node-row:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-color);
+}
+
+/* Toggle button */
+.hierarchy-tree__toggle {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.hierarchy-tree__toggle:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.hierarchy-tree__toggle-icon {
+    transition: transform 0.2s ease;
+    font-size: 10px;
+}
+
+.hierarchy-tree__toggle-placeholder {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* Status dot */
+.hierarchy-tree__status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.hierarchy-tree__status-dot--active {
+    background: var(--color-success);
+    box-shadow: 0 0 8px var(--color-success);
+    animation: statusPulse 2s ease-in-out infinite;
+}
+
+.hierarchy-tree__status-dot--completed {
+    background: var(--color-success);
+}
+
+.hierarchy-tree__status-dot--failed {
+    background: var(--color-danger);
+}
+
+.hierarchy-tree__status-dot--pending {
+    background: var(--color-warning);
+}
+
+.hierarchy-tree__status-dot--idle {
+    background: var(--text-muted);
+}
+
+/* Node icon */
+.hierarchy-tree__icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+/* Node name */
+.hierarchy-tree__name {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Badge */
+.hierarchy-tree__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background-color: var(--bg-tertiary);
+    border-radius: 10px;
+}
+
+/* Children container */
+.hierarchy-tree__children {
+    margin-left: 20px;
+    padding-left: 16px;
+    border-left: 1px dashed var(--border-color);
+}
+
+/* Node states */
+.hierarchy-tree__node--expanded > .hierarchy-tree__node-row .hierarchy-tree__toggle-icon {
+    transform: rotate(90deg);
+}
+
+.hierarchy-tree__node--selected > .hierarchy-tree__node-row {
+    background: rgba(88, 166, 255, 0.1);
+    border-color: var(--color-info);
+}
+
+.hierarchy-tree__node--root > .hierarchy-tree__node-row {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    padding: 12px 16px;
+}
+
+.hierarchy-tree__node--root .hierarchy-tree__name {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Inline metrics */
+.hierarchy-tree__metrics {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+    padding-left: 12px;
+}
+
+.hierarchy-tree__metric {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.hierarchy-tree__metric-icon {
+    font-size: 10px;
+}
+
+.hierarchy-tree__metric-value {
+    font-variant-numeric: tabular-nums;
+}
+
+.hierarchy-tree__metric--quality-excellent .hierarchy-tree__metric-value {
+    color: var(--color-success);
+    font-weight: 600;
+}
+
+.hierarchy-tree__metric--quality-good .hierarchy-tree__metric-value {
+    color: var(--color-success);
+}
+
+.hierarchy-tree__metric--quality-fair .hierarchy-tree__metric-value {
+    color: var(--color-warning);
+}
+
+.hierarchy-tree__metric--quality-poor .hierarchy-tree__metric-value {
+    color: var(--color-danger);
+}
+
+/* =========================
+   3. DELEGATION CHAIN
+   ========================= */
+
+.delegation-chain {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 16px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.delegation-chain::-webkit-scrollbar {
+    height: 6px;
+}
+
+.delegation-chain::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+}
+
+.delegation-chain::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.delegation-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    min-width: 120px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.delegation-node:hover {
+    border-color: var(--color-info);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.delegation-node-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 18px;
+    margin-bottom: 8px;
+    background: var(--bg-hover);
+}
+
+.delegation-node-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: center;
+}
+
+.delegation-node-status {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.delegation-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.delegation-arrow-line {
+    width: 24px;
+    height: 2px;
+    background: var(--border-color);
+    position: relative;
+}
+
+.delegation-arrow-line::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 4px solid transparent;
+    border-left-color: var(--border-color);
+}
+
+.delegation-arrow--active .delegation-arrow-line {
+    background: linear-gradient(to right, var(--border-color), var(--color-info), var(--border-color));
+    background-size: 200% 100%;
+    animation: arrowFlow 1.5s linear infinite;
+}
+
+.delegation-arrow--active .delegation-arrow-line::after {
+    border-left-color: var(--color-info);
+}
+
+.aggregation-node {
+    background: linear-gradient(135deg, var(--bg-tertiary), rgba(163, 113, 247, 0.1));
+    border-color: var(--color-purple);
+}
+
+.aggregation-node .delegation-node-icon {
+    background: rgba(163, 113, 247, 0.2);
+    color: var(--color-purple);
+}
+
+/* =========================
+   4. ANIMATIONS
+   ========================= */
+
+@keyframes statusPulse {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 8px var(--color-success);
+    }
+    50% {
+        opacity: 0.7;
+        box-shadow: 0 0 16px var(--color-success);
+    }
+}
+
+@keyframes arrowFlow {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+}
+
+@keyframes nodeHighlight {
+    0% { box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(88, 166, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(88, 166, 255, 0); }
+}
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================
+   5. EMPTY STATES
+   ========================= */
+
+.hierarchy-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.hierarchy-empty-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.hierarchy-empty-text {
+    font-size: 14px;
+}
+
+/* =========================
+   6. RESPONSIVE
+   ========================= */
+
+@media (max-width: 768px) {
+    .hierarchy-panel-body {
+        padding: 12px;
+        max-height: 300px;
+    }
+
+    .hierarchy-tree__node-row {
+        padding: 6px 10px;
+    }
+
+    .hierarchy-tree__metrics {
+        display: none;
+    }
+
+    .delegation-chain {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .delegation-node {
+        flex-direction: row;
+        min-width: auto;
+    }
+
+    .delegation-node-icon {
+        margin-bottom: 0;
+        margin-right: 12px;
+    }
+
+    .delegation-arrow {
+        transform: rotate(90deg);
+        padding: 4px 0;
+        justify-content: center;
+    }
+}
