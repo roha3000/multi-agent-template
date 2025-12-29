@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 5,
-    "lastModifiedBy": "session-49-task-cleanup",
-    "lastModifiedAt": "2025-12-28T23:45:00.000Z"
+    "version": 6,
+    "lastModifiedBy": "session-53-phase2-complete",
+    "lastModifiedAt": "2025-12-29T09:30:00.000Z"
   },
   "version": "1.1.0",
   "project": {
@@ -20,7 +20,9 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "session-task-claiming"
+        "session-task-claiming",
+        "hierarchy-tests-unit",
+        "hierarchy-tests-integration"
       ]
     },
     "next": {
@@ -32,8 +34,6 @@
     "later": {
       "description": "Future work, not yet prioritized",
       "tasks": [
-        "hierarchy-tests-unit",
-        "hierarchy-tests-integration",
         "dashboard-blocked-tasks-view"
       ]
     },
@@ -1033,10 +1033,11 @@
         "Coverage > 80% for hierarchy modules",
         "All tests pass in CI"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "assignee": null,
       "created": "2025-12-28T20:00:00.000Z",
       "updated": "2025-12-28T22:30:00.000Z",
+      "started": "2025-12-29T09:00:00.000Z",
       "notes": "Partial: 44 aggregation/delegation-context tests already exist from Phase 2 implementation"
     },
     "hierarchy-tests-integration": {
@@ -1338,7 +1339,7 @@
       "decomposition": {
         "strategy": "sequential",
         "estimatedSubtasks": 4,
-        "completedSubtasks": 1,
+        "completedSubtasks": 2,
         "aggregationRule": "all-complete"
       },
       "id": "session-task-claiming",
@@ -1375,7 +1376,7 @@
       "updated": "2025-12-29T07:30:00.000Z",
       "started": "2025-12-29T06:00:00.000Z",
       "designDoc": "docs/SESSION-TASK-CLAIMING-DESIGN.md",
-      "progress": 25
+      "progress": 50
     },
     "session-task-claiming-phase1": {
       "parentTaskId": "session-task-claiming",
@@ -1458,10 +1459,26 @@
         "releaseSessionTasks() called on session deregistration",
         "Integration tests for claim flow"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-28T23:50:00.000Z",
-      "updated": "2025-12-29T07:30:00.000Z"
+      "updated": "2025-12-29T09:30:00.000Z",
+      "completed": "2025-12-29T09:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/task-manager.js: +400 lines claim integration (lines 2290-2697)",
+        "CLAIM_CONFIG static getter with TTL, heartbeat intervals",
+        "claimNextTask(phase, options) - atomically claim next available task",
+        "releaseTaskClaim(taskId, reason) - release specific claim",
+        "releaseAllClaims(reason) - bulk release session claims",
+        "extendClaim(taskId, ttlMs) - extend claim TTL (heartbeat)",
+        "getMyClaimedTasks() - list tasks claimed by session",
+        "_startClaimHeartbeat(taskId) - auto-refresh every 60s",
+        "_stopClaimHeartbeat(taskId), _stopAllHeartbeats() - cleanup",
+        "close() method for clean shutdown with claim release",
+        "Events: task:claimed, task:claim-released, task:claims-released, task:claim-lost, manager:closed"
+      ],
+      "notes": "Integrated with CoordinationDB claim methods from Phase 1. Heartbeat system auto-refreshes TTL every 60s. All 2319 core tests passing."
     },
     "session-task-claiming-phase3": {
       "parentTaskId": "session-task-claiming",
@@ -1500,10 +1517,10 @@
         "SSE events: task:claimed, task:released, task:claim-expired, task:claim-orphaned",
         "Integration tests for all endpoints"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2025-12-28T23:50:00.000Z",
-      "updated": "2025-12-28T23:50:00.000Z"
+      "updated": "2025-12-29T09:30:00.000Z"
     },
     "session-task-claiming-phase4": {
       "parentTaskId": "session-task-claiming",

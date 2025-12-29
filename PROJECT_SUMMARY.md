@@ -1,53 +1,61 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-29 (Session 52)
+**Last Updated**: 2025-12-29 (Session 53)
 **Current Phase**: IMPLEMENTATION
-**Status**: Hierarchy Dashboard Visualization - COMPLETE
+**Status**: Session-Task Claiming Phase 2 - COMPLETE
 
 ---
 
-## Session 52: Hierarchy Dashboard Visualization (CURRENT)
+## Session 53: Session-Task Claiming Phase 2 (CURRENT)
 
 ### Work Completed
 
 | Task | Status | Description |
 |------|--------|-------------|
-| hierarchy-phase4-dashboard-viz | ✅ (90) | Interactive hierarchy tree visualization in dashboard |
+| session-task-claiming-phase2 | ✅ (95) | TaskManager claim integration with heartbeat |
 
 ### Implementation Details
 
-**Dashboard Integration** (`global-dashboard.html`):
-- New "Agent Hierarchy" section in detail panel
-- HierarchyTreeState for managing tree state
-- Interactive expand/collapse with visual feedback
-- Real-time SSE updates for hierarchy changes
+**TaskManager Integration** (`task-manager.js:2290-2697`):
+- `CLAIM_CONFIG` - Static configuration for TTL, heartbeat intervals
+- `claimNextTask(phase, options)` - Atomically claim next available task
+- `releaseTaskClaim(taskId, reason)` - Release specific claim
+- `releaseAllClaims(reason)` - Bulk release all session claims
+- `extendClaim(taskId, ttlMs)` - Extend TTL (heartbeat)
+- `getMyClaimedTasks()` - Get all tasks claimed by session
 
-**Key Features**:
-- Tree visualization with expand/collapse nodes
-- Status indicators (active, completed, failed, pending, idle)
-- Token usage metrics per agent
-- Delegation chain depth indicators
-- Responsive design for all screen sizes
+**Heartbeat System**:
+- `_startClaimHeartbeat(taskId)` - Auto-refresh claim every 60s
+- `_stopClaimHeartbeat(taskId)` - Stop timer on release
+- `_stopAllHeartbeats()` - Cleanup on close
+- Emits `task:claim-lost` if heartbeat fails
 
-**SSE Integration**:
-- `hierarchyUpdate` event handling
-- Full refresh and incremental node updates
-- Auto-refresh on session selection
+**Events Emitted**:
+- `task:claimed` - Task successfully claimed
+- `task:claim-released` - Single claim released
+- `task:claims-released` - Bulk claims released
+- `manager:closed` - TaskManager closed
 
-### Agent Swarm Approach
-5 expert agents spawned in parallel:
-1. Tree Visualization Expert - HierarchyTreeState, rendering
-2. SSE Integration Expert - Real-time update handlers
-3. Delegation Chain Expert - Chain visualization
-4. Rollup Metrics Expert - Metrics aggregation
-5. CSS/Responsive Expert - Styling and responsiveness
+### Test Results
+
+```
+Task Claims Tests:       41 passed ✓
+Claim Cleanup Tests:     25 passed ✓
+TaskManager Tests:       97 passed ✓
+Total Core Tests:        2319 passed ✓
+```
 
 ### Files Modified
 
 | File | Purpose |
 |------|---------|
-| `global-dashboard.html` | Hierarchy CSS + JS + panel integration (+400 lines) |
-| `.claude/core/hierarchy-viz.js` | Standalone hierarchy component (created) |
-| `styles/hierarchy-visualization.css` | Full stylesheet (created) |
+| `.claude/core/task-manager.js` | +400 lines: claim methods, heartbeat system |
+
+---
+
+## Session 52: Hierarchy Dashboard Visualization ✅
+- **Tasks**: hierarchy-phase4-dashboard-viz (90)
+- **Key changes**: Interactive hierarchy tree, SSE updates, expand/collapse
+- **Files**: global-dashboard.html (+400 lines), hierarchy-viz.js, styles/
 
 ---
 
@@ -60,29 +68,8 @@
 
 ## Session 50: Hierarchy Phase 4 - Metrics + Optimization ✅
 - **Tasks**: hierarchy-phase4-metrics (95), hierarchy-phase4-optimization (95)
-- **Key changes**: DelegationMetrics, 9 API endpoints, TieredTimeoutCalculator, ContextCache, AgentPool
-- **Files**: delegation-metrics.js, hierarchy-optimizations.js, coordination-db.js (110 tests)
-
----
-
-## Session 49: Hierarchy Phase 3 - Auto-Delegation ✅
-- **Tasks**: hierarchy-phase3-auto-delegation (95)
-- **Key changes**: DelegationDecider, weighted scoring, pattern selection
-- **Files**: delegation-decider.js, agent-orchestrator.js (44 tests)
-
----
-
-## Session 48: Parallel Safety Phase 4 - Dashboard Conflicts ✅
-- **Tasks**: parallel-safety-phase4-dashboard-conflicts (95)
-- **Key changes**: Conflict detection, resolution API, SSE broadcasting
-- **Files**: coordination-db.js, enhanced-dashboard-server.js (39 tests)
-
----
-
-## Session 47: Parallel Safety Phase 3 - Shadow Mode ✅
-- **Tasks**: parallel-safety-phase3-shadow-mode (95)
-- **Key changes**: ShadowModeMetrics, SHA-256 hashing, dual-write validation
-- **Files**: shadow-mode-metrics.js, task-manager.js (48 tests)
+- **Key changes**: DelegationMetrics, 9 API endpoints, TieredTimeoutCalculator
+- **Files**: delegation-metrics.js, hierarchy-optimizations.js (110 tests)
 
 ---
 
@@ -93,10 +80,10 @@
 | Orchestrator | Unified + parallel patterns + delegation primitives + metrics |
 | Dashboard | Command Center + hierarchy viz + conflicts API + metrics endpoints |
 | Task System | Hierarchy + concurrent write + shadow mode + conflict resolution + claiming |
-| Tests | 2200+ passing |
+| Tests | 2300+ passing |
 | Parallel Safety | 100% COMPLETE (4/4 phases) |
-| Hierarchy Phase 4 | ✅ COMPLETE (Metrics + Optimization + Dashboard Viz) |
-| Session-Task Claiming | Phase 1 COMPLETE |
+| Hierarchy Phase 4 | ✅ COMPLETE |
+| Session-Task Claiming | Phase 2 COMPLETE (2/4) |
 
 ---
 
@@ -105,8 +92,9 @@
 | Phase | Description | Status | Tests |
 |-------|-------------|--------|-------|
 | Phase 1 | task_claims table + atomic claim methods | ✅ Complete | 66 |
-| Phase 2 | Dashboard API + UI integration | Pending | - |
-| Phase 3 | Heartbeat service + auto-refresh | Pending | - |
+| Phase 2 | TaskManager integration + heartbeat | ✅ Complete | 97 |
+| Phase 3 | Dashboard API + SSE events | Pending | - |
+| Phase 4 | Dashboard UI updates | Pending | - |
 
 ---
 
@@ -115,5 +103,4 @@
 - **Dashboard**: http://localhost:3033/
 - **Archives**: `.claude/dev-docs/archives/`
 - **Task Graph**: http://localhost:3033/task-graph.html
-- **Parallel Safety**: COMPLETE
-- **NEXT**: session-task-claiming-phase2, audit-cleanup-phase1
+- **NEXT**: session-task-claiming-phase3, audit-cleanup-phase1

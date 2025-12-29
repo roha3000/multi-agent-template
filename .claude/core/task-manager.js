@@ -2286,6 +2286,415 @@ class TaskManager extends EventEmitter {
       repairs
     };
   }
+
+  // ====================================================================
+  // SESSION-TASK CLAIMING (Phase 2)
+  // ====================================================================
+
+  /**
+   * Claim configuration constants
+   * @static
+   */
+  static get CLAIM_CONFIG() {
+    return {
+      defaultTTL: 1800000,        // 30 minutes
+      maxTTL: 7200000,            // 2 hours max
+      minTTL: 60000,              // 1 minute min
+      heartbeatInterval: 60000,   // Heartbeat every 1 min
+      cleanupInterval: 300000,    // Cleanup every 5 min
+      orphanThreshold: 600000,    // 10 min = orphan
+      warningThreshold: 300000,   // 5 min remaining = warning
+      expiringThreshold: 60000    // 1 min remaining = expiring
+    };
+  }
+
+  /**
+   * Check if a task is available for claiming
+   * @param {Object} task - Task object to check
+   * @returns {Object} { available: boolean, reason?: string, existingClaim?: Object }
+   */
+  _isTaskAvailableForClaim(task) {
+    if (!task) {
+      return { available: false, reason: 'Task does not exist' };
+    }
+
+    // Task must not be completed
+    if (task.status === 'completed') {
+      return { available: false, reason: 'Task is already completed' };
+    }
+
+    // Task must not be blocked
+    if (task.status === 'blocked') {
+      return { available: false, reason: 'Task is blocked by dependencies' };
+    }
+
+    // Check dependencies
+    if (!this._areRequirementsMet(task)) {
+      return { available: false, reason: 'Task has unmet dependencies' };
+    }
+
+    // Check for existing claim in CoordinationDB
+    if (this._coordinationDb) {
+      const existingClaim = this._coordinationDb.getClaim(task.id);
+      if (existingClaim) {
+        // Check if claim is expired
+        if (existingClaim.expiresAt > Date.now()) {
+          // Active claim exists
+          if (existingClaim.sessionId === this.sessionId) {
+            // We own this claim
+            return { available: true, reason: 'Already claimed by this session', existingClaim };
+          }
+          // Another session owns it
+          return {
+            available: false,
+            reason: `Task claimed by session ${existingClaim.sessionId}`,
+            existingClaim
+          };
+        }
+        // Claim is expired, task is available
+      }
+    }
+
+    return { available: true };
+  }
+
+  /**
+   * Get and claim the next available task atomically
+   * This method handles race conditions where another session might claim
+   * a task between our check and claim attempt.
+   *
+   * @param {string} phase - Current development phase (optional filter)
+   * @param {Object} options - Configuration options
+   * @param {number} options.ttlMs - Time-to-live for claim in milliseconds (default: 1800000 = 30 min)
+   * @param {string} options.agentType - Type of agent claiming ('cli' | 'autonomous')
+   * @param {boolean} options.fallbackToNext - If first choice fails, try next tasks (default: true)
+   * @param {string} options.preferTier - Preferred backlog tier ('now', 'next', 'later')
+   * @param {number} options.maxAttempts - Maximum tasks to try claiming (default: 10)
+   * @returns {Object} { task, claim, error?, attempts? }
+   */
+  claimNextTask(phase = null, options = {}) {
+    const {
+      ttlMs = TaskManager.CLAIM_CONFIG.defaultTTL,
+      agentType = 'cli',
+      fallbackToNext = true,
+      preferTier = null,
+      maxAttempts = 10
+    } = options;
+
+    this.load();
+
+    // Ensure coordination is initialized
+    this._initCoordination();
+
+    // Get filters for ready tasks
+    const filters = {};
+    if (phase) filters.phase = phase;
+    if (preferTier) filters.backlog = preferTier;
+
+    // Get all ready tasks sorted by priority
+    const readyTasks = this.getReadyTasks(filters);
+
+    if (readyTasks.length === 0) {
+      return {
+        task: null,
+        claim: null,
+        error: 'No ready tasks available',
+        attempts: 0
+      };
+    }
+
+    let attempts = 0;
+    const triedTaskIds = [];
+
+    // Try to claim tasks in priority order
+    for (const task of readyTasks) {
+      if (attempts >= maxAttempts) break;
+
+      attempts++;
+      triedTaskIds.push(task.id);
+
+      // Check availability
+      const availability = this._isTaskAvailableForClaim(task);
+
+      if (!availability.available) {
+        // If we already have this claim, return it
+        if (availability.existingClaim && availability.existingClaim.sessionId === this.sessionId) {
+          // Start heartbeat for existing claim
+          this._startClaimHeartbeat(task.id);
+          return {
+            task: task,
+            claim: availability.existingClaim,
+            error: null,
+            attempts: attempts,
+            reused: true
+          };
+        }
+
+        // Skip this task if not falling back
+        if (!fallbackToNext) {
+          return {
+            task: null,
+            claim: null,
+            error: availability.reason,
+            attempts: attempts
+          };
+        }
+
+        // Try next task
+        continue;
+      }
+
+      // Attempt atomic claim via CoordinationDB
+      if (this._coordinationDb) {
+        const claimResult = this._coordinationDb.claimTask(task.id, this.sessionId, {
+          ttlMs: ttlMs,
+          agentType: agentType
+        });
+
+        if (claimResult.claimed) {
+          // Start heartbeat timer
+          this._startClaimHeartbeat(task.id);
+
+          // Emit claim event
+          this.emit('task:claimed', {
+            task: task,
+            claim: claimResult.claim,
+            sessionId: this.sessionId
+          });
+
+          return {
+            task: task,
+            claim: claimResult.claim,
+            error: null,
+            attempts: attempts
+          };
+        }
+
+        // Claim failed (likely race condition)
+        if (!fallbackToNext) {
+          return {
+            task: null,
+            claim: null,
+            error: claimResult.error || 'Failed to claim task',
+            attempts: attempts,
+            existingClaim: claimResult.holder ? { sessionId: claimResult.holder } : null
+          };
+        }
+
+        // Try next task
+        continue;
+      }
+
+      // No coordination DB - return task without claim
+      return {
+        task: task,
+        claim: null,
+        error: 'Coordination DB not available',
+        attempts: attempts
+      };
+    }
+
+    // All attempts exhausted
+    return {
+      task: null,
+      claim: null,
+      error: `No available tasks after ${attempts} attempts. All tasks are claimed by other sessions.`,
+      attempts: attempts,
+      triedTaskIds: triedTaskIds
+    };
+  }
+
+  /**
+   * Release a specific task claim
+   * @param {string} taskId - Task ID to release
+   * @param {string} reason - Reason for release ('completed', 'failed', 'manual', etc.)
+   * @returns {Object} { success: boolean, error?: string }
+   */
+  releaseTaskClaim(taskId, reason = 'manual') {
+    // Stop heartbeat for this task
+    this._stopClaimHeartbeat(taskId);
+
+    if (!this._coordinationDb) {
+      return { success: false, error: 'Coordination DB not available' };
+    }
+
+    const result = this._coordinationDb.releaseClaim(taskId, this.sessionId, reason);
+
+    if (result.released) {
+      this.emit('task:claim-released', {
+        taskId: taskId,
+        sessionId: this.sessionId,
+        reason: reason
+      });
+    }
+
+    return {
+      success: result.released,
+      error: result.released ? null : (result.error || 'Failed to release claim')
+    };
+  }
+
+  /**
+   * Release all claims held by this session
+   * @param {string} reason - Reason for release ('session-end', 'shutdown', etc.)
+   * @returns {Object} { success: boolean, released: number, error?: string }
+   */
+  releaseAllClaims(reason = 'session-end') {
+    // Stop all heartbeat timers
+    if (this._claimHeartbeatTimers) {
+      for (const [taskId] of this._claimHeartbeatTimers) {
+        this._stopClaimHeartbeat(taskId);
+      }
+    }
+
+    if (!this._coordinationDb) {
+      return { success: false, released: 0, error: 'Coordination DB not available' };
+    }
+
+    const result = this._coordinationDb.releaseSessionClaims(this.sessionId, reason);
+
+    if (result.count > 0) {
+      this.emit('task:claims-released', {
+        sessionId: this.sessionId,
+        reason: reason,
+        count: result.count,
+        taskIds: result.taskIds
+      });
+    }
+
+    return {
+      success: true,
+      released: result.count,
+      taskIds: result.taskIds
+    };
+  }
+
+  /**
+   * Extend the TTL on a claimed task (heartbeat)
+   * @param {string} taskId - Task ID to extend
+   * @param {number} ttlMs - New TTL in milliseconds
+   * @returns {Object} { success: boolean, claim?: Object, error?: string }
+   */
+  extendClaim(taskId, ttlMs = TaskManager.CLAIM_CONFIG.defaultTTL) {
+    if (!this._coordinationDb) {
+      return { success: false, error: 'Coordination DB not available' };
+    }
+
+    const result = this._coordinationDb.refreshClaim(taskId, this.sessionId, ttlMs);
+
+    if (result.refreshed) {
+      return {
+        success: true,
+        claim: result.claim
+      };
+    }
+
+    return {
+      success: false,
+      error: result.error || 'Failed to extend claim'
+    };
+  }
+
+  /**
+   * Get all tasks currently claimed by this session
+   * @returns {Array<Object>} Array of { task, claim } objects
+   */
+  getMyClaimedTasks() {
+    this.load();
+
+    if (!this._coordinationDb) {
+      return [];
+    }
+
+    const claims = this._coordinationDb.getClaimsBySession(this.sessionId);
+
+    return claims.map(claim => {
+      const task = this.getTask(claim.taskId);
+      return {
+        task: task,
+        claim: claim
+      };
+    }).filter(item => item.task !== null);
+  }
+
+  /**
+   * Start heartbeat timer for a claimed task
+   * @param {string} taskId - Task ID to heartbeat
+   * @private
+   */
+  _startClaimHeartbeat(taskId) {
+    if (!this._claimHeartbeatTimers) {
+      this._claimHeartbeatTimers = new Map();
+    }
+
+    // Don't start duplicate timers
+    if (this._claimHeartbeatTimers.has(taskId)) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const result = this.extendClaim(taskId);
+      if (!result.success) {
+        // Claim lost, stop heartbeat
+        this._stopClaimHeartbeat(taskId);
+        this.emit('task:claim-lost', {
+          taskId: taskId,
+          sessionId: this.sessionId,
+          reason: result.error
+        });
+      }
+    }, TaskManager.CLAIM_CONFIG.heartbeatInterval);
+
+    this._claimHeartbeatTimers.set(taskId, interval);
+  }
+
+  /**
+   * Stop heartbeat timer for a task
+   * @param {string} taskId - Task ID to stop heartbeat for
+   * @private
+   */
+  _stopClaimHeartbeat(taskId) {
+    if (!this._claimHeartbeatTimers) return;
+
+    const timer = this._claimHeartbeatTimers.get(taskId);
+    if (timer) {
+      clearInterval(timer);
+      this._claimHeartbeatTimers.delete(taskId);
+    }
+  }
+
+  /**
+   * Clean up all heartbeat timers (call on close)
+   * @private
+   */
+  _stopAllHeartbeats() {
+    if (!this._claimHeartbeatTimers) return;
+
+    for (const [taskId, timer] of this._claimHeartbeatTimers) {
+      clearInterval(timer);
+    }
+    this._claimHeartbeatTimers.clear();
+  }
+
+  /**
+   * Close TaskManager and release resources
+   * Releases all claims and stops heartbeats
+   */
+  close() {
+    // Stop all heartbeats
+    this._stopAllHeartbeats();
+
+    // Release all claims
+    this.releaseAllClaims('shutdown');
+
+    // Close coordination DB
+    if (this._coordinationDb) {
+      this._coordinationDb.close();
+      this._coordinationDb = null;
+    }
+
+    this.emit('manager:closed');
+  }
 }
 
 module.exports = TaskManager;
