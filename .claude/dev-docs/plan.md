@@ -1,6 +1,6 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Session-Task Claiming System - Phase 4 Ready
+**Status**: Session-Task Claiming System - 100% COMPLETE
 
 ---
 
@@ -29,16 +29,17 @@
 - 7 API endpoints + SSE events
 - 35 tests passing
 
-### Phase 4: Dashboard UI - READY
-**Task**: `session-task-claiming-phase4` (2h)
+### Phase 4: Dashboard UI - ✅ COMPLETE
+**Task**: `session-task-claiming-phase4` (95)
 - Per-session task display in session cards
 - Claim badges in task queue
 - Stale claim indicators
 - SSE event handlers
+- Filter buttons (All/Available/Claimed/Mine)
 
 ---
 
-## Progress: 75% (3 of 4 phases)
+## Progress: 100% (4 of 4 phases)
 
 ---
 
@@ -50,14 +51,11 @@
 | TaskManager | ✅ claimNextTask(), heartbeat system |
 | Dashboard API | ✅ 7 endpoints, SSE events |
 | SessionRegistry | ✅ currentTaskId in /api/sessions/summary |
-| Dashboard UI | **PENDING** - per-session display, claim badges |
+| Dashboard UI | ✅ per-session display, claim badges, filters |
 
 ---
 
 ## Next Steps
 
-1. Start `session-task-claiming-phase4`
-2. Update global-dashboard.html to use claims API
-3. Show per-session current task (not same for all)
-4. Add claim badges to task queue view
-5. Handle SSE events for real-time updates
+1. `audit-cleanup-phase1` - Clean up dead code from audit
+2. `hierarchy-tests-integration` - Integration tests for hierarchy

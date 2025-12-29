@@ -812,6 +812,130 @@
     .queue-priority.critical { background: rgba(248, 81, 73, 0.2); color: var(--color-danger); }
     .queue-priority.high { background: rgba(210, 153, 34, 0.2); color: var(--color-warning); }
 
+    /* ===== CLAIM BADGES ===== */
+    .claim-badge {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .claim-badge.claimed {
+      background: rgba(88, 166, 255, 0.2);
+      color: var(--color-info);
+    }
+
+    .claim-badge.claimed-by-me {
+      background: rgba(63, 185, 80, 0.2);
+      color: var(--color-success);
+    }
+
+    .claim-badge.available {
+      background: var(--bg-hover);
+      color: var(--text-muted);
+    }
+
+    .claim-badge.stale {
+      background: rgba(210, 153, 34, 0.2);
+      color: var(--color-warning);
+      animation: pulse 2s infinite;
+    }
+
+    .claim-session-id {
+      font-size: 8px;
+      color: var(--text-muted);
+      font-family: monospace;
+      max-width: 60px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .queue-item.claimed {
+      border-left: 3px solid var(--color-info);
+    }
+
+    .queue-item.claimed-by-me {
+      border-left: 3px solid var(--color-success);
+      background: rgba(63, 185, 80, 0.05);
+    }
+
+    .queue-item.stale-claim {
+      border-left: 3px solid var(--color-warning);
+    }
+
+    .session-task .claim-indicator {
+      font-size: 10px;
+      margin-left: 4px;
+    }
+
+    .session-task .claim-indicator.owned {
+      color: var(--color-success);
+    }
+
+    .session-task .claim-indicator.stale {
+      color: var(--color-warning);
+    }
+
+    /* Task queue filters */
+    .queue-filters {
+      display: flex;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
+      flex-wrap: wrap;
+    }
+
+    .queue-filter-btn {
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--bg-hover);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .queue-filter-btn:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .queue-filter-btn.active {
+      background: var(--color-info);
+      border-color: var(--color-info);
+      color: white;
+    }
+
+    .claim-stats {
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 4px 0;
+    }
+
+    .claim-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .claim-stat-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .claim-stat-dot.claimed { background: var(--color-info); }
+    .claim-stat-dot.available { background: var(--color-success); }
+    .claim-stat-dot.stale { background: var(--color-warning); }
+
     /* ===== LOG VIEWER ===== */
     .log-section {
       background: var(--bg-secondary);
@@ -1812,6 +1936,14 @@
     // Legacy single-project references (for backward compatibility)
     let tasksData = { tasks: [], stats: {} };
     let executionState = {};
+    // Claims data for task ownership tracking
+    let claimsData = {
+      claims: [],           // All active claims from /api/tasks/in-flight
+      stats: {},            // Claim statistics
+      lastFetched: null     // Timestamp of last fetch
+    };
+    // Queue filter state
+    let queueFilter = 'all'; // 'all', 'claimed', 'available', 'mine'
 
     // Settings (persisted to localStorage)
     let settings = {
@@ -1883,10 +2015,11 @@
       await fetchSessions();
       await fetchTasksAndExecution(); // Enrich immediately after
 
-      // Then fetch other data in parallel
+      // Then fetch other data in parallel (including claims)
       await Promise.all([
         fetchUsageLimits(),
-        fetchPredictions()
+        fetchPredictions(),
+        fetchInFlightTasks()
       ]);
 
       // Now connect SSE (which will preserve enriched data)
@@ -1896,6 +2029,8 @@
       setInterval(fetchUsageLimits, 60000);
       // Refresh tasks every 10 seconds (reduced frequency to prevent flicker)
       setInterval(fetchTasksAndExecution, 10000);
+      // Refresh claims every 15 seconds
+      setInterval(fetchInFlightTasks, 15000);
     }
 
     async function fetchTasksAndExecution() {
@@ -2140,7 +2275,10 @@
               confidenceScore: null,
               registryId: null,
               lastUpdate: cliSession.lastUpdate,
-              startTime: cliSession.lastUpdate // For display
+              startTime: cliSession.lastUpdate, // For display
+              // Phase 4: Claim-based current task (CLI sessions look up from claimsData)
+              claimedTaskId: existingSession?.claimedTaskId || null,
+              claimInfo: existingSession?.claimInfo || null
             });
           }
 
@@ -2173,7 +2311,10 @@
               confidenceScore: null,
               registryId: null,
               lastUpdate: p.metrics?.lastUpdate,
-              startTime: p.metrics?.lastUpdate
+              startTime: p.metrics?.lastUpdate,
+              // Phase 4: No claims for default placeholder sessions
+              claimedTaskId: null,
+              claimInfo: null
             });
           }
         }
@@ -2212,7 +2353,10 @@
             confidenceScore: s.confidenceScore || null,
             registryId: s.id,
             lastUpdate: s.lastUpdate || s.startTime,
-            startTime: s.startTime
+            startTime: s.startTime,
+            // Phase 4: Claim-based current task from /api/sessions/summary
+            claimedTaskId: s.currentTaskId || null,
+            claimInfo: s.claimInfo || null
           });
         }
 
@@ -2256,6 +2400,157 @@
         predictions = await res.json();
       } catch (err) {
         console.error('Failed to fetch predictions:', err);
+      }
+    }
+
+    // Fetch all active task claims (in-flight tasks)
+    async function fetchInFlightTasks() {
+      try {
+        const [claimsRes, statsRes] = await Promise.all([
+          fetch('/api/tasks/in-flight'),
+          fetch('/api/tasks/claims/stats')
+        ]);
+
+        if (claimsRes.ok) {
+          const data = await claimsRes.json();
+          claimsData.claims = data.claims || [];
+          claimsData.lastFetched = Date.now();
+        }
+
+        if (statsRes.ok) {
+          claimsData.stats = await statsRes.json();
+        }
+      } catch (err) {
+        console.error('Failed to fetch in-flight tasks:', err);
+      }
+    }
+
+    // Get claim info for a specific task
+    function getClaimForTask(taskId) {
+      return claimsData.claims.find(c => c.taskId === taskId);
+    }
+
+    // Check if a claim is stale (last heartbeat > 2 minutes ago)
+    function isClaimStale(claim) {
+      if (!claim || !claim.lastHeartbeat) return false;
+      const twoMinutesAgo = Date.now() - (2 * 60 * 1000);
+      const heartbeatTime = new Date(claim.lastHeartbeat).getTime();
+      return heartbeatTime < twoMinutesAgo;
+    }
+
+    // Get claim status for a task (used for UI display)
+    function getClaimStatus(taskId, currentSessionId) {
+      const claim = getClaimForTask(taskId);
+      if (!claim) return { status: 'available', claim: null };
+
+      const isStale = isClaimStale(claim);
+      const isMine = claim.sessionId === currentSessionId;
+
+      if (isStale) return { status: 'stale', claim };
+      if (isMine) return { status: 'mine', claim };
+      return { status: 'claimed', claim };
+    }
+
+    // Format session ID for display (short version)
+    function formatClaimSessionId(sessionId) {
+      if (!sessionId) return '';
+      // If it's a UUID, show last 8 chars
+      if (sessionId.length > 12) {
+        return sessionId.slice(-8);
+      }
+      return sessionId;
+    }
+
+    // Render claim badge for task queue
+    function renderClaimBadge(claimStatus) {
+      if (claimStatus.status === 'available') {
+        return '<span class="claim-badge available">Available</span>';
+      }
+      if (claimStatus.status === 'mine') {
+        return '<span class="claim-badge claimed-by-me">Mine</span>';
+      }
+      if (claimStatus.status === 'stale') {
+        const shortId = formatClaimSessionId(claimStatus.claim?.sessionId);
+        return `<span class="claim-badge stale" title="Claim may be stale - session ${shortId}">⚠ Stale</span>`;
+      }
+      // claimed by another session
+      const shortId = formatClaimSessionId(claimStatus.claim?.sessionId);
+      return `<span class="claim-badge claimed" title="Claimed by session ${shortId}">Claimed</span>`;
+    }
+
+    // Set queue filter and refresh
+    function setQueueFilter(filter) {
+      queueFilter = filter;
+      if (selectedSessionId) {
+        updateDetailPanel(sessions.find(s => s.id === selectedSessionId));
+      }
+    }
+
+    // Handle claim events from SSE
+    function handleClaimEvent(event) {
+      const { type, taskId, sessionId, claim } = event;
+
+      switch (type) {
+        case 'task:claimed':
+          // Add or update claim in local cache
+          const existingIdx = claimsData.claims.findIndex(c => c.taskId === taskId);
+          if (existingIdx >= 0) {
+            claimsData.claims[existingIdx] = claim;
+          } else {
+            claimsData.claims.push(claim);
+          }
+          // Update session's claimed task if this is for a session we're tracking
+          updateSessionClaimedTask(sessionId, taskId, claim);
+          break;
+
+        case 'task:released':
+        case 'task:claim-expired':
+        case 'task:claim-orphaned':
+          // Remove claim from local cache
+          claimsData.claims = claimsData.claims.filter(c => c.taskId !== taskId);
+          // Clear session's claimed task
+          clearSessionClaimedTask(sessionId, taskId);
+          break;
+
+        case 'task:claims-cleaned':
+          // Multiple claims were cleaned - refetch all claims
+          fetchInFlightTasks();
+          break;
+      }
+
+      // Update UI
+      updateSessionList();
+      if (selectedSessionId) {
+        updateDetailPanel(sessions.find(s => s.id === selectedSessionId));
+      }
+    }
+
+    // Update a session's claimed task when claim event received
+    function updateSessionClaimedTask(sessionId, taskId, claim) {
+      // Find session by registryId (for autonomous) or construct CLI session ID
+      for (const session of sessions) {
+        const isMatch = session.registryId === sessionId ||
+                        session.id === sessionId ||
+                        session.cliSessionId === sessionId;
+        if (isMatch) {
+          session.claimedTaskId = taskId;
+          session.claimInfo = claim;
+          break;
+        }
+      }
+    }
+
+    // Clear a session's claimed task when claim is released
+    function clearSessionClaimedTask(sessionId, taskId) {
+      for (const session of sessions) {
+        const isMatch = session.registryId === sessionId ||
+                        session.id === sessionId ||
+                        session.cliSessionId === sessionId;
+        if (isMatch && session.claimedTaskId === taskId) {
+          session.claimedTaskId = null;
+          session.claimInfo = null;
+          break;
+        }
       }
     }
 
@@ -2469,6 +2764,12 @@
               }
             }
           }
+
+          // Handle claim events from SSE (task:claimed, task:released, task:claim-expired, etc.)
+          if (data.claimEvent) {
+            const event = data.claimEvent;
+            handleClaimEvent(event);
+          }
         } catch (err) {
           console.error('SSE parse error:', err);
         }
@@ -2631,6 +2932,35 @@
       // Format time
       const timeAgo = s.lastUpdate ? formatTimeAgo(s.lastUpdate) : '';
 
+      // Phase 4: Use claimed task for per-session display
+      // Priority: claimedTaskId > currentTask.id > next in queue
+      const claimedTaskId = s.claimedTaskId;
+      const claimInfo = s.claimInfo;
+      const claimIsStale = claimInfo && isClaimStale(claimInfo);
+
+      // Determine what task to show for this session
+      let taskDisplay = '';
+      let claimIndicator = '';
+
+      if (claimedTaskId) {
+        // Session has a claimed task
+        taskDisplay = claimedTaskId;
+        if (claimIsStale) {
+          claimIndicator = '<span class="claim-indicator stale" title="Claim may be stale">⚠</span>';
+        } else {
+          claimIndicator = '<span class="claim-indicator owned" title="Claimed by this session">✓</span>';
+        }
+      } else if (s.currentTask?.id) {
+        // Fall back to currentTask from project data
+        taskDisplay = s.currentTask.id;
+      } else if (s.taskQueue?.length) {
+        taskDisplay = `Next: ${s.taskQueue[0].id}`;
+      } else {
+        taskDisplay = 'No active task';
+      }
+
+      const taskPhase = s.currentTask?.phase || s.phase;
+
       return `
         <div class="session-item ${borderClass} ${isSelected ? 'selected' : ''}"
              onclick="selectSession('${s.id}')"
@@ -2647,8 +2977,8 @@
             <span class="quality-badge ${qualityClass}" aria-label="Quality score ${qualityDisplay}">${qualityDisplay}</span>
           </div>
           <div class="session-task">
-            ${s.currentTask?.id || (s.taskQueue?.length ? `Next: ${s.taskQueue[0].id}` : 'No active task')}
-            ${(s.currentTask?.phase || s.phase) ? `<span class="phase-badge ${s.currentTask?.phase || s.phase}">${s.currentTask?.phase || s.phase}</span>` : ''}
+            ${taskDisplay}${claimIndicator}
+            ${taskPhase ? `<span class="phase-badge ${taskPhase}">${taskPhase}</span>` : ''}
             ${s.iteration > 1 ? `<span style="font-size:10px;color:var(--text-muted)">iter ${s.iteration}</span>` : ''}
           </div>
           <div class="session-metrics">
@@ -2898,21 +3228,48 @@
       ` : '<div class="task-card" style="text-align: center; color: var(--text-muted);">No active task</div>';
 
       const queue = session.taskQueue || [];
+      const sessionRegistryId = session.registryId || session.cliSessionId || session.id;
+
+      // Render queue with claim badges
       const queueHTML = queue.length ? `
+        <div class="queue-filters">
+          <button class="queue-filter-btn ${queueFilter === 'all' ? 'active' : ''}" onclick="setQueueFilter('all')">All</button>
+          <button class="queue-filter-btn ${queueFilter === 'available' ? 'active' : ''}" onclick="setQueueFilter('available')">Available</button>
+          <button class="queue-filter-btn ${queueFilter === 'claimed' ? 'active' : ''}" onclick="setQueueFilter('claimed')">Claimed</button>
+          <button class="queue-filter-btn ${queueFilter === 'mine' ? 'active' : ''}" onclick="setQueueFilter('mine')">Mine</button>
+        </div>
         <div class="queue-list">
-          ${queue.slice(0, 8).map((t, i) => `
-            <div class="queue-item ${i === 0 ? 'next' : ''}">
+          ${queue.slice(0, 8).map((t, i) => {
+            const claimStatus = getClaimStatus(t.id, sessionRegistryId);
+            const claimClass = claimStatus.status === 'mine' ? 'claimed-by-me' :
+                               claimStatus.status === 'stale' ? 'stale-claim' :
+                               claimStatus.status === 'claimed' ? 'claimed' : '';
+
+            // Apply filter
+            if (queueFilter === 'available' && claimStatus.status !== 'available') return '';
+            if (queueFilter === 'claimed' && claimStatus.status === 'available') return '';
+            if (queueFilter === 'mine' && claimStatus.status !== 'mine') return '';
+
+            const claimBadge = renderClaimBadge(claimStatus);
+
+            return `
+            <div class="queue-item ${i === 0 ? 'next' : ''} ${claimClass}">
               <span class="queue-number">${i + 1}</span>
               <span class="queue-task" title="${t.title || t.id}">
                 ${t.id}
-                ${t.phase ? `<span class="phase-badge ${t.phase}" style="margin-left:6px">${t.phase}</span>` : ''}
+                ${t.phase ? '<span class="phase-badge ' + t.phase + '" style="margin-left:6px">' + t.phase + '</span>' : ''}
               </span>
+              ${claimBadge}
               <span class="queue-priority ${t.priority || ''}">${t.priority || 'normal'}</span>
             </div>
-          `).join('')}
-          ${queue.length > 8 ? `<div class="queue-item" style="justify-content:center;color:var(--text-muted)">+${queue.length - 8} more</div>` : ''}
+          `;}).filter(Boolean).join('')}
+          ${queue.length > 8 ? '<div class="queue-item" style="justify-content:center;color:var(--text-muted)">+' + (queue.length - 8) + ' more</div>' : ''}
         </div>
-      ` : '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No tasks in queue. All caught up! 🎉</div>';
+        <div class="claim-stats">
+          <span class="claim-stat"><span class="claim-stat-dot available"></span>${queue.filter(t => !getClaimForTask(t.id)).length} available</span>
+          <span class="claim-stat"><span class="claim-stat-dot claimed"></span>${queue.filter(t => getClaimForTask(t.id)).length} claimed</span>
+        </div>
+      ` : '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No tasks in queue. All caught up!</div>';
 
       contentEl.innerHTML = `
         <div class="detail-header">

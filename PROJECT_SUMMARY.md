@@ -1,79 +1,76 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-29 (Session 54)
-**Current Phase**: IMPLEMENTATION
-**Status**: Session-Task Claiming Phase 3 - COMPLETE
+**Last Updated**: 2025-12-29 (Session 56)
+**Current Phase**: TESTING
+**Status**: Hierarchy Integration Tests - In Progress
 
 ---
 
-## Session 54: Session-Task Claiming Phase 3 (CURRENT)
+## Session 56: Hierarchy Integration Tests (CURRENT)
 
 ### Work Completed
 
 | Task | Status | Description |
 |------|--------|-------------|
-| session-task-claiming-phase3 | ✅ (95) | Dashboard API endpoints + SSE events |
+| hierarchy-tests-integration | 🔧 60% | Created 165 integration tests across 5 files |
 
 ### Implementation Details
 
-**API Endpoints** (`enhanced-dashboard-server.js:362-461`):
-- `POST /api/tasks/:taskId/claim` - Claim task for session
-- `POST /api/tasks/:taskId/release` - Release task claim
-- `POST /api/tasks/:taskId/claim/heartbeat` - Refresh claim TTL
-- `GET /api/tasks/in-flight` - Get all active claims
-- `GET /api/sessions/:sessionId/current-task` - Get current task for session
-- `POST /api/tasks/claims/cleanup` - Trigger orphan cleanup
-- `GET /api/tasks/claims/stats` - Get claim statistics
+**Test Files Created**:
+- `hierarchy-delegation.integration.test.js` - 24 tests (3-level chains, depth limits, aggregation)
+- `hierarchy-failure-cascade.integration.test.js` - 24 tests (failure propagation, retry, rollback)
+- `hierarchy-rollup-metrics.integration.test.js` - 30 tests (token aggregation, quality scoring)
+- `hierarchy-performance.integration.test.js` - 28 tests (speedup, cache, memory)
+- `hierarchy-load.integration.test.js` - 32 tests (concurrency, locks, throughput)
 
-**Helper Methods** (`enhanced-dashboard-server.js:1807-2115`):
-- `_claimTask()`, `_releaseTaskClaim()`, `_refreshTaskClaim()`
-- `_getInFlightTasks()`, `_getSessionCurrentTask()`
-- `_cleanupOrphanedClaims()`, `_getClaimStats()`
-- `_setupClaimEventListeners()` for SSE
-
-**SSE Events**:
-- `task:claimed`, `task:released`, `task:claim-expired`
-- `task:claim-orphaned`, `task:claims-cleaned`
-
-**Sessions Summary Update** (`global-context-manager.js`):
-- `/api/sessions/summary` now includes `currentTaskId` and `claimInfo`
+**Test Categories**:
+- 3-Level Delegation Chain traversal
+- Depth Limit Enforcement (maxDepth=3)
+- Result Aggregation (merge, best, consensus)
+- Token Budget Cascade
+- Failure Propagation and Recovery
+- Timeout Cascade and Cleanup
+- Rollup Metrics (tokens, quality, success rate)
+- Performance Benchmarks
+- Load Testing (concurrent hierarchies)
 
 ### Test Results
 
 ```
-Claims Dashboard API:    35 passed ✓
-Task Claims Tests:       41 passed ✓
-Claim Cleanup Tests:     25 passed ✓
-Total Claim Tests:       101 passed ✓
+hierarchy-dashboard-api.test.js:  27 passed ✓
+Other files:                      Need API alignment fixes
+Total new tests:                  165 integration tests
 ```
 
-### Files Modified
+### Files Created
 
-| File | Purpose |
-|------|---------|
-| `.claude/core/enhanced-dashboard-server.js` | 7 API endpoints + helpers + SSE |
-| `global-context-manager.js` | /api/sessions/summary with claims |
-| `__tests__/integration/claims-dashboard-api.test.js` | 35 integration tests |
+| File | Tests |
+|------|-------|
+| `__tests__/integration/hierarchy-delegation.integration.test.js` | 24 |
+| `__tests__/integration/hierarchy-failure-cascade.integration.test.js` | 24 |
+| `__tests__/integration/hierarchy-rollup-metrics.integration.test.js` | 30 |
+| `__tests__/integration/hierarchy-performance.integration.test.js` | 28 |
+| `__tests__/integration/hierarchy-load.integration.test.js` | 32 |
+
+---
+
+## Session 55: Session-Task Claiming Phase 4 ✅
+- **Tasks**: session-task-claiming-phase4 (95), session-task-claiming (95)
+- **Key changes**: Dashboard UI for per-session claims, filter buttons, SSE updates
+- **Files**: global-dashboard.html (+200 lines)
+
+---
+
+## Session 54: Session-Task Claiming Phase 3 ✅
+- **Tasks**: session-task-claiming-phase3 (95)
+- **Key changes**: 7 claim API endpoints, SSE events
+- **Files**: enhanced-dashboard-server.js
 
 ---
 
 ## Session 53: Session-Task Claiming Phase 2 ✅
 - **Tasks**: session-task-claiming-phase2 (95)
-- **Key changes**: TaskManager claim methods, heartbeat system, events
+- **Key changes**: TaskManager claim methods, heartbeat system
 - **Files**: task-manager.js (+400 lines)
-
----
-
-## Session 52: Hierarchy Dashboard Visualization ✅
-- **Tasks**: hierarchy-phase4-dashboard-viz (90)
-- **Key changes**: Interactive hierarchy tree, SSE updates, expand/collapse
-- **Files**: global-dashboard.html, hierarchy-viz.js
-
----
-
-## Session 51: Session-Task Claiming Phase 1 ✅
-- **Tasks**: session-task-claiming-phase1 (95)
-- **Key changes**: task_claims table, atomic claim methods, TTL handling
-- **Files**: coordination-db.js (+450 lines), 66 tests
 
 ---
 
@@ -82,22 +79,12 @@ Total Claim Tests:       101 passed ✓
 | Component | Status |
 |-----------|--------|
 | Orchestrator | Unified + parallel patterns + delegation primitives + metrics |
-| Dashboard | Command Center + hierarchy viz + conflicts API + claims API |
-| Task System | Hierarchy + concurrent write + shadow mode + claiming (75%) |
+| Dashboard | Command Center + hierarchy viz + conflicts API + claims UI |
+| Task System | Hierarchy + concurrent write + shadow mode + claiming |
 | Tests | 2400+ passing |
-| Parallel Safety | 100% COMPLETE (4/4 phases) |
-| Session-Task Claiming | Phase 3 COMPLETE (3/4) |
-
----
-
-## Session-Task Claiming Progress
-
-| Phase | Description | Status | Tests |
-|-------|-------------|--------|-------|
-| Phase 1 | task_claims table + atomic claim methods | ✅ Complete | 66 |
-| Phase 2 | TaskManager integration + heartbeat | ✅ Complete | 97 |
-| Phase 3 | Dashboard API + SSE events | ✅ Complete | 35 |
-| Phase 4 | Dashboard UI updates | **READY** | - |
+| Parallel Safety | 100% COMPLETE |
+| Session-Task Claiming | 100% COMPLETE |
+| Hierarchy Integration Tests | 60% (165 tests created) |
 
 ---
 
@@ -106,4 +93,4 @@ Total Claim Tests:       101 passed ✓
 - **Dashboard**: http://localhost:3033/
 - **Archives**: `.claude/dev-docs/archives/`
 - **Task Graph**: http://localhost:3033/task-graph.html
-- **NEXT**: session-task-claiming-phase4, audit-cleanup-phase1
+- **NEXT**: Fix hierarchy test API alignment, audit-cleanup-phase1
