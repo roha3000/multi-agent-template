@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 9,
-    "lastModifiedBy": "28bc0d95-c661-4f14-942e-1ac68944adb6",
-    "lastModifiedAt": "2025-12-29T04:47:27.263Z"
+    "version": 61,
+    "lastModifiedBy": "9f485eee-16a6-4e35-9079-2d03587f0f9e",
+    "lastModifiedAt": "2025-12-29T20:04:20.306Z"
   },
   "version": "1.1.0",
   "project": {
@@ -19,12 +19,18 @@
   "backlog": {
     "now": {
       "description": "Current sprint tasks",
-      "tasks": []
+      "tasks": [
+        "dashboard-v3-research"
+      ]
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "audit-cleanup-phase1"
+        "context-tracker-consolidation",
+        "auto-delegation-integration",
+        "audit-cleanup-phase1",
+        "parallel-crash-fix",
+        "docs-reorganization"
       ]
     },
     "later": {
@@ -42,16 +48,139 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "audit-refresh-2025-12-29",
         "parallel-session-crash-fix",
         "session-task-claiming",
         "hierarchy-phase4-dashboard-viz",
-        "hierarchy-tests-integration",
-        "hierarchy-phase3-auto-delegation",
-        "taskjson-parallel-session-safety"
+        "hierarchy-tests-integration"
       ]
     }
   },
   "tasks": {
+    "audit-refresh-2025-12-29": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "audit-refresh-2025-12-29",
+      "title": "Re-run Codebase Audit - Refresh Findings After Recent Changes",
+      "description": "Many code changes have been made since the last audit (2025-12-28). Re-run the comprehensive audit to identify: orphaned modules, unused dependencies, dead code, broken doc links, stale documentation. Update audit-cleanup-phase1 task with revised findings.",
+      "phase": "research",
+      "priority": "critical",
+      "estimate": "2h",
+      "tags": [
+        "audit",
+        "refresh",
+        "dead-code",
+        "technical-debt",
+        "multi-agent"
+      ],
+      "depends": {
+        "blocks": [
+          "audit-cleanup-phase1"
+        ],
+        "requires": [],
+        "related": [
+          "audit-cleanup-phase1"
+        ]
+      },
+      "acceptance": [
+        "Run /audit skill to perform comprehensive codebase analysis",
+        "Compare findings with previous audit (docs/audits/audit-2025-12-28.json)",
+        "Document what changed: new orphans, resolved orphans, new dependencies, removed dependencies",
+        "Update audit-cleanup-phase1 task with revised cleanup targets",
+        "Save new audit results to docs/audits/audit-2025-12-29.json",
+        "Summary of audit delta in PROJECT_SUMMARY.md"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-29T21:00:00.000Z",
+      "updated": "2025-12-29T21:30:00.000Z",
+      "started": "2025-12-29T21:00:00.000Z",
+      "completed": "2025-12-29T21:30:00.000Z",
+      "previousAudit": "docs/audits/audit-2025-12-28.json",
+      "qualityScore": 95,
+      "deliverables": [
+        "docs/audits/audit-2025-12-29.json - Comprehensive audit with 98 issues",
+        "6 expert agents ran in parallel: Dead Code, Duplication, Architecture, Database, Documentation, Dependency",
+        "New findings: 1 security vulnerability, 36 orphaned WAL files (12.4 MB), 21 undocumented components",
+        "audit-cleanup-phase1 task updated with revised targets"
+      ]
+    },
+    "dashboard-v3-research": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "dashboard-v3-research",
+      "title": "Deep Research: Next-Gen Multi-Agent Dashboard Architecture",
+      "description": "Comprehensive ultrathink research on optimal design approaches for a unified dashboard that tracks: projects, sessions, context usage, current/queued tasks, agent hierarchies, performance metrics, token efficiency analysis, and auto-compact impact. Must evaluate industry best practices, visualization patterns, real-time data architectures, and metrics collection strategies.",
+      "phase": "research",
+      "priority": "critical",
+      "estimate": "8h",
+      "tags": [
+        "research",
+        "dashboard",
+        "architecture",
+        "visualization",
+        "metrics",
+        "ultrathink",
+        "deep-analysis"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-command-center",
+          "hierarchy-phase4-dashboard-viz",
+          "session-task-claiming"
+        ]
+      },
+      "acceptance": [
+        "Research: Industry dashboard patterns (Grafana, Datadog, Kubernetes Dashboard, VS Code Debug)",
+        "Research: Real-time data streaming architectures (SSE vs WebSocket vs polling)",
+        "Research: Time-series visualization libraries (D3.js, Chart.js, Recharts, Observable Plot)",
+        "Research: Hierarchical tree visualization approaches (collapsible trees, DAGs, force graphs)",
+        "Design: Project/Session tracking panel with drill-down capabilities",
+        "Design: Context usage visualization (current vs max, trend over time, per-agent breakdown)",
+        "Design: Task queue view (current task prominent, rest of queue visible, status indicators)",
+        "Design: Agent hierarchy visualization (parent-child, sub-agents, delegation chains, depth)",
+        "Design: Performance charts (context over time, tokens/minute, task completion rate)",
+        "Design: Autonomous orchestrator metrics (success rate, retry frequency, quality scores)",
+        "Design: Agent efficiency analysis (token savings from delegation, time reduction, ROI)",
+        "Design: Auto-compact impact tracking (frequency, context recovered, side effects)",
+        "Evaluate: Data collection strategy (what to track, where to store, retention policy)",
+        "Evaluate: Performance impact of metrics collection on agent execution",
+        "Evaluate: Storage options (SQLite time-series, InfluxDB, in-memory with snapshots)",
+        "Deliver: docs/DASHBOARD-V3-RESEARCH.md with findings and recommendations",
+        "Deliver: docs/DASHBOARD-V3-ARCHITECTURE.md with proposed design",
+        "Deliver: Wireframes or mockups for key dashboard views"
+      ],
+      "researchQuestions": [
+        "What are the most effective ways to visualize agent hierarchies with 3+ levels?",
+        "How do Grafana/Datadog handle high-frequency metric updates without UI jank?",
+        "What's the optimal polling/streaming frequency for real-time dashboards?",
+        "How should context usage be visualized to predict auto-compact triggers?",
+        "What metrics best indicate agent delegation is improving performance?",
+        "How to detect and surface auto-compact issues (lost context, repeated work)?",
+        "What's the ideal data retention policy for historical metrics?",
+        "How to aggregate per-agent metrics up to session/project level?",
+        "What visualization patterns work best for comparing before/after delegation?",
+        "How to surface actionable insights from raw metrics?"
+      ],
+      "deliverables": [
+        "docs/DASHBOARD-V3-RESEARCH.md - Comprehensive research findings",
+        "docs/DASHBOARD-V3-ARCHITECTURE.md - Technical architecture proposal",
+        "docs/DASHBOARD-V3-WIREFRAMES.md - UI mockups and component breakdown",
+        "docs/DASHBOARD-V3-METRICS-SCHEMA.md - Data model for all tracked metrics"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-29T20:00:00.000Z",
+      "updated": "2025-12-29T20:00:00.000Z"
+    },
     "add-model-pricing": {
       "parentTaskId": null,
       "childTaskIds": [],
@@ -405,43 +534,268 @@
       "delegationDepth": 0,
       "decomposition": null,
       "id": "audit-cleanup-phase1",
-      "title": "Audit Cleanup Phase 1 - Dead Code and Quick Wins",
-      "description": "Address critical findings from audit-2025-12-28.json: delete 37 orphaned modules (~10K lines), remove 4 orphaned test databases, remove 4 unused npm dependencies, and fix broken documentation links. Focus on low-risk, high-impact cleanups first.",
+      "title": "Audit Cleanup Phase 1 - Verified Safe Cleanups Only",
+      "description": "VERIFIED cleanup items from audit-2025-12-29.json after manual review. OTLP is NOT dead - Claude Code supports OTLP export natively. OpenTelemetry packages must stay. Focus: remove sqlite/sqlite3 (using better-sqlite3), delete orphaned test DBs, fix js-yaml vulnerability, archive stale docs.",
       "phase": "implementation",
       "priority": "high",
-      "estimate": "4h",
+      "estimate": "2h",
       "tags": [
         "audit",
         "cleanup",
         "dead-code",
-        "technical-debt"
+        "technical-debt",
+        "security",
+        "verified"
       ],
       "depends": {
         "blocks": [],
-        "requires": [],
+        "requires": [
+          "audit-refresh-2025-12-29"
+        ],
         "related": [
           "codebase-audit-system"
         ]
       },
       "acceptance": [
-        "Delete or archive 37 orphaned modules identified in audit (scripts/, .claude/core/, root level)",
-        "Delete 4 orphaned test databases in __tests__/core/",
-        "Remove 4 unused npm dependencies: @opentelemetry/api, @opentelemetry/exporter-metrics-otlp-http, sqlite, sqlite3",
-        "Fix 32 broken documentation links in docs/",
-        "Archive 15 stale docs (completed migrations, old roadmaps) to docs/archive/",
+        "DONE: Create .claude/ARCHITECTURE.md - canonical component registry to prevent future duplication",
+        "DONE: Update CLAUDE.md - add architectural constraints section and design phase requirements",
+        "SAFE: Run npm audit fix to patch js-yaml security vulnerability",
+        "SAFE: npm uninstall sqlite sqlite3 (codebase uses better-sqlite3 exclusively)",
+        "SAFE: Delete __tests__/integration/test-otlp-*.db* (~12 MB orphaned test artifacts)",
+        "SAFE: Delete __tests__/core/test-*.db* (~1 MB orphaned test artifacts)",
+        "SAFE: Delete .claude/memory/test.db* (~200 KB, 40+ days stale, no references)",
+        "VERIFY-FIRST: Confirm deprecated/continuous-loop-orchestrator.js has no imports before deleting",
+        "VERIFY-FIRST: Confirm claude-telemetry-bridge.js has no imports before deleting",
+        "DECISION-NEEDED: .claude/memory/test-parser.db (4.1 MB) - used by test-claude-code-parser.js script",
+        "Move .claude/core/example.js to examples/ directory",
+        "Archive 22 stale docs to docs/archive/ (completed migrations, old roadmaps)",
+        "Fix 3 critical broken documentation links",
         "Run npm test to verify no regressions after cleanup",
         "Update PROJECT_SUMMARY.md with cleanup results"
       ],
       "status": "ready",
       "assignee": null,
       "created": "2025-12-28T05:30:00.000Z",
-      "updated": "2025-12-28T05:30:00.000Z",
-      "sourceAudit": "docs/audits/audit-2025-12-28.json",
+      "updated": "2025-12-29T23:00:00.000Z",
+      "sourceAudit": "docs/audits/audit-2025-12-29.json",
       "estimatedSavings": {
-        "lines": 10475,
-        "bytes": 249856,
-        "dependencies": 4
+        "lines": 1842,
+        "bytes": 13400000,
+        "dependencies": 2
+      },
+      "securityFixes": [
+        {
+          "package": "js-yaml",
+          "issue": "Prototype pollution (GHSA-mh29-5h37-fv8m)",
+          "severity": "moderate",
+          "action": "npm audit fix"
+        }
+      ],
+      "verificationNotes": {
+        "doNotRemove": [
+          "@opentelemetry/api - Peer dependency of sdk-metrics and resources",
+          "@opentelemetry/exporter-metrics-otlp-http - OTLP is valid infrastructure, Claude Code supports OTLP export",
+          "@opentelemetry/sdk-metrics - Used by otlp-receiver.js",
+          "@opentelemetry/resources - Used by otlp-receiver.js",
+          ".claude/memory/memory-store.db - Actively used by start-continuous-loop.js",
+          ".claude/memory/test-parser.db - Used by test-claude-code-parser.js (decision needed)",
+          "Hierarchy modules (task-decomposer, decomposition-strategies, etc.) - Part of Auto-Delegation infrastructure"
+        ],
+        "safeToRemove": [
+          "sqlite - Not imported anywhere, codebase uses better-sqlite3",
+          "sqlite3 - Not imported anywhere, codebase uses better-sqlite3",
+          "__tests__/**/test-*.db* - Orphaned test artifacts from failed/interrupted test runs",
+          ".claude/memory/test.db - 40+ days old, no code references",
+          "deprecated/continuous-loop-orchestrator.js - No imports found (1513 lines)",
+          "claude-telemetry-bridge.js - No imports found (329 lines)"
+        ],
+        "deferredToConsolidation": [
+          "real-time-context-tracker.js - Orphaned (810 lines), features to merge into global-context-tracker.js",
+          "real-context-tracker.js - Used by context-tracking-bridge.js but should be consolidated"
+        ],
+        "otlpStatus": "ACTIVE - Claude Code natively exports OTLP metrics. Receiver configured for HTTP:4318, Claude defaults to gRPC:4317. Config mismatch, not dead code."
       }
+    },
+    "context-tracker-consolidation": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "context-tracker-consolidation",
+      "title": "Major Consolidation: Trackers + Dashboard + Orchestrators + Databases",
+      "description": "Full system consolidation: (1) Merge 3 context trackers into GlobalContextTracker, (2) Merge 2 dashboard systems into global-context-manager.js, (3) Eliminate ContinuousLoopOrchestrator, migrate HumanInLoopDetector to autonomous-orchestrator.js, (4) Consolidate 4 MemoryStore DB paths to single location. Delete 8+ deprecated files (~3,500+ lines).",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "18h",
+      "tags": [
+        "refactor",
+        "consolidation",
+        "context-tracking",
+        "dashboard",
+        "orchestrator",
+        "database",
+        "technical-debt",
+        "cleanup"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "audit-cleanup-phase1"
+        ]
+      },
+      "acceptance": [
+        "Phase 1: Add processOTLPMetric() method to GlobalContextTracker",
+        "Phase 1: Add getContextPercentage(), manualUpdate(), getActiveSessions() methods",
+        "Phase 2: Add velocity tracking - tokens per second for each session",
+        "Phase 2: Add getVelocity(projectFolder) method and velocity:update events",
+        "Phase 3: Add compaction detection - detect sudden >20% context drops",
+        "Phase 3: Emit compaction:detected event and generate recovery docs",
+        "Phase 4: Add exhaustion prediction - getPredictedExhaustion(projectFolder)",
+        "Phase 4: Emit exhaustion:imminent event when <5 minutes remaining",
+        "Phase 5: Add OTLP receiver to global-context-manager.js (from start-enhanced-dashboard.js)",
+        "Phase 5: Wire OTLP metrics to GlobalContextTracker.processOTLPMetric()",
+        "Phase 5: Make OTLP optional via ENABLE_OTLP=true env var",
+        "Phase 6: Migrate DashboardManager features to global-context-manager.js",
+        "Phase 6: Add /api/artifacts endpoint + artifact tracking state",
+        "Phase 6: Add /api/reviews and /api/review/:id endpoints for HumanInLoopDetector UI",
+        "Phase 6: Add /api/config endpoint for live settings updates",
+        "Phase 6: Add /api/file endpoint for reading project files (security-scoped)",
+        "Phase 7: Update tests/e2e/context-tracking.e2e.test.js",
+        "Phase 7: Add unit tests for new methods and migrated features",
+        "Phase 7: Add tests for migrated dashboard features (/api/artifacts, /api/reviews, /api/config, /api/file)",
+        "Phase 8: Delete context tracker files (real-context-tracker.js, real-time-context-tracker.js, context-tracking-bridge.js)",
+        "Phase 8: Delete scripts/start-enhanced-dashboard.js (~300 lines)",
+        "Phase 8: Delete obsolete tests (continuous-loop-system.test.js, dashboard-manager.test.js, claude-limit-tracker.test.js)",
+        "Phase 9: Migrate HumanInLoopDetector integration to autonomous-orchestrator.js",
+        "Phase 9: Delete continuous-loop-orchestrator.js (1513 lines) and deprecated copy",
+        "Phase 9: Delete dashboard-manager.js (now fully merged into global-context-manager)",
+        "Phase 9: Delete claude-limit-tracker.js (not needed for Claude Code CLI)",
+        "Phase 10: Consolidate MemoryStore DB paths to single .claude/data/memory.db",
+        "Phase 10: Update all consumers to use consolidated DB path",
+        "Phase 10: Delete orphaned DB files after migration verified",
+        "Phase 11: Update/archive documentation referencing deleted components",
+        "Phase 11: DELETE/ARCHIVE: CONTINUOUS-LOOP-QUICKSTART.md, docs/CONTINUOUS-LOOP-SYSTEM.md, __tests__/CONTINUOUS-LOOP-TESTS.md",
+        "Phase 11: UPDATE: docs/INTEGRATION-GUIDE.md, docs/DASHBOARD-FEATURES.md, docs/DASHBOARD-UX-REDESIGN.md",
+        "Phase 11: REWRITE: .claude/core/README.md (lists 7 components, should list 80+)",
+        "Phase 11: UPDATE: docs/MEMORY_SYSTEM.md, docs/LIVE-USAGE-MONITORING.md (database paths)",
+        "Phase 11: ARCHIVE stale docs to docs/archive/ (8+ files)",
+        "SINGLE DASHBOARD: Only port 3033 remains (global-context-manager.js)",
+        "NO PARALLEL DASHBOARDS: All other dashboard servers eliminated",
+        "autonomous-orchestrator.js with HumanInLoopDetector safety guardrails",
+        "npm test passes with no regressions",
+        "All documentation reflects new architecture"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-30T00:00:00.000Z",
+      "updated": "2025-12-30T01:00:00.000Z",
+      "designDoc": "docs/CONTEXT-TRACKER-CONSOLIDATION-DESIGN.md",
+      "filesToModify": [
+        ".claude/core/global-context-tracker.js",
+        "global-context-manager.js",
+        "autonomous-orchestrator.js",
+        ".claude/core/memory-store.js",
+        "tests/e2e/context-tracking.e2e.test.js"
+      ],
+      "filesToDelete": [
+        ".claude/core/real-context-tracker.js",
+        ".claude/core/real-time-context-tracker.js",
+        ".claude/core/context-tracking-bridge.js",
+        "scripts/start-enhanced-dashboard.js",
+        ".claude/core/continuous-loop-orchestrator.js",
+        ".claude/core/deprecated/continuous-loop-orchestrator.js",
+        ".claude/core/dashboard-manager.js",
+        ".claude/core/claude-limit-tracker.js"
+      ],
+      "testsToDelete": [
+        "__tests__/integration/continuous-loop-system.test.js",
+        "__tests__/core/dashboard-manager.test.js",
+        "__tests__/core/claude-limit-tracker.test.js"
+      ],
+      "testsToKeep": [
+        "__tests__/core/human-in-loop-detector.test.js (component migrated, not deleted)"
+      ],
+      "testsToCreate": [
+        "Add tests for /api/artifacts endpoint in global-context-manager tests",
+        "Add tests for /api/reviews endpoint in global-context-manager tests",
+        "Add tests for /api/config endpoint in global-context-manager tests",
+        "Add tests for /api/file endpoint in global-context-manager tests"
+      ],
+      "documentationToUpdate": [
+        {"file": "CONTINUOUS-LOOP-QUICKSTART.md", "action": "DELETE or rewrite for new architecture", "reason": "References eliminated continuous-loop system"},
+        {"file": "docs/CONTINUOUS-LOOP-SYSTEM.md", "action": "ARCHIVE to docs/archive/", "reason": "System eliminated"},
+        {"file": "__tests__/CONTINUOUS-LOOP-TESTS.md", "action": "DELETE", "reason": "Tests being deleted"},
+        {"file": "docs/INTEGRATION-GUIDE.md", "action": "UPDATE", "reason": "References dashboard-manager, start-enhanced-dashboard"},
+        {"file": "docs/DASHBOARD-FEATURES.md", "action": "UPDATE", "reason": "May reference port 3030 or old dashboard"},
+        {"file": "docs/DASHBOARD-UX-REDESIGN.md", "action": "UPDATE", "reason": "References old dashboard architecture"},
+        {"file": ".claude/core/README.md", "action": "REWRITE", "reason": "Lists 7 components but 80+ exist - update to reflect actual architecture"},
+        {"file": "docs/USAGE-TRACKER-SPECIFICATION.md", "action": "UPDATE after usage consolidation", "reason": "References multiple usage trackers"},
+        {"file": "docs/MEMORY_SYSTEM.md", "action": "UPDATE", "reason": "References old database paths"},
+        {"file": "docs/LIVE-USAGE-MONITORING.md", "action": "UPDATE", "reason": "References old monitoring architecture"}
+      ],
+      "documentationToArchive": [
+        "docs/IMPLEMENTATION-ROADMAP.md",
+        "docs/AGENT-MIGRATION-PLAN.md",
+        "docs/AGENT-MIGRATION-COMPLETE.md",
+        "docs/CLAUDE-MEM-INTEGRATION-PLAN.md",
+        "docs/LEAN-INTEGRATION-ROADMAP.md",
+        "docs/INTELLIGENCE-LAYER-IMPLEMENTATION-CHECKLIST.md",
+        "SESSION_2_COMPLETION_REPORT.md",
+        "SESSION_3_COMPLETION_REPORT.md"
+      ],
+      "componentMigrations": {
+        "humanInLoopDetector": {
+          "from": "continuous-loop-orchestrator.js",
+          "to": "autonomous-orchestrator.js",
+          "reason": "Valuable safety guardrail for detecting when human intervention needed"
+        },
+        "dashboardFeatures": {
+          "from": "dashboard-manager.js",
+          "to": "global-context-manager.js",
+          "features": [
+            {"name": "Artifact Tracking", "endpoints": ["/api/artifacts"], "effort": "low"},
+            {"name": "Human Review Queue", "endpoints": ["/api/reviews", "/api/review/:id"], "effort": "medium"},
+            {"name": "Config Update API", "endpoints": ["/api/config"], "effort": "low"},
+            {"name": "File Reading API", "endpoints": ["/api/file"], "effort": "low"}
+          ],
+          "reason": "Consolidate to SINGLE dashboard - eliminate all parallel dashboard servers"
+        }
+      },
+      "databaseConsolidation": {
+        "targetPath": ".claude/data/memory.db",
+        "currentPaths": [
+          ".claude/data/memory.db (autonomous-orchestrator.js)",
+          ".claude/memory/orchestrations.db (MemoryStore default)",
+          ".claude/memory/memory-store.db (start-continuous-loop.js)",
+          ".claude/memory/dashboard.db (start-enhanced-dashboard.js - being deleted)"
+        ],
+        "action": "Update all consumers to use .claude/data/memory.db"
+      },
+      "estimatedSavings": {
+        "lines": 5500,
+        "files": 8,
+        "description": "Removes 3 trackers + 2 dashboard systems + 2 orchestrators + 1 limit tracker → SINGLE DASHBOARD"
+      },
+      "dashboardConsolidation": {
+        "before": ["global-context-manager.js (port 3033)", "dashboard-manager.js (port 3030)", "start-enhanced-dashboard.js (port 3033)"],
+        "after": ["global-context-manager.js (port 3033) - ONLY ONE"],
+        "principle": "NO PARALLEL DASHBOARDS - all features consolidated into single entry point"
+      },
+      "phases": [
+        {"id": 1, "name": "OTLP Processing", "estimate": "2h", "status": "pending"},
+        {"id": 2, "name": "Velocity Tracking", "estimate": "1h", "status": "pending"},
+        {"id": 3, "name": "Compaction Detection", "estimate": "2h", "status": "pending"},
+        {"id": 4, "name": "Exhaustion Prediction", "estimate": "1h", "status": "pending"},
+        {"id": 5, "name": "Dashboard OTLP Integration", "estimate": "2h", "status": "pending"},
+        {"id": 6, "name": "Dashboard Feature Migration", "estimate": "2h", "status": "pending", "details": "Add artifact tracking, human review queue, config API, file API to global-context-manager.js"},
+        {"id": 7, "name": "Update Tests", "estimate": "2h", "status": "pending"},
+        {"id": 8, "name": "Delete Context Tracker Files", "estimate": "30m", "status": "pending"},
+        {"id": 9, "name": "Orchestrator Consolidation", "estimate": "2h", "status": "pending", "details": "Migrate HumanInLoopDetector to autonomous-orchestrator.js, delete continuous-loop system"},
+        {"id": 10, "name": "Database Path Consolidation", "estimate": "1h", "status": "pending", "details": "Consolidate 4 DB paths to single .claude/data/memory.db"},
+        {"id": 11, "name": "Documentation Updates", "estimate": "2h", "status": "pending", "details": "Update/archive 10+ docs referencing deleted components, rewrite .claude/core/README.md"}
+      ]
     },
     "hierarchy-quickwin-parallel-loader": {
       "parentTaskId": null,
@@ -705,56 +1059,6 @@
         "Helper methods: _getSessionAgents, _getAgentHierarchy, _getActiveDelegations, _getDelegationChain, _getHierarchyMetrics"
       ],
       "notes": "Phase 1 hierarchy complete. All acceptance criteria met except OpenAPI docs (deferred). 94 hierarchy tests passing."
-    },
-    "hierarchy-phase3-auto-delegation": {
-      "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "decomposition": null,
-      "id": "hierarchy-phase3-auto-delegation",
-      "title": "Phase 3: Automatic Delegation Decisions",
-      "description": "Implement automatic delegation decision logic based on task complexity, context utilization, and agent confidence. Parent agents can auto-delegate without manual intervention.",
-      "phase": "implementation",
-      "priority": "medium",
-      "estimate": "4h",
-      "tags": [
-        "hierarchy",
-        "phase3",
-        "automation",
-        "decisions"
-      ],
-      "depends": {
-        "blocks": [
-          "hierarchy-phase4-optimization"
-        ],
-        "requires": [
-          "hierarchy-phase3-decomposer"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "DelegationDecision factors: complexity, contextUtilization, subtaskCount, confidence",
-        "Configurable thresholds for automatic delegation",
-        "shouldDelegate(task, agent) returns decision with reasoning",
-        "Integration with existing executeParallel/executeDebate patterns",
-        "Delegation hints surfaced to dashboard",
-        "Unit tests for decision logic"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2025-12-28T20:00:00.000Z",
-      "updated": "2025-12-28T23:45:00.000Z",
-      "completed": "2025-12-28T23:45:00.000Z",
-      "qualityScore": 95,
-      "deliverables": [
-        ".claude/core/delegation-decider.js: DelegationDecider class (~600 lines)",
-        "6 decision factors: complexity, contextUtilization, subtaskCount, agentConfidence, agentLoad, depthRemaining",
-        "Weighted scoring algorithm, pattern selection (parallel/sequential/debate/review/ensemble)",
-        "AgentOrchestrator integration: executeWithAutoDelegation(), getDelegationHint()",
-        "Dashboard API: 6 new endpoints for delegation hints",
-        "__tests__/core/delegation-decider.test.js: 44 unit tests"
-      ]
     },
     "hierarchy-phase4-dashboard-viz": {
       "parentTaskId": null,
@@ -1283,24 +1587,543 @@
         "global-context-manager.js: Added process.on('uncaughtException') (lines 39-47)",
         "global-context-manager.js: Added process.on('unhandledRejection') (lines 49-57)",
         "coordination-db.js: Added _cleanupInProgress mutex and serialization (lines 56, 2030-2051)",
-        "global-context-manager.js: Added cleanupTaskManagers() and SIGINT/SIGTERM cleanup (lines 2192-2225)"
+        "global-context-manager.js: Added cleanupTaskManagers() and SIGINT/SIGTERM cleanup (lines 2192-2225)",
+        "task-manager.js: Atomic file writes via temp file + rename (lines 1556-1567)",
+        "task-manager.js: Atomic archive writes (lines 1703-1712)",
+        "task-manager.js: Read retry logic with 3 attempts (lines 1192-1244)",
+        ".claude/hooks/hook-debug.js: Debug logging module for hooks",
+        "scripts/parallel-crash-test.md: Test scenarios for validation",
+        "scripts/view-hook-debug.js: Debug log viewer"
       ],
       "investigation": {
-        "agents": ["SQLite Expert", "Concurrency Expert", "Crash Handling Expert"],
+        "agents": [
+          "SQLite Expert",
+          "Concurrency Expert",
+          "Crash Handling Expert"
+        ],
         "rootCauses": [
           "Missing PRAGMA busy_timeout (default 0ms causes immediate lock failure)",
           "No error handler on app.listen() for EADDRINUSE",
           "Cleanup timers run concurrently without serialization",
           "TaskManager.close() never called on crash",
-          "Unhandled Promise rejections in async startup"
+          "Unhandled Promise rejections in async startup",
+          "tasks.json file write conflicts (non-atomic writeFileSync)",
+          "JSON parse errors during concurrent read/write"
         ]
       }
+    },
+    "auto-delegation-integration": {
+      "parentTaskId": null,
+      "childTaskIds": [
+        "auto-delegation-phase1-hook",
+        "auto-delegation-phase2-decision",
+        "auto-delegation-phase3-skills",
+        "auto-delegation-phase4-execution",
+        "auto-delegation-phase5-dashboard",
+        "auto-delegation-phase6-polish"
+      ],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": {
+        "strategy": "sequential",
+        "estimatedSubtasks": 6,
+        "completedSubtasks": 0,
+        "aggregationRule": "all-complete"
+      },
+      "id": "auto-delegation-integration",
+      "title": "Auto-Delegation Integration - Connect Prompts to DelegationDecider",
+      "description": "Bridge the gap between user prompts and the existing DelegationDecider/hierarchy system. Use Claude Code hooks to intercept prompts, analyze complexity, and inject delegation recommendations into conversation context. Enables automatic use of Task tool for complex tasks.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "20h",
+      "tags": [
+        "auto-delegation",
+        "hooks",
+        "integration",
+        "orchestration",
+        "feature"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "hierarchy-phase3-auto-delegation",
+          "session-task-claiming"
+        ]
+      },
+      "acceptance": [
+        "Hook runs on every prompt and injects delegation analysis",
+        "DelegationDecider accurately identifies complex tasks",
+        "User can force/prevent delegation with /delegate and /direct skills",
+        "Delegated tasks execute through AgentOrchestrator via Task tool",
+        "Dashboard shows delegation activity and progress",
+        "All tests pass (160+ new tests)",
+        "Documentation complete",
+        "Performance targets met (< 200ms hook, < 500ms decision)"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "designDocs": [
+        "docs/AUTO-DELEGATION-ARCHITECTURE.md",
+        "docs/AUTO-DELEGATION-IMPLEMENTATION-PLAN.md",
+        "docs/AUTO-DELEGATION-CONTROL-INTERFACE.md",
+        "docs/AUTO-DELEGATION-UX-DESIGN.md",
+        "docs/AUTO-DELEGATION-TESTING-STRATEGY.md"
+      ]
+    },
+    "auto-delegation-phase1-hook": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "auto-delegation-phase1-hook",
+      "title": "Phase 1: Core Hook Infrastructure",
+      "description": "Create the foundational hook that intercepts prompts and injects delegation analysis. This is the minimal viable implementation to validate the approach.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "4h",
+      "tags": [
+        "auto-delegation",
+        "phase1",
+        "hooks",
+        "foundation"
+      ],
+      "depends": {
+        "blocks": [
+          "auto-delegation-phase2-decision"
+        ],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "scripts/delegation-hook.js created and executes on prompt submit",
+        "scripts/delegation-bridge.js bridges hook to DelegationDecider",
+        "DelegationDecider.getQuickHint() method added for fast analysis",
+        "scripts/install-hooks.js sets up .claude/settings.json",
+        ".claude/config.json created with delegation settings schema",
+        "Hook registered in .claude/settings.json",
+        "Hook completes in < 200ms",
+        "Config can enable/disable hook"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "files": {
+        "create": [
+          "scripts/delegation-hook.js",
+          "scripts/delegation-bridge.js",
+          "scripts/install-hooks.js",
+          ".claude/config.json"
+        ],
+        "modify": [
+          ".claude/core/delegation-decider.js",
+          ".claude/settings.json"
+        ]
+      }
+    },
+    "auto-delegation-phase2-decision": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "auto-delegation-phase2-decision",
+      "title": "Phase 2: Decision Integration",
+      "description": "Connect hook to full DelegationDecider and TaskDecomposer. Add tasks.json lookup, pattern selection, and caching for repeated prompts.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "auto-delegation",
+        "phase2",
+        "decision",
+        "decomposition"
+      ],
+      "depends": {
+        "blocks": [
+          "auto-delegation-phase3-skills"
+        ],
+        "requires": [
+          "auto-delegation-phase1-hook"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "TaskDecomposer integrated for subtask generation",
+        "Pattern selection logic (parallel/sequential/debate/review/ensemble)",
+        "tasks.json task lookup by ID reference in prompts",
+        "Per-task delegationConfig support in task schema",
+        "Decision caching for repeated prompts",
+        "Complex prompts get accurate delegation recommendations"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "files": {
+        "modify": [
+          "scripts/delegation-bridge.js",
+          "scripts/delegation-hook.js",
+          ".claude/core/task-manager.js"
+        ]
+      }
+    },
+    "auto-delegation-phase3-skills": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "auto-delegation-phase3-skills",
+      "title": "Phase 3: Control Skills",
+      "description": "Create slash command skills for explicit user control over delegation: /delegate (force), /direct (prevent), /delegation-status, /delegation-config.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "auto-delegation",
+        "phase3",
+        "skills",
+        "user-control"
+      ],
+      "depends": {
+        "blocks": [
+          "auto-delegation-phase4-execution"
+        ],
+        "requires": [
+          "auto-delegation-phase2-decision"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "/delegate skill forces delegation for any prompt",
+        "/direct skill forces direct execution (skips delegation)",
+        "/delegation-status skill shows active delegations",
+        "/delegation-config skill allows runtime config changes",
+        "Skills documented in CLAUDE.md"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "files": {
+        "create": [
+          ".claude/commands/delegate.md",
+          ".claude/commands/direct.md",
+          ".claude/commands/delegation-status.md",
+          ".claude/commands/delegation-config.md"
+        ],
+        "modify": [
+          "CLAUDE.md"
+        ]
+      }
+    },
+    "auto-delegation-phase4-execution": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "auto-delegation-phase4-execution",
+      "title": "Phase 4: Execution Integration",
+      "description": "Wire delegated tasks to actually execute through AgentOrchestrator. Implement parallel, sequential, debate patterns with real Task tool invocations.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "6h",
+      "tags": [
+        "auto-delegation",
+        "phase4",
+        "execution",
+        "orchestrator"
+      ],
+      "depends": {
+        "blocks": [
+          "auto-delegation-phase5-dashboard"
+        ],
+        "requires": [
+          "auto-delegation-phase3-skills"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "executeWithDelegationHint() added to AgentOrchestrator",
+        "Task tool calls wired to AgentOrchestrator",
+        "Parallel pattern runs subtasks concurrently",
+        "Sequential pattern respects dependencies",
+        "Debate pattern generates opposing agent calls",
+        "HierarchyManager integration tracks parent-child relationships"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "files": {
+        "modify": [
+          ".claude/core/agent-orchestrator.js",
+          "scripts/delegation-bridge.js",
+          ".claude/core/hierarchy-manager.js"
+        ]
+      }
+    },
+    "auto-delegation-phase5-dashboard": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "auto-delegation-phase5-dashboard",
+      "title": "Phase 5: Dashboard Integration",
+      "description": "Add delegation visibility to dashboard: active delegations panel, progress tree, SSE events for real-time updates, delegation history.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": [
+        "auto-delegation",
+        "phase5",
+        "dashboard",
+        "visibility"
+      ],
+      "depends": {
+        "blocks": [
+          "auto-delegation-phase6-polish"
+        ],
+        "requires": [
+          "auto-delegation-phase4-execution"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "SSE events for delegation:started, delegation:completed, delegation:failed",
+        "SSE events for subtask progress updates",
+        "Delegation panel component in dashboard",
+        "GET /api/delegation/history endpoint",
+        "GET /api/delegation/active endpoint",
+        "Real-time progress updates in dashboard"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "files": {
+        "modify": [
+          ".claude/core/agent-orchestrator.js",
+          ".claude/core/enhanced-dashboard-server.js",
+          "global-dashboard.html"
+        ]
+      }
+    },
+    "auto-delegation-phase6-polish": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "auto-delegation-phase6-polish",
+      "title": "Phase 6: Polish and Documentation",
+      "description": "Production-ready implementation: comprehensive error handling, graceful degradation, logging/telemetry, user documentation, performance optimization.",
+      "phase": "validation",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": [
+        "auto-delegation",
+        "phase6",
+        "polish",
+        "documentation"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "auto-delegation-phase5-dashboard"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Hook failures don't break Claude Code (graceful degradation)",
+        "Errors logged with context for debugging",
+        "Telemetry for delegation decisions and outcomes",
+        "docs/AUTO-DELEGATION-USER-GUIDE.md created",
+        "CLAUDE.md updated with usage instructions",
+        "Performance meets targets (< 200ms hook, < 500ms decision)",
+        "160+ new tests passing"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "files": {
+        "create": [
+          "docs/AUTO-DELEGATION-USER-GUIDE.md",
+          "__tests__/core/delegation-bridge.test.js",
+          "__tests__/integration/auto-delegation.integration.test.js"
+        ],
+        "modify": [
+          "scripts/delegation-hook.js",
+          "scripts/delegation-bridge.js",
+          "CLAUDE.md"
+        ]
+      }
+    },
+    "parallel-crash-fix": {
+      "id": "parallel-crash-fix",
+      "title": "Parallel Crash Fix Test Task",
+      "description": "Task used for testing parallel session crash fixes",
+      "phase": "testing",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": [],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-29T20:01:19.097Z",
+      "updated": "2025-12-29T20:04:20.305Z",
+      "started": null,
+      "completed": null
+    },
+    "docs-reorganization": {
+      "id": "docs-reorganization",
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "title": "Documentation Reorganization Per ARCHITECTURE.md Standards",
+      "description": "Reorganize documentation according to new standards in .claude/ARCHITECTURE.md. Move misplaced files from root to docs/, create proper folder structure in docs/, and organize existing docs into appropriate subfolders (architecture/, guides/, features/, research/, api/, audits/, archive/).",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": ["documentation", "cleanup", "organization", "standards"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["context-tracker-consolidation", "audit-cleanup-phase1"]
+      },
+      "acceptance": [
+        "Create docs/ subfolders: architecture/, guides/, features/, research/, api/, archive/",
+        "Move root files to proper locations: TEMPLATE-GUIDE.md → docs/guides/, WORKFLOW.md → docs/guides/",
+        "Archive completion reports: SESSION_2_COMPLETION_REPORT.md, SESSION_3_COMPLETION_REPORT.md → docs/archive/",
+        "Archive implementation summaries: IMPLEMENTATION_SUMMARY.md, VECTORSTORE_*.md, CONTEXT_RETRIEVER_*.md → docs/archive/",
+        "Move architecture docs: *-ARCHITECTURE.md files → docs/architecture/",
+        "Move research docs: *-RESEARCH.md files → docs/research/",
+        "Move guide docs: *-GUIDE.md files → docs/guides/",
+        "Move feature docs: DASHBOARD-FEATURES.md, CLAIM-CLEANUP-SYSTEM.md etc → docs/features/",
+        "Move design docs: *-DESIGN.md files → docs/architecture/",
+        "Keep API-REFERENCE.md in docs/api/",
+        "Verify no broken internal links after reorganization",
+        "Update any docs that reference moved files"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-30T03:00:00.000Z",
+      "updated": "2025-12-30T03:00:00.000Z",
+      "filesToMoveFromRoot": [
+        {"file": "TEMPLATE-GUIDE.md", "destination": "docs/guides/"},
+        {"file": "WORKFLOW.md", "destination": "docs/guides/"},
+        {"file": "SESSION_2_COMPLETION_REPORT.md", "destination": "docs/archive/"},
+        {"file": "SESSION_3_COMPLETION_REPORT.md", "destination": "docs/archive/"},
+        {"file": "IMPLEMENTATION_SUMMARY.md", "destination": "docs/archive/"},
+        {"file": "VECTORSTORE_IMPLEMENTATION.md", "destination": "docs/archive/"},
+        {"file": "VECTORSTORE_TEST_SUMMARY.md", "destination": "docs/archive/"},
+        {"file": "CONTEXT_RETRIEVER_IMPLEMENTATION.md", "destination": "docs/archive/"}
+      ],
+      "docsReorganization": {
+        "architecture": [
+          "INTELLIGENCE-LAYER-ARCHITECTURE.md",
+          "USAGE-ANALYTICS-ARCHITECTURE.md",
+          "DASHBOARD-V3-ARCHITECTURE.md",
+          "AUTO-DELEGATION-ARCHITECTURE.md",
+          "DASHBOARD-ENHANCEMENTS-DESIGN.md",
+          "DASHBOARD-UX-REDESIGN.md",
+          "SESSION-TASK-CLAIMING-DESIGN.md",
+          "CONTEXT-TRACKER-CONSOLIDATION-DESIGN.md",
+          "UX-REDESIGN-PROPOSAL-v2.md"
+        ],
+        "guides": [
+          "MULTI-AGENT-GUIDE.md",
+          "INTERACTION-PATTERNS-GUIDE.md",
+          "FRAMEWORK-COMPONENTS-GUIDE.md",
+          "INTEGRATION-GUIDE.md",
+          "SECURITY_GUIDE.md",
+          "OPTION-B-QUICK-START.md"
+        ],
+        "features": [
+          "DASHBOARD-FEATURES.md",
+          "CLAIM-CLEANUP-SYSTEM.md",
+          "HUMAN-IN-LOOP-GUARDRAILS.md",
+          "LIVE-USAGE-MONITORING.md",
+          "PROMPT-TRACEABILITY.md",
+          "CODEBASE-AUDIT-SYSTEM.md",
+          "COMPETITIVE_PLANNING.md",
+          "CONFIDENCE_MONITORING.md",
+          "MEMORY_SYSTEM.md"
+        ],
+        "research": [
+          "DASHBOARD-V3-RESEARCH.md",
+          "DASHBOARD-PATTERNS-RESEARCH.md",
+          "HIERARCHY-VISUALIZATION-RESEARCH.md",
+          "REALTIME-STREAMING-ARCHITECTURE-RESEARCH.md",
+          "TIME-SERIES-STORAGE-RESEARCH.md",
+          "HOOKS-VS-MESSAGEBUS-RESEARCH-SYNTHESIS.md",
+          "FRAMEWORK-PATTERN-ANALYSIS.md",
+          "FEATURE-OVERLAP-ANALYSIS.md",
+          "ORCHESTR8-DIET103-CONSOLIDATED-ANALYSIS.md",
+          "CLAUDE-CODE-INFRASTRUCTURE-COMPARISON.md"
+        ],
+        "api": [
+          "API-REFERENCE.md",
+          "USAGE-TRACKER-SPECIFICATION.md",
+          "DASHBOARD-V3-METRICS-SCHEMA.md"
+        ],
+        "archive": [
+          "AGENT-MIGRATION-PLAN.md",
+          "AGENT-MIGRATION-COMPLETE.md",
+          "IMPLEMENTATION-ROADMAP.md",
+          "IMPLEMENTATION-COMPLETE.md",
+          "IMPLEMENTATION-SUMMARY.md",
+          "LEAN-INTEGRATION-ROADMAP.md",
+          "CLAUDE-MEM-INTEGRATION-PLAN.md",
+          "CRITICAL-FEATURES-IMPLEMENTATION.md",
+          "FEATURE-INTEGRATION-STATUS.md",
+          "INTELLIGENCE-LAYER-IMPLEMENTATION-CHECKLIST.md",
+          "INTELLIGENCE-LAYER-DIAGRAMS.md",
+          "INTELLIGENCE-LAYER-QUICK-REFERENCE.md",
+          "AI-CATEGORIZER-IMPLEMENTATION.md",
+          "AI-CATEGORIZER-TEST-REPORT.md",
+          "EXPERT-EVALUATION-REPORT.md",
+          "AUTO-START-MONITOR.md",
+          "CONTINUOUS-LOOP-SYSTEM.md",
+          "ENHANCEMENTS-DASHBOARD-SYSTEM.md",
+          "COST-ANALYSIS.md",
+          "SOLO-DEV-RECOMMENDATIONS.md",
+          "FRAMEWORK-OVERVIEW.md",
+          "LEARNING-AND-IMPROVEMENT.md"
+        ]
+      },
+      "rootFilesAllowed": [
+        "README.md",
+        "SETUP.md",
+        "QUICK-START.md",
+        "CLAUDE.md",
+        "PROJECT_SUMMARY.md",
+        "SESSION_CONTEXT.md",
+        "CONTRIBUTING.md",
+        "LICENSE",
+        "CHANGELOG.md"
+      ]
     }
   },
   "archival": {
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2025-12-29T04:47:27.262Z"
+    "lastArchived": "2025-12-29T20:01:19.157Z"
   }
 }

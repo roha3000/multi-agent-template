@@ -810,7 +810,57 @@
         },
         "approach": "5 expert agents in parallel: Schema Designer, Pattern Researcher, Lock Management, Session Heartbeat, Test Engineer"
       }
+    },
+    "hierarchy-phase3-auto-delegation": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "hierarchy-phase3-auto-delegation",
+      "title": "Phase 3: Automatic Delegation Decisions",
+      "description": "Implement automatic delegation decision logic based on task complexity, context utilization, and agent confidence. Parent agents can auto-delegate without manual intervention.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "phase3",
+        "automation",
+        "decisions"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase4-optimization"
+        ],
+        "requires": [
+          "hierarchy-phase3-decomposer"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "DelegationDecision factors: complexity, contextUtilization, subtaskCount, confidence",
+        "Configurable thresholds for automatic delegation",
+        "shouldDelegate(task, agent) returns decision with reasoning",
+        "Integration with existing executeParallel/executeDebate patterns",
+        "Delegation hints surfaced to dashboard",
+        "Unit tests for decision logic"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T23:45:00.000Z",
+      "completed": "2025-12-28T23:45:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/delegation-decider.js: DelegationDecider class (~600 lines)",
+        "6 decision factors: complexity, contextUtilization, subtaskCount, agentConfidence, agentLoad, depthRemaining",
+        "Weighted scoring algorithm, pattern selection (parallel/sequential/debate/review/ensemble)",
+        "AgentOrchestrator integration: executeWithAutoDelegation(), getDelegationHint()",
+        "Dashboard API: 6 new endpoints for delegation hints",
+        "__tests__/core/delegation-decider.test.js: 44 unit tests"
+      ]
     }
   },
-  "lastArchived": "2025-12-29T04:47:27.251Z"
+  "lastArchived": "2025-12-29T20:01:19.141Z"
 }

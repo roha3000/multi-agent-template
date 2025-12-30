@@ -1,0 +1,567 @@
+{
+  "date": "2025-12-29",
+  "previousAudit": "2025-12-28",
+  "summary": {
+    "totalIssues": 98,
+    "critical": 1,
+    "high": 35,
+    "medium": 42,
+    "low": 20,
+    "estimatedEffort": 48,
+    "potentialSavings": {
+      "lines": 7604,
+      "bytes": 16800000,
+      "dependencies": 4
+    }
+  },
+  "delta": {
+    "issuesResolved": 5,
+    "newIssues": 12,
+    "netChange": -5,
+    "notes": [
+      "Orphaned modules reduced from 37 to 9 (different detection criteria - focused on core modules)",
+      "New finding: 12 unused exports identified",
+      "New finding: 36 orphaned WAL/SHM files (12.4 MB)",
+      "New finding: js-yaml security vulnerability (moderate)",
+      "New finding: 11 outdated dependencies identified",
+      "New finding: 21 implemented-but-not-documented components"
+    ]
+  },
+  "findings": {
+    "deadCode": {
+      "orphanedModules": [
+        {
+          "file": ".claude/core/deprecated/continuous-loop-orchestrator.js",
+          "lines": 1513,
+          "reason": "Duplicate in deprecated folder - active version exists",
+          "priority": "high",
+          "action": "DELETE"
+        },
+        {
+          "file": ".claude/core/decomposition-strategies.js",
+          "lines": 1477,
+          "reason": "Only referenced in tests, never used in production",
+          "priority": "medium",
+          "action": "EVALUATE"
+        },
+        {
+          "file": ".claude/core/hierarchy-optimizations.js",
+          "lines": 1021,
+          "reason": "Only referenced in tests, never used in production",
+          "priority": "medium",
+          "action": "EVALUATE"
+        },
+        {
+          "file": ".claude/core/task-decomposer.js",
+          "lines": 993,
+          "reason": "Only referenced in tests, never used in production",
+          "priority": "medium",
+          "action": "EVALUATE"
+        },
+        {
+          "file": ".claude/core/real-time-context-tracker.js",
+          "lines": 810,
+          "reason": "Appears replaced by real-context-tracker.js",
+          "priority": "medium",
+          "action": "CONSOLIDATE"
+        },
+        {
+          "file": ".claude/core/hierarchical-state.js",
+          "lines": 566,
+          "reason": "Only integration test coverage",
+          "priority": "low",
+          "action": "EVALUATE"
+        },
+        {
+          "file": ".claude/core/hierarchy-viz.js",
+          "lines": 462,
+          "reason": "Only test coverage",
+          "priority": "low",
+          "action": "EVALUATE"
+        },
+        {
+          "file": ".claude/core/claude-telemetry-bridge.js",
+          "lines": 329,
+          "reason": "Unused telemetry integration",
+          "priority": "low",
+          "action": "DELETE"
+        },
+        {
+          "file": ".claude/core/example.js",
+          "lines": 184,
+          "reason": "Demo file, should be in examples/",
+          "priority": "low",
+          "action": "MOVE"
+        }
+      ],
+      "unusedExports": [
+        {
+          "file": ".claude/core/error-parser.js",
+          "unusedCount": 7,
+          "totalExports": 9,
+          "unused": ["parseTypeScriptErrors", "parseJestErrors", "parseRuntimeErrors", "parseESLintErrors", "parseWebpackErrors", "categorizeError", "generateSearchText"]
+        },
+        {
+          "file": ".claude/core/smart-orchestrate.js",
+          "unusedCount": 2,
+          "totalExports": 3,
+          "unused": ["smartOrchestrate", "MODES"]
+        },
+        {
+          "file": ".claude/core/delegation-context.js",
+          "unusedCount": 2,
+          "totalExports": 3,
+          "unused": ["DEFAULT_CONSTRAINTS", "DEFAULT_CHILD_QUOTAS"]
+        }
+      ],
+      "standaloneScripts": [
+        "scripts/validate-real-tracking.js",
+        "scripts/test-real-context.js",
+        "scripts/session-bootstrap.js",
+        "scripts/test-dashboard-swarm-panels.js",
+        "scripts/migrate-tasks-hierarchy.js",
+        "scripts/migrate-tasks-concurrency.js",
+        "scripts/view-hook-debug.js"
+      ],
+      "summary": {
+        "totalOrphaned": 9,
+        "totalUnusedExports": 12,
+        "estimatedCleanupLines": 7604
+      }
+    },
+    "duplications": {
+      "conceptDuplicates": [
+        {
+          "concept": "Usage/Token Tracking",
+          "files": [
+            ".claude/core/usage-tracker.js",
+            ".claude/core/claude-limit-tracker.js",
+            ".claude/core/usage-limit-tracker.js",
+            ".claude/core/usage-reporter.js"
+          ],
+          "recommendation": "Consolidate into unified UsageManager class",
+          "effort": "8h",
+          "impact": "high"
+        },
+        {
+          "concept": "Context Window Tracking",
+          "files": [
+            ".claude/core/global-context-tracker.js",
+            ".claude/core/real-context-tracker.js",
+            ".claude/core/real-time-context-tracker.js",
+            ".claude/core/claude-session-tracker.js"
+          ],
+          "recommendation": "Merge real-context-tracker into real-time-context-tracker, deprecate claude-session-tracker",
+          "effort": "2h",
+          "impact": "medium"
+        },
+        {
+          "concept": "Orchestration Patterns",
+          "files": [
+            ".claude/core/agent-orchestrator.js",
+            ".claude/core/intelligent-orchestrator.js",
+            ".claude/core/smart-orchestrate.js"
+          ],
+          "recommendation": "Merge intelligent-orchestrator into agent-orchestrator as autoSelect mode",
+          "effort": "3h",
+          "impact": "medium"
+        },
+        {
+          "concept": "Dashboard Servers",
+          "files": [
+            ".claude/core/enhanced-dashboard-server.js",
+            "production/dashboard-server.js",
+            "dashboard-backend.js",
+            "start-dashboard.js"
+          ],
+          "recommendation": "Keep enhanced-dashboard-server.js, delete mock servers",
+          "effort": "4h",
+          "impact": "high"
+        }
+      ],
+      "databaseDuplicates": [
+        {
+          "schema": "Base MemoryStore schema",
+          "databases": [
+            ".claude/data/memory.db",
+            ".claude/memory/orchestrations.db",
+            ".claude/memory/memory-store.db"
+          ],
+          "recommendation": "Consolidate to single .claude/data/memory.db"
+        }
+      ],
+      "codeBlockDuplicates": [
+        {
+          "pattern": "Express Server Setup",
+          "locations": 5,
+          "recommendation": "Extract to shared createDashboardApp() factory"
+        },
+        {
+          "pattern": "SSE Event Streaming",
+          "locations": 4,
+          "recommendation": "Extract to shared SSE utility module"
+        },
+        {
+          "pattern": "Threshold Checking Logic",
+          "locations": 4,
+          "recommendation": "Extract to ThresholdChecker utility class"
+        },
+        {
+          "pattern": "JSONL File Parsing",
+          "locations": 3,
+          "recommendation": "Extract to JSONLUsageParser class"
+        }
+      ],
+      "summary": {
+        "conceptDuplicates": 7,
+        "databaseDuplicates": 3,
+        "codeBlockDuplicates": 4,
+        "consolidationEffort": "24h",
+        "estimatedCodeReduction": 2500
+      }
+    },
+    "databases": {
+      "databases": [
+        {
+          "path": ".claude/data/memory.db",
+          "status": "ACTIVE",
+          "tables": 28,
+          "rows": 8,
+          "sizeBytes": 417792
+        },
+        {
+          "path": ".claude/memory/dashboard.db",
+          "status": "ACTIVE",
+          "tables": 28,
+          "rows": 7,
+          "sizeBytes": 278528
+        },
+        {
+          "path": ".claude/memory/orchestrations.db",
+          "status": "ACTIVE",
+          "tables": 24,
+          "rows": 7,
+          "sizeBytes": 417792
+        },
+        {
+          "path": ".claude/memory/memory-store.db",
+          "status": "LIKELY_ORPHANED",
+          "tables": 19,
+          "rows": 5,
+          "sizeBytes": 278528,
+          "note": "Not modified in 15+ days"
+        },
+        {
+          "path": ".claude/dev-docs/.coordination/tasks.db",
+          "status": "ACTIVE",
+          "tables": 7,
+          "rows": 10,
+          "sizeBytes": 57344
+        },
+        {
+          "path": ".coordination/sessions.db",
+          "status": "ACTIVE",
+          "tables": 7,
+          "rows": 0,
+          "sizeBytes": 4096
+        },
+        {
+          "path": ".claude/memory/test-parser.db",
+          "status": "ORPHANED_TEST",
+          "tables": 16,
+          "rows": 8314,
+          "sizeBytes": 4333568,
+          "note": "Large test artifact (4.1 MB)"
+        },
+        {
+          "path": ".claude/memory/test.db",
+          "status": "ORPHANED_TEST",
+          "tables": 13,
+          "rows": 5,
+          "sizeBytes": 167936,
+          "note": "Not modified in 40+ days"
+        }
+      ],
+      "orphanedWalShmFiles": {
+        "count": 36,
+        "totalSizeBytes": 12975120,
+        "pattern": "__tests__/integration/test-otlp-*.db-wal/shm",
+        "action": "DELETE"
+      },
+      "orphanedTestDbs": [
+        ".claude/memory/test.db",
+        ".claude/memory/test-parser.db",
+        "__tests__/core/test-limit-1765751157200.db",
+        "__tests__/core/test-hil-1765751157251.db",
+        "__tests__/core/test-checkpoint-1765751157248.db",
+        "__tests__/core/test-usage-1765751157256.db",
+        "__tests__/core/test-limit-1766962492887.db"
+      ],
+      "cleanupTargets": [
+        {
+          "target": "Orphaned WAL/SHM files",
+          "action": "DELETE __tests__/integration/test-otlp-*.db-wal/shm",
+          "sizeSavings": "12.4 MB"
+        },
+        {
+          "target": ".claude/memory/test-parser.db",
+          "action": "DELETE",
+          "sizeSavings": "4.1 MB"
+        },
+        {
+          "target": ".claude/memory/test.db",
+          "action": "DELETE",
+          "sizeSavings": "164 KB"
+        },
+        {
+          "target": "Test databases in __tests__/core/",
+          "action": "DELETE 5 orphaned DBs",
+          "sizeSavings": "250 KB"
+        }
+      ],
+      "summary": {
+        "totalDatabases": 13,
+        "activeWithData": 6,
+        "emptyDatabases": 6,
+        "orphanedTestDBs": 7,
+        "totalCleanupSize": "16.8 MB",
+        "duplicateSchemaGroups": 2
+      }
+    },
+    "architecture": {
+      "documentedNotImplemented": [
+        {
+          "component": "Chroma VectorStore with Active Connection",
+          "documentedIn": "docs/INTELLIGENCE-LAYER-ARCHITECTURE.md",
+          "status": "partial",
+          "details": "Falls back to FTS5 always"
+        },
+        {
+          "component": "Auto-Delegation Hook Integration",
+          "documentedIn": "docs/AUTO-DELEGATION-ARCHITECTURE.md",
+          "status": "missing",
+          "details": "Design complete but hook scripts not created"
+        },
+        {
+          "component": "Budget Alert Webhook System",
+          "documentedIn": "docs/USAGE-ANALYTICS-ARCHITECTURE.md",
+          "status": "missing"
+        }
+      ],
+      "implementedNotDocumented": [
+        "CoordinationDB - Cross-process coordination",
+        "SessionRegistry - Session tracking with hierarchy",
+        "ShadowModeMetrics - JSON/SQLite consistency validation",
+        "DelegationMetrics - Performance histograms",
+        "HierarchyRegistry - Parent-child agent tracking",
+        "TaskDecomposer - Intelligent task decomposition",
+        "DelegationDecider - Automatic delegation decisions",
+        "SwarmController - Unified swarm component interface",
+        "GlobalContextTracker - Multi-project monitoring",
+        "PredictiveAnalytics - Context exhaustion prediction",
+        "Task Claiming System - Atomic task claiming",
+        "HierarchicalStateManager - Hierarchy state management",
+        "SupervisionTree - Erlang-style fault tolerance",
+        "AggregationStrategies - Result aggregation patterns",
+        "DelegationContext - Context management for delegation",
+        "HierarchyOptimizations - Performance optimizations",
+        "HierarchyViz - Visualization utilities",
+        "NotificationService - SMS/Email alerts",
+        "LogStreamer - Real-time log streaming",
+        "UsageLimitTracker - API usage limit tracking",
+        "ContinuousLoopOrchestrator - Autonomous loops"
+      ],
+      "staleDocumentation": [
+        "docs/IMPLEMENTATION-ROADMAP.md - Original roadmap fully executed",
+        "docs/CLAUDE-MEM-INTEGRATION-PLAN.md - Integration completed",
+        "docs/LEAN-INTEGRATION-ROADMAP.md - All phases completed",
+        "docs/INTELLIGENCE-LAYER-IMPLEMENTATION-CHECKLIST.md - All items done",
+        "docs/DASHBOARD-ENHANCEMENTS-DESIGN.md - Status shows PLANNING but many features implemented",
+        ".claude/core/README.md - Lists 7 components but 80+ exist"
+      ],
+      "architectureDrift": [
+        {
+          "area": "Intelligence Layer",
+          "documented": "VectorStore + Chroma integration",
+          "actual": "FTS5 fallback always used, Chroma never initialized"
+        },
+        {
+          "area": "Dashboard API",
+          "documented": "4 basic endpoints",
+          "actual": "30+ endpoints including hierarchy, shadow-mode, delegations"
+        },
+        {
+          "area": "Hierarchy System",
+          "documented": "SESSION-TASK-CLAIMING-DESIGN.md only",
+          "actual": "Full system with 8+ components implemented"
+        }
+      ],
+      "recommendations": [
+        "CREATE: HIERARCHY-SYSTEM-ARCHITECTURE.md",
+        "CREATE: PARALLEL-SESSION-SAFETY-ARCHITECTURE.md",
+        "UPDATE: DASHBOARD-ENHANCEMENTS-DESIGN.md with actual API documentation",
+        "UPDATE: .claude/core/README.md to list all 80+ components"
+      ]
+    },
+    "documentation": {
+      "staleDocs": 18,
+      "brokenLinks": 6,
+      "archiveCandidates": 22,
+      "missingDocs": 8,
+      "criticalBrokenLinks": [
+        {
+          "source": "docs/MULTI-AGENT-GUIDE.md",
+          "link": "./BEST-PRACTICES.md"
+        },
+        {
+          "source": "docs/MEMORY_SYSTEM.md",
+          "link": "./API_REFERENCE.md"
+        },
+        {
+          "source": "docs/LIVE-USAGE-MONITORING.md",
+          "link": "./COST-OPTIMIZATION.md"
+        }
+      ],
+      "topArchiveCandidates": [
+        "docs/IMPLEMENTATION-ROADMAP.md",
+        "docs/AGENT-MIGRATION-PLAN.md",
+        "docs/AGENT-MIGRATION-COMPLETE.md",
+        "docs/CLAUDE-MEM-INTEGRATION-PLAN.md",
+        "docs/LEAN-INTEGRATION-ROADMAP.md",
+        "docs/INTELLIGENCE-LAYER-*.md (4 files)",
+        "SESSION_2_COMPLETION_REPORT.md",
+        "SESSION_3_COMPLETION_REPORT.md"
+      ],
+      "missingDocumentation": [
+        "SwarmController",
+        "TaskManager",
+        "HierarchySystem",
+        "CoordinationDB",
+        "DelegationPrimitives",
+        "ShadowMode"
+      ]
+    },
+    "dependencies": {
+      "unusedDependencies": [
+        "sqlite",
+        "sqlite3"
+      ],
+      "unusedDependenciesCorrected": {
+        "note": "CORRECTED 2025-12-29: OpenTelemetry packages are NOT unused",
+        "removed": ["@opentelemetry/api", "@opentelemetry/exporter-metrics-otlp-http"],
+        "reason": "Claude Code natively supports OTLP export. @opentelemetry/api is a peer dependency of sdk-metrics. The OTLP receiver infrastructure is valid, just needs config alignment (receiver: HTTP:4318, Claude default: gRPC:4317)."
+      },
+      "activeOtlpPackages": [
+        {"package": "@opentelemetry/api", "status": "KEEP", "reason": "Peer dependency of sdk-metrics and resources"},
+        {"package": "@opentelemetry/sdk-metrics", "status": "KEEP", "reason": "Used by otlp-receiver.js"},
+        {"package": "@opentelemetry/resources", "status": "KEEP", "reason": "Used by otlp-receiver.js"},
+        {"package": "@opentelemetry/exporter-metrics-otlp-http", "status": "KEEP", "reason": "Valid OTLP infrastructure, may be needed for HTTP export"}
+      ],
+      "securityVulnerabilities": [
+        {
+          "package": "js-yaml",
+          "version": "4.1.0",
+          "issue": "Prototype pollution (GHSA-mh29-5h37-fv8m)",
+          "severity": "moderate",
+          "fixedIn": "4.1.1",
+          "cvss": 5.3
+        }
+      ],
+      "outdatedDependencies": [
+        {"name": "@anthropic-ai/sdk", "current": "0.68.0", "latest": "0.71.2"},
+        {"name": "ajv-formats", "current": "2.1.1", "latest": "3.0.1"},
+        {"name": "chalk", "current": "4.1.2", "latest": "5.6.2"},
+        {"name": "chokidar", "current": "3.6.0", "latest": "5.0.0"},
+        {"name": "inquirer", "current": "8.2.7", "latest": "13.1.0"},
+        {"name": "ora", "current": "5.4.1", "latest": "9.0.0"},
+        {"name": "jest", "current": "29.7.0", "latest": "30.2.0"}
+      ],
+      "cleanupCommand": "npm uninstall sqlite sqlite3 && npm audit fix"
+    }
+  },
+  "recommendations": {
+    "immediate": [
+      {
+        "action": "Run npm audit fix",
+        "reason": "Fix js-yaml security vulnerability",
+        "effort": "5m",
+        "impact": "critical"
+      },
+      {
+        "action": "Delete orphaned test DB files",
+        "reason": "Reclaim ~13 MB: __tests__/integration/test-otlp-*.db*, __tests__/core/test-*.db*, .claude/memory/test.db*",
+        "effort": "5m",
+        "impact": "high"
+      },
+      {
+        "action": "Remove unused npm dependencies",
+        "reason": "Remove sqlite, sqlite3 only (OTLP packages are actively used)",
+        "effort": "5m",
+        "impact": "medium",
+        "corrected": "OpenTelemetry packages removed from this list - Claude Code supports OTLP export"
+      },
+      {
+        "action": "DECISION NEEDED: .claude/memory/test-parser.db",
+        "reason": "4.1 MB - Used by test-claude-code-parser.js script. Delete only if script can recreate it.",
+        "effort": "1m",
+        "impact": "medium",
+        "corrected": "Changed from 'delete' to 'decision needed' - file is referenced by test script"
+      }
+    ],
+    "shortTerm": [
+      {
+        "action": "Delete deprecated/continuous-loop-orchestrator.js",
+        "reason": "Confirmed duplicate, saves 1513 lines",
+        "effort": "5m",
+        "impact": "high"
+      },
+      {
+        "action": "Archive 22 stale documentation files",
+        "reason": "Reduce doc clutter, improve discoverability",
+        "effort": "30m",
+        "impact": "medium"
+      },
+      {
+        "action": "Fix 3 critical broken documentation links",
+        "reason": "Improve documentation quality",
+        "effort": "15m",
+        "impact": "medium"
+      },
+      {
+        "action": "Consolidate mock dashboard servers",
+        "reason": "Delete 3 mock servers, keep enhanced-dashboard-server",
+        "effort": "1h",
+        "impact": "high"
+      }
+    ],
+    "longTerm": [
+      {
+        "action": "Consolidate usage/token trackers",
+        "reason": "4 overlapping implementations -> 1 unified UsageManager",
+        "effort": "8h",
+        "impact": "high"
+      },
+      {
+        "action": "Create missing architecture documentation",
+        "reason": "21 undocumented components need docs",
+        "effort": "4h",
+        "impact": "high"
+      },
+      {
+        "action": "Merge context trackers",
+        "reason": "4 trackers with 80% overlap",
+        "effort": "2h",
+        "impact": "medium"
+      }
+    ]
+  },
+  "generatedBy": "expert-agent-swarm",
+  "agents": [
+    "dead-code-analyst",
+    "duplication-detective",
+    "architecture-auditor",
+    "database-inspector",
+    "documentation-reviewer",
+    "dependency-analyzer"
+  ]
+}

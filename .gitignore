@@ -100,3 +100,14 @@ __tests__/core/test-*.db
 
 # Windows artifacts
 nul
+
+# SQLite additional temp files
+*.db-timer
+*.db-journal
+
+# Concurrency backup files
+*.backup-concurrency-*
+
+# Coordination runtime directory
+.coordination/
+

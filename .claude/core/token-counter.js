@@ -146,4 +146,28 @@ class TokenCounter {
   }
 }
 
+// Create a singleton instance for standalone function exports
+const defaultCounter = new TokenCounter();
+
+/**
+ * Standalone function to count tokens (uses default TokenCounter instance)
+ * @param {string} text - Text to count tokens for
+ * @returns {number} Number of tokens
+ */
+function countTokens(text) {
+  return defaultCounter.countTokens(text);
+}
+
+/**
+ * Standalone function to estimate characters for tokens
+ * @param {number} tokenCount - Target number of tokens
+ * @returns {number} Estimated character count
+ */
+function estimateCharsForTokens(tokenCount) {
+  return defaultCounter.estimateCharsForTokens(tokenCount);
+}
+
 module.exports = TokenCounter;
+module.exports.TokenCounter = TokenCounter;
+module.exports.countTokens = countTokens;
+module.exports.estimateCharsForTokens = estimateCharsForTokens;

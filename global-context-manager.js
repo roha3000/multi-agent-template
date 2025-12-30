@@ -1107,7 +1107,7 @@ app.post('/api/tasks/:id/status', (req, res) => {
 // Claim a task for a session
 app.post('/api/tasks/:taskId/claim', (req, res) => {
   const { taskId } = req.params;
-  const { sessionId, ttlMs, metadata } = req.body;
+  const { sessionId, ttlMs, metadata, projectPath, agentType } = req.body;
 
   if (!sessionId) {
     return res.status(400).json({ error: 'SESSION_ID_REQUIRED', message: 'sessionId is required' });
@@ -1119,8 +1119,14 @@ app.post('/api/tasks/:taskId/claim', (req, res) => {
   }
 
   try {
-    const result = db.claimTask(taskId, sessionId, { ttlMs, metadata });
-    if (result.success) {
+    // Auto-register session if it doesn't exist in CoordinationDB
+    const existingSession = db._stmts && db._stmts.getSession ? db._stmts.getSession.get(sessionId) : null;
+    if (!existingSession) {
+      db.registerSession(sessionId, projectPath || process.cwd(), agentType || 'unknown');
+    }
+
+    const result = db.claimTask(taskId, sessionId, { ttlMs, metadata, agentType });
+    if (result.claimed) {
       // Broadcast SSE event
       broadcastSSE({ type: 'task:claimed', taskId, sessionId, claim: result.claim });
       res.json(result);

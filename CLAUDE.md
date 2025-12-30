@@ -5,18 +5,20 @@ Multi-agent development system that combines specialized AI agent personas with 
 
 ## Session Initialization (Read This First!)
 
-**At the start of every session**, automatically load project context by reading these 3 files:
+**At the start of every session**, automatically load project context by reading these files:
 
 ```
 1. PROJECT_SUMMARY.md           # High-level project state and context
 2. .claude/dev-docs/plan.md     # Current task breakdown and implementation plan
 3. .claude/dev-docs/tasks.json  # Structured task data with dependencies and status
+4. .claude/ARCHITECTURE.md      # Canonical components (check BEFORE designing new features)
 ```
 
-**Why 3 files?** This is the **Dev-Docs 3-File Pattern** that prevents context drift on long tasks:
+**Why these files?** This is the **Dev-Docs Pattern** that prevents context drift and architectural violations:
 - `PROJECT_SUMMARY.md` - What we've built (project history, architecture, quality scores)
 - `plan.md` - What we're building (current task breakdown, implementation steps)
 - `tasks.json` - Structured tasks with backlog tiers, dependencies, and status tracking
+- `ARCHITECTURE.md` - Singleton components that MUST NOT be duplicated
 
 **Token cost**: ~1,500 tokens total (target, see Token Efficiency Rules below)
 
@@ -105,6 +107,40 @@ If context load exceeds 5,000 tokens:
 2. Manually trim PROJECT_SUMMARY.md to 2 sessions
 3. Trim plan.md to current plan only
 
+## Architectural Constraints (MUST CHECK BEFORE DESIGNING)
+
+**Reference**: `.claude/ARCHITECTURE.md` contains the full registry of canonical components.
+
+### Singleton Components - NEVER Create Parallels
+
+| Component | Canonical File | Rule |
+|-----------|---------------|------|
+| Dashboard | `global-context-manager.js` | ALL dashboard features go here (port 3033) |
+| Orchestrator | `autonomous-orchestrator.js` | ALL task orchestration goes here |
+| Context Tracker | `.claude/core/global-context-tracker.js` | ALL context tracking goes here |
+| Database | `.claude/data/memory.db` | ALL MemoryStore consumers use this path |
+| Safety/Validation | `.claude/core/swarm-controller.js` | ALL safety checks go here |
+
+### Design Phase Requirement
+
+**BEFORE designing any new component:**
+1. Check `.claude/ARCHITECTURE.md` for existing implementations
+2. Search codebase for similar functionality
+3. If similar exists → **EXTEND** the existing component
+4. If truly new → Update ARCHITECTURE.md with justification
+
+### Why This Matters
+
+Without these constraints, parallel implementations get created (as discovered in audit 2025-12-29):
+- 3 context trackers instead of 1
+- 2 dashboard servers instead of 1
+- 2 orchestrators instead of 1
+- 4 database paths instead of 1
+
+**Cost**: ~5,500 lines of duplicate code requiring consolidation.
+
+---
+
 ## Multi-Agent Multi-Model Strategy
 
 ### Core Philosophy
@@ -132,9 +168,12 @@ If context load exceeds 5,000 tokens:
 - **Handoff**: Planner creates strategy, Logic Reviewer validates feasibility
 
 ### 🏗️ Design Phase
+**FIRST**: Check `.claude/ARCHITECTURE.md` for existing canonical components before designing anything new.
+
 **Architecture Agent**: System Architect (Claude Opus 4.5)
 - **Role**: High-level system design, technology selection, scalability planning
 - **Strengths**: Architectural vision, technology assessment
+- **CRITICAL**: Before designing new components, verify they don't duplicate existing singletons (dashboard, orchestrator, tracker, database)
 - **Implementation Agent**: Technical Designer (Claude Sonnet 4)
 - **Role**: Detailed specifications, API contracts, data models
 - **Handoff**: Architect provides vision, Designer creates specifications
@@ -248,6 +287,7 @@ When agents disagree:
 - Score: ≥ 85/100 to proceed
 
 ### Design Phase Gate
+- **ARCHITECTURE.md checked** - No duplicate components ✓
 - Architecture approved by Architect Agent ✓
 - Implementation details validated ✓
 - Security considerations addressed ✓
