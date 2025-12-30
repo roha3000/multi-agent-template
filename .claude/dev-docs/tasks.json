@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 65,
+    "version": 66,
     "lastModifiedBy": "claude-session",
-    "lastModifiedAt": "2025-12-30T23:08:57.604Z"
+    "lastModifiedAt": "2025-12-30T23:10:37.675Z"
   },
   "version": "1.1.0",
   "project": {
@@ -23,10 +23,7 @@
     },
     "next": {
       "description": "Next priority after now is complete",
-      "tasks": [
-        "docs-reorganization",
-        "document-undocumented-components"
-      ]
+      "tasks": []
     },
     "later": {
       "description": "Future work, not yet prioritized",
@@ -45,6 +42,8 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "document-undocumented-components",
+        "docs-reorganization",
         "test-dashboard-claim",
         "audit-cleanup-phase1",
         "context-tracker-consolidation",
@@ -2183,7 +2182,7 @@
         "Verify no broken internal links after reorganization",
         "Update any docs that reference moved files"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-30T03:00:00.000Z",
       "updated": "2025-12-30T03:00:00.000Z",
@@ -2304,7 +2303,8 @@
         "CONTRIBUTING.md",
         "LICENSE",
         "CHANGELOG.md"
-      ]
+      ],
+      "completedAt": "2025-12-30T23:10:37.675Z"
     },
     "document-undocumented-components": {
       "parentTaskId": null,
@@ -2358,7 +2358,7 @@
         "Each component section includes: Purpose, API, Usage example, Location",
         "Update .claude/core/README.md to reference new documentation"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-30T04:00:00.000Z",
       "updated": "2025-12-30T04:00:00.000Z",
@@ -2385,7 +2385,8 @@
         "LogStreamer",
         "UsageLimitTracker",
         "ContinuousLoopOrchestrator"
-      ]
+      ],
+      "completedAt": "2025-12-30T23:10:37.675Z"
     },
     "swarm-tests-migration": {
       "parentTaskId": null,
