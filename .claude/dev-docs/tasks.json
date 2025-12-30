@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 63,
-    "lastModifiedBy": "session-63-audit-cleanup-phase1",
-    "lastModifiedAt": "2025-12-30T14:00:00.000Z"
+    "version": 65,
+    "lastModifiedBy": "claude-session",
+    "lastModifiedAt": "2025-12-30T23:08:57.604Z"
   },
   "version": "1.1.0",
   "project": {
@@ -45,6 +45,7 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "test-dashboard-claim",
         "audit-cleanup-phase1",
         "context-tracker-consolidation",
         "swarm-tests-migration",
@@ -696,7 +697,19 @@
       "updated": "2025-12-30T12:20:00.000Z",
       "completedAt": "2025-12-30T12:20:00.000Z",
       "progress": {
-        "completedPhases": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        "completedPhases": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
         "currentPhase": null,
         "percentComplete": 100,
         "linesDeleted": 2870,
@@ -736,16 +749,56 @@
         "Add tests for /api/file endpoint in global-context-manager tests"
       ],
       "documentationToUpdate": [
-        {"file": "CONTINUOUS-LOOP-QUICKSTART.md", "action": "DELETE or rewrite for new architecture", "reason": "References eliminated continuous-loop system"},
-        {"file": "docs/CONTINUOUS-LOOP-SYSTEM.md", "action": "ARCHIVE to docs/archive/", "reason": "System eliminated"},
-        {"file": "__tests__/CONTINUOUS-LOOP-TESTS.md", "action": "DELETE", "reason": "Tests being deleted"},
-        {"file": "docs/INTEGRATION-GUIDE.md", "action": "UPDATE", "reason": "References dashboard-manager, start-enhanced-dashboard"},
-        {"file": "docs/DASHBOARD-FEATURES.md", "action": "UPDATE", "reason": "May reference port 3030 or old dashboard"},
-        {"file": "docs/DASHBOARD-UX-REDESIGN.md", "action": "UPDATE", "reason": "References old dashboard architecture"},
-        {"file": ".claude/core/README.md", "action": "REWRITE", "reason": "Lists 7 components but 80+ exist - update to reflect actual architecture"},
-        {"file": "docs/USAGE-TRACKER-SPECIFICATION.md", "action": "UPDATE after usage consolidation", "reason": "References multiple usage trackers"},
-        {"file": "docs/MEMORY_SYSTEM.md", "action": "UPDATE", "reason": "References old database paths"},
-        {"file": "docs/LIVE-USAGE-MONITORING.md", "action": "UPDATE", "reason": "References old monitoring architecture"}
+        {
+          "file": "CONTINUOUS-LOOP-QUICKSTART.md",
+          "action": "DELETE or rewrite for new architecture",
+          "reason": "References eliminated continuous-loop system"
+        },
+        {
+          "file": "docs/CONTINUOUS-LOOP-SYSTEM.md",
+          "action": "ARCHIVE to docs/archive/",
+          "reason": "System eliminated"
+        },
+        {
+          "file": "__tests__/CONTINUOUS-LOOP-TESTS.md",
+          "action": "DELETE",
+          "reason": "Tests being deleted"
+        },
+        {
+          "file": "docs/INTEGRATION-GUIDE.md",
+          "action": "UPDATE",
+          "reason": "References dashboard-manager, start-enhanced-dashboard"
+        },
+        {
+          "file": "docs/DASHBOARD-FEATURES.md",
+          "action": "UPDATE",
+          "reason": "May reference port 3030 or old dashboard"
+        },
+        {
+          "file": "docs/DASHBOARD-UX-REDESIGN.md",
+          "action": "UPDATE",
+          "reason": "References old dashboard architecture"
+        },
+        {
+          "file": ".claude/core/README.md",
+          "action": "REWRITE",
+          "reason": "Lists 7 components but 80+ exist - update to reflect actual architecture"
+        },
+        {
+          "file": "docs/USAGE-TRACKER-SPECIFICATION.md",
+          "action": "UPDATE after usage consolidation",
+          "reason": "References multiple usage trackers"
+        },
+        {
+          "file": "docs/MEMORY_SYSTEM.md",
+          "action": "UPDATE",
+          "reason": "References old database paths"
+        },
+        {
+          "file": "docs/LIVE-USAGE-MONITORING.md",
+          "action": "UPDATE",
+          "reason": "References old monitoring architecture"
+        }
       ],
       "documentationToArchive": [
         "docs/IMPLEMENTATION-ROADMAP.md",
@@ -767,10 +820,35 @@
           "from": "dashboard-manager.js",
           "to": "global-context-manager.js",
           "features": [
-            {"name": "Artifact Tracking", "endpoints": ["/api/artifacts"], "effort": "low"},
-            {"name": "Human Review Queue", "endpoints": ["/api/reviews", "/api/review/:id"], "effort": "medium"},
-            {"name": "Config Update API", "endpoints": ["/api/config"], "effort": "low"},
-            {"name": "File Reading API", "endpoints": ["/api/file"], "effort": "low"}
+            {
+              "name": "Artifact Tracking",
+              "endpoints": [
+                "/api/artifacts"
+              ],
+              "effort": "low"
+            },
+            {
+              "name": "Human Review Queue",
+              "endpoints": [
+                "/api/reviews",
+                "/api/review/:id"
+              ],
+              "effort": "medium"
+            },
+            {
+              "name": "Config Update API",
+              "endpoints": [
+                "/api/config"
+              ],
+              "effort": "low"
+            },
+            {
+              "name": "File Reading API",
+              "endpoints": [
+                "/api/file"
+              ],
+              "effort": "low"
+            }
           ],
           "reason": "Consolidate to SINGLE dashboard - eliminate all parallel dashboard servers"
         }
@@ -791,22 +869,87 @@
         "description": "Removes 3 trackers + 2 dashboard systems + 2 orchestrators + 1 limit tracker → SINGLE DASHBOARD"
       },
       "dashboardConsolidation": {
-        "before": ["global-context-manager.js (port 3033)", "dashboard-manager.js (port 3030)", "start-enhanced-dashboard.js (port 3033)"],
-        "after": ["global-context-manager.js (port 3033) - ONLY ONE"],
+        "before": [
+          "global-context-manager.js (port 3033)",
+          "dashboard-manager.js (port 3030)",
+          "start-enhanced-dashboard.js (port 3033)"
+        ],
+        "after": [
+          "global-context-manager.js (port 3033) - ONLY ONE"
+        ],
         "principle": "NO PARALLEL DASHBOARDS - all features consolidated into single entry point"
       },
       "phases": [
-        {"id": 1, "name": "OTLP Processing", "estimate": "2h", "status": "pending"},
-        {"id": 2, "name": "Velocity Tracking", "estimate": "1h", "status": "pending"},
-        {"id": 3, "name": "Compaction Detection", "estimate": "2h", "status": "pending"},
-        {"id": 4, "name": "Exhaustion Prediction", "estimate": "1h", "status": "pending"},
-        {"id": 5, "name": "Dashboard OTLP Integration", "estimate": "2h", "status": "pending"},
-        {"id": 6, "name": "Dashboard Feature Migration", "estimate": "2h", "status": "pending", "details": "Add artifact tracking, human review queue, config API, file API to global-context-manager.js"},
-        {"id": 7, "name": "Update Tests", "estimate": "2h", "status": "pending"},
-        {"id": 8, "name": "Delete Context Tracker Files", "estimate": "30m", "status": "pending"},
-        {"id": 9, "name": "Orchestrator Consolidation", "estimate": "2h", "status": "pending", "details": "Migrate HumanInLoopDetector to autonomous-orchestrator.js, delete continuous-loop system"},
-        {"id": 10, "name": "Database Path Consolidation", "estimate": "1h", "status": "pending", "details": "Consolidate 4 DB paths to single .claude/data/memory.db"},
-        {"id": 11, "name": "Documentation Updates", "estimate": "2h", "status": "pending", "details": "Update/archive 10+ docs referencing deleted components, rewrite .claude/core/README.md"}
+        {
+          "id": 1,
+          "name": "OTLP Processing",
+          "estimate": "2h",
+          "status": "pending"
+        },
+        {
+          "id": 2,
+          "name": "Velocity Tracking",
+          "estimate": "1h",
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "name": "Compaction Detection",
+          "estimate": "2h",
+          "status": "pending"
+        },
+        {
+          "id": 4,
+          "name": "Exhaustion Prediction",
+          "estimate": "1h",
+          "status": "pending"
+        },
+        {
+          "id": 5,
+          "name": "Dashboard OTLP Integration",
+          "estimate": "2h",
+          "status": "pending"
+        },
+        {
+          "id": 6,
+          "name": "Dashboard Feature Migration",
+          "estimate": "2h",
+          "status": "pending",
+          "details": "Add artifact tracking, human review queue, config API, file API to global-context-manager.js"
+        },
+        {
+          "id": 7,
+          "name": "Update Tests",
+          "estimate": "2h",
+          "status": "pending"
+        },
+        {
+          "id": 8,
+          "name": "Delete Context Tracker Files",
+          "estimate": "30m",
+          "status": "pending"
+        },
+        {
+          "id": 9,
+          "name": "Orchestrator Consolidation",
+          "estimate": "2h",
+          "status": "pending",
+          "details": "Migrate HumanInLoopDetector to autonomous-orchestrator.js, delete continuous-loop system"
+        },
+        {
+          "id": 10,
+          "name": "Database Path Consolidation",
+          "estimate": "1h",
+          "status": "pending",
+          "details": "Consolidate 4 DB paths to single .claude/data/memory.db"
+        },
+        {
+          "id": 11,
+          "name": "Documentation Updates",
+          "estimate": "2h",
+          "status": "pending",
+          "details": "Update/archive 10+ docs referencing deleted components, rewrite .claude/core/README.md"
+        }
       ]
     },
     "hierarchy-quickwin-parallel-loader": {
@@ -2012,11 +2155,19 @@
       "phase": "implementation",
       "priority": "medium",
       "estimate": "2h",
-      "tags": ["documentation", "cleanup", "organization", "standards"],
+      "tags": [
+        "documentation",
+        "cleanup",
+        "organization",
+        "standards"
+      ],
       "depends": {
         "blocks": [],
         "requires": [],
-        "related": ["context-tracker-consolidation", "audit-cleanup-phase1"]
+        "related": [
+          "context-tracker-consolidation",
+          "audit-cleanup-phase1"
+        ]
       },
       "acceptance": [
         "Create docs/ subfolders: architecture/, guides/, features/, research/, api/, archive/",
@@ -2037,14 +2188,38 @@
       "created": "2025-12-30T03:00:00.000Z",
       "updated": "2025-12-30T03:00:00.000Z",
       "filesToMoveFromRoot": [
-        {"file": "TEMPLATE-GUIDE.md", "destination": "docs/guides/"},
-        {"file": "WORKFLOW.md", "destination": "docs/guides/"},
-        {"file": "SESSION_2_COMPLETION_REPORT.md", "destination": "docs/archive/"},
-        {"file": "SESSION_3_COMPLETION_REPORT.md", "destination": "docs/archive/"},
-        {"file": "IMPLEMENTATION_SUMMARY.md", "destination": "docs/archive/"},
-        {"file": "VECTORSTORE_IMPLEMENTATION.md", "destination": "docs/archive/"},
-        {"file": "VECTORSTORE_TEST_SUMMARY.md", "destination": "docs/archive/"},
-        {"file": "CONTEXT_RETRIEVER_IMPLEMENTATION.md", "destination": "docs/archive/"}
+        {
+          "file": "TEMPLATE-GUIDE.md",
+          "destination": "docs/guides/"
+        },
+        {
+          "file": "WORKFLOW.md",
+          "destination": "docs/guides/"
+        },
+        {
+          "file": "SESSION_2_COMPLETION_REPORT.md",
+          "destination": "docs/archive/"
+        },
+        {
+          "file": "SESSION_3_COMPLETION_REPORT.md",
+          "destination": "docs/archive/"
+        },
+        {
+          "file": "IMPLEMENTATION_SUMMARY.md",
+          "destination": "docs/archive/"
+        },
+        {
+          "file": "VECTORSTORE_IMPLEMENTATION.md",
+          "destination": "docs/archive/"
+        },
+        {
+          "file": "VECTORSTORE_TEST_SUMMARY.md",
+          "destination": "docs/archive/"
+        },
+        {
+          "file": "CONTEXT_RETRIEVER_IMPLEMENTATION.md",
+          "destination": "docs/archive/"
+        }
       ],
       "docsReorganization": {
         "architecture": [
@@ -2143,11 +2318,19 @@
       "phase": "implementation",
       "priority": "medium",
       "estimate": "4h",
-      "tags": ["documentation", "audit", "technical-debt", "architecture"],
+      "tags": [
+        "documentation",
+        "audit",
+        "technical-debt",
+        "architecture"
+      ],
       "depends": {
         "blocks": [],
         "requires": [],
-        "related": ["audit-cleanup-phase1", "docs-reorganization"]
+        "related": [
+          "audit-cleanup-phase1",
+          "docs-reorganization"
+        ]
       },
       "acceptance": [
         "Create docs/architecture/CORE-COMPONENTS.md covering all 21 components",
@@ -2321,23 +2504,142 @@
       ],
       "gapAnalysis": {
         "HierarchicalStateManager": {
-          "implemented": ["register", "getState", "updateState", "atomicFamilyTransition", "getAggregateState", "getChildren", "getParent", "unregister", "cleanupStale", "getEventLog", "getAllEvents", "getStats", "clear"],
-          "missing": ["recordFailure", "getFailureHistory", "getRecentFailures", "degrade", "handleChildFailure", "childCompleted", "checkTimeouts", "terminateWithCascade", "abortAllChildren", "failWithCascade", "recordRetry", "recordChildResult"],
-          "apiMismatches": ["updateState signature: tests pass object, impl uses positional args"]
+          "implemented": [
+            "register",
+            "getState",
+            "updateState",
+            "atomicFamilyTransition",
+            "getAggregateState",
+            "getChildren",
+            "getParent",
+            "unregister",
+            "cleanupStale",
+            "getEventLog",
+            "getAllEvents",
+            "getStats",
+            "clear"
+          ],
+          "missing": [
+            "recordFailure",
+            "getFailureHistory",
+            "getRecentFailures",
+            "degrade",
+            "handleChildFailure",
+            "childCompleted",
+            "checkTimeouts",
+            "terminateWithCascade",
+            "abortAllChildren",
+            "failWithCascade",
+            "recordRetry",
+            "recordChildResult"
+          ],
+          "apiMismatches": [
+            "updateState signature: tests pass object, impl uses positional args"
+          ]
         },
         "SessionRegistry": {
-          "implemented": ["register", "update", "deregister", "get", "getAll", "getActive", "getSummary", "recordCompletion", "shutdown", "addDelegation", "updateDelegation", "getRollupMetrics", "getSessionWithHierarchy", "getHierarchy", "getRootSessions", "getParentSession", "getChildSessions", "getDescendants", "propagateMetricUpdate", "getSummaryWithHierarchy"],
-          "missing": ["clear", "updateRollupQuality", "markComplete", "updateChildMetrics", "queueMetricUpdate"]
+          "implemented": [
+            "register",
+            "update",
+            "deregister",
+            "get",
+            "getAll",
+            "getActive",
+            "getSummary",
+            "recordCompletion",
+            "shutdown",
+            "addDelegation",
+            "updateDelegation",
+            "getRollupMetrics",
+            "getSessionWithHierarchy",
+            "getHierarchy",
+            "getRootSessions",
+            "getParentSession",
+            "getChildSessions",
+            "getDescendants",
+            "propagateMetricUpdate",
+            "getSummaryWithHierarchy"
+          ],
+          "missing": [
+            "clear",
+            "updateRollupQuality",
+            "markComplete",
+            "updateChildMetrics",
+            "queueMetricUpdate"
+          ]
         },
         "HierarchyRegistry": {
-          "implemented": ["registerHierarchy", "registerDelegation", "updateDelegationStatus", "getHierarchy", "getDelegationChain", "getDescendants", "pruneHierarchy", "getNode", "getByStatus", "getByDepth", "getChildren", "getRoots", "canDelegate", "findCommonAncestor", "getStats", "clear", "exportState", "importState"],
-          "missing": ["registerAgent (tests use wrong API)", "getAggregateState (exists on StateManager)", "getAggregateByLevel"]
+          "implemented": [
+            "registerHierarchy",
+            "registerDelegation",
+            "updateDelegationStatus",
+            "getHierarchy",
+            "getDelegationChain",
+            "getDescendants",
+            "pruneHierarchy",
+            "getNode",
+            "getByStatus",
+            "getByDepth",
+            "getChildren",
+            "getRoots",
+            "canDelegate",
+            "findCommonAncestor",
+            "getStats",
+            "clear",
+            "exportState",
+            "importState"
+          ],
+          "missing": [
+            "registerAgent (tests use wrong API)",
+            "getAggregateState (exists on StateManager)",
+            "getAggregateByLevel"
+          ]
         },
         "DelegationMetrics": {
           "status": "NEEDS_AUDIT",
-          "expectedMethods": ["recordDuration", "getDurationHistogram", "getPercentiles", "recordDurationByLevel", "getAverageDurationByLevel", "getRollupTokens", "recordTokenUsage", "createSnapshot", "getRollingWindow", "recordMetric", "recordMetricWithTimestamp", "recordSuccess", "reset"]
+          "expectedMethods": [
+            "recordDuration",
+            "getDurationHistogram",
+            "getPercentiles",
+            "recordDurationByLevel",
+            "getAverageDurationByLevel",
+            "getRollupTokens",
+            "recordTokenUsage",
+            "createSnapshot",
+            "getRollingWindow",
+            "recordMetric",
+            "recordMetricWithTimestamp",
+            "recordSuccess",
+            "reset"
+          ]
         }
       }
+    },
+    "test-dashboard-claim": {
+      "id": "test-dashboard-claim",
+      "title": "Test Dashboard Task Claiming Display",
+      "description": "Temporary test task to verify dashboard shows claimed tasks correctly per session.",
+      "phase": "testing",
+      "priority": "high",
+      "estimate": "15m",
+      "status": "completed",
+      "tags": [
+        "test",
+        "dashboard",
+        "claiming"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Dashboard shows this task as claimed",
+        "Session card displays task details",
+        "Claimed status is visible"
+      ],
+      "created": "2025-12-30T22:22:30.637Z",
+      "completedAt": "2025-12-30T23:08:57.603Z"
     }
   },
   "archival": {
