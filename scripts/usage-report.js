@@ -43,7 +43,7 @@ try {
 async function main() {
   try {
     // Find database
-    const dbPath = path.join(__dirname, '../.claude/memory/orchestrations.db');
+    const dbPath = path.join(__dirname, '../.claude/data/memory.db');
 
     if (!fs.existsSync(dbPath)) {
       console.error('Error: No database found at', dbPath);

@@ -195,7 +195,7 @@ function displayRecentOrchestrations(memoryStore, limit = 5) {
 async function startMonitoring(refreshInterval = 2000) {
   try {
     // Find database
-    const dbPath = path.join(__dirname, '../.claude/memory/orchestrations.db');
+    const dbPath = path.join(__dirname, '../.claude/data/memory.db');
 
     if (!fs.existsSync(dbPath)) {
       console.error('Error: No database found at', dbPath);

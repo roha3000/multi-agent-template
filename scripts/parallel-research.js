@@ -122,7 +122,7 @@ async function executeParallelResearch(question, options = {}) {
 
   // Initialize components
   const agentLoader = new AgentLoader(path.join(cwd, '.claude', 'agents'));
-  const memoryStore = new MemoryStore(path.join(cwd, '.claude', 'memory', 'orchestrations.db'));
+  const memoryStore = new MemoryStore(path.join(cwd, '.claude', 'data', 'memory.db'));
   const vectorStore = new VectorStore(memoryStore);
 
   const orchestrator = new AgentOrchestrator({

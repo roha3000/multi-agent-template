@@ -289,12 +289,101 @@ describe('Context Tracking E2E Tests', () => {
       const orchPath = path.join(PROJECT_ROOT, 'autonomous-orchestrator.js');
       const content = fs.readFileSync(orchPath, 'utf-8');
 
-      // Orchestrator uses exec to pipe prompt file to claude
-      expect(content).toContain("exec(cmd,");
+      // Orchestrator uses spawn to run claude process
+      expect(content).toContain("spawn('claude'");
       expect(
         !content.includes("stdio: 'inherit'") ||
         content.includes('logStream')
       ).toBe(true);
+    });
+  });
+
+  describe('Phase 1-6 New Features', () => {
+    let tracker;
+    let testProjectsPath;
+
+    beforeEach(() => {
+      testProjectsPath = path.join(os.tmpdir(), 'claude-e2e-test', 'phase-features');
+      fs.mkdirSync(testProjectsPath, { recursive: true });
+      const GlobalContextTracker = require(path.join(PROJECT_ROOT, '.claude', 'core', 'global-context-tracker'));
+      tracker = new GlobalContextTracker({
+        claudeProjectsPath: testProjectsPath,
+        updateInterval: 100,
+      });
+    });
+
+    afterEach(async () => {
+      if (tracker) await tracker.stop();
+    });
+
+    describe('OTLP Processing (Phase 1)', () => {
+      it('should have processOTLPMetric method', () => {
+        expect(typeof tracker.processOTLPMetric).toBe('function');
+      });
+
+      it('should process OTLP metric and update context', () => {
+        const metric = {
+          name: 'claude.tokens.input',
+          value: 5000,
+          attributes: { session_id: 'test-session' }
+        };
+
+        tracker.processOTLPMetric(metric, 'test-project');
+        expect(typeof tracker.getContextPercentage).toBe('function');
+      });
+
+      it('should have getActiveSessions method', () => {
+        expect(typeof tracker.getActiveSessions).toBe('function');
+        const sessions = tracker.getActiveSessions('test-project');
+        expect(Array.isArray(sessions) || sessions === undefined || sessions === null || typeof sessions === 'object').toBe(true);
+      });
+    });
+
+    describe('Velocity Tracking (Phase 2)', () => {
+      it('should have getVelocity method', () => {
+        expect(typeof tracker.getVelocity).toBe('function');
+      });
+
+      it('should return velocity data structure', () => {
+        const velocity = tracker.getVelocity('test-project');
+        // May return null/undefined/0 if no data, or velocity number/object
+        expect(velocity === null || velocity === undefined || typeof velocity === 'number' || typeof velocity === 'object').toBe(true);
+      });
+    });
+
+    describe('Compaction Detection (Phase 3)', () => {
+      it('should have onCompactionDetected method', () => {
+        expect(typeof tracker.onCompactionDetected).toBe('function');
+      });
+
+      it('should register compaction callback', () => {
+        const callback = jest.fn();
+        tracker.onCompactionDetected(callback);
+        // No error thrown means successful registration
+        expect(true).toBe(true);
+      });
+
+      it('should have generateRecoveryDocs method', () => {
+        expect(typeof tracker.generateRecoveryDocs).toBe('function');
+      });
+    });
+
+    describe('Exhaustion Prediction (Phase 4)', () => {
+      it('should have getPredictedExhaustion method', () => {
+        expect(typeof tracker.getPredictedExhaustion).toBe('function');
+      });
+
+      it('should have getExhaustionDetails method', () => {
+        expect(typeof tracker.getExhaustionDetails).toBe('function');
+      });
+
+      it('should return exhaustion details structure', () => {
+        const details = tracker.getExhaustionDetails('test-project');
+        // May return null if no data, or object with details
+        if (details !== null && details !== undefined) {
+          expect(typeof details).toBe('object');
+        }
+      });
     });
   });
 

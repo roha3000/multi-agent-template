@@ -121,7 +121,7 @@ Examples:
   try {
     // Initialize components
     const memoryStore = new MemoryStore(
-      path.join(process.cwd(), '.claude', 'memory', 'orchestrations.db')
+      path.join(process.cwd(), '.claude', 'data', 'memory.db')
     );
 
     const recommender = new SkillRecommender(

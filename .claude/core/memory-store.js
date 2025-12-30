@@ -17,7 +17,7 @@ const path = require('path');
 const { createComponentLogger } = require('./logger');
 
 class MemoryStore {
-  constructor(dbPath = '.claude/memory/orchestrations.db', options = {}) {
+  constructor(dbPath = '.claude/data/memory.db', options = {}) {
     this.logger = createComponentLogger('MemoryStore');
     this.dbPath = dbPath;
     this.options = {

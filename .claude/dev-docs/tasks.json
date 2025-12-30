@@ -26,6 +26,8 @@
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
+        "swarm-tests-migration",
+        "hierarchy-tests-gap-analysis",
         "audit-cleanup-phase1",
         "docs-reorganization",
         "document-undocumented-components"
@@ -2200,6 +2202,138 @@
         "UsageLimitTracker",
         "ContinuousLoopOrchestrator"
       ]
+    },
+    "swarm-tests-migration": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "swarm-tests-migration",
+      "title": "Migrate Swarm Integration Tests to SwarmController API",
+      "description": "The swarm-integration.e2e.test.js tests SwarmController component integration (security, complexity, planning, confidence) but references deleted ContinuousLoopOrchestrator and uses wrong variable names/API signatures. Tests are NOT redundant with orchestrator.e2e.test.js (which tests process lifecycle). Full migration to use SwarmController directly with correct API.",
+      "phase": "testing",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "testing",
+        "migration",
+        "swarm",
+        "cleanup",
+        "technical-debt"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "context-tracker-consolidation"
+        ]
+      },
+      "acceptance": [
+        "Fix variable references: rename 'orchestrator' to 'swarmController' throughout test file",
+        "Update method calls to match SwarmController API: analyzeTaskComplexity() -> analyzeComplexity()",
+        "Add wrapper methods to SwarmController for test compatibility: validateInput(), comparePlans(), getConfidenceState()",
+        "Delete 2 tests that directly instantiate deleted ContinuousLoopOrchestrator (lines 302-323, 339-371)",
+        "Rewrite deleted tests to use SwarmController directly with disabled components",
+        "Update return value expectations to match actual SwarmController API",
+        "Unskip test suite and verify all tests pass",
+        "Run full test suite to verify no regressions: npm test"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-30T08:00:00.000Z",
+      "updated": "2025-12-30T08:00:00.000Z",
+      "testFile": "tests/e2e/swarm-integration.e2e.test.js",
+      "analysisNotes": {
+        "testGroups": [
+          "Component Initialization - Verifies SwarmController bundles all components",
+          "Security Validation - Prompt injection detection (critical safety test)",
+          "Complexity Analysis - Task routing logic",
+          "Competitive Planning - Multi-strategy generation",
+          "Plan Evaluation - Plan quality comparison",
+          "Confidence Monitoring - Progress tracking and warnings",
+          "Full Integration Flow - End-to-end lifecycle",
+          "Error Handling - Graceful degradation with disabled components"
+        ],
+        "apiMismatches": [
+          "analyzeTaskComplexity(task) -> analyzeComplexity(task)",
+          "validateInput(text, type) -> components.securityValidator.validate()",
+          "comparePlans(plans) -> components.planEvaluator.evaluate()",
+          "getConfidenceState() -> components.confidenceMonitor.getState()"
+        ],
+        "notRedundant": "Tests SwarmController component integration, NOT process lifecycle like orchestrator.e2e.test.js"
+      }
+    },
+    "hierarchy-tests-gap-analysis": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "hierarchy-tests-gap-analysis",
+      "title": "Hierarchy Tests Gap Analysis - Verify Implementation Completeness",
+      "description": "150+ hierarchy integration tests are skipped because they test APIs that don't exist. This task: (1) Audit what's implemented vs what tests expect, (2) Decide keep/delete/implement for each gap, (3) Either implement missing APIs or delete speculative tests. Covers HierarchicalStateManager, SessionRegistry, HierarchyRegistry, and DelegationMetrics.",
+      "phase": "research",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": [
+        "testing",
+        "hierarchy",
+        "gap-analysis",
+        "technical-debt",
+        "audit"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "swarm-tests-migration",
+          "context-tracker-consolidation"
+        ]
+      },
+      "acceptance": [
+        "Document all missing APIs in HierarchicalStateManager (recordFailure, degrade, handleChildFailure, etc.)",
+        "Document all missing APIs in SessionRegistry (clear, updateRollupQuality, markComplete, etc.)",
+        "Document all missing APIs in HierarchyRegistry (registerAgent, getAggregateByLevel, etc.)",
+        "Audit DelegationMetrics - verify what exists vs what tests expect",
+        "Decision matrix: For each gap, decide IMPLEMENT (needed) or DELETE (speculative)",
+        "If IMPLEMENT: Create subtasks with acceptance criteria",
+        "If DELETE: Remove speculative tests that will never be implemented",
+        "Update skipped test count after decisions executed",
+        "Document findings in docs/HIERARCHY-GAP-ANALYSIS.md"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-30T08:30:00.000Z",
+      "updated": "2025-12-30T08:30:00.000Z",
+      "skippedTestFiles": [
+        "__tests__/integration/hierarchy-delegation.integration.test.js",
+        "__tests__/integration/hierarchy-failure-cascade.integration.test.js",
+        "__tests__/integration/hierarchy-load.integration.test.js",
+        "__tests__/integration/hierarchy-performance.integration.test.js",
+        "__tests__/integration/hierarchy-rollup-metrics.integration.test.js",
+        "__tests__/integration/dashboard-web.test.js",
+        "__tests__/integration/dashboard-sse.test.js"
+      ],
+      "gapAnalysis": {
+        "HierarchicalStateManager": {
+          "implemented": ["register", "getState", "updateState", "atomicFamilyTransition", "getAggregateState", "getChildren", "getParent", "unregister", "cleanupStale", "getEventLog", "getAllEvents", "getStats", "clear"],
+          "missing": ["recordFailure", "getFailureHistory", "getRecentFailures", "degrade", "handleChildFailure", "childCompleted", "checkTimeouts", "terminateWithCascade", "abortAllChildren", "failWithCascade", "recordRetry", "recordChildResult"],
+          "apiMismatches": ["updateState signature: tests pass object, impl uses positional args"]
+        },
+        "SessionRegistry": {
+          "implemented": ["register", "update", "deregister", "get", "getAll", "getActive", "getSummary", "recordCompletion", "shutdown", "addDelegation", "updateDelegation", "getRollupMetrics", "getSessionWithHierarchy", "getHierarchy", "getRootSessions", "getParentSession", "getChildSessions", "getDescendants", "propagateMetricUpdate", "getSummaryWithHierarchy"],
+          "missing": ["clear", "updateRollupQuality", "markComplete", "updateChildMetrics", "queueMetricUpdate"]
+        },
+        "HierarchyRegistry": {
+          "implemented": ["registerHierarchy", "registerDelegation", "updateDelegationStatus", "getHierarchy", "getDelegationChain", "getDescendants", "pruneHierarchy", "getNode", "getByStatus", "getByDepth", "getChildren", "getRoots", "canDelegate", "findCommonAncestor", "getStats", "clear", "exportState", "importState"],
+          "missing": ["registerAgent (tests use wrong API)", "getAggregateState (exists on StateManager)", "getAggregateByLevel"]
+        },
+        "DelegationMetrics": {
+          "status": "NEEDS_AUDIT",
+          "expectedMethods": ["recordDuration", "getDurationHistogram", "getPercentiles", "recordDurationByLevel", "getAverageDurationByLevel", "getRollupTokens", "recordTokenUsage", "createSnapshot", "getRollingWindow", "recordMetric", "recordMetricWithTimestamp", "recordSuccess", "reset"]
+        }
+      }
     }
   },
   "archival": {

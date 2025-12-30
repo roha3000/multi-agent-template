@@ -29,7 +29,7 @@ class AgentOrchestrator {
    * @param {MessageBus} messageBus - Message bus instance
    * @param {Object} options - Configuration options
    * @param {boolean} [options.enableMemory=true] - Enable memory persistence
-   * @param {string} [options.dbPath='.claude/memory/orchestrations.db'] - Database path
+   * @param {string} [options.dbPath='.claude/data/memory.db'] - Database path
    * @param {boolean} [options.enableAI=false] - Enable AI categorization
    * @param {string} [options.aiApiKey] - Anthropic API key for AI features
    * @param {Object} [options.vectorConfig] - Vector store configuration
@@ -41,7 +41,7 @@ class AgentOrchestrator {
     this.agents = new Map();
     this.options = {
       enableMemory: options.enableMemory !== false, // Opt-out, not opt-in
-      dbPath: options.dbPath || '.claude/memory/orchestrations.db',
+      dbPath: options.dbPath || '.claude/data/memory.db',
       enableAI: options.enableAI || false,
       aiApiKey: options.aiApiKey || null,
       vectorConfig: options.vectorConfig || {},

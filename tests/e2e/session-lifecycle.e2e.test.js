@@ -26,8 +26,13 @@ const DEV_DOCS_DIR = path.join(TEST_DIR, '.claude', 'dev-docs');
 
 function setupTestEnvironment() {
   // Clean and create test directories
-  if (fs.existsSync(TEST_DIR)) {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
+  try {
+    if (fs.existsSync(TEST_DIR)) {
+      fs.rmSync(TEST_DIR, { recursive: true, force: true });
+    }
+  } catch (e) {
+    // Ignore permission errors on Windows - files may be locked
+    console.warn('Setup cleanup warning:', e.message);
   }
   fs.mkdirSync(DEV_DOCS_DIR, { recursive: true });
 
@@ -107,8 +112,13 @@ Test architecture for session lifecycle verification.
 }
 
 function cleanupTestEnvironment() {
-  if (fs.existsSync(TEST_DIR)) {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
+  try {
+    if (fs.existsSync(TEST_DIR)) {
+      fs.rmSync(TEST_DIR, { recursive: true, force: true });
+    }
+  } catch (e) {
+    // Ignore permission errors on Windows - files may be locked
+    console.warn('Cleanup warning:', e.message);
   }
 }
 
@@ -129,7 +139,7 @@ describe('Session Lifecycle E2E Tests', () => {
     it('should have dev-docs 3-file pattern', () => {
       const projectSummary = path.join(PROJECT_ROOT, 'PROJECT_SUMMARY.md');
       const planFile = path.join(PROJECT_ROOT, '.claude', 'dev-docs', 'plan.md');
-      const tasksFile = path.join(PROJECT_ROOT, '.claude', 'dev-docs', 'tasks.md');
+      const tasksFile = path.join(PROJECT_ROOT, '.claude', 'dev-docs', 'tasks.json');
 
       expect(fs.existsSync(projectSummary)).toBe(true);
       expect(fs.existsSync(planFile)).toBe(true);
@@ -146,7 +156,7 @@ describe('Session Lifecycle E2E Tests', () => {
     });
 
     it('should have tasks.json with structured task state', () => {
-      const tasksPath = path.join(PROJECT_ROOT, 'tasks.json');
+      const tasksPath = path.join(PROJECT_ROOT, '.claude', 'dev-docs', 'tasks.json');
       expect(fs.existsSync(tasksPath)).toBe(true);
 
       const tasks = JSON.parse(fs.readFileSync(tasksPath, 'utf-8'));
@@ -159,7 +169,7 @@ describe('Session Lifecycle E2E Tests', () => {
 
     it('should load and track task state via TaskManager', () => {
       const TaskManager = require(path.join(PROJECT_ROOT, '.claude', 'core', 'task-manager'));
-      const tasksPath = path.join(PROJECT_ROOT, 'tasks.json');
+      const tasksPath = path.join(PROJECT_ROOT, '.claude', 'dev-docs', 'tasks.json');
 
       const tm = new TaskManager({ tasksPath: tasksPath });
       const stats = tm.getStats();
@@ -270,8 +280,8 @@ describe('Session Lifecycle E2E Tests', () => {
       const orchPath = path.join(PROJECT_ROOT, 'autonomous-orchestrator.js');
       const content = fs.readFileSync(orchPath, 'utf-8');
 
-      // Orchestrator uses exec to pipe prompt file to claude
-      expect(content).toContain("exec(cmd,");
+      // Orchestrator uses spawn to run claude process
+      expect(content).toContain("spawn('claude'");
       expect(content).toContain('while (shouldContinue');
       expect(content).toContain('totalSessions++');
     });
