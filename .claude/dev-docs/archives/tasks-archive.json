@@ -1,10 +1,10 @@
 {
   "_concurrency": {
-    "version": 1,
+    "version": 4,
     "lastModifiedBy": "migration-script",
-    "lastModifiedAt": "2025-12-28T21:02:59.011Z"
+    "lastModifiedAt": "2025-12-30T23:33:53.692Z"
   },
-  "archivedAt": "2025-12-28T16:34:51.507Z",
+  "archivedAt": "2025-12-30T23:32:46.308Z",
   "tasks": {
     "agent-verification-protocol": {
       "parentTaskId": null,
@@ -2749,6 +2749,1480 @@
       "assignee": null,
       "created": "2025-12-29T20:00:00.000Z",
       "updated": "2025-12-29T20:00:00.000Z"
+    },
+    "dashboard-command-center": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "dashboard-command-center",
+      "title": "Cross-Session Summary Dashboard (Command Center)",
+      "description": "A top-level summary view that aggregates information across ALL active sessions, showing usage, current/next tasks with status, and key metrics. Users can drill down into specific projects/sessions for details.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "4h",
+      "tags": [
+        "dashboard",
+        "summary",
+        "multi-session",
+        "command-center"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-autonomous-tracking",
+          "dashboard-live-task-refresh"
+        ]
+      },
+      "acceptance": [
+        "Summary panel shows aggregated metrics across all active sessions",
+        "Displays current task per session with status indicator",
+        "Shows next task queued for each session",
+        "Usage metrics: total tokens, cost, context utilization",
+        "Key metrics: tasks completed today, success rate, avg quality score",
+        "Click on any session row to drill down to detailed view",
+        "Auto-refresh every 3 seconds via SSE",
+        "Drill-down shows full task details with acceptance criteria progress",
+        "Session controls: View Log, Pause, Skip Task, End Session"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-26T12:00:00.000Z",
+      "updated": "2025-12-27T10:00:00.000Z",
+      "notes": "PARTIAL: Backend complete, Level 2 Detail View complete. Level 1 Main View UI missing - split into subtasks."
+    },
+    "test-session-type-fields": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "test-session-type-fields",
+      "title": "Add Unit Tests for sessionType/autonomous Fields",
+      "description": "No unit tests exist for sessionType and autonomous fields in session-registry.js. The field was never tested, allowing the implementation gap to go unnoticed.",
+      "phase": "testing",
+      "priority": "high",
+      "estimate": "1h",
+      "tags": [
+        "testing",
+        "session-registry",
+        "coverage"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Unit tests for session-registry.js verify sessionType field is stored",
+        "Unit tests verify autonomous flag derived from sessionType",
+        "Unit tests verify orchestratorInfo is stored",
+        "Tests cover CLI vs autonomous session types",
+        "API endpoint tests verify fields are returned in /api/sessions/summary"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-27T22:58:27.953Z",
+      "updated": "2025-12-28T02:30:00.000Z",
+      "started": "2025-12-28T02:11:43.352Z",
+      "completed": "2025-12-28T02:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "__tests__/core/session-registry.test.js (26 tests)",
+        "Tests cover sessionType, autonomous, orchestratorInfo, logSessionId fields"
+      ]
+    },
+    "test-orchestrator-dashboard-integration": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "test-orchestrator-dashboard-integration",
+      "title": "Add Integration Tests for Orchestrator → Dashboard Communication",
+      "description": "The orchestrator was using local SessionRegistry class instead of HTTP API, so sessions registered by orchestrator were invisible to dashboard (separate process). Need E2E tests to verify cross-process communication.",
+      "phase": "testing",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "testing",
+        "integration",
+        "orchestrator",
+        "dashboard"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "E2E test verifies orchestrator POSTs to /api/sessions/register",
+        "E2E test verifies session appears in /api/sessions/summary",
+        "E2E test verifies autonomous=true and sessionType=autonomous in response",
+        "E2E test verifies session updates via /api/sessions/:id/update",
+        "E2E test verifies session deregisters on orchestrator shutdown",
+        "Tests use real HTTP calls, not mocked"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-27T22:58:27.953Z",
+      "updated": "2025-12-28T02:30:00.000Z",
+      "started": "2025-12-28T02:11:43.390Z",
+      "completed": "2025-12-28T02:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "tests/e2e/orchestrator-dashboard.e2e.test.js (9 tests)",
+        "Tests: register, update, end, sessionType differentiation, logSessionId mapping"
+      ]
+    },
+    "fix-autonomous-session-visibility": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "fix-autonomous-session-visibility",
+      "title": "Investigate Why Autonomous Sessions Don't Appear as Separate Entries",
+      "description": "Autonomous orchestrator sessions are not appearing as separate entries in the dashboard. Despite fixes in Session 32 to merge autonomous session data, the sessions may still be hidden or merged incorrectly. Need to trace the data flow from orchestrator registration through API to dashboard rendering.",
+      "phase": "research",
+      "priority": "critical",
+      "estimate": "1h",
+      "tags": [
+        "bug-fix",
+        "dashboard",
+        "autonomous",
+        "sessions",
+        "visibility"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-multiple-sessions-view"
+        ]
+      },
+      "acceptance": [
+        "Verify orchestrator POSTs to /api/sessions/register with correct data",
+        "Verify /api/sessions/summary returns autonomous sessions",
+        "Trace dashboard fetchSessions() to confirm data retrieval",
+        "Identify where autonomous sessions are lost or merged incorrectly",
+        "Fix the root cause so autonomous sessions appear as distinct entries",
+        "Test with multiple concurrent autonomous sessions"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T03:10:00.000Z",
+      "updated": "2025-12-28T04:00:00.000Z",
+      "completed": "2025-12-28T04:00:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "fetchSessions() - Now adds unmatched autonomous sessions as separate entries",
+        "SSE handler - Preserves autonomous sessions when updating from projects data",
+        "Added sessionType field to distinguish CLI vs autonomous sessions",
+        "Added registryId field to track session registry ID"
+      ],
+      "notes": "Root cause: Dashboard only iterated over /api/projects (CLI-detected projects). Autonomous sessions from /api/sessions/summary that didn't match any project were lost. Now unmatched sessions are added with 'auto-{id}' IDs."
+    },
+    "fix-queue-data-integrity": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "fix-queue-data-integrity",
+      "title": "Investigate and Fix Queue Data Integrity Issues",
+      "description": "Tasks are not being correctly tracked in queues. Issues found: (1) Tasks appear in both NOW and completed queues simultaneously, (2) Task status field shows 'blocked' when task is actually completed, (3) Completed tasks not removed from active queues. This is critical for the autonomous orchestrator which relies on accurate queue state.",
+      "phase": "research",
+      "priority": "critical",
+      "estimate": "2h",
+      "tags": [
+        "bug-fix",
+        "task-manager",
+        "data-integrity",
+        "orchestrator",
+        "critical"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "taskmanager-concurrent-write-fix"
+        ]
+      },
+      "acceptance": [
+        "Identify all code paths that modify tasks.json (TaskManager, orchestrator, dashboard, agents)",
+        "Determine why completed tasks remain in NOW queue",
+        "Determine why task status field doesn't match queue placement",
+        "Add validation to ensure task can only exist in one queue at a time",
+        "Add validation to ensure task status matches queue (completed tasks must be in completed queue)",
+        "Add automated tests for queue integrity",
+        "Consider adding a queue integrity check that runs on tasks.json load"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T03:05:00.000Z",
+      "updated": "2025-12-28T04:00:00.000Z",
+      "completed": "2025-12-28T04:00:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "_mergeChanges() - Fixed to use in-memory queue placement as source of truth",
+        "_enforceQueueIntegrity() - New method to detect and fix queue violations",
+        "_checkAndFixIntegrityOnLoad() - New method to fix issues on startup",
+        "Completed tasks now auto-move to completed queue",
+        "Duplicate detection and removal across all queues"
+      ],
+      "notes": "Root cause: _mergeChanges() used UNION of disk/memory queue arrays, causing tasks to appear in multiple queues when status changed during concurrent edits."
+    },
+    "dashboard-multiple-sessions-view": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "dashboard-multiple-sessions-view",
+      "title": "Show Individual Sessions Instead of Merged Projects",
+      "description": "Dashboard currently merges all sessions by project path, showing only one entry per project. Should show separate entries for each CLI session plus all autonomous sessions, not just one merged view per project.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "ux",
+        "sessions",
+        "multi-session"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-v2-redesign"
+        ]
+      },
+      "acceptance": [
+        "Each CLI session shows as separate entry (not merged by project)",
+        "All autonomous sessions show as separate entries",
+        "Session entries show unique session ID or timestamp",
+        "Can distinguish between CLI and autonomous sessions visually",
+        "Inactive/ended sessions can be hidden via filter",
+        "Session list doesn't become cluttered (collapsible groups or pagination)"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T02:38:00.000Z",
+      "updated": "2025-12-28T05:00:00.000Z",
+      "started": "2025-12-28T04:30:00.000Z",
+      "completed": "2025-12-28T05:00:00.000Z",
+      "qualityScore": 92,
+      "deliverables": [
+        "global-dashboard.html: fetchSessions() shows individual CLI and autonomous sessions separately",
+        "global-dashboard.html: SSE handler updated to maintain separate sessions",
+        "global-dashboard.html: Added session type badges (CLI/AUTO) with color coding",
+        "global-dashboard.html: Added filter controls (Idle/CLI/Auto/Group)",
+        "global-dashboard.html: Added collapsible project groups",
+        "global-dashboard.html: Added session ID and time ago display"
+      ],
+      "notes": "Sessions are no longer merged by project. Each CLI session and autonomous session appears as a separate entry. Filter controls allow hiding idle/CLI/auto sessions. Collapsible groups by project prevent clutter. Additional fixes: CLI sessions show 'NA' for quality score (no tracking), traffic lights reflect no-score state, time-based filtering hides stale sessions (10min) and inactive projects (30min)."
+    },
+    "hierarchy-quickwin-parallel-loader": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "hierarchy-quickwin-parallel-loader",
+      "title": "Quick Win: Parallelize Agent Loader",
+      "description": "Convert sequential agent loading in AgentLoader.loadAll() to parallel Promise.all(). Currently loads agents one-by-one which adds ~2s startup time. Parallelization achieves 10x faster init.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "1h",
+      "tags": [
+        "hierarchy",
+        "quick-win",
+        "performance",
+        "parallelization"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "hierarchy-phase1-registry"
+        ]
+      },
+      "acceptance": [
+        "AgentLoader.loadAll() uses Promise.all() instead of sequential loop",
+        "Startup time reduced from ~2s to ~0.2s for 20 agents",
+        "Error handling preserves individual agent load failures",
+        "Unit tests verify parallel loading behavior",
+        "No regressions in existing agent loading tests"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T14:41:00.000Z",
+      "completed": "2025-12-28T14:41:00.000Z",
+      "estimatedSpeedup": "10x",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/agent-loader.js: loadAll() now uses Promise.allSettled() for parallel agent loading",
+        "Individual agent load failures handled gracefully without failing batch",
+        "Duration logging added for performance tracking"
+      ]
+    },
+    "hierarchy-prereq-state-management": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "hierarchy-prereq-state-management",
+      "title": "Prerequisite: Hierarchical State Management",
+      "description": "Extend state management to handle parent-child relationships, prevent race conditions with concurrent agent writes, and support aggregate state queries. Required before hierarchy to prevent state corruption.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "6h",
+      "tags": [
+        "hierarchy",
+        "prerequisite",
+        "state-management",
+        "concurrency"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase1-registry"
+        ],
+        "requires": [
+          "hierarchy-quickwin-parallel-loader"
+        ],
+        "related": [
+          "hierarchy-prereq-failure-cascade"
+        ]
+      },
+      "acceptance": [
+        "Optimistic locking with version numbers for agent state updates",
+        "Atomic parent-child state transitions",
+        "Aggregate state queries (e.g., all children of parent)",
+        "State machine enforcement for valid transitions",
+        "Stale session cleanup respects hierarchy (parent death cleans children)",
+        "No race conditions in concurrent child spawning tests",
+        "Event log for state transitions (audit trail)"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T14:45:00.000Z",
+      "completed": "2025-12-28T14:45:00.000Z",
+      "criticalPath": true,
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/hierarchical-state.js: HierarchicalStateManager class",
+        "AgentStates enum with 9 states (IDLE through TERMINATED)",
+        "StateTransitions map enforcing valid state machine",
+        "OptimisticLockError and InvalidTransitionError classes",
+        "atomicFamilyTransition() for parent-child atomic updates",
+        "getAggregateState() for hierarchy rollup queries",
+        "Event log with filtering and bounded size",
+        "__tests__/core/hierarchical-state.test.js: 42 unit tests"
+      ]
+    },
+    "hierarchy-phase1-agent-extension": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "hierarchy-phase1-agent-extension",
+      "title": "Phase 1: Agent Class Hierarchy Extension",
+      "description": "Extend Agent class with hierarchy metadata (parentAgentId, childAgentIds, delegationChain, depth) and delegation capability methods. Enables agents to track their position in hierarchy.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "phase1",
+        "agent",
+        "extension"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase1-task-extension"
+        ],
+        "requires": [
+          "hierarchy-phase1-registry"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Agent class has hierarchyInfo object with parentAgentId, childAgentIds, delegationChain, depth",
+        "Agent.canDelegate() checks depth limits and child slots",
+        "Agent.getParent() and Agent.getChildren() accessors",
+        "Agent.reportToParent(progress) for upward communication",
+        "Resource quota tracking (maxTokens, maxTime, maxChildren)",
+        "Backward compatible - existing agents work without hierarchy",
+        "Unit tests for hierarchy methods"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T17:00:00.000Z",
+      "completed": "2025-12-28T17:00:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/agent.js: hierarchyInfo object, quotas, resourceUsage tracking",
+        "canDelegate() with depth/children checks",
+        "getParent(), getChildren(), getDelegationChain() accessors",
+        "reportToParent() for upward communication",
+        "registerChild(), unregisterChild(), sendCommandToChild()",
+        "updateResourceUsage(), getRemainingQuotas(), checkQuotas()",
+        "Enhanced getStats() with hierarchy and resource info",
+        "__tests__/core/agent.test.js: 40 new hierarchy tests"
+      ]
+    },
+    "hierarchy-phase1-session-extension": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "hierarchy-phase1-session-extension",
+      "title": "Phase 1: Session Registry Hierarchy Extension with Dashboard Rollup",
+      "description": "Extend SessionRegistry with hierarchy tracking fields and rollup aggregation for dashboard display. Sessions must aggregate sub-agent metrics (tokens, quality, progress) for unified dashboard view.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "6h",
+      "tags": [
+        "hierarchy",
+        "phase1",
+        "session",
+        "dashboard",
+        "rollup"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase1-dashboard-api"
+        ],
+        "requires": [
+          "hierarchy-phase1-registry"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Session object has hierarchyInfo: {isRoot, parentSessionId, childSessionIds, delegationDepth}",
+        "Session object has activeDelegations array tracking delegationId, targetAgentId, taskId, status",
+        "getRollupMetrics(sessionId) aggregates child session metrics to parent",
+        "Rollup includes: totalTokens, totalCost, avgQuality, activeAgentCount, delegationDepth",
+        "getSessionWithHierarchy(id) returns session with all descendant summaries",
+        "/api/sessions/:id/hierarchy endpoint returns hierarchy tree for session",
+        "/api/sessions/:id/rollup endpoint returns aggregated metrics",
+        "SSE updates propagate hierarchy changes to dashboard",
+        "Unit tests for rollup aggregation accuracy"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T17:00:00.000Z",
+      "completed": "2025-12-28T17:00:00.000Z",
+      "qualityScore": 95,
+      "dashboardIntegration": true,
+      "deliverables": [
+        ".claude/core/session-registry.js: hierarchyInfo, activeDelegations, rollupMetrics in session",
+        "addDelegation(), updateDelegation() for delegation lifecycle",
+        "getRollupMetrics() with recursive child aggregation",
+        "getSessionWithHierarchy(), getHierarchy() for hierarchy traversal",
+        "getRootSessions(), getParentSession(), getChildSessions(), getDescendants()",
+        "propagateMetricUpdate() for SSE events up hierarchy",
+        "getSummaryWithHierarchy() for enhanced dashboard summary",
+        ".claude/core/enhanced-dashboard-server.js: 7 new hierarchy API endpoints",
+        "__tests__/core/session-registry.test.js: 49 new hierarchy tests"
+      ]
+    },
+    "hierarchy-phase1-dashboard-api": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "hierarchy-phase1-dashboard-api",
+      "title": "Phase 1: Dashboard Hierarchy API Endpoints",
+      "description": "Create REST API endpoints for hierarchy data access by dashboard. Enables global-dashboard.html to display agent hierarchies, delegation chains, and aggregated metrics per session.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "hierarchy",
+        "phase1",
+        "dashboard",
+        "api"
+      ],
+      "depends": {
+        "blocks": [
+          "hierarchy-phase4-dashboard-viz"
+        ],
+        "requires": [
+          "hierarchy-phase1-session-extension"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "GET /api/hierarchy/:agentId returns AgentHierarchyNode with children",
+        "GET /api/delegations/active returns all active DelegationRecords",
+        "GET /api/delegations/:delegationId/chain returns delegation chain",
+        "GET /api/sessions/:id/agents returns all agents (including sub-agents) for session",
+        "GET /api/metrics/hierarchy returns aggregate hierarchy metrics",
+        "SSE topic 'hierarchy:update' broadcasts hierarchy changes",
+        "API documentation in swagger/openapi format",
+        "Integration tests for all endpoints"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-28T18:05:00.000Z",
+      "completed": "2025-12-28T18:05:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/enhanced-dashboard-server.js: 5 new hierarchy endpoints + SSE listeners",
+        "__tests__/integration/hierarchy-dashboard-api.test.js: 27 integration tests",
+        "Import for getHierarchyRegistry added",
+        "Helper methods: _getSessionAgents, _getAgentHierarchy, _getActiveDelegations, _getDelegationChain, _getHierarchyMetrics"
+      ],
+      "notes": "Phase 1 hierarchy complete. All acceptance criteria met except OpenAPI docs (deferred). 94 hierarchy tests passing."
+    },
+    "taskjson-parallel-session-safety": {
+      "parentTaskId": null,
+      "childTaskIds": [
+        "parallel-safety-phase1-optimistic-locking",
+        "parallel-safety-phase2-sqlite-coordinator",
+        "parallel-safety-phase3-shadow-mode",
+        "parallel-safety-phase4-dashboard-conflicts"
+      ],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": {
+        "strategy": "sequential",
+        "estimatedSubtasks": 4,
+        "completedSubtasks": 4,
+        "aggregationRule": "all-complete"
+      },
+      "id": "taskjson-parallel-session-safety",
+      "title": "Parallel Session Safety for tasks.json",
+      "description": "Multiple CLI sessions editing tasks.json concurrently can cause race conditions, lost updates, or unexpected auto-archival triggers. Research completed - implementing SQLite coordinator + JSON hybrid approach.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "12h",
+      "tags": [
+        "task-manager",
+        "concurrency",
+        "multi-session",
+        "reliability",
+        "sqlite"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "taskmanager-concurrent-write-fix"
+        ]
+      },
+      "acceptance": [
+        "Research: Document current race condition scenarios ✓ COMPLETE",
+        "Research: Evaluate approaches - file locking, optimistic locking, CRDT, event sourcing ✓ COMPLETE",
+        "Design: Recommend solution (SQLite coordinator + JSON) ✓ COMPLETE",
+        "Phase 1: Optimistic locking with version numbers ✓ COMPLETE",
+        "Phase 2: SQLite coordinator for cross-process locking ✓ COMPLETE",
+        "Phase 3: Shadow mode validation ✓ COMPLETE",
+        "Phase 4: Dashboard conflict indicators ✓ COMPLETE"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T15:10:00.000Z",
+      "updated": "2025-12-28T23:30:00.000Z",
+      "started": "2025-12-28T22:00:00.000Z",
+      "completed": "2025-12-28T23:30:00.000Z",
+      "qualityScore": 95,
+      "researchCompleted": "2025-12-28T22:00:00.000Z",
+      "researchFindings": {
+        "recommendation": "Hybrid SQLite Coordinator + JSON",
+        "alternatives_evaluated": [
+          "file-locking",
+          "optimistic-locking",
+          "CRDT",
+          "event-sourcing",
+          "per-session-overlay",
+          "git-worktrees"
+        ],
+        "competitive_analysis": [
+          "Cursor",
+          "Copilot",
+          "Aider",
+          "Windsurf",
+          "Continue.dev"
+        ],
+        "industry_pattern": "Git worktrees for parallel features, SQLite for same-project concurrency"
+      },
+      "notes": "100% COMPLETE. All 4 phases done: optimistic locking, SQLite coordinator, shadow mode, dashboard conflicts. 136 total tests (49 coordination + 48 shadow + 39 conflicts).",
+      "progress": 100
+    },
+    "parallel-safety-phase4-dashboard-conflicts": {
+      "parentTaskId": "taskjson-parallel-session-safety",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "parallel-safety-phase4-dashboard-conflicts",
+      "title": "Phase 4: Dashboard Conflict Visibility",
+      "description": "Add conflict detection and visualization to dashboard. Show when sessions have conflicting edits, display change journal, enable manual conflict resolution.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": [
+        "dashboard",
+        "concurrency",
+        "ux",
+        "conflict-resolution"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "parallel-safety-phase3-shadow-mode"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "GET /api/conflicts returns pending conflicts",
+        "GET /api/change-journal returns recent changes",
+        "Dashboard shows conflict indicator (yellow warning)",
+        "Conflict detail modal shows both versions",
+        "Manual resolution: pick version A, B, or merge",
+        "SSE broadcasts conflict events",
+        "Conflict count in dashboard header metrics"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T22:00:00.000Z",
+      "updated": "2025-12-28T23:30:00.000Z",
+      "completed": "2025-12-28T23:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/coordination-db.js: Conflicts table + CRUD methods (~200 lines added)",
+        ".claude/core/enhanced-dashboard-server.js: 8 new API endpoints (conflicts + change-journal)",
+        "SSE broadcasting for conflict:detected, conflict:resolved, journal:entry events",
+        "__tests__/core/conflict-management.test.js: 39 unit tests",
+        "Expert agent swarm design: API, UI, SSE, Detection, Test Strategy"
+      ]
+    },
+    "audit-refresh-2025-12-29": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "audit-refresh-2025-12-29",
+      "title": "Re-run Codebase Audit - Refresh Findings After Recent Changes",
+      "description": "Many code changes have been made since the last audit (2025-12-28). Re-run the comprehensive audit to identify: orphaned modules, unused dependencies, dead code, broken doc links, stale documentation. Update audit-cleanup-phase1 task with revised findings.",
+      "phase": "research",
+      "priority": "critical",
+      "estimate": "2h",
+      "tags": [
+        "audit",
+        "refresh",
+        "dead-code",
+        "technical-debt",
+        "multi-agent"
+      ],
+      "depends": {
+        "blocks": [
+          "audit-cleanup-phase1"
+        ],
+        "requires": [],
+        "related": [
+          "audit-cleanup-phase1"
+        ]
+      },
+      "acceptance": [
+        "Run /audit skill to perform comprehensive codebase analysis",
+        "Compare findings with previous audit (docs/audits/audit-2025-12-28.json)",
+        "Document what changed: new orphans, resolved orphans, new dependencies, removed dependencies",
+        "Update audit-cleanup-phase1 task with revised cleanup targets",
+        "Save new audit results to docs/audits/audit-2025-12-29.json",
+        "Summary of audit delta in PROJECT_SUMMARY.md"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-29T21:00:00.000Z",
+      "updated": "2025-12-29T21:30:00.000Z",
+      "started": "2025-12-29T21:00:00.000Z",
+      "completed": "2025-12-29T21:30:00.000Z",
+      "previousAudit": "docs/audits/audit-2025-12-28.json",
+      "qualityScore": 95,
+      "deliverables": [
+        "docs/audits/audit-2025-12-29.json - Comprehensive audit with 98 issues",
+        "6 expert agents ran in parallel: Dead Code, Duplication, Architecture, Database, Documentation, Dependency",
+        "New findings: 1 security vulnerability, 36 orphaned WAL files (12.4 MB), 21 undocumented components",
+        "audit-cleanup-phase1 task updated with revised targets"
+      ]
+    },
+    "audit-cleanup-phase1": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "audit-cleanup-phase1",
+      "title": "Audit Cleanup Phase 1 - Verified Safe Cleanups Only",
+      "description": "VERIFIED cleanup items from audit-2025-12-29.json after manual review. OTLP is NOT dead - Claude Code supports OTLP export natively. OpenTelemetry packages must stay. Focus: remove sqlite/sqlite3 (using better-sqlite3), delete orphaned test DBs, fix js-yaml vulnerability, archive stale docs.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "audit",
+        "cleanup",
+        "dead-code",
+        "technical-debt",
+        "security",
+        "verified"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "audit-refresh-2025-12-29"
+        ],
+        "related": [
+          "codebase-audit-system"
+        ]
+      },
+      "acceptance": [
+        "DONE: Create .claude/ARCHITECTURE.md - canonical component registry to prevent future duplication",
+        "DONE: Update CLAUDE.md - add architectural constraints section and design phase requirements",
+        "SAFE: Run npm audit fix to patch js-yaml security vulnerability",
+        "SAFE: npm uninstall sqlite sqlite3 (codebase uses better-sqlite3 exclusively)",
+        "SAFE: Delete __tests__/integration/test-otlp-*.db* (~12 MB orphaned test artifacts)",
+        "SAFE: Delete __tests__/core/test-*.db* (~1 MB orphaned test artifacts)",
+        "SAFE: Delete .claude/memory/test.db* (~200 KB, 40+ days stale, no references)",
+        "VERIFY-FIRST: Confirm deprecated/continuous-loop-orchestrator.js has no imports before deleting",
+        "VERIFY-FIRST: Confirm claude-telemetry-bridge.js has no imports before deleting",
+        "DECISION-NEEDED: .claude/memory/test-parser.db (4.1 MB) - used by test-claude-code-parser.js script",
+        "Move .claude/core/example.js to examples/ directory",
+        "Archive 22 stale docs to docs/archive/ (completed migrations, old roadmaps)",
+        "Fix 3 critical broken documentation links",
+        "Run npm test to verify no regressions after cleanup",
+        "Update PROJECT_SUMMARY.md with cleanup results"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T05:30:00.000Z",
+      "updated": "2025-12-30T14:00:00.000Z",
+      "completed": "2025-12-30T14:00:00.000Z",
+      "sourceAudit": "docs/audits/audit-2025-12-29.json",
+      "estimatedSavings": {
+        "lines": 1842,
+        "bytes": 13400000,
+        "dependencies": 2
+      },
+      "securityFixes": [
+        {
+          "package": "js-yaml",
+          "issue": "Prototype pollution (GHSA-mh29-5h37-fv8m)",
+          "severity": "moderate",
+          "action": "npm audit fix"
+        }
+      ],
+      "verificationNotes": {
+        "doNotRemove": [
+          "@opentelemetry/api - Peer dependency of sdk-metrics and resources",
+          "@opentelemetry/exporter-metrics-otlp-http - OTLP is valid infrastructure, Claude Code supports OTLP export",
+          "@opentelemetry/sdk-metrics - Used by otlp-receiver.js",
+          "@opentelemetry/resources - Used by otlp-receiver.js",
+          ".claude/memory/memory-store.db - Actively used by start-continuous-loop.js",
+          ".claude/memory/test-parser.db - Used by test-claude-code-parser.js (decision needed)",
+          "Hierarchy modules (task-decomposer, decomposition-strategies, etc.) - Part of Auto-Delegation infrastructure"
+        ],
+        "safeToRemove": [
+          "sqlite - Not imported anywhere, codebase uses better-sqlite3",
+          "sqlite3 - Not imported anywhere, codebase uses better-sqlite3",
+          "__tests__/**/test-*.db* - Orphaned test artifacts from failed/interrupted test runs",
+          ".claude/memory/test.db - 40+ days old, no code references",
+          "deprecated/continuous-loop-orchestrator.js - No imports found (1513 lines)",
+          "claude-telemetry-bridge.js - No imports found (329 lines)"
+        ],
+        "deferredToConsolidation": [
+          "real-time-context-tracker.js - Orphaned (810 lines), features to merge into global-context-tracker.js",
+          "real-context-tracker.js - Used by context-tracking-bridge.js but should be consolidated"
+        ],
+        "otlpStatus": "ACTIVE - Claude Code natively exports OTLP metrics. Receiver configured for HTTP:4318, Claude defaults to gRPC:4317. Config mismatch, not dead code."
+      }
+    },
+    "hierarchy-phase4-dashboard-viz": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "hierarchy-phase4-dashboard-viz",
+      "title": "Phase 4: Dashboard Hierarchy Visualization",
+      "description": "Add hierarchy visualization to global-dashboard.html showing agent trees, delegation chains, and real-time sub-agent status. Enables monitoring of hierarchical execution.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "6h",
+      "tags": [
+        "hierarchy",
+        "phase4",
+        "dashboard",
+        "visualization"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "hierarchy-phase1-dashboard-api"
+        ],
+        "related": [
+          "hierarchy-phase4-metrics"
+        ]
+      },
+      "acceptance": [
+        "Interactive hierarchy tree visualization in dashboard",
+        "Expand/collapse nodes to show sub-agent details",
+        "Real-time status updates via SSE",
+        "Delegation chain viewer showing task flow",
+        "Color coding by status (active, completed, failed, awaiting)",
+        "Click-to-drill-down into sub-agent details",
+        "Rollup metrics displayed at each tree level",
+        "Responsive design for different screen sizes"
+      ],
+      "status": "complete",
+      "qualityScore": 90,
+      "assignee": null,
+      "created": "2025-12-28T20:00:00.000Z",
+      "updated": "2025-12-29T08:00:00.000Z",
+      "started": "2025-12-29T06:00:00.000Z",
+      "completed": "2025-12-29T08:00:00.000Z"
+    },
+    "session-task-claiming": {
+      "parentTaskId": null,
+      "childTaskIds": [
+        "session-task-claiming-phase1",
+        "session-task-claiming-phase2",
+        "session-task-claiming-phase3",
+        "session-task-claiming-phase4"
+      ],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": {
+        "strategy": "sequential",
+        "estimatedSubtasks": 4,
+        "completedSubtasks": 4,
+        "aggregationRule": "all-complete"
+      },
+      "id": "session-task-claiming",
+      "title": "Session-Task Claiming System",
+      "description": "Implement atomic task claiming so each session can exclusively claim tasks. Dashboard currently shows same task for all sessions because tasks.json has no session binding. Solution: Add task_claims table to CoordinationDB, claim field to tasks, currentTaskId to sessions, plus API endpoints and SSE events.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "9h",
+      "tags": [
+        "dashboard",
+        "concurrency",
+        "task-manager",
+        "sessions",
+        "multi-session"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "parallel-safety-phase2-sqlite-coordinator"
+        ]
+      },
+      "acceptance": [
+        "Dashboard shows correct current task per session (not same for all)",
+        "Tasks can only be claimed by one session at a time",
+        "Claimed tasks show owner session in task queue view",
+        "SSE events broadcast claim/release in real-time",
+        "Orphaned claims auto-released after timeout",
+        "All tests pass"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T23:50:00.000Z",
+      "updated": "2025-12-29T12:00:00.000Z",
+      "completed": "2025-12-29T12:00:00.000Z",
+      "qualityScore": 95,
+      "started": "2025-12-29T06:00:00.000Z",
+      "designDoc": "docs/SESSION-TASK-CLAIMING-DESIGN.md",
+      "progress": 75
+    },
+    "session-task-claiming-phase1": {
+      "parentTaskId": "session-task-claiming",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "session-task-claiming-phase1",
+      "title": "Phase 1: Core Infrastructure - task_claims Table",
+      "description": "Add task_claims table to CoordinationDB with atomic claim/release operations. Implement claimTask(), releaseClaim(), refreshClaim(), getActiveClaims() methods. Add cleanup timer for expired claims.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "3h",
+      "tags": [
+        "coordination-db",
+        "sqlite",
+        "concurrency"
+      ],
+      "depends": {
+        "blocks": [
+          "session-task-claiming-phase2"
+        ],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "task_claims table created in CoordinationDB schema",
+        "claimTask() atomically claims task for session",
+        "releaseClaim() releases with reason tracking",
+        "refreshClaim() extends TTL via heartbeat",
+        "getActiveClaims() returns all active claims",
+        "Cleanup timer removes expired claims every 5 min",
+        "Unit tests for all claim operations"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T23:50:00.000Z",
+      "updated": "2025-12-29T07:30:00.000Z",
+      "completed": "2025-12-29T07:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/coordination-db.js: task_claims table + 3 indexes",
+        ".claude/core/coordination-db.js: 10 prepared statements for claims",
+        ".claude/core/coordination-db.js: claimTask(), releaseClaim(), refreshClaim() with transactions",
+        ".claude/core/coordination-db.js: getActiveClaims(), getClaim(), getClaimsBySession(), isTaskClaimed(), getClaimStats()",
+        ".claude/core/coordination-db.js: cleanupExpiredClaims(), cleanupOrphanedClaims() integrated in timer",
+        "__tests__/core/task-claims.test.js: 41 comprehensive unit tests"
+      ],
+      "notes": "Expert agent swarm (5 agents): Schema, Operations, Query, Cleanup, Test. All 41 tests passing."
+    },
+    "session-task-claiming-phase2": {
+      "parentTaskId": "session-task-claiming",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "session-task-claiming-phase2",
+      "title": "Phase 2: TaskManager Integration",
+      "description": "Add claim field to task schema in tasks.json. Implement claimNextTask() that atomically claims. Add heartbeat refresh during long operations. Handle orphaned claims on session cleanup.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "task-manager",
+        "integration"
+      ],
+      "depends": {
+        "blocks": [
+          "session-task-claiming-phase3"
+        ],
+        "requires": [
+          "session-task-claiming-phase1"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Task schema has claim object with sessionId, claimedAt, expiresAt, lastHeartbeat",
+        "claimNextTask() atomically gets and claims next available task",
+        "Heartbeat sent automatically during long operations",
+        "releaseSessionTasks() called on session deregistration",
+        "Integration tests for claim flow"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T23:50:00.000Z",
+      "updated": "2025-12-29T09:30:00.000Z",
+      "completed": "2025-12-29T09:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/task-manager.js: +400 lines claim integration (lines 2290-2697)",
+        "CLAIM_CONFIG static getter with TTL, heartbeat intervals",
+        "claimNextTask(phase, options) - atomically claim next available task",
+        "releaseTaskClaim(taskId, reason) - release specific claim",
+        "releaseAllClaims(reason) - bulk release session claims",
+        "extendClaim(taskId, ttlMs) - extend claim TTL (heartbeat)",
+        "getMyClaimedTasks() - list tasks claimed by session",
+        "_startClaimHeartbeat(taskId) - auto-refresh every 60s",
+        "_stopClaimHeartbeat(taskId), _stopAllHeartbeats() - cleanup",
+        "close() method for clean shutdown with claim release",
+        "Events: task:claimed, task:claim-released, task:claims-released, task:claim-lost, manager:closed"
+      ],
+      "notes": "Integrated with CoordinationDB claim methods from Phase 1. Heartbeat system auto-refreshes TTL every 60s. All 2319 core tests passing."
+    },
+    "session-task-claiming-phase3": {
+      "parentTaskId": "session-task-claiming",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "session-task-claiming-phase3",
+      "title": "Phase 3: Dashboard API Endpoints",
+      "description": "Add 7 claim API endpoints to enhanced-dashboard-server.js. Add SSE events for claim/release. Update /api/sessions/summary to include currentTaskId.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "api",
+        "sse"
+      ],
+      "depends": {
+        "blocks": [
+          "session-task-claiming-phase4"
+        ],
+        "requires": [
+          "session-task-claiming-phase2"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "POST /api/tasks/:taskId/claim endpoint",
+        "POST /api/tasks/:taskId/release endpoint",
+        "POST /api/tasks/:taskId/claim/heartbeat endpoint",
+        "GET /api/tasks/in-flight endpoint",
+        "GET /api/sessions/:sessionId/current-task endpoint",
+        "POST /api/tasks/claims/cleanup endpoint",
+        "GET /api/tasks/claims/stats endpoint",
+        "SSE events: task:claimed, task:released, task:claim-expired, task:claim-orphaned",
+        "Integration tests for all endpoints"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T23:50:00.000Z",
+      "updated": "2025-12-29T11:00:00.000Z",
+      "completed": "2025-12-29T11:00:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        ".claude/core/enhanced-dashboard-server.js: 7 claim API endpoints (lines 362-461)",
+        ".claude/core/enhanced-dashboard-server.js: Helper methods _claimTask, _releaseTaskClaim, _refreshTaskClaim, _getInFlightTasks, _getSessionCurrentTask, _cleanupOrphanedClaims, _getClaimStats (lines 1807-2115)",
+        ".claude/core/enhanced-dashboard-server.js: _setupClaimEventListeners() for SSE broadcasting",
+        "global-context-manager.js: Updated /api/sessions/summary to include currentTaskId and claimInfo",
+        "__tests__/integration/claims-dashboard-api.test.js: 35 integration tests"
+      ],
+      "notes": "All 7 API endpoints implemented with proper error handling, SSE event broadcasting for claim/release/cleanup events. /api/sessions/summary now includes currentTaskId from claims. 101 claim-related tests passing."
+    },
+    "session-task-claiming-phase4": {
+      "parentTaskId": "session-task-claiming",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "session-task-claiming-phase4",
+      "title": "Phase 4: Dashboard UI Updates",
+      "description": "Update global-dashboard.html to show per-session current tasks. Add claim badges to task queue. Add stale claim indicators. Handle SSE events for real-time updates.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "ui",
+        "sse"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "session-task-claiming-phase3"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Session cards show per-session claimed task (not same for all)",
+        "Task queue shows claim status with session badges",
+        "Stale claims show warning indicator",
+        "SSE events update UI in real-time",
+        "Filter/sort options for claimed vs available tasks",
+        "Visual distinction between CLI and autonomous claims"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-28T23:50:00.000Z",
+      "updated": "2025-12-29T12:00:00.000Z",
+      "completed": "2025-12-29T12:00:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "global-dashboard.html: CSS styles for claim badges (.claim-badge, .claim-stats, queue filters)",
+        "global-dashboard.html: claimsData global state + fetchInFlightTasks() function",
+        "global-dashboard.html: getClaimStatus(), isClaimStale(), renderClaimBadge() helper functions",
+        "global-dashboard.html: handleClaimEvent() SSE handler for real-time updates",
+        "global-dashboard.html: Session cards show claimedTaskId with stale indicators",
+        "global-dashboard.html: Task queue shows claim badges + filter buttons (All/Available/Claimed/Mine)",
+        "global-dashboard.html: Claim stats summary in queue view"
+      ],
+      "notes": "Dashboard now shows per-session claimed tasks. Session cards display claimedTaskId with ✓ (owned) or ⚠ (stale) indicators. Task queue has filter buttons and claim badges. SSE events update UI in real-time. All 76 claim tests passing."
+    },
+    "parallel-session-crash-fix": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "parallel-session-crash-fix",
+      "title": "Fix Parallel Session Crashes",
+      "description": "Claude Code CLI crashes when 2 sessions run in parallel on the same project. Root causes: (1) Missing SQLite busy_timeout PRAGMA (0ms default), (2) No server port error handler, (3) Missing process-level error handlers, (4) Cleanup timer race conditions, (5) TaskManager.close() not called on shutdown.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "2h",
+      "tags": [
+        "concurrency",
+        "crash-fix",
+        "sqlite",
+        "error-handling",
+        "critical"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "taskjson-parallel-session-safety",
+          "session-task-claiming"
+        ]
+      },
+      "acceptance": [
+        "SQLite busy_timeout set to 5000ms in coordination-db.js",
+        "SQLite busy_timeout set to 5000ms in memory-store.js",
+        "Server port EADDRINUSE error handled gracefully",
+        "process.on('uncaughtException') handler added",
+        "process.on('unhandledRejection') handler added",
+        "Cleanup timer serialized with mutex flag",
+        "TaskManager.close() called in SIGINT/SIGTERM handlers",
+        "2 parallel sessions can run without crashes"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-29T15:00:00.000Z",
+      "updated": "2025-12-29T15:30:00.000Z",
+      "started": "2025-12-29T15:00:00.000Z",
+      "completed": "2025-12-29T15:30:00.000Z",
+      "qualityScore": 95,
+      "deliverables": [
+        "coordination-db.js: Added PRAGMA busy_timeout = 5000 (lines 92-94)",
+        "memory-store.js: Added PRAGMA busy_timeout = 5000 (lines 65-67)",
+        "global-context-manager.js: Added server.on('error') for EADDRINUSE (lines 2178-2190)",
+        "global-context-manager.js: Added process.on('uncaughtException') (lines 39-47)",
+        "global-context-manager.js: Added process.on('unhandledRejection') (lines 49-57)",
+        "coordination-db.js: Added _cleanupInProgress mutex and serialization (lines 56, 2030-2051)",
+        "global-context-manager.js: Added cleanupTaskManagers() and SIGINT/SIGTERM cleanup (lines 2192-2225)",
+        "task-manager.js: Atomic file writes via temp file + rename (lines 1556-1567)",
+        "task-manager.js: Atomic archive writes (lines 1703-1712)",
+        "task-manager.js: Read retry logic with 3 attempts (lines 1192-1244)",
+        ".claude/hooks/hook-debug.js: Debug logging module for hooks",
+        "scripts/parallel-crash-test.md: Test scenarios for validation",
+        "scripts/view-hook-debug.js: Debug log viewer"
+      ],
+      "investigation": {
+        "agents": [
+          "SQLite Expert",
+          "Concurrency Expert",
+          "Crash Handling Expert"
+        ],
+        "rootCauses": [
+          "Missing PRAGMA busy_timeout (default 0ms causes immediate lock failure)",
+          "No error handler on app.listen() for EADDRINUSE",
+          "Cleanup timers run concurrently without serialization",
+          "TaskManager.close() never called on crash",
+          "Unhandled Promise rejections in async startup",
+          "tasks.json file write conflicts (non-atomic writeFileSync)",
+          "JSON parse errors during concurrent read/write"
+        ]
+      }
+    },
+    "auto-delegation-phase1-hook": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "auto-delegation-phase1-hook",
+      "title": "Phase 1: Core Hook Infrastructure",
+      "description": "Create the foundational hook that intercepts prompts and injects delegation analysis. This is the minimal viable implementation to validate the approach.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "4h",
+      "tags": [
+        "auto-delegation",
+        "phase1",
+        "hooks",
+        "foundation"
+      ],
+      "depends": {
+        "blocks": [
+          "auto-delegation-phase2-decision"
+        ],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "scripts/delegation-hook.js created and executes on prompt submit",
+        "scripts/delegation-bridge.js bridges hook to DelegationDecider",
+        "DelegationDecider.getQuickHint() method added for fast analysis",
+        "scripts/install-hooks.js sets up .claude/settings.json",
+        ".claude/config.json created with delegation settings schema",
+        "Hook registered in .claude/settings.json",
+        "Hook completes in < 200ms",
+        "Config can enable/disable hook"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "files": {
+        "create": [
+          "scripts/delegation-hook.js",
+          "scripts/delegation-bridge.js",
+          "scripts/install-hooks.js",
+          ".claude/config.json"
+        ],
+        "modify": [
+          ".claude/core/delegation-decider.js",
+          ".claude/settings.json"
+        ]
+      }
+    },
+    "auto-delegation-phase2-decision": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "auto-delegation-phase2-decision",
+      "title": "Phase 2: Decision Integration",
+      "description": "Connect hook to full DelegationDecider and TaskDecomposer. Add tasks.json lookup, pattern selection, and caching for repeated prompts.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": [
+        "auto-delegation",
+        "phase2",
+        "decision",
+        "decomposition"
+      ],
+      "depends": {
+        "blocks": [
+          "auto-delegation-phase3-skills"
+        ],
+        "requires": [
+          "auto-delegation-phase1-hook"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "TaskDecomposer integrated for subtask generation",
+        "Pattern selection logic (parallel/sequential/debate/review/ensemble)",
+        "tasks.json task lookup by ID reference in prompts",
+        "Per-task delegationConfig support in task schema",
+        "Decision caching for repeated prompts",
+        "Complex prompts get accurate delegation recommendations"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "files": {
+        "modify": [
+          "scripts/delegation-bridge.js",
+          "scripts/delegation-hook.js",
+          ".claude/core/task-manager.js"
+        ]
+      }
+    },
+    "auto-delegation-phase3-skills": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "auto-delegation-phase3-skills",
+      "title": "Phase 3: Control Skills",
+      "description": "Create slash command skills for explicit user control over delegation: /delegate (force), /direct (prevent), /delegation-status, /delegation-config.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "auto-delegation",
+        "phase3",
+        "skills",
+        "user-control"
+      ],
+      "depends": {
+        "blocks": [
+          "auto-delegation-phase4-execution"
+        ],
+        "requires": [
+          "auto-delegation-phase2-decision"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "/delegate skill forces delegation for any prompt",
+        "/direct skill forces direct execution (skips delegation)",
+        "/delegation-status skill shows active delegations",
+        "/delegation-config skill allows runtime config changes",
+        "Skills documented in CLAUDE.md"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "files": {
+        "create": [
+          ".claude/commands/delegate.md",
+          ".claude/commands/direct.md",
+          ".claude/commands/delegation-status.md",
+          ".claude/commands/delegation-config.md"
+        ],
+        "modify": [
+          "CLAUDE.md"
+        ]
+      }
+    },
+    "auto-delegation-phase4-execution": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "auto-delegation-phase4-execution",
+      "title": "Phase 4: Execution Integration",
+      "description": "Wire delegated tasks to actually execute through AgentOrchestrator. Implement parallel, sequential, debate patterns with real Task tool invocations.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "6h",
+      "tags": [
+        "auto-delegation",
+        "phase4",
+        "execution",
+        "orchestrator"
+      ],
+      "depends": {
+        "blocks": [
+          "auto-delegation-phase5-dashboard"
+        ],
+        "requires": [
+          "auto-delegation-phase3-skills"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "executeWithDelegationHint() added to AgentOrchestrator",
+        "Task tool calls wired to AgentOrchestrator",
+        "Parallel pattern runs subtasks concurrently",
+        "Sequential pattern respects dependencies",
+        "Debate pattern generates opposing agent calls",
+        "HierarchyManager integration tracks parent-child relationships"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "files": {
+        "modify": [
+          ".claude/core/agent-orchestrator.js",
+          "scripts/delegation-bridge.js",
+          ".claude/core/hierarchy-manager.js"
+        ]
+      }
+    },
+    "auto-delegation-phase5-dashboard": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "auto-delegation-phase5-dashboard",
+      "title": "Phase 5: Dashboard Integration",
+      "description": "Add delegation visibility to dashboard: active delegations panel, progress tree, SSE events for real-time updates, delegation history.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": [
+        "auto-delegation",
+        "phase5",
+        "dashboard",
+        "visibility"
+      ],
+      "depends": {
+        "blocks": [
+          "auto-delegation-phase6-polish"
+        ],
+        "requires": [
+          "auto-delegation-phase4-execution"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "SSE events for delegation:started, delegation:completed, delegation:failed",
+        "SSE events for subtask progress updates",
+        "Delegation panel component in dashboard",
+        "GET /api/delegation/history endpoint",
+        "GET /api/delegation/active endpoint",
+        "Real-time progress updates in dashboard"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "files": {
+        "modify": [
+          ".claude/core/agent-orchestrator.js",
+          ".claude/core/enhanced-dashboard-server.js",
+          "global-dashboard.html"
+        ]
+      }
+    },
+    "auto-delegation-phase6-polish": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "decomposition": null,
+      "id": "auto-delegation-phase6-polish",
+      "title": "Phase 6: Polish and Documentation",
+      "description": "Production-ready implementation: comprehensive error handling, graceful degradation, logging/telemetry, user documentation, performance optimization.",
+      "phase": "validation",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": [
+        "auto-delegation",
+        "phase6",
+        "polish",
+        "documentation"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [
+          "auto-delegation-phase5-dashboard"
+        ],
+        "related": []
+      },
+      "acceptance": [
+        "Hook failures don't break Claude Code (graceful degradation)",
+        "Errors logged with context for debugging",
+        "Telemetry for delegation decisions and outcomes",
+        "docs/AUTO-DELEGATION-USER-GUIDE.md created",
+        "CLAUDE.md updated with usage instructions",
+        "Performance meets targets (< 200ms hook, < 500ms decision)",
+        "160+ new tests passing"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2025-12-29T16:00:00.000Z",
+      "updated": "2025-12-29T16:00:00.000Z",
+      "files": {
+        "create": [
+          "docs/AUTO-DELEGATION-USER-GUIDE.md",
+          "__tests__/core/delegation-bridge.test.js",
+          "__tests__/integration/auto-delegation.integration.test.js"
+        ],
+        "modify": [
+          "scripts/delegation-hook.js",
+          "scripts/delegation-bridge.js",
+          "CLAUDE.md"
+        ]
+      }
     }
   }
 }
