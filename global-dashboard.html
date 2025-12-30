@@ -2197,10 +2197,38 @@
           // DON'T overwrite session-specific quality scores
           // Each session tracks its own quality from the session registry
 
-          // Task queue and stats are project-level, safe to share within project
+          // Task queue is project-level, safe to share for available tasks view
           session.taskQueue = taskQueue;
-          session.currentTask = currentTask;
           session.taskStats = projectTasksData.stats || {};
+
+          // IMPORTANT: Use session's claimed task if available, otherwise fall back to project-level
+          // This ensures each session shows its own work, not a shared view
+          if (session.claimInfo && session.claimedTaskId) {
+            // Session has a claimed task - look it up from project tasks
+            const claimedTask = projectTasksData.tasks?.find(t => t.id === session.claimedTaskId);
+            if (claimedTask) {
+              session.currentTask = {
+                id: claimedTask.id,
+                title: claimedTask.title,
+                description: claimedTask.description,
+                phase: claimedTask.phase || session.phase,
+                priority: claimedTask.priority,
+                estimate: claimedTask.estimate,
+                acceptance: (claimedTask.acceptance || []).map(a =>
+                  typeof a === 'string' ? { text: a, done: false } : a
+                ),
+                attempts: claimedTask.attempts || 1,
+                claimed: true,  // Mark as claimed
+                claimInfo: session.claimInfo
+              };
+            }
+          } else if (session.currentTask) {
+            // Session already has currentTask from API (autonomous sessions)
+            // Keep it as-is, don't overwrite
+          } else {
+            // No claim and no existing task - use project-level current task
+            session.currentTask = currentTask;
+          }
         }
       }
     }

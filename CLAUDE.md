@@ -1,5 +1,28 @@
 # CLAUDE.md - Unified Multi-Agent Multi-Model Development System
 
+## ⚠️ CRITICAL SAFETY RULES (READ FIRST)
+
+**NEVER kill all Node.js processes!** Claude Code itself runs on Node.js.
+
+```bash
+# ❌ FORBIDDEN - These will crash Claude Code:
+taskkill //F //IM node.exe
+pkill node
+killall node
+
+# ✅ SAFE - Kill by specific PID or port:
+taskkill //F //PID <specific_pid>
+npx kill-port 3033
+netstat -aon | grep :3033  # Find PID first, then kill that PID
+```
+
+**When restarting servers:**
+1. Find the specific PID using `netstat -aon | grep :<port>`
+2. Kill only that PID with `taskkill //F //PID <pid>`
+3. Start the new server
+
+---
+
 ## Project Overview
 Multi-agent development system that combines specialized AI agent personas with strategic model selection for optimal development workflows.
 

@@ -81,11 +81,12 @@ const recentAlerts = [];
 const MAX_ALERTS = 50;
 
 // Initialize CoordinationDB for task claims (lazy-loaded)
+// CANONICAL PATH: .claude/dev-docs/.coordination/tasks.db (per ARCHITECTURE.md)
 let coordinationDb = null;
 function getCoordinationDb() {
   if (!coordinationDb) {
     try {
-      const coordDbPath = path.join(__dirname, '.coordination', 'sessions.db');
+      const coordDbPath = path.join(__dirname, '.claude', 'dev-docs', '.coordination', 'tasks.db');
       // Ensure directory exists
       const coordDir = path.dirname(coordDbPath);
       if (!fs.existsSync(coordDir)) {
@@ -1692,8 +1693,8 @@ app.get('/api/sessions/summary', (req, res) => {
       alertCount: summary.metrics.alertCount
     },
     sessions: summary.sessions.map(s => {
-      // Find claimed task for this session
-      const claims = sessionClaimsMap.get(s.id) || [];
+      // Find claimed task for this session (convert to string for CoordinationDB compatibility)
+      const claims = sessionClaimsMap.get(String(s.id)) || [];
       const currentClaim = claims.length > 0
         ? claims.sort((a, b) => b.claimedAt - a.claimedAt)[0]
         : null;

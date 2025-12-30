@@ -398,6 +398,12 @@ function handleTaskCompletion(taskCompletion, qualityScore) {
   const task = state.currentTask;
 
   try {
+    // Release claim before marking complete
+    const releaseResult = taskManager.releaseTaskClaim(task.id, 'completed');
+    if (releaseResult.success) {
+      console.log(`[TASK] Claim released for: ${task.id}`);
+    }
+
     // Calculate duration
     const started = task.started || new Date().toISOString();
     const completed = new Date().toISOString();
@@ -429,6 +435,7 @@ function handleTaskCompletion(taskCompletion, qualityScore) {
 
 /**
  * Get next task from TaskManager or fall back to --task argument
+ * Uses claimNextTask() to properly claim the task in CoordinationDB
  * @returns {Object|null} Task object or null
  */
 function getNextTaskFromManager() {
@@ -437,29 +444,44 @@ function getNextTaskFromManager() {
   try {
     // Try all phase names that match the current orchestrator phase
     const taskPhases = getTaskPhases(state.currentPhase);
-    let nextTask = null;
+    let claimResult = null;
 
+    // Try to claim a task for each matching phase
     for (const phase of taskPhases) {
-      nextTask = taskManager.getNextTask(phase);
-      if (nextTask) break;
+      claimResult = taskManager.claimNextTask(phase, {
+        agentType: 'autonomous',
+        fallbackToNext: false  // Try exact phase first
+      });
+      if (claimResult.task) break;
     }
 
     // Also try without phase filter as fallback
-    if (!nextTask) {
-      nextTask = taskManager.getNextTask(null);
+    if (!claimResult?.task) {
+      claimResult = taskManager.claimNextTask(null, {
+        agentType: 'autonomous',
+        fallbackToNext: true
+      });
     }
 
-    if (nextTask) {
-      // Mark as in_progress
-      taskManager.updateStatus(nextTask.id, 'in_progress');
-      console.log(`[TASK] Selected: ${nextTask.title} (${nextTask.id})`);
-      console.log(`[TASK] Priority: ${nextTask.priority}, Estimate: ${nextTask.estimate}`);
-      return nextTask;
+    if (claimResult?.task) {
+      const task = claimResult.task;
+      // Mark as in_progress (claim handles the coordination, this updates tasks.json status)
+      taskManager.updateStatus(task.id, 'in_progress');
+      console.log(`[TASK] Claimed: ${task.title} (${task.id})`);
+      console.log(`[TASK] Priority: ${task.priority}, Estimate: ${task.estimate}`);
+      if (claimResult.claim) {
+        console.log(`[TASK] Claim expires: ${new Date(claimResult.claim.expiresAt).toISOString()}`);
+      }
+      return task;
+    }
+
+    if (claimResult?.error) {
+      console.log(`[TASK] No task claimed: ${claimResult.error}`);
     }
 
     return null;
   } catch (err) {
-    console.error('[TASK] Error getting next task:', err.message);
+    console.error('[TASK] Error claiming next task:', err.message);
     return null;
   }
 }
@@ -688,6 +710,13 @@ async function initializeCommandCenter() {
     if (response.success && response.id) {
       registeredSessionId = response.id;
       console.log(`[COMMAND CENTER] Session registered: ${registeredSessionId} 🤖`);
+
+      // Sync session ID to TaskManager for task claiming
+      if (taskManager) {
+        taskManager.sessionId = registeredSessionId;
+        console.log(`[COMMAND CENTER] TaskManager sessionId synced for task claiming`);
+      }
+
       return true;
     } else {
       console.log('[COMMAND CENTER] Registration failed - dashboard may not be running');
