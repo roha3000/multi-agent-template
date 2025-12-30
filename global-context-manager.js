@@ -31,6 +31,8 @@ const { getSessionRegistry } = require('./.claude/core/session-registry');
 const { getUsageLimitTracker } = require('./.claude/core/usage-limit-tracker');
 const { getLogStreamer } = require('./.claude/core/log-streamer');
 const CoordinationDB = require('./.claude/core/coordination-db');
+const HumanInLoopDetector = require('./.claude/core/human-in-loop-detector');
+const ArtifactSummarizer = require('./.claude/core/artifact-summarizer');
 
 // ============================================================================
 // CRITICAL: Process-level error handlers to prevent silent crashes
@@ -137,6 +139,56 @@ const analytics = new PredictiveAnalytics({
   historyWindow: 30,
   predictionHorizon: 10,
 });
+
+// Initialize Human-in-Loop Detector (per-project Map)
+const humanInLoopMap = new Map();
+
+/**
+ * Get or create HumanInLoopDetector for a project
+ * @param {string} projectPath - Project directory path
+ * @returns {HumanInLoopDetector} Detector instance
+ */
+function getHumanInLoopDetector(projectPath) {
+  const normalizedPath = normalizeProjectPath(projectPath || defaultProjectPath);
+
+  if (humanInLoopMap.has(normalizedPath)) {
+    return humanInLoopMap.get(normalizedPath);
+  }
+
+  // Create new detector (no memoryStore dependency for now)
+  const detector = new HumanInLoopDetector({}, {
+    enabled: true,
+    confidenceThreshold: 0.7,
+    adaptiveThresholds: true
+  });
+
+  humanInLoopMap.set(normalizedPath, detector);
+  console.log(`[HUMAN-IN-LOOP] Detector initialized for: ${path.basename(projectPath || defaultProjectPath)}`);
+
+  return detector;
+}
+
+// Initialize Artifact Summarizer (per-project Map)
+const artifactSummarizerMap = new Map();
+
+/**
+ * Get or create ArtifactSummarizer for a project
+ * @param {string} projectPath - Project directory path
+ * @returns {ArtifactSummarizer} Summarizer instance
+ */
+function getArtifactSummarizer(projectPath) {
+  const normalizedPath = normalizeProjectPath(projectPath || defaultProjectPath);
+
+  if (artifactSummarizerMap.has(normalizedPath)) {
+    return artifactSummarizerMap.get(normalizedPath);
+  }
+
+  const summarizer = new ArtifactSummarizer(projectPath || defaultProjectPath);
+  artifactSummarizerMap.set(normalizedPath, summarizer);
+  console.log(`[ARTIFACTS] Summarizer initialized for: ${path.basename(projectPath || defaultProjectPath)}`);
+
+  return summarizer;
+}
 
 // ============================================================================
 // OTLP Integration (Optional - enable with ENABLE_OTLP=true)
@@ -2144,6 +2196,191 @@ app.get('/api/lessons', (req, res) => {
 });
 
 // ============================================================================
+// HUMAN-IN-LOOP DETECTOR APIs
+// ============================================================================
+
+// GET /api/human-review - Get pending human review items
+app.get('/api/human-review', (req, res) => {
+  const projectPath = req.query.project || defaultProjectPath;
+
+  try {
+    const detector = getHumanInLoopDetector(projectPath);
+    const stats = detector.getStatistics();
+
+    // Get recent detections that required human review
+    const pendingItems = stats.recentFeedback
+      ? stats.recentFeedback.filter(f => !f.wasCorrect).slice(0, 10)
+      : [];
+
+    res.json({
+      project: path.basename(projectPath),
+      enabled: stats.enabled,
+      pendingCount: pendingItems.length,
+      pending: pendingItems,
+      patterns: stats.patterns,
+      statistics: stats.statistics
+    });
+  } catch (error) {
+    console.error('[HUMAN-REVIEW] Error getting review items:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/human-review/stats - Get detection statistics
+app.get('/api/human-review/stats', (req, res) => {
+  const projectPath = req.query.project || defaultProjectPath;
+
+  try {
+    const detector = getHumanInLoopDetector(projectPath);
+    const stats = detector.getStatistics();
+
+    res.json({
+      project: path.basename(projectPath),
+      ...stats
+    });
+  } catch (error) {
+    console.error('[HUMAN-REVIEW] Error getting stats:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/human-review/analyze - Analyze a task for human review needs
+app.post('/api/human-review/analyze', async (req, res) => {
+  const { task, phase, type, metadata, project } = req.body;
+  const projectPath = project || defaultProjectPath;
+
+  try {
+    const detector = getHumanInLoopDetector(projectPath);
+    const result = await detector.analyze({
+      task: task || '',
+      phase: phase || 'unknown',
+      type: type || 'unknown',
+      metadata: metadata || {}
+    });
+
+    res.json({
+      project: path.basename(projectPath),
+      ...result
+    });
+  } catch (error) {
+    console.error('[HUMAN-REVIEW] Error analyzing task:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/human-review/:detectionId/feedback - Submit feedback on a detection
+app.post('/api/human-review/:detectionId/feedback', async (req, res) => {
+  const { detectionId } = req.params;
+  const { wasCorrect, actualNeed, comment, project } = req.body;
+  const projectPath = project || defaultProjectPath;
+
+  try {
+    const detector = getHumanInLoopDetector(projectPath);
+    const result = await detector.recordFeedback(detectionId, {
+      wasCorrect: wasCorrect === true || wasCorrect === 'true',
+      actualNeed: actualNeed || 'unsure',
+      comment: comment || ''
+    });
+
+    res.json({
+      project: path.basename(projectPath),
+      detectionId,
+      ...result
+    });
+  } catch (error) {
+    console.error('[HUMAN-REVIEW] Error recording feedback:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
+// ARTIFACT TRACKING APIs
+// ============================================================================
+
+// GET /api/artifacts - Get artifact summaries for a project
+app.get('/api/artifacts', (req, res) => {
+  const projectPath = req.query.project || defaultProjectPath;
+  const limit = parseInt(req.query.limit || '20', 10);
+
+  try {
+    const summarizer = getArtifactSummarizer(projectPath);
+    const cacheDir = path.join(projectPath, '.claude', 'state', 'summaries');
+
+    // Read all cached summaries
+    const artifacts = [];
+    if (fs.existsSync(cacheDir)) {
+      const files = fs.readdirSync(cacheDir)
+        .filter(f => f.endsWith('.json'))
+        .slice(0, limit);
+
+      for (const file of files) {
+        try {
+          const content = fs.readFileSync(path.join(cacheDir, file), 'utf8');
+          const summary = JSON.parse(content);
+          artifacts.push(summary);
+        } catch (e) {
+          // Skip invalid cache files
+        }
+      }
+    }
+
+    // Sort by timestamp (newest first)
+    artifacts.sort((a, b) => (b.generatedAt || 0) - (a.generatedAt || 0));
+
+    res.json({
+      project: path.basename(projectPath),
+      count: artifacts.length,
+      artifacts
+    });
+  } catch (error) {
+    console.error('[ARTIFACTS] Error getting artifacts:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/artifacts/summarize - Generate artifact summary
+app.post('/api/artifacts/summarize', (req, res) => {
+  const { artifactPath, forceFresh, project } = req.body;
+  const projectPath = project || defaultProjectPath;
+
+  if (!artifactPath) {
+    return res.status(400).json({ error: 'artifactPath is required' });
+  }
+
+  try {
+    const summarizer = getArtifactSummarizer(projectPath);
+    const summary = summarizer.summarize(artifactPath, { forceFresh: forceFresh === true });
+
+    res.json({
+      project: path.basename(projectPath),
+      ...summary
+    });
+  } catch (error) {
+    console.error('[ARTIFACTS] Error summarizing artifact:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/artifacts/:artifactPath - Get summary for specific artifact
+app.get('/api/artifacts/:artifactPath(*)', (req, res) => {
+  const artifactPath = req.params.artifactPath;
+  const projectPath = req.query.project || defaultProjectPath;
+
+  try {
+    const summarizer = getArtifactSummarizer(projectPath);
+    const summary = summarizer.summarize(artifactPath);
+
+    res.json({
+      project: path.basename(projectPath),
+      ...summary
+    });
+  } catch (error) {
+    console.error('[ARTIFACTS] Error getting artifact summary:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
 // START SERVER
 // ============================================================================
 
@@ -2211,6 +2448,17 @@ const server = app.listen(PORT, async () => {
   console.log('  POST /api/lessons/:project          - Add a new lesson');
   console.log('  DELETE /api/lessons/:project/:id    - Delete a lesson');
   console.log('  GET  /api/lessons                   - Summary across all projects');
+  console.log('');
+  console.log('Human-in-Loop Review:');
+  console.log('  GET  /api/human-review              - Get pending review items');
+  console.log('  GET  /api/human-review/stats        - Detection statistics');
+  console.log('  POST /api/human-review/analyze      - Analyze task for review needs');
+  console.log('  POST /api/human-review/:id/feedback - Submit feedback on detection');
+  console.log('');
+  console.log('Artifact Tracking:');
+  console.log('  GET  /api/artifacts                 - Get artifact summaries');
+  console.log('  POST /api/artifacts/summarize       - Generate artifact summary');
+  console.log('  GET  /api/artifacts/:path           - Get specific artifact summary');
   console.log('='.repeat(70) + '\n');
 
   // Start dev-docs file watcher
