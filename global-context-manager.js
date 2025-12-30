@@ -2362,7 +2362,7 @@ app.post('/api/artifacts/summarize', (req, res) => {
 });
 
 // GET /api/artifacts/:artifactPath - Get summary for specific artifact
-app.get('/api/artifacts/:artifactPath(*)', (req, res) => {
+app.get('/api/artifacts/*artifactPath', (req, res) => {
   const artifactPath = req.params.artifactPath;
   const projectPath = req.query.project || defaultProjectPath;
 
