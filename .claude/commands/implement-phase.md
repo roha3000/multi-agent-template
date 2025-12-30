@@ -114,4 +114,4 @@ Continue iterating with the test-code-refactor cycle until all tests pass and qu
 - [ ] Integration points verified and working
 - [ ] Build passes: `npm run build` (if applicable)
 
-See `docs/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.
+See `docs/guides/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.

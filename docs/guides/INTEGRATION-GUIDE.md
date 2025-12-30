@@ -993,9 +993,9 @@ if (safetyCheck.action === 'STOP_IMMEDIATELY') {
 For issues, questions, or feature requests:
 
 1. Check the [Troubleshooting](#troubleshooting) section
-2. Review `docs/CONTINUOUS-LOOP-SYSTEM.md`
-3. Check `docs/HUMAN-IN-LOOP-GUARDRAILS.md`
-4. Review `docs/DASHBOARD-FEATURES.md`
+2. Review `docs/archive/CONTINUOUS-LOOP-SYSTEM.md`
+3. Check `docs/features/HUMAN-IN-LOOP-GUARDRAILS.md`
+4. Review `docs/features/DASHBOARD-FEATURES.md`
 5. Run the demo to see expected behavior
 
 ---

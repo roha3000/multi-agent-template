@@ -299,8 +299,8 @@ project-root/
 ## 📚 Documentation
 
 ### Multi-Agent Framework
-- **[Multi-Agent Guide](docs/MULTI-AGENT-GUIDE.md)** - Comprehensive usage guide with examples
-- **[API Reference](docs/API-REFERENCE.md)** - Complete API documentation
+- **[Multi-Agent Guide](docs/guides/MULTI-AGENT-GUIDE.md)** - Comprehensive usage guide with examples
+- **[API Reference](docs/api/API-REFERENCE.md)** - Complete API documentation
 - **[Development Roadmap](docs/ROADMAP.md)** - Implementation roadmap and progress
 
 ### Workflow & Configuration
@@ -403,8 +403,8 @@ See [ROADMAP.md](docs/ROADMAP.md) for detailed implementation plan.
 
 **Ready to start?**
 
-1. Check out the [Multi-Agent Guide](docs/MULTI-AGENT-GUIDE.md) for comprehensive usage examples
-2. Review the [API Reference](docs/API-REFERENCE.md) for detailed documentation
+1. Check out the [Multi-Agent Guide](docs/guides/MULTI-AGENT-GUIDE.md) for comprehensive usage examples
+2. Review the [API Reference](docs/api/API-REFERENCE.md) for detailed documentation
 3. Run `npm run demo` to see all orchestration patterns in action
 4. Build your own agents by extending the `Agent` base class
 

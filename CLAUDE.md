@@ -268,7 +268,7 @@ When agents disagree:
 - "This will work" (assumption)
 - "The API returns..." (hypothetical)
 
-**See `docs/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.**
+**See `docs/guides/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.**
 
 ## Quality Gates & Standards
 

@@ -141,4 +141,4 @@ If validation fails, provide specific recommendations for remediation and return
 - [ ] Integration verified across all touchpoints
 - [ ] No critical issues remaining
 
-See `docs/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.
+See `docs/guides/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.

@@ -118,4 +118,4 @@ After test completion:
 - [ ] Test discovery verified (tests found by runner)
 - [ ] Coverage mapped to acceptance criteria
 
-See `docs/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.
+See `docs/guides/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.

@@ -181,7 +181,7 @@ $ curl http://localhost:3033/api/feature
 - External API: Responding (200 OK in 142ms)
 ```
 
-See `docs/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.
+See `docs/guides/AGENT-VERIFICATION-PROTOCOL.md` for full requirements.
 
 #### Files and Resources:
 
