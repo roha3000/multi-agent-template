@@ -669,7 +669,7 @@ const orchestrator = new AgentOrchestrator(messageBus, {
 
 ## API Reference
 
-See [API_REFERENCE.md](./API_REFERENCE.md) for detailed API documentation.
+See [API-REFERENCE.md](./API-REFERENCE.md) for detailed API documentation.
 
 ---
 

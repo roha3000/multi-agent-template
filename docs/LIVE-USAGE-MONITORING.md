@@ -321,4 +321,3 @@ startMonitoring(3000);
 
 - [Usage Analytics Architecture](./USAGE-ANALYTICS-ARCHITECTURE.md)
 - [Usage Tracker Specification](./USAGE-TRACKER-SPECIFICATION.md)
-- [Cost Optimization Guide](./COST-OPTIMIZATION.md) (if available)

@@ -1173,7 +1173,6 @@ const result = await orchestrator.executeWithConsensus(
 - See [API Reference](./API-REFERENCE.md) for detailed API documentation
 - Check [examples/](../examples/) for complete working examples
 - Run `npm run demo` to see all patterns in action
-- Read [Best Practices](./BEST-PRACTICES.md) for production usage
 
 ---
 
