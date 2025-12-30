@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 66,
+    "version": 67,
     "lastModifiedBy": "claude-session",
-    "lastModifiedAt": "2025-12-30T23:10:37.675Z"
+    "lastModifiedAt": "2025-12-30T23:19:57.210Z"
   },
   "version": "1.1.0",
   "project": {
@@ -19,7 +19,9 @@
   "backlog": {
     "now": {
       "description": "Current sprint tasks",
-      "tasks": []
+      "tasks": [
+        "dashboard-validation-audit"
+      ]
     },
     "next": {
       "description": "Next priority after now is complete",
@@ -1677,6 +1679,41 @@
       "updated": "2025-12-29T20:04:20.305Z",
       "started": null,
       "completed": null
+    },
+    "dashboard-validation-audit": {
+      "id": "dashboard-validation-audit",
+      "title": "Dashboard Validation Audit - Test All Functions & Reconcile APIs",
+      "description": "Comprehensive audit of the dashboard to identify broken features, test all current functions, and reconcile with backend APIs. Wire in any backend features not yet exposed to the dashboard.",
+      "phase": "validation",
+      "priority": "critical",
+      "estimate": "4h",
+      "tags": [
+        "dashboard",
+        "validation",
+        "audit",
+        "api-reconciliation"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-blocked-tasks-view"
+        ]
+      },
+      "acceptance": [
+        "All dashboard buttons/actions tested and documented",
+        "All API endpoints mapped to dashboard features",
+        "Broken features identified and fixed",
+        "Missing backend features wired into dashboard",
+        "Session management fully functional",
+        "Task claiming/releasing works correctly",
+        "Real-time updates (SSE) verified",
+        "Cost tracking and metrics display correctly"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-30T23:19:57.210Z",
+      "updated": "2025-12-30T23:19:57.210Z"
     }
   },
   "archival": {
