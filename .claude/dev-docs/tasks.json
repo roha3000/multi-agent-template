@@ -20,22 +20,22 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "dashboard-v3-research"
+        "context-tracker-consolidation"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "context-tracker-consolidation",
-        "auto-delegation-integration",
         "audit-cleanup-phase1",
-        "parallel-crash-fix",
-        "docs-reorganization"
+        "docs-reorganization",
+        "document-undocumented-components"
       ]
     },
     "later": {
       "description": "Future work, not yet prioritized",
       "tasks": [
+        "parallel-crash-fix",
+        "auto-delegation-integration",
         "dashboard-blocked-tasks-view"
       ]
     },
@@ -48,6 +48,7 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "dashboard-v3-research",
         "audit-refresh-2025-12-29",
         "parallel-session-crash-fix",
         "session-task-claiming",
@@ -687,10 +688,18 @@
         "npm test passes with no regressions",
         "All documentation reflects new architecture"
       ],
-      "status": "ready",
+      "status": "in-progress",
       "assignee": null,
       "created": "2025-12-30T00:00:00.000Z",
-      "updated": "2025-12-30T01:00:00.000Z",
+      "updated": "2025-12-30T12:00:00.000Z",
+      "progress": {
+        "completedPhases": [1, 2, 3, 4, 5],
+        "currentPhase": 6,
+        "percentComplete": 45,
+        "linesAdded": 760,
+        "branch": "context-tracker-consolidation",
+        "commit": "6178009"
+      },
       "designDoc": "docs/CONTEXT-TRACKER-CONSOLIDATION-DESIGN.md",
       "filesToModify": [
         ".claude/core/global-context-tracker.js",
@@ -2117,6 +2126,79 @@
         "CONTRIBUTING.md",
         "LICENSE",
         "CHANGELOG.md"
+      ]
+    },
+    "document-undocumented-components": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "document-undocumented-components",
+      "title": "Document 21 Undocumented Components from Audit",
+      "description": "Create documentation for 21 components identified in audit-2025-12-29 as 'implemented but not documented'. These are production components with no corresponding documentation.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": ["documentation", "audit", "technical-debt", "architecture"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["audit-cleanup-phase1", "docs-reorganization"]
+      },
+      "acceptance": [
+        "Create docs/architecture/CORE-COMPONENTS.md covering all 21 components",
+        "Document: CoordinationDB - Cross-process coordination",
+        "Document: SessionRegistry - Session tracking with hierarchy",
+        "Document: ShadowModeMetrics - JSON/SQLite consistency validation",
+        "Document: DelegationMetrics - Performance histograms",
+        "Document: HierarchyRegistry - Parent-child agent tracking",
+        "Document: TaskDecomposer - Intelligent task decomposition",
+        "Document: DelegationDecider - Automatic delegation decisions",
+        "Document: SwarmController - Unified swarm component interface",
+        "Document: GlobalContextTracker - Multi-project monitoring",
+        "Document: PredictiveAnalytics - Context exhaustion prediction",
+        "Document: Task Claiming System - Atomic task claiming",
+        "Document: HierarchicalStateManager - Hierarchy state management",
+        "Document: SupervisionTree - Erlang-style fault tolerance",
+        "Document: AggregationStrategies - Result aggregation patterns",
+        "Document: DelegationContext - Context management for delegation",
+        "Document: HierarchyOptimizations - Performance optimizations",
+        "Document: HierarchyViz - Visualization utilities",
+        "Document: NotificationService - SMS/Email alerts",
+        "Document: LogStreamer - Real-time log streaming",
+        "Document: UsageLimitTracker - API usage limit tracking",
+        "Document: ContinuousLoopOrchestrator - Autonomous loops",
+        "Each component section includes: Purpose, API, Usage example, Location",
+        "Update .claude/core/README.md to reference new documentation"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-30T04:00:00.000Z",
+      "updated": "2025-12-30T04:00:00.000Z",
+      "sourceAudit": "docs/audits/audit-2025-12-29.json",
+      "components": [
+        "CoordinationDB",
+        "SessionRegistry",
+        "ShadowModeMetrics",
+        "DelegationMetrics",
+        "HierarchyRegistry",
+        "TaskDecomposer",
+        "DelegationDecider",
+        "SwarmController",
+        "GlobalContextTracker",
+        "PredictiveAnalytics",
+        "TaskClaimingSystem",
+        "HierarchicalStateManager",
+        "SupervisionTree",
+        "AggregationStrategies",
+        "DelegationContext",
+        "HierarchyOptimizations",
+        "HierarchyViz",
+        "NotificationService",
+        "LogStreamer",
+        "UsageLimitTracker",
+        "ContinuousLoopOrchestrator"
       ]
     }
   },

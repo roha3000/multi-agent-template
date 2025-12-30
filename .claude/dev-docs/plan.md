@@ -1,82 +1,55 @@
 # Current Plan
-**Phase**: READY FOR NEXT TASK
-**Status**: Audit Review Complete, Consolidation Plan Ready, Documentation Standards Defined
+**Phase**: IMPLEMENTATION
+**Status**: Context Tracker Consolidation - Phases 1-5 Complete
 
 ---
 
-## Just Completed: Framework Improvements
+## Active Task: context-tracker-consolidation
 
-Created architectural governance and documentation standards:
+**Branch**: `context-tracker-consolidation`
+**Progress**: 5/11 phases complete (~45%)
 
-| Deliverable | Purpose |
-|-------------|---------|
-| `.claude/ARCHITECTURE.md` | Canonical component registry to prevent duplication |
-| Documentation standards | Root vs docs/ organization rules |
-| `docs-reorganization` task | Plan to reorganize existing docs |
+### Completed Phases
 
----
+| Phase | Description | Lines |
+|-------|-------------|-------|
+| 1 | OTLP Processing | +200 |
+| 2 | Velocity Tracking | +100 |
+| 3 | Compaction Detection | +150 |
+| 4 | Exhaustion Prediction | +100 |
+| 5 | Dashboard OTLP Integration | +60 |
+| **Total** | | **+610** |
 
-## Priority Tasks (NEXT tier)
+### Remaining Phases
 
-| Task | Estimate | Description |
-|------|----------|-------------|
-| `context-tracker-consolidation` | 18h | Major consolidation: 3 trackers, 2 dashboards, orchestrators, DBs |
-| `audit-cleanup-phase1` | 2h | Safe cleanups: security fix, remove sqlite/sqlite3, orphaned files |
-| `docs-reorganization` | 2h | Reorganize docs per ARCHITECTURE.md standards |
-| `auto-delegation-integration` | 20h | Connect prompts to DelegationDecider via hooks |
-
----
-
-## Documentation Reorganization Summary
-
-**Files to move from root:**
-- `TEMPLATE-GUIDE.md` → docs/guides/
-- `WORKFLOW.md` → docs/guides/
-- `SESSION_*_COMPLETION_REPORT.md` → docs/archive/
-- `IMPLEMENTATION_SUMMARY.md` → docs/archive/
-- `VECTORSTORE_*.md` → docs/archive/
-- `CONTEXT_RETRIEVER_*.md` → docs/archive/
-
-**docs/ folder structure to create:**
-```
-docs/
-├── architecture/   # *-ARCHITECTURE.md, *-DESIGN.md
-├── guides/         # *-GUIDE.md
-├── features/       # Feature docs (DASHBOARD-FEATURES.md, etc.)
-├── research/       # *-RESEARCH.md
-├── api/            # API-REFERENCE.md, specs
-├── audits/         # (already exists)
-└── archive/        # Stale/completed docs
-```
+| Phase | Description | Scope |
+|-------|-------------|-------|
+| 6 | Dashboard Feature Migration | Artifact tracking, human review queue APIs |
+| 7 | Update Tests | E2E and unit tests for new features |
+| 8 | Delete Context Tracker Files | Remove real-context-tracker.js, real-time-context-tracker.js |
+| 9 | Orchestrator Consolidation | Migrate HumanInLoopDetector, delete continuous-loop |
+| 10 | Database Consolidation | Consolidate to single .claude/data/memory.db |
+| 11 | Documentation Updates | Update/archive 10+ docs |
 
 ---
 
-## Major Consolidation Task Details
+## Next Steps
 
-**Task**: `context-tracker-consolidation`
-**Savings**: ~5,500 lines, 8 source files + 3 test files
-
-### 11 Phases
-
-| Phase | Name | Estimate |
-|-------|------|----------|
-| 1-4 | Context Tracker Features | 6h |
-| 5-6 | Dashboard Consolidation | 4h |
-| 7-8 | Test/File Cleanup | 2.5h |
-| 9-10 | Orchestrator + DB | 3h |
-| 11 | Documentation | 2h |
+1. **Option A**: Continue with Phase 6 (Dashboard Feature Migration)
+2. **Option B**: Merge partial progress, continue later
+3. **Option C**: Skip to Phase 8 (delete deprecated files)
 
 ---
 
 ## Quick Commands
 
 ```bash
+# Test new features
+node -e "const T = require('./.claude/core/global-context-tracker'); console.log(new T({claudeProjectsPath:'/tmp'}))"
+
+# Start dashboard with OTLP
+ENABLE_OTLP=true node global-context-manager.js
+
 # Run tests
-npm test
-
-# Start THE dashboard (only one!)
-node global-context-manager.js
-
-# View task status
-node task-cli.js list --tier now
+npm test -- --testPathPattern="context"
 ```

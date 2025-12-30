@@ -1,39 +1,53 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-30 (Session 59)
-**Current Phase**: PLANNING
-**Status**: Audit Review Complete, Consolidation Planned
+**Last Updated**: 2025-12-30 (Session 60)
+**Current Phase**: IMPLEMENTATION
+**Status**: Context Tracker Consolidation In Progress (Phases 1-5 Complete)
+
+---
+
+## Session 60: Context Tracker Consolidation (IN PROGRESS)
+
+### Work Completed
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1: OTLP Processing | ✅ | Added processOTLPMetric(), getContextPercentage(), manualUpdate(), getActiveSessions() |
+| Phase 2: Velocity Tracking | ✅ | Token velocity calculation, smoothed EMA, velocity history |
+| Phase 3: Compaction Detection | ✅ | Detect sudden drops, recovery docs, compaction:detected event |
+| Phase 4: Exhaustion Prediction | ✅ | getPredictedExhaustion(), getExhaustionDetails(), exhaustion:imminent event |
+| Phase 5: Dashboard OTLP | ✅ | Optional OTLP receiver in global-context-manager.js (ENABLE_OTLP=true) |
+| Phase 6-11 | Pending | Dashboard features, tests, file cleanup, orchestrator, DB, docs |
+
+### Key Changes
+
+| File | Lines | Change |
+|------|-------|--------|
+| `.claude/core/global-context-tracker.js` | +700 | Merged RealContextTracker + RealTimeContextTracker features |
+| `global-context-manager.js` | +61 | Added optional OTLP integration |
+
+### New APIs Available
+
+```javascript
+// OTLP Processing
+tracker.processOTLPMetric(metric, projectFolder);
+tracker.getActiveSessions(projectFolder);
+
+// Velocity & Exhaustion
+tracker.getVelocity(projectFolder);
+tracker.getPredictedExhaustion(projectFolder);
+tracker.getExhaustionDetails(projectFolder);
+
+// Compaction Detection
+tracker.onCompactionDetected(callback);
+tracker.generateRecoveryDocs(projectFolder);
+```
 
 ---
 
 ## Session 59: Audit Review & Framework Governance ✅
-
-### Work Completed
-
-| Task | Status | Description |
-|------|--------|-------------|
-| Audit verification | ✅ | Corrected audit errors (OTLP is USED, hierarchy modules are valid) |
-| ARCHITECTURE.md | ✅ | Created canonical component registry |
-| Documentation standards | ✅ | Defined root vs docs/ organization rules |
-| context-tracker-consolidation | ✅ Planned | 11-phase consolidation task (18h estimate) |
-| docs-reorganization | ✅ Planned | Task to reorganize 60+ docs per standards |
-
-### Key Findings from Audit Review
-
-| Finding | Status | Action |
-|---------|--------|--------|
-| OTLP packages | **CORRECTED** | Audit was WRONG - packages ARE used |
-| Hierarchy modules | **CORRECTED** | Part of Auto-Delegation infrastructure |
-| Context trackers | **CONSOLIDATE** | 3 → 1 (GlobalContextTracker) |
-| Dashboards | **CONSOLIDATE** | 2 → 1 (port 3033 only) |
-| Orchestrators | **CONSOLIDATE** | Eliminate ContinuousLoop |
-| Databases | **CONSOLIDATE** | 4 paths → 1 |
-
-### Deliverables
-- `.claude/ARCHITECTURE.md` - Canonical components + doc standards
-- `CLAUDE.md` - Added architectural constraints section
-- `docs/CONTEXT-TRACKER-CONSOLIDATION-DESIGN.md` - Full design doc
-- `context-tracker-consolidation` task - 11 phases, ~5,500 lines savings
-- `docs-reorganization` task - Organize 60+ docs into proper structure
+- **Tasks**: Architecture governance, audit review
+- **Key changes**: ARCHITECTURE.md, corrected audit findings
+- **Files**: `.claude/ARCHITECTURE.md`, `CLAUDE.md`
 
 ---
 
@@ -44,34 +58,22 @@
 
 ---
 
-## Session 57: Dashboard V3 Research + Codebase Audit ✅
-- **Tasks**: dashboard-v3-research, audit-refresh-2025-12-29
-- **Key changes**: 6-agent research swarm, 4 V3 docs, 98-issue audit
-- **Files**: `docs/DASHBOARD-V3-*.md`, `docs/audits/audit-2025-12-29.json`
-
----
-
 ## Project Health
 
 | Component | Status |
 |-----------|--------|
-| Orchestrator | Unified + parallel patterns + delegation primitives + metrics |
-| Dashboard | Command Center + hierarchy viz + conflicts API + claims UI |
+| Context Tracker | **IN PROGRESS** - Phases 1-5 complete, 6-11 pending |
+| Orchestrator | Unified + parallel patterns + delegation primitives |
+| Dashboard | Port 3033 + optional OTLP (port 4318) |
 | Task System | Hierarchy + concurrent write + shadow mode + claiming |
 | Tests | 2500+ passing |
-| Parallel Safety | 100% COMPLETE |
-| Session-Task Claiming | 100% COMPLETE |
-| Hierarchy Integration Tests | 100% COMPLETE (165 tests) |
-| Dashboard V3 Research | 100% COMPLETE (4 documents) |
-| Codebase Audit | 100% COMPLETE (98 issues, verified findings) |
-| Architecture Governance | NEW - `.claude/ARCHITECTURE.md` |
 
 ---
 
 ## Quick Reference
 
 - **Dashboard**: http://localhost:3033/
-- **Architecture**: `.claude/ARCHITECTURE.md` (check before designing!)
-- **Task Graph**: http://localhost:3033/task-graph.html
-- **V3 Docs**: `docs/DASHBOARD-V3-*.md`
-- **NEXT**: `audit-cleanup-phase1` or `context-tracker-consolidation`
+- **OTLP**: `ENABLE_OTLP=true node global-context-manager.js`
+- **Branch**: `context-tracker-consolidation`
+- **Architecture**: `.claude/ARCHITECTURE.md`
+- **NEXT**: Continue Phases 6-11 or merge partial progress
