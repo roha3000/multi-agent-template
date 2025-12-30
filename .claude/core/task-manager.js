@@ -1106,7 +1106,81 @@ class TaskManager extends EventEmitter {
         this.tasks.backlog.completed.tasks.push(taskId);
       }
     }
+
+    // Auto-archive if enabled and over limit
+    this._autoArchiveCompletedTasks();
     // Note: save() is called by the parent updateStatus() method
+  }
+
+  /**
+   * Auto-archive completed tasks when over the limit
+   * Keeps the N most recently completed tasks, archives the rest
+   * @private
+   */
+  _autoArchiveCompletedTasks() {
+    const archival = this.tasks.archival;
+    if (!archival?.autoArchive) return;
+
+    const maxCompleted = archival.maxCompleted || 5;
+    const completedIds = this.tasks.backlog.completed?.tasks || [];
+
+    if (completedIds.length <= maxCompleted) return;
+
+    // Get completed tasks with their timestamps, sort by completion date
+    const completedTasks = completedIds
+      .map(id => {
+        const task = this.tasks.tasks[id];
+        return task ? {
+          id,
+          task,
+          completedAt: task.completed ? new Date(task.completed).getTime() : 0
+        } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.completedAt - a.completedAt); // Most recent first
+
+    // Split into keep and archive
+    const tasksToKeep = completedTasks.slice(0, maxCompleted);
+    const tasksToArchive = completedTasks.slice(maxCompleted);
+
+    if (tasksToArchive.length === 0) return;
+
+    // Load or create archive
+    const archivePath = path.join(path.dirname(this.tasksPath), 'archives', 'tasks-archive.json');
+    let archive = { archivedAt: new Date().toISOString(), tasks: {} };
+
+    try {
+      const archiveDir = path.dirname(archivePath);
+      if (!fs.existsSync(archiveDir)) {
+        fs.mkdirSync(archiveDir, { recursive: true });
+      }
+      if (fs.existsSync(archivePath)) {
+        archive = JSON.parse(fs.readFileSync(archivePath, 'utf8'));
+      }
+    } catch (error) {
+      console.warn('[TaskManager] Could not load archive:', error.message);
+    }
+
+    // Add tasks to archive
+    tasksToArchive.forEach(({ id, task }) => {
+      archive.tasks[id] = task;
+    });
+    archive.archivedAt = new Date().toISOString();
+
+    // Update tasks.json data
+    this.tasks.backlog.completed.tasks = tasksToKeep.map(t => t.id);
+    tasksToArchive.forEach(({ id }) => {
+      delete this.tasks.tasks[id];
+    });
+    this.tasks.archival.lastArchived = new Date().toISOString();
+
+    // Write archive
+    try {
+      fs.writeFileSync(archivePath, JSON.stringify(archive, null, 2));
+      console.log(`[TaskManager] Auto-archived ${tasksToArchive.length} completed tasks`);
+    } catch (error) {
+      console.error('[TaskManager] Could not write archive:', error.message);
+    }
   }
 
   /**
