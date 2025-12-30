@@ -138,6 +138,45 @@ const analytics = new PredictiveAnalytics({
   predictionHorizon: 10,
 });
 
+// ============================================================================
+// OTLP Integration (Optional - enable with ENABLE_OTLP=true)
+// ============================================================================
+
+let otlpReceiver = null;
+const OTLP_PORT = parseInt(process.env.OTLP_PORT || '4318', 10);
+const ENABLE_OTLP = process.env.ENABLE_OTLP === 'true';
+
+if (ENABLE_OTLP) {
+  try {
+    const OTLPReceiver = require('./.claude/core/otlp-receiver');
+    otlpReceiver = new OTLPReceiver({
+      port: OTLP_PORT,
+      host: '0.0.0.0'
+    });
+
+    // Wire OTLP metrics to GlobalContextTracker
+    otlpReceiver.on('metrics', (metrics) => {
+      for (const metric of metrics) {
+        // Extract project folder from attributes if available
+        const projectFolder = metric.attributes?.['project.folder'] ||
+                             metric.attributes?.project_folder ||
+                             null;
+        tracker.processOTLPMetric(metric, projectFolder);
+      }
+    });
+
+    // Forward OTLP events to dashboard alerts
+    otlpReceiver.on('metrics:received', (data) => {
+      console.log(`[OTLP] Received ${data.count} metrics`);
+    });
+
+    console.log(`[OTLP] Integration enabled on port ${OTLP_PORT}`);
+  } catch (err) {
+    console.warn('[OTLP] Failed to initialize OTLPReceiver:', err.message);
+    otlpReceiver = null;
+  }
+}
+
 // Forward exhaustion warnings to alerts
 analytics.on('exhaustion-warning', (data) => {
   recentAlerts.unshift({
@@ -2179,6 +2218,21 @@ const server = app.listen(PORT, async () => {
 
   // Start tracking
   await tracker.start();
+
+  // Start OTLP receiver if enabled
+  if (otlpReceiver) {
+    try {
+      await otlpReceiver.start();
+      console.log(`[OTLP] Receiver started on port ${OTLP_PORT}`);
+      console.log('');
+      console.log('OTLP Integration:');
+      console.log(`  POST http://localhost:${OTLP_PORT}/v1/metrics - Receive OTLP metrics`);
+      console.log(`  GET  http://localhost:${OTLP_PORT}/health     - OTLP receiver health`);
+      console.log('');
+    } catch (err) {
+      console.warn('[OTLP] Failed to start receiver:', err.message);
+    }
+  }
 });
 
 // CRITICAL: Handle server port binding errors (e.g., EADDRINUSE when another session is running)
@@ -2217,6 +2271,10 @@ process.on('SIGINT', async () => {
   await cleanupTaskManagers(); // CRITICAL: Release locks and claims before exit
   if (devDocsWatcher) await devDocsWatcher.close();
   logStreamer.shutdown();
+  if (otlpReceiver) {
+    console.log('[OTLP] Stopping receiver...');
+    await otlpReceiver.stop();
+  }
   await tracker.stop();
   process.exit(0);
 });
@@ -2226,6 +2284,9 @@ process.on('SIGTERM', async () => {
   await cleanupTaskManagers(); // CRITICAL: Release locks and claims before exit
   if (devDocsWatcher) await devDocsWatcher.close();
   logStreamer.shutdown();
+  if (otlpReceiver) {
+    await otlpReceiver.stop();
+  }
   await tracker.stop();
   process.exit(0);
 });

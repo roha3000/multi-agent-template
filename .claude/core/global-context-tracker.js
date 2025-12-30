@@ -202,6 +202,13 @@ class GlobalContextTracker extends EventEmitter {
         criticalTriggered: false,
         emergencyTriggered: false
       },
+      // Compaction detection state (merged from RealTimeContextTracker)
+      compactionState: {
+        lastKnownTokens: 0,
+        compactionDetected: false,
+        compactionCount: 0,
+        lastCompactionTime: null
+      },
       status: 'inactive'
     };
 
@@ -656,6 +663,8 @@ class GlobalContextTracker extends EventEmitter {
    * conversation size including all cached/uncached input tokens.
    */
   _updateProjectMetrics(project, session) {
+    const now = Date.now();
+
     // Calculate totals across all sessions for this project (for cost tracking)
     let totalInput = 0;
     let totalOutput = 0;
@@ -682,6 +691,10 @@ class GlobalContextTracker extends EventEmitter {
       project.currentSessionId = session.id;
     }
 
+    // Store previous context for velocity calculation
+    const previousContextUsed = project.metrics?.contextUsed || 0;
+    const previousUpdate = project.metrics?.lastUpdate || now;
+
     let contextUsed = 0;
     let messageTokens = 0;
     let latestUsage = null;
@@ -704,6 +717,63 @@ class GlobalContextTracker extends EventEmitter {
       };
     }
 
+    // Calculate velocity (tokens per second)
+    let velocity = project.metrics?.velocity || 0;
+    const timeDelta = (now - previousUpdate) / 1000; // seconds
+
+    if (timeDelta > 0 && previousContextUsed > 0) {
+      const tokenDelta = contextUsed - previousContextUsed;
+      // Only calculate positive velocity (context growth)
+      if (tokenDelta > 0) {
+        const instantVelocity = tokenDelta / timeDelta;
+        // Smooth velocity with exponential moving average (alpha = 0.3)
+        velocity = velocity === 0 ? instantVelocity : velocity * 0.7 + instantVelocity * 0.3;
+      }
+    }
+
+    // Compaction detection: Check for sudden drop in tokens
+    // Claude Code auto-compacts around 77-80%, causing a significant token drop
+    if (!project.compactionState) {
+      project.compactionState = {
+        lastKnownTokens: 0,
+        compactionDetected: false,
+        compactionCount: 0,
+        lastCompactionTime: null
+      };
+    }
+
+    if (project.compactionState.lastKnownTokens > 0 && contextUsed > 0) {
+      const tokenDrop = project.compactionState.lastKnownTokens - contextUsed;
+      const dropPercent = tokenDrop / project.compactionState.lastKnownTokens;
+
+      // If tokens dropped by more than 20% and previous was > 50k, compaction likely occurred
+      if (dropPercent > 0.20 && project.compactionState.lastKnownTokens > 50000) {
+        this._handleCompactionDetected(project, tokenDrop, dropPercent);
+      }
+    }
+
+    // Update last known tokens for next comparison
+    if (contextUsed > 0) {
+      project.compactionState.lastKnownTokens = contextUsed;
+    }
+
+    // Initialize velocity history if needed
+    if (!project.velocityHistory) {
+      project.velocityHistory = [];
+    }
+
+    // Track velocity history (keep last 10 samples)
+    if (contextUsed > 0) {
+      project.velocityHistory.push({
+        timestamp: now,
+        tokens: contextUsed,
+        velocity
+      });
+      if (project.velocityHistory.length > 10) {
+        project.velocityHistory.shift();
+      }
+    }
+
     project.metrics = {
       inputTokens: totalInput,
       outputTokens: totalOutput,
@@ -714,11 +784,25 @@ class GlobalContextTracker extends EventEmitter {
       messageCount: totalMessages,
       cost: this._calculateCost(totalInput, totalOutput, totalCacheCreate, totalCacheRead, session.model),
       model: session.model,
-      lastUpdate: Date.now(),
-      latestUsage
+      lastUpdate: now,
+      latestUsage,
+      // Velocity tracking (merged from RealTimeContextTracker)
+      velocity,
+      tokensPerSecond: velocity
     };
 
     project.status = 'active';
+
+    // Emit velocity update if velocity changed significantly
+    if (velocity > 0) {
+      this.emit('velocity:update', {
+        projectFolder: project.folder,
+        projectName: project.name,
+        sessionId: project.currentSessionId,
+        velocity,
+        tokensPerSecond: velocity
+      });
+    }
   }
 
   /**
@@ -922,6 +1006,619 @@ class GlobalContextTracker extends EventEmitter {
       };
       console.log(`[GlobalContextTracker] Reset checkpoints for ${project.name}`);
     }
+  }
+
+  // ============================================================================
+  // Compaction Detection Methods (merged from RealTimeContextTracker)
+  // ============================================================================
+
+  /**
+   * Handle compaction detection - trigger recovery
+   * @private
+   */
+  _handleCompactionDetected(project, tokenDrop, dropPercent) {
+    console.log(`\n[GlobalContextTracker] COMPACTION DETECTED for ${project.name}!`);
+    console.log(`  Token drop: ${tokenDrop.toLocaleString()} (${(dropPercent * 100).toFixed(1)}%)`);
+    console.log(`  Previous: ${project.compactionState.lastKnownTokens.toLocaleString()}`);
+    console.log(`  Current: ${(project.compactionState.lastKnownTokens - tokenDrop).toLocaleString()}\n`);
+
+    project.compactionState.compactionDetected = true;
+    project.compactionState.compactionCount++;
+    project.compactionState.lastCompactionTime = Date.now();
+
+    // Reset checkpoint triggers since context was cleared
+    project.checkpointState = {
+      warningTriggered: false,
+      criticalTriggered: false,
+      emergencyTriggered: false
+    };
+
+    // Generate recovery data
+    const recoveryData = {
+      timestamp: new Date().toISOString(),
+      projectFolder: project.folder,
+      projectName: project.name,
+      tokenDrop,
+      dropPercent,
+      previousTokens: project.compactionState.lastKnownTokens,
+      currentTokens: project.compactionState.lastKnownTokens - tokenDrop,
+      compactionCount: project.compactionState.compactionCount,
+      recoveryAction: 'session-init',
+      devDocsFiles: [
+        'PROJECT_SUMMARY.md',
+        '.claude/dev-docs/plan.md',
+        '.claude/dev-docs/tasks.json'
+      ],
+      recoveryCommand: '/session-init',
+      recoveryInstructions: `
+COMPACTION DETECTED - Context was automatically cleared by Claude Code.
+
+To restore context efficiently (~1,500 tokens), run:
+  /session-init
+
+Or manually read these 3 files:
+  1. PROJECT_SUMMARY.md - Project state and history
+  2. .claude/dev-docs/plan.md - Current task breakdown
+  3. .claude/dev-docs/tasks.json - Active task list
+
+The dev-docs 3-file pattern preserves all critical context.
+      `.trim()
+    };
+
+    // Emit compaction event
+    this.emit('compaction:detected', recoveryData);
+
+    // Call registered compaction handlers
+    if (this._compactionHandlers) {
+      for (const handler of this._compactionHandlers) {
+        try {
+          handler(recoveryData);
+        } catch (err) {
+          console.error('[GlobalContextTracker] Compaction handler error:', err);
+        }
+      }
+    }
+
+    return recoveryData;
+  }
+
+  /**
+   * Register a callback for compaction detection
+   *
+   * @param {Function} callback - Function to call when compaction is detected
+   * @returns {Function} Unsubscribe function
+   */
+  onCompactionDetected(callback) {
+    if (!this._compactionHandlers) {
+      this._compactionHandlers = [];
+    }
+    this._compactionHandlers.push(callback);
+
+    // Return unsubscribe function
+    return () => {
+      const index = this._compactionHandlers.indexOf(callback);
+      if (index > -1) {
+        this._compactionHandlers.splice(index, 1);
+      }
+    };
+  }
+
+  /**
+   * Generate recovery documentation for a project after compaction
+   *
+   * @param {string} projectFolder - Project folder name
+   * @returns {Object} Recovery documentation object
+   */
+  generateRecoveryDocs(projectFolder) {
+    const project = this.projects.get(projectFolder);
+    if (!project) return null;
+
+    return {
+      projectFolder: project.folder,
+      projectName: project.name,
+      projectPath: project.path,
+      compactionState: { ...project.compactionState },
+      recoveryFiles: [
+        'PROJECT_SUMMARY.md',
+        '.claude/dev-docs/plan.md',
+        '.claude/dev-docs/tasks.json'
+      ],
+      recoveryCommand: '/session-init',
+      lastMetrics: { ...project.metrics },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Get compaction state for a project
+   *
+   * @param {string} projectFolder - Project folder name
+   * @returns {Object|null} Compaction state or null if project not found
+   */
+  getCompactionState(projectFolder) {
+    const project = this.projects.get(projectFolder);
+    if (!project) return null;
+
+    return {
+      ...project.compactionState,
+      projectFolder: project.folder,
+      projectName: project.name
+    };
+  }
+
+  // ============================================================================
+  // Velocity & Exhaustion Prediction Methods (merged from RealTimeContextTracker)
+  // ============================================================================
+
+  /**
+   * Get token velocity for a project (tokens per second)
+   *
+   * @param {string} projectFolder - Project folder name
+   * @returns {number} Tokens per second (smoothed average)
+   */
+  getVelocity(projectFolder) {
+    const project = this.projects.get(projectFolder);
+    if (!project) return 0;
+
+    // Return stored velocity from metrics
+    if (project.metrics?.velocity) {
+      return project.metrics.velocity;
+    }
+
+    // Calculate from velocity history if available
+    if (project.velocityHistory?.length >= 2) {
+      const history = project.velocityHistory;
+      const first = history[0];
+      const last = history[history.length - 1];
+      const timeDelta = (last.timestamp - first.timestamp) / 1000;
+      const tokenDelta = last.tokens - first.tokens;
+
+      if (timeDelta > 0 && tokenDelta > 0) {
+        return tokenDelta / timeDelta;
+      }
+    }
+
+    return 0;
+  }
+
+  /**
+   * Get predicted time to context exhaustion for a project
+   *
+   * @param {string} projectFolder - Project folder name
+   * @returns {number} Minutes until context window is exhausted (Infinity if velocity <= 0)
+   */
+  getPredictedExhaustion(projectFolder) {
+    const project = this.projects.get(projectFolder);
+    if (!project) return Infinity;
+
+    const velocity = this.getVelocity(projectFolder);
+    if (velocity <= 0) return Infinity;
+
+    const contextUsed = project.metrics?.contextUsed || 0;
+    const remainingTokens = this.contextWindowSize - contextUsed;
+
+    if (remainingTokens <= 0) return 0;
+
+    const secondsRemaining = remainingTokens / velocity;
+    const minutesRemaining = secondsRemaining / 60;
+
+    // Emit exhaustion:imminent event if < 5 minutes remaining
+    if (minutesRemaining < 5 && minutesRemaining > 0) {
+      // Only emit if not already emitted recently (within 1 minute)
+      const lastEmit = project._lastExhaustionWarning || 0;
+      if (Date.now() - lastEmit > 60000) {
+        project._lastExhaustionWarning = Date.now();
+        this.emit('exhaustion:imminent', {
+          projectFolder: project.folder,
+          projectName: project.name,
+          sessionId: project.currentSessionId,
+          minutesRemaining,
+          contextUsed,
+          contextWindow: this.contextWindowSize,
+          velocity
+        });
+      }
+    }
+
+    return minutesRemaining;
+  }
+
+  /**
+   * Get exhaustion prediction details for a project
+   *
+   * @param {string} projectFolder - Project folder name
+   * @returns {Object} Exhaustion prediction details
+   */
+  getExhaustionDetails(projectFolder) {
+    const project = this.projects.get(projectFolder);
+    if (!project) return null;
+
+    const velocity = this.getVelocity(projectFolder);
+    const contextUsed = project.metrics?.contextUsed || 0;
+    const remainingTokens = this.contextWindowSize - contextUsed;
+    const minutesRemaining = this.getPredictedExhaustion(projectFolder);
+
+    // Calculate when auto-compact will trigger (around 77.5%)
+    const autoCompactThreshold = this.contextWindowSize * 0.775;
+    const tokensToAutoCompact = autoCompactThreshold - contextUsed;
+    const minutesToAutoCompact = velocity > 0 ? (tokensToAutoCompact / velocity) / 60 : Infinity;
+
+    return {
+      projectFolder: project.folder,
+      projectName: project.name,
+      contextUsed,
+      contextWindow: this.contextWindowSize,
+      contextPercent: project.metrics?.contextPercent || 0,
+      remainingTokens,
+      velocity,
+      tokensPerSecond: velocity,
+      minutesRemaining,
+      minutesToAutoCompact: minutesToAutoCompact > 0 ? minutesToAutoCompact : 0,
+      status: this._getExhaustionStatus(minutesRemaining),
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Get exhaustion status label
+   * @private
+   */
+  _getExhaustionStatus(minutesRemaining) {
+    if (minutesRemaining === Infinity) return 'STABLE';
+    if (minutesRemaining <= 0) return 'EXHAUSTED';
+    if (minutesRemaining < 2) return 'CRITICAL';
+    if (minutesRemaining < 5) return 'WARNING';
+    if (minutesRemaining < 15) return 'CAUTION';
+    return 'OK';
+  }
+
+  // ============================================================================
+  // OTLP Processing Methods (merged from RealContextTracker)
+  // ============================================================================
+
+  /**
+   * Process an OTLP metric and update the appropriate session
+   *
+   * @param {Object} metric - OTLP metric object
+   * @param {string} metric.name - Metric name (e.g., 'claude_code.tokens.count')
+   * @param {Object} metric.attributes - Metric attributes including session info
+   * @param {number} [metric.value] - Metric value
+   * @param {number} [metric.asInt] - Metric value as integer
+   * @param {string} [projectFolder] - Optional project folder to scope the update
+   * @returns {number} Current context percentage for the session
+   */
+  processOTLPMetric(metric, projectFolder = null) {
+    // Extract session ID from metric attributes
+    const sessionId = metric.attributes?.['conversation.id'] ||
+                     metric.attributes?.['session.id'] ||
+                     metric.attributes?.session_id ||
+                     'default';
+
+    // Resolve project folder if not provided
+    const resolvedProjectFolder = projectFolder || this._resolveProjectFolder(sessionId);
+
+    if (!resolvedProjectFolder) {
+      console.warn('[GlobalContextTracker] Could not resolve project folder for OTLP metric', {
+        sessionId,
+        metricName: metric.name
+      });
+      return 0;
+    }
+
+    // Ensure project exists
+    let project = this.projects.get(resolvedProjectFolder);
+    if (!project) {
+      // Create minimal project entry for OTLP-only tracking
+      project = {
+        folder: resolvedProjectFolder,
+        path: this._folderToPath(resolvedProjectFolder),
+        name: path.basename(this._folderToPath(resolvedProjectFolder)),
+        sessions: new Map(),
+        currentSessionId: sessionId,
+        metrics: {
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheCreationTokens: 0,
+          cacheReadTokens: 0,
+          contextUsed: 0,
+          contextPercent: 0,
+          messageCount: 0,
+          cost: 0,
+          model: null,
+          lastUpdate: null
+        },
+        checkpointState: {
+          warningTriggered: false,
+          criticalTriggered: false,
+          emergencyTriggered: false
+        },
+        status: 'active'
+      };
+      this.projects.set(resolvedProjectFolder, project);
+    }
+
+    // Ensure session exists within project
+    let session = project.sessions.get(sessionId);
+    if (!session) {
+      session = {
+        id: sessionId,
+        filepath: null, // OTLP sessions may not have file
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        messageCount: 0,
+        model: metric.attributes?.['model'] || metric.attributes?.model || null,
+        lastUpdate: Date.now(),
+        latestUsage: null,
+        contextUsed: 0,
+        contextPercent: 0,
+        cost: 0
+      };
+      project.sessions.set(sessionId, session);
+      project.currentSessionId = sessionId;
+
+      this.emit('session:new', {
+        projectFolder: resolvedProjectFolder,
+        projectName: project.name,
+        sessionId,
+        source: 'otlp'
+      });
+    }
+
+    // Process token metrics based on metric name
+    if (metric.name?.includes('token') || metric.name?.includes('usage')) {
+      const type = metric.attributes?.['type'] || metric.attributes?.type;
+      const value = metric.value || metric.asInt || 0;
+
+      // Update session tokens based on metric type
+      switch (type) {
+        case 'input':
+          session.inputTokens += value;
+          break;
+        case 'output':
+          session.outputTokens += value;
+          break;
+        case 'cache_read':
+          session.cacheReadTokens += value;
+          break;
+        case 'cache_creation':
+          session.cacheCreationTokens += value;
+          break;
+        default:
+          // If type not specified, try to parse from metric name
+          if (metric.name?.includes('input')) {
+            session.inputTokens += value;
+          } else if (metric.name?.includes('output')) {
+            session.outputTokens += value;
+          } else if (metric.name?.includes('cache_read')) {
+            session.cacheReadTokens += value;
+          } else if (metric.name?.includes('cache_creation')) {
+            session.cacheCreationTokens += value;
+          }
+      }
+
+      session.messageCount++;
+      session.lastUpdate = Date.now();
+
+      // Update latest usage for context window calculation
+      session.latestUsage = {
+        input_tokens: session.inputTokens,
+        output_tokens: session.outputTokens,
+        cache_read_input_tokens: session.cacheReadTokens,
+        cache_creation_input_tokens: session.cacheCreationTokens
+      };
+
+      // Update project metrics
+      this._updateProjectMetrics(project, session);
+
+      // Check thresholds
+      this._checkThresholds(project);
+
+      // Update account totals
+      this._updateAccountTotals();
+
+      // Emit update event
+      this.emit('usage:update', {
+        projectFolder: resolvedProjectFolder,
+        projectName: project.name,
+        sessionId,
+        source: 'otlp',
+        metrics: project.metrics,
+        accountTotals: this.accountTotals
+      });
+    }
+
+    return this.getContextPercentage(resolvedProjectFolder, sessionId);
+  }
+
+  /**
+   * Resolve project folder from session ID
+   * Searches all projects for the session
+   * @private
+   */
+  _resolveProjectFolder(sessionId) {
+    // First, check if any project has this session
+    for (const [folder, project] of this.projects) {
+      if (project.sessions.has(sessionId)) {
+        return folder;
+      }
+    }
+
+    // If not found, try to find the most recently active project
+    let mostRecentFolder = null;
+    let mostRecentTime = 0;
+
+    for (const [folder, project] of this.projects) {
+      if (project.metrics.lastUpdate && project.metrics.lastUpdate > mostRecentTime) {
+        mostRecentTime = project.metrics.lastUpdate;
+        mostRecentFolder = folder;
+      }
+    }
+
+    return mostRecentFolder;
+  }
+
+  /**
+   * Get context percentage for a specific session
+   *
+   * @param {string} projectFolder - Project folder name
+   * @param {string} [sessionId] - Session ID (uses current if not specified)
+   * @returns {number} Context percentage (0-100)
+   */
+  getContextPercentage(projectFolder, sessionId = null) {
+    const project = this.projects.get(projectFolder);
+    if (!project) return 0;
+
+    const targetSessionId = sessionId || project.currentSessionId;
+    const session = project.sessions.get(targetSessionId);
+
+    if (!session) return 0;
+
+    // Return session-level context percentage if available
+    if (session.contextPercent !== undefined) {
+      return session.contextPercent;
+    }
+
+    // Fall back to project-level
+    return project.metrics.contextPercent || 0;
+  }
+
+  /**
+   * Manually update context percentage for testing
+   *
+   * @param {string} projectFolder - Project folder name
+   * @param {string} sessionId - Session ID
+   * @param {number} percentage - Target context percentage (0-100)
+   */
+  manualUpdate(projectFolder, sessionId, percentage) {
+    let project = this.projects.get(projectFolder);
+
+    if (!project) {
+      // Create project for testing
+      project = {
+        folder: projectFolder,
+        path: this._folderToPath(projectFolder),
+        name: path.basename(this._folderToPath(projectFolder)),
+        sessions: new Map(),
+        currentSessionId: sessionId,
+        metrics: {
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheCreationTokens: 0,
+          cacheReadTokens: 0,
+          contextUsed: 0,
+          contextPercent: 0,
+          messageCount: 0,
+          cost: 0,
+          model: null,
+          lastUpdate: null
+        },
+        checkpointState: {
+          warningTriggered: false,
+          criticalTriggered: false,
+          emergencyTriggered: false
+        },
+        status: 'active'
+      };
+      this.projects.set(projectFolder, project);
+    }
+
+    // Calculate tokens from percentage
+    const contextUsed = Math.floor(this.contextWindowSize * (percentage / 100));
+
+    // Update or create session
+    let session = project.sessions.get(sessionId);
+    if (!session) {
+      session = {
+        id: sessionId,
+        filepath: null,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        messageCount: 0,
+        model: null,
+        lastUpdate: Date.now()
+      };
+      project.sessions.set(sessionId, session);
+    }
+
+    // Set context values
+    session.contextUsed = contextUsed;
+    session.contextPercent = percentage;
+    session.lastUpdate = Date.now();
+
+    // Update project metrics
+    project.metrics.contextUsed = contextUsed;
+    project.metrics.contextPercent = percentage;
+    project.metrics.lastUpdate = Date.now();
+    project.currentSessionId = sessionId;
+    project.status = 'active';
+
+    console.log(`[GlobalContextTracker] Manual update: ${projectFolder}/${sessionId} -> ${percentage.toFixed(1)}%`);
+
+    // Check thresholds
+    this._checkThresholds(project);
+
+    // Emit update
+    this.emit('usage:update', {
+      projectFolder,
+      projectName: project.name,
+      sessionId,
+      source: 'manual',
+      metrics: project.metrics
+    });
+  }
+
+  /**
+   * Get all active sessions for a project (or all projects)
+   *
+   * @param {string} [projectFolder] - Optional project folder to filter
+   * @returns {Array} Array of session objects with context data
+   */
+  getActiveSessions(projectFolder = null) {
+    const sessions = [];
+    const fiveMinutesAgo = Date.now() - 300000;
+
+    const projectsToCheck = projectFolder
+      ? [this.projects.get(projectFolder)].filter(Boolean)
+      : Array.from(this.projects.values());
+
+    for (const project of projectsToCheck) {
+      for (const [sessionId, session] of project.sessions) {
+        // Skip agent sessions
+        if (sessionId.startsWith('agent-')) continue;
+
+        // Check if session is active (updated within last 5 minutes)
+        const isActive = session.lastUpdate && session.lastUpdate > fiveMinutesAgo;
+
+        sessions.push({
+          id: sessionId,
+          projectFolder: project.folder,
+          projectName: project.name,
+          isActive,
+          isCurrent: sessionId === project.currentSessionId,
+          percentage: session.contextPercent || 0,
+          contextUsed: session.contextUsed || 0,
+          totalTokens: (session.inputTokens || 0) + (session.outputTokens || 0),
+          inputTokens: session.inputTokens || 0,
+          outputTokens: session.outputTokens || 0,
+          cacheReadTokens: session.cacheReadTokens || 0,
+          cacheCreationTokens: session.cacheCreationTokens || 0,
+          messageCount: session.messageCount || 0,
+          model: session.model,
+          cost: session.cost || 0,
+          duration: session.lastUpdate ? Date.now() - (session.startTime || session.lastUpdate) : 0,
+          lastUpdate: session.lastUpdate
+        });
+      }
+    }
+
+    // Sort by last update (most recent first)
+    sessions.sort((a, b) => (b.lastUpdate || 0) - (a.lastUpdate || 0));
+
+    return sessions;
   }
 }
 
