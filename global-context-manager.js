@@ -2029,7 +2029,7 @@ app.get('/api/overview', (req, res) => {
 
     // Get task data for each session
     const db = getCoordinationDb();
-    const taskManager = getOrCreateTaskManager(defaultProjectPath);
+    const taskManager = getTaskManagerForProject(defaultProjectPath);
     const allTasks = taskManager ? taskManager.getAllTasks() : [];
 
     // Build project-grouped data

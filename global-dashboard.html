@@ -3669,7 +3669,15 @@
 
       const task = session.currentTask || {};
       const acceptance = task.acceptance || [];
-      const completedCriteria = acceptance.filter(a => a.done).length;
+      // Normalize acceptance criteria - handle both string and object formats
+      const normalizedAcceptance = acceptance.map(a => {
+        if (typeof a === 'string') {
+          // If task is completed, mark all criteria as done
+          return { text: a, done: task.status === 'completed' };
+        }
+        return { text: a.text || a, done: a.done || task.status === 'completed' };
+      });
+      const completedCriteria = normalizedAcceptance.filter(a => a.done).length;
 
       const taskHTML = task.id ? `
         <div class="task-card">
@@ -3685,10 +3693,10 @@
           ${renderPhaseProgression(task.id, task.phase)}
           ${settings.showAcceptanceProgress ? `
           <ul class="acceptance-list">
-            ${acceptance.map(a => `
+            ${normalizedAcceptance.map(a => `
               <li class="acceptance-item ${a.done ? 'done' : ''}">
                 <span class="check">${a.done ? '✓' : ''}</span>
-                ${a.text || a}
+                ${a.text}
               </li>
             `).join('')}
           </ul>
@@ -4433,6 +4441,7 @@
         FleetState.lastUpdate = new Date();
         updateFleetHeader();
         updateAlertBanner();
+        updateProjectCards();
         return FleetState.overview;
       } catch (err) {
         console.error('[FLEET] Failed to fetch overview:', err);
