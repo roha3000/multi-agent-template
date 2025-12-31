@@ -224,6 +224,380 @@
     .usage-badge .bar-fill.warning { background: var(--color-warning); }
     .usage-badge .bar-fill.critical { background: var(--color-danger); }
 
+    /* ===== FLEET MANAGEMENT HEADER ===== */
+    .fleet-header {
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .fleet-metric-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+
+    .fleet-metric-card h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .fleet-countdown {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .countdown-time {
+      font-size: 24px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .countdown-time.warning { color: var(--color-warning); }
+    .countdown-time.critical { color: var(--color-danger); }
+
+    .countdown-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-hover);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .countdown-bar-fill {
+      height: 100%;
+      background: var(--color-success);
+      transition: width 0.5s ease, background 0.3s;
+    }
+
+    .countdown-bar-fill.warning { background: var(--color-warning); }
+    .countdown-bar-fill.critical { background: var(--color-danger); }
+
+    .fleet-stats {
+      display: flex;
+      gap: 20px;
+    }
+
+    .fleet-stat {
+      text-align: center;
+    }
+
+    .fleet-stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .fleet-stat-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .fleet-stat-value.active { color: var(--color-success); }
+    .fleet-stat-value.warning { color: var(--color-warning); }
+    .fleet-stat-value.critical { color: var(--color-danger); }
+
+    /* ===== ALERT BANNER ===== */
+    .alert-banner {
+      display: none;
+      background: var(--color-danger);
+      color: white;
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .alert-banner.warning {
+      background: var(--color-warning);
+      color: #1a1a1a;
+    }
+
+    .alert-banner.visible {
+      display: flex;
+    }
+
+    .alert-banner-message {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .alert-banner-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .alert-banner-btn {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: inherit;
+      padding: 4px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .alert-banner-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* ===== TOAST NOTIFICATIONS ===== */
+    .toast-container {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+      min-width: 280px;
+      max-width: 360px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      pointer-events: auto;
+      animation: slideIn 0.3s ease;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .toast.success { border-left: 3px solid var(--color-success); }
+    .toast.warning { border-left: 3px solid var(--color-warning); }
+    .toast.error { border-left: 3px solid var(--color-danger); }
+    .toast.info { border-left: 3px solid var(--color-info); }
+
+    .toast-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .toast-content {
+      flex: 1;
+    }
+
+    .toast-title {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .toast-message {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .toast-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .toast-close:hover {
+      color: var(--text-primary);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* ===== PROJECT CARDS (Fleet View) ===== */
+    .project-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+      padding: 16px;
+    }
+
+    .project-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .project-card-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .project-card-title {
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .project-health-dots {
+      display: flex;
+      gap: 3px;
+    }
+
+    .project-health-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-success);
+    }
+
+    .project-health-dot.empty {
+      background: var(--bg-hover);
+    }
+
+    .project-card-body {
+      padding: 12px 16px;
+    }
+
+    .project-task-list {
+      margin-bottom: 12px;
+    }
+
+    .project-task-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 12px;
+      border-bottom: 1px solid var(--border-muted);
+    }
+
+    .project-task-item:last-child {
+      border-bottom: none;
+    }
+
+    .project-task-status {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .project-task-status.active { background: var(--color-success); }
+    .project-task-status.pending { background: var(--text-muted); }
+    .project-task-status.completed { background: var(--color-info); }
+
+    .project-task-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .project-task-progress {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .project-card-footer {
+      padding: 10px 16px;
+      background: var(--bg-tertiary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .project-expand-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .project-expand-btn:hover {
+      color: var(--text-primary);
+    }
+
+    /* ===== AGENT LINEAGE TREE ===== */
+    .agent-lineage-tree {
+      padding: 16px;
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .agent-node {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 4px 0;
+    }
+
+    .agent-node-prefix {
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .agent-node-content {
+      flex: 1;
+    }
+
+    .agent-node-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .agent-node-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .agent-node-status.active { background: var(--color-success); }
+    .agent-node-status.idle { background: var(--text-muted); }
+    .agent-node-status.error { background: var(--color-danger); }
+
+    .agent-node-id {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .agent-node-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
     /* ===== MAIN CONTENT (SPLIT PANE) ===== */
     .main-content {
       flex: 1;
@@ -1802,6 +2176,70 @@
       </div>
     </div>
 
+    <!-- Fleet Management Header (NEW) -->
+    <div class="fleet-header" id="fleetHeader" role="region" aria-label="Fleet overview">
+      <!-- 5-Hour Countdown Timer -->
+      <div class="fleet-metric-card">
+        <h3>5-Hour Limit</h3>
+        <div class="fleet-countdown">
+          <span class="countdown-time" id="fleetCountdownTime">--:--</span>
+          <div class="countdown-bar">
+            <div class="countdown-bar-fill" id="fleetCountdownFill" style="width: 0%"></div>
+          </div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+          <span id="fleetPaceStatus">Pace: -- msg/hr</span>
+        </div>
+      </div>
+
+      <!-- Fleet Status -->
+      <div class="fleet-metric-card">
+        <h3>Fleet Status</h3>
+        <div class="fleet-stats">
+          <div class="fleet-stat">
+            <div class="fleet-stat-value active" id="fleetActiveSessions">0</div>
+            <div class="fleet-stat-label">Active</div>
+          </div>
+          <div class="fleet-stat">
+            <div class="fleet-stat-value" id="fleetProjectCount">0</div>
+            <div class="fleet-stat-label">Projects</div>
+          </div>
+          <div class="fleet-stat">
+            <div class="fleet-stat-value" id="fleetAlertCount">0</div>
+            <div class="fleet-stat-label">Alerts</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account Totals -->
+      <div class="fleet-metric-card">
+        <h3>Account</h3>
+        <div class="fleet-stats">
+          <div class="fleet-stat">
+            <div class="fleet-stat-value" id="fleetTotalCost">$0.00</div>
+            <div class="fleet-stat-label">Today</div>
+          </div>
+          <div class="fleet-stat">
+            <div class="fleet-stat-value" id="fleetTotalSessions">0</div>
+            <div class="fleet-stat-label">Sessions</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Banner (Critical Alerts) -->
+    <div class="alert-banner" id="alertBanner" role="alert" aria-live="assertive">
+      <div class="alert-banner-message">
+        <span id="alertBannerIcon">⚠</span>
+        <span id="alertBannerText">Alert message here</span>
+      </div>
+      <div class="alert-banner-actions">
+        <button class="alert-banner-btn" onclick="handleAlertAction('view')" id="alertBannerActionBtn">View</button>
+        <button class="alert-banner-btn" onclick="dismissAlertBanner()">Dismiss</button>
+        <button class="alert-banner-btn" onclick="muteAlertSound()" id="alertMuteBtn">🔊 Mute</button>
+      </div>
+    </div>
+
     <!-- Main Content (Split Pane) -->
     <main class="main-content" role="main">
       <!-- Session List (Left Pane) -->
@@ -2024,6 +2462,9 @@
 
       // Now connect SSE (which will preserve enriched data)
       connectSSE();
+
+      // Initialize Fleet Management (NEW)
+      await initFleetManagement();
 
       // Refresh usage limits every minute
       setInterval(fetchUsageLimits, 60000);
@@ -3969,8 +4410,304 @@
       loadHierarchy(sessionId || HierarchyTreeState.currentSessionId);
     }
 
+    // =====================================================================
+    // FLEET MANAGEMENT FUNCTIONS (NEW)
+    // =====================================================================
+
+    // Fleet state
+    const FleetState = {
+      overview: null,
+      agentPool: null,
+      alerts: [],
+      ws: null,
+      alertMuted: false,
+      lastUpdate: null
+    };
+
+    // Fetch fleet overview data
+    async function fetchFleetOverview() {
+      try {
+        const res = await fetch('/api/overview');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        FleetState.overview = await res.json();
+        FleetState.lastUpdate = new Date();
+        updateFleetHeader();
+        updateAlertBanner();
+        return FleetState.overview;
+      } catch (err) {
+        console.error('[FLEET] Failed to fetch overview:', err);
+        return null;
+      }
+    }
+
+    // Update fleet header with countdown timers
+    function updateFleetHeader() {
+      const overview = FleetState.overview;
+      if (!overview) return;
+
+      const { global, account, agentPool, alertCount } = overview;
+
+      // 5-Hour Countdown
+      if (global.fiveHourLimit) {
+        const { percent, resetIn, pace } = global.fiveHourLimit;
+        const remaining = 100 - percent;
+
+        // Parse resetIn string (e.g., "2h 15m") to display
+        const countdownEl = document.getElementById('fleetCountdownTime');
+        const countdownFill = document.getElementById('fleetCountdownFill');
+        const paceStatus = document.getElementById('fleetPaceStatus');
+
+        if (countdownEl) {
+          countdownEl.textContent = resetIn || '--:--';
+          countdownEl.className = 'countdown-time' + (percent > 90 ? ' critical' : percent > 75 ? ' warning' : '');
+        }
+
+        if (countdownFill) {
+          countdownFill.style.width = remaining + '%';
+          countdownFill.className = 'countdown-bar-fill' + (percent > 90 ? ' critical' : percent > 75 ? ' warning' : '');
+        }
+
+        if (paceStatus && pace) {
+          const paceClass = pace.status === 'critical' ? 'critical' : pace.status === 'warning' ? 'warning' : '';
+          paceStatus.innerHTML = `Pace: <span class="${paceClass}">${pace.current}</span> / ${pace.safe} msg/hr`;
+        }
+      }
+
+      // Fleet Status
+      const activeSessions = document.getElementById('fleetActiveSessions');
+      const projectCount = document.getElementById('fleetProjectCount');
+      const alertCountEl = document.getElementById('fleetAlertCount');
+
+      if (activeSessions) activeSessions.textContent = global.activeSessionCount || 0;
+      if (projectCount) projectCount.textContent = global.activeProjectCount || 0;
+
+      if (alertCountEl) {
+        const totalAlerts = (global.alertCount?.critical || 0) + (global.alertCount?.warning || 0);
+        alertCountEl.textContent = totalAlerts;
+        alertCountEl.className = 'fleet-stat-value' + (global.alertCount?.critical > 0 ? ' critical' : totalAlerts > 0 ? ' warning' : '');
+      }
+
+      // Account Totals
+      const totalCost = document.getElementById('fleetTotalCost');
+      const totalSessions = document.getElementById('fleetTotalSessions');
+
+      if (totalCost) totalCost.textContent = '$' + (account?.totalCost || 0).toFixed(2);
+      if (totalSessions) totalSessions.textContent = account?.sessionCount || 0;
+    }
+
+    // Update alert banner for critical alerts
+    function updateAlertBanner() {
+      const overview = FleetState.overview;
+      if (!overview || !overview.alerts) return;
+
+      const criticalAlerts = overview.alerts.filter(a => a.level === 'critical');
+      const banner = document.getElementById('alertBanner');
+
+      if (criticalAlerts.length > 0 && !FleetState.alertMuted) {
+        const alert = criticalAlerts[0];
+        document.getElementById('alertBannerText').textContent = alert.message;
+        document.getElementById('alertBannerIcon').textContent = alert.type === 'token_exhaustion' ? '🔥' : '⚠';
+        banner.classList.add('visible');
+        banner.classList.remove('warning');
+
+        // Store current alert for action handling
+        FleetState.currentAlert = alert;
+
+        // Play alert sound (if not muted)
+        playAlertSound('critical');
+      } else {
+        banner.classList.remove('visible');
+      }
+    }
+
+    // Play alert sound
+    function playAlertSound(level) {
+      if (FleetState.alertMuted) return;
+
+      try {
+        // Create a simple beep using Web Audio API
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.value = level === 'critical' ? 880 : 440;
+        oscillator.type = 'sine';
+        gainNode.gain.value = 0.3;
+
+        oscillator.start();
+        setTimeout(() => {
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+          setTimeout(() => oscillator.stop(), 500);
+        }, 100);
+      } catch (e) {
+        console.log('[FLEET] Audio not available');
+      }
+    }
+
+    // Handle alert banner action
+    function handleAlertAction(action) {
+      const alert = FleetState.currentAlert;
+      if (!alert) return;
+
+      if (action === 'view' && alert.sessionId) {
+        // Select the session in the session list
+        const sessionEl = document.querySelector(`[data-session-id="${alert.sessionId}"]`);
+        if (sessionEl) sessionEl.click();
+      }
+    }
+
+    // Dismiss alert banner
+    function dismissAlertBanner() {
+      const banner = document.getElementById('alertBanner');
+      banner.classList.remove('visible');
+    }
+
+    // Mute/unmute alert sounds
+    function muteAlertSound() {
+      FleetState.alertMuted = !FleetState.alertMuted;
+      const btn = document.getElementById('alertMuteBtn');
+      if (btn) btn.textContent = FleetState.alertMuted ? '🔇 Unmute' : '🔊 Mute';
+    }
+
+    // Toast notification system
+    function showToast(type, title, message, duration = 5000) {
+      let container = document.getElementById('toastContainer');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+      }
+
+      const icons = { success: '✓', warning: '⚠', error: '✕', info: 'ℹ' };
+
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || 'ℹ'}</span>
+        <div class="toast-content">
+          <div class="toast-title">${title}</div>
+          <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+      `;
+
+      container.appendChild(toast);
+
+      // Auto-dismiss
+      if (duration > 0) {
+        setTimeout(() => {
+          if (toast.parentElement) {
+            toast.style.animation = 'slideIn 0.3s ease reverse';
+            setTimeout(() => toast.remove(), 300);
+          }
+        }, duration);
+      }
+
+      return toast;
+    }
+
+    // Initialize WebSocket for real-time fleet events
+    function initFleetWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/fleet`;
+
+      try {
+        FleetState.ws = new WebSocket(wsUrl);
+
+        FleetState.ws.onopen = () => {
+          console.log('[FLEET WS] Connected');
+        };
+
+        FleetState.ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            handleFleetEvent(msg);
+          } catch (e) {
+            console.error('[FLEET WS] Parse error:', e);
+          }
+        };
+
+        FleetState.ws.onclose = () => {
+          console.log('[FLEET WS] Disconnected, reconnecting in 5s...');
+          setTimeout(initFleetWebSocket, 5000);
+        };
+
+        FleetState.ws.onerror = (err) => {
+          console.error('[FLEET WS] Error:', err);
+        };
+      } catch (e) {
+        console.error('[FLEET WS] Failed to connect:', e);
+      }
+    }
+
+    // Handle fleet WebSocket events
+    function handleFleetEvent(msg) {
+      switch (msg.type) {
+        case 'init':
+          console.log('[FLEET WS] Init:', msg);
+          break;
+
+        case 'session:started':
+          showToast('success', 'Session Started', `Session ${msg.sessionId} started for ${msg.project}`);
+          fetchFleetOverview();
+          break;
+
+        case 'session:completed':
+          showToast('info', 'Session Completed', `Session ${msg.sessionId} completed`);
+          fetchFleetOverview();
+          break;
+
+        case 'delegation:started':
+          showToast('info', 'Delegation Started', `Task delegated: ${msg.taskId}`);
+          break;
+
+        case 'delegation:completed':
+          showToast('success', 'Delegation Completed', `Delegation finished in ${Math.round(msg.duration / 1000)}s`);
+          break;
+
+        case 'delegation:failed':
+          showToast('error', 'Delegation Failed', msg.error || 'Unknown error');
+          break;
+
+        case 'task:completed':
+          showToast('success', 'Task Completed', `${msg.taskId} (score: ${msg.score})`);
+          break;
+
+        case 'task:claimed':
+          showToast('info', 'Task Claimed', `${msg.taskId} claimed by session ${msg.sessionId}`);
+          break;
+
+        case 'alert:critical':
+          fetchFleetOverview(); // Will trigger banner update
+          break;
+
+        case 'alert:warning':
+          showToast('warning', 'Warning', msg.message);
+          break;
+
+        default:
+          console.log('[FLEET WS] Unknown event:', msg.type);
+      }
+    }
+
+    // Start fleet management on page load
+    async function initFleetManagement() {
+      await fetchFleetOverview();
+      initFleetWebSocket();
+
+      // Refresh fleet data periodically (in addition to SSE/WS updates)
+      setInterval(fetchFleetOverview, 30000);
+    }
+
     // Initialize
     init();
   </script>
+
+  <!-- Toast Container (for notifications) -->
+  <div class="toast-container" id="toastContainer"></div>
 </body>
 </html>

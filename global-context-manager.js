@@ -36,6 +36,7 @@ const { getLogStreamer } = require('./.claude/core/log-streamer');
 const CoordinationDB = require('./.claude/core/coordination-db');
 const HumanInLoopDetector = require('./.claude/core/human-in-loop-detector');
 const ArtifactSummarizer = require('./.claude/core/artifact-summarizer');
+const WebSocket = require('ws');
 
 // ============================================================================
 // CRITICAL: Process-level error handlers to prevent silent crashes
@@ -1905,6 +1906,434 @@ app.post('/api/usage/reset', (req, res) => {
 });
 
 // ============================================================================
+// FLEET MANAGEMENT API ENDPOINTS (Dashboard Redesign)
+// ============================================================================
+
+/**
+ * Calculate smart defaults - auto-surface relevant metrics based on context
+ * @param {Object} state - Current system state
+ * @returns {Array} Array of surfaced metrics with prominence
+ */
+function calculateSmartDefaults(state) {
+  const surfaced = [];
+
+  // Usage urgency - 5-hour limit
+  if (state.fiveHourLimit && state.fiveHourLimit.percent > 80) {
+    surfaced.push({
+      metric: 'rate_limit',
+      prominence: state.fiveHourLimit.percent > 95 ? 'critical' : 'high',
+      reason: 'approaching_limit',
+      value: state.fiveHourLimit.percent
+    });
+  }
+
+  // Session health checks
+  if (state.sessions) {
+    for (const session of state.sessions) {
+      // Context exhaustion
+      if (session.contextPercent > 75) {
+        surfaced.push({
+          metric: 'context_timer',
+          sessionId: session.id,
+          prominence: session.contextPercent > 90 ? 'critical' : 'high',
+          reason: 'context_high',
+          value: session.contextPercent
+        });
+      }
+
+      // Quality drop
+      if (session.qualityScore < 80 && session.qualityScore > 0) {
+        surfaced.push({
+          metric: 'quality_breakdown',
+          sessionId: session.id,
+          prominence: session.qualityScore < 60 ? 'high' : 'medium',
+          reason: 'quality_low',
+          value: session.qualityScore
+        });
+      }
+
+      // Confidence drop
+      if (session.confidenceScore < 70 && session.confidenceScore > 0) {
+        surfaced.push({
+          metric: 'confidence_signals',
+          sessionId: session.id,
+          prominence: session.confidenceScore < 50 ? 'high' : 'medium',
+          reason: 'confidence_low',
+          value: session.confidenceScore
+        });
+      }
+    }
+  }
+
+  // Agent pool health
+  if (state.agentPool && state.agentPool.errorAgents > 0) {
+    surfaced.push({
+      metric: 'agent_errors',
+      prominence: 'high',
+      reason: 'agents_in_error',
+      value: state.agentPool.errorAgents
+    });
+  }
+
+  // Deep delegation warning
+  if (state.hierarchyMetrics && state.hierarchyMetrics.maxDelegationDepth > 2) {
+    surfaced.push({
+      metric: 'delegation_depth',
+      prominence: 'medium',
+      reason: 'deep_hierarchy',
+      value: state.hierarchyMetrics.maxDelegationDepth
+    });
+  }
+
+  return surfaced;
+}
+
+/**
+ * Build hierarchy tree for agent lineage visualization
+ * @param {Object} session - Root session
+ * @param {Object} sessionRegistry - Session registry instance
+ * @param {number} depth - Current depth
+ * @returns {Object} Hierarchy tree node
+ */
+function buildAgentHierarchyTree(session, registry, depth = 0) {
+  const children = registry.getChildSessions(session.id);
+
+  return {
+    sessionId: session.id,
+    project: session.project,
+    isRoot: session.hierarchyInfo.isRoot,
+    depth,
+    status: session.status,
+    phase: session.phase,
+    currentTask: session.currentTask,
+    contextPercent: session.contextPercent,
+    qualityScore: session.qualityScore,
+    activeDelegations: session.activeDelegations.map(d => ({
+      delegationId: d.delegationId,
+      pattern: d.metadata?.pattern || 'SEQUENTIAL',
+      task: d.taskId,
+      status: d.status,
+      duration: d.createdAt ? Date.now() - new Date(d.createdAt).getTime() : 0
+    })),
+    children: children.map(child => buildAgentHierarchyTree(child, registry, depth + 1))
+  };
+}
+
+// Fleet Overview - aggregated view of all projects and sessions
+app.get('/api/overview', (req, res) => {
+  try {
+    // Get data from all sources
+    const summaryWithHierarchy = sessionRegistry.getSummaryWithHierarchy();
+    const usageLimits = usageLimitTracker.getStatus();
+    const usageAlerts = usageLimitTracker.getAlerts();
+
+    // Get task data for each session
+    const db = getCoordinationDb();
+    const taskManager = getOrCreateTaskManager(defaultProjectPath);
+    const allTasks = taskManager ? taskManager.getAllTasks() : [];
+
+    // Build project-grouped data
+    const projectMap = new Map();
+
+    for (const session of summaryWithHierarchy.sessions) {
+      const projectName = session.project || 'unknown';
+
+      if (!projectMap.has(projectName)) {
+        projectMap.set(projectName, {
+          name: projectName,
+          path: session.path,
+          sessions: [],
+          metrics: {
+            totalTokens: 0,
+            totalCost: 0,
+            avgQuality: 0,
+            avgConfidence: 0
+          },
+          health: 'healthy'
+        });
+      }
+
+      const project = projectMap.get(projectName);
+
+      // Find parent task for this session (claimed task)
+      let parentTask = null;
+      let subtasks = [];
+
+      if (db) {
+        try {
+          const claims = db.getClaimsBySession(String(session.id));
+          if (claims.length > 0) {
+            const taskId = claims[0].taskId;
+            const task = allTasks.find(t => t.id === taskId);
+            if (task) {
+              parentTask = {
+                id: task.id,
+                title: task.title,
+                status: task.status
+              };
+
+              // Get subtasks (child tasks)
+              subtasks = allTasks
+                .filter(t => t.parentTaskId === task.id)
+                .map(t => ({
+                  id: t.id,
+                  title: t.title,
+                  status: t.status,
+                  claimedBy: null // Would need additional lookup
+                }));
+            }
+          }
+        } catch (e) {
+          // Ignore claim lookup errors
+        }
+      }
+
+      const sessionData = {
+        id: session.id,
+        isRoot: session.hierarchyInfo?.isRoot ?? true,
+        status: session.status,
+        contextPercent: session.contextPercent,
+        qualityScore: session.qualityScore,
+        confidenceScore: session.confidenceScore,
+        tokens: session.tokens,
+        cost: session.cost,
+        phase: session.phase,
+        parentTask,
+        subtaskProgress: {
+          completed: subtasks.filter(s => s.status === 'completed').length,
+          total: subtasks.length,
+          percent: subtasks.length > 0
+            ? Math.round(subtasks.filter(s => s.status === 'completed').length / subtasks.length * 100)
+            : 0
+        },
+        subtasks
+      };
+
+      project.sessions.push(sessionData);
+      project.metrics.totalTokens += session.tokens || 0;
+      project.metrics.totalCost += session.cost || 0;
+    }
+
+    // Calculate averages and health for each project
+    for (const project of projectMap.values()) {
+      if (project.sessions.length > 0) {
+        const activeSessions = project.sessions.filter(s => s.status === 'active');
+        if (activeSessions.length > 0) {
+          project.metrics.avgQuality = Math.round(
+            activeSessions.reduce((sum, s) => sum + (s.qualityScore || 0), 0) / activeSessions.length
+          );
+          project.metrics.avgConfidence = Math.round(
+            activeSessions.reduce((sum, s) => sum + (s.confidenceScore || 0), 0) / activeSessions.length
+          );
+        }
+
+        // Determine health based on context and quality
+        const criticalSessions = project.sessions.filter(s => s.contextPercent > 90 || s.qualityScore < 60);
+        const warningSessions = project.sessions.filter(s => s.contextPercent > 75 || s.qualityScore < 80);
+
+        if (criticalSessions.length > 0) {
+          project.health = 'critical';
+        } else if (warningSessions.length > 0) {
+          project.health = 'warning';
+        }
+      }
+    }
+
+    // Build agent pool summary
+    const agentPool = {
+      active: summaryWithHierarchy.sessions.filter(s => s.status === 'active').length,
+      idle: summaryWithHierarchy.sessions.filter(s => s.status === 'idle').length,
+      error: summaryWithHierarchy.sessions.filter(s => s.status === 'error').length,
+      delegationSuccessRate: 0.94, // TODO: Calculate from actual delegation history
+      activeDelegations: summaryWithHierarchy.hierarchyMetrics?.activeDelegationCount || 0
+    };
+
+    // Build alerts array from usage alerts and session alerts
+    const alerts = [];
+
+    // Add usage alerts
+    for (const alert of usageAlerts) {
+      alerts.push({
+        id: `usage-${alert.type}-${Date.now()}`,
+        level: alert.severity === 'critical' ? 'critical' : 'warning',
+        type: alert.type,
+        message: alert.message,
+        timestamp: new Date().toISOString(),
+        actions: ['dismiss']
+      });
+    }
+
+    // Add session context alerts
+    for (const session of summaryWithHierarchy.sessions) {
+      if (session.contextPercent > 90) {
+        alerts.push({
+          id: `context-${session.id}-${Date.now()}`,
+          level: 'critical',
+          type: 'token_exhaustion',
+          message: `Session ${session.id} context at ${session.contextPercent}%`,
+          sessionId: session.id,
+          timestamp: new Date().toISOString(),
+          actions: ['save_state', 'view_session']
+        });
+      }
+    }
+
+    // Calculate smart defaults
+    const smartDefaults = calculateSmartDefaults({
+      fiveHourLimit: usageLimits.fiveHour,
+      sessions: summaryWithHierarchy.sessions,
+      agentPool,
+      hierarchyMetrics: summaryWithHierarchy.hierarchyMetrics
+    });
+
+    // Build response
+    const response = {
+      global: {
+        fiveHourLimit: {
+          used: usageLimits.fiveHour.used,
+          limit: usageLimits.fiveHour.limit,
+          percent: usageLimits.fiveHour.percent,
+          resetIn: usageLimits.fiveHour.resetIn,
+          resetAt: usageLimits.fiveHour.resetAt,
+          pace: usageLimits.fiveHour.pace
+        },
+        dailyLimit: {
+          used: usageLimits.daily.used,
+          limit: usageLimits.daily.limit,
+          percent: usageLimits.daily.percent,
+          resetIn: usageLimits.daily.resetIn,
+          resetAt: usageLimits.daily.resetAt
+        },
+        weeklyLimit: {
+          used: usageLimits.weekly.used,
+          limit: usageLimits.weekly.limit,
+          percent: usageLimits.weekly.percent,
+          resetAt: usageLimits.weekly.resetAt
+        },
+        activeSessionCount: summaryWithHierarchy.metrics.activeCount,
+        activeProjectCount: projectMap.size,
+        alertCount: {
+          critical: alerts.filter(a => a.level === 'critical').length,
+          warning: alerts.filter(a => a.level === 'warning').length,
+          info: alerts.filter(a => a.level === 'info').length
+        }
+      },
+      account: {
+        totalCost: summaryWithHierarchy.metrics.totalCostToday,
+        sessionCount: summaryWithHierarchy.sessions.length,
+        projectCount: projectMap.size
+      },
+      projects: Array.from(projectMap.values()).map(p => ({
+        name: p.name,
+        path: p.path,
+        sessionCount: p.sessions.length,
+        activeSessionCount: p.sessions.filter(s => s.status === 'active').length,
+        metrics: p.metrics,
+        health: p.health,
+        sessions: p.sessions
+      })),
+      agentPool,
+      alerts,
+      smartDefaults,
+      hierarchyMetrics: summaryWithHierarchy.hierarchyMetrics
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('[OVERVIEW] Error building overview:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Agent Pool Status - detailed agent hierarchy and delegation metrics
+app.get('/api/agent-pool/status', (req, res) => {
+  try {
+    const summaryWithHierarchy = sessionRegistry.getSummaryWithHierarchy();
+    const sessions = summaryWithHierarchy.sessions;
+
+    // Calculate summary stats
+    const summary = {
+      totalAgents: sessions.length,
+      activeAgents: sessions.filter(s => s.status === 'active').length,
+      idleAgents: sessions.filter(s => s.status === 'idle').length,
+      errorAgents: sessions.filter(s => s.status === 'error').length,
+      byPhase: {}
+    };
+
+    // Count by phase
+    for (const session of sessions) {
+      const phase = session.phase || 'unknown';
+      summary.byPhase[phase] = (summary.byPhase[phase] || 0) + 1;
+    }
+
+    // Calculate delegation stats
+    const allDelegations = sessions.flatMap(s => s.activeDelegations || []);
+    const delegationsByPattern = {};
+
+    for (const del of allDelegations) {
+      const pattern = del.metadata?.pattern || 'sequential';
+      delegationsByPattern[pattern] = (delegationsByPattern[pattern] || 0) + 1;
+    }
+
+    const delegations = {
+      activeCount: allDelegations.length,
+      byPattern: {
+        parallel: delegationsByPattern.parallel || delegationsByPattern.PARALLEL || 0,
+        sequential: delegationsByPattern.sequential || delegationsByPattern.SEQUENTIAL || 0,
+        debate: delegationsByPattern.debate || delegationsByPattern.DEBATE || 0,
+        review: delegationsByPattern.review || delegationsByPattern.REVIEW || 0
+      },
+      successRate: 0.94, // TODO: Calculate from delegation history
+      avgDurationMs: 45000, // TODO: Calculate from delegation history
+      peakConcurrentChildren: summaryWithHierarchy.hierarchyMetrics?.maxDelegationDepth || 0
+    };
+
+    // Build hierarchy trees for root sessions
+    const rootSessions = sessions.filter(s => s.hierarchyInfo?.isRoot);
+    const hierarchy = rootSessions.map(session =>
+      buildAgentHierarchyTree(session, sessionRegistry)
+    );
+
+    // Calculate claim health
+    const db = getCoordinationDb();
+    let claimHealth = { active: 0, expiringSoon: 0, stale: 0 };
+
+    if (db) {
+      try {
+        const claims = db.getActiveClaims();
+        const now = Date.now();
+        const fiveMinutes = 5 * 60 * 1000;
+
+        claimHealth = {
+          active: claims.length,
+          expiringSoon: claims.filter(c => c.expiresAt && (c.expiresAt - now) < fiveMinutes).length,
+          stale: claims.filter(c => c.lastHeartbeat && (now - c.lastHeartbeat) > fiveMinutes).length
+        };
+      } catch (e) {
+        // Ignore claim lookup errors
+      }
+    }
+
+    const response = {
+      timestamp: new Date().toISOString(),
+      summary,
+      delegations,
+      hierarchy,
+      health: {
+        status: summary.errorAgents > 0 ? 'degraded' : 'healthy',
+        warnings: summary.errorAgents > 0 ? [`${summary.errorAgents} agents in error state`] : [],
+        claimHealth
+      }
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('[AGENT-POOL] Error building agent pool status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
 // LOG STREAMING API ENDPOINTS
 // ============================================================================
 
@@ -2397,6 +2826,209 @@ app.get('/api/artifacts/*artifactPath', (req, res) => {
 
 const PORT = process.env.PORT || 3033;
 
+// ============================================================================
+// FLEET WEBSOCKET SERVER (/ws/fleet)
+// ============================================================================
+
+let wss = null;
+const wsClients = new Set();
+
+/**
+ * Broadcast a message to all connected WebSocket clients
+ * @param {Object} message - Message to broadcast
+ */
+function broadcastFleetEvent(message) {
+  const data = JSON.stringify(message);
+  for (const client of wsClients) {
+    if (client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(data);
+      } catch (err) {
+        console.error('[WS/FLEET] Error sending to client:', err.message);
+      }
+    }
+  }
+}
+
+/**
+ * Initialize WebSocket server for fleet events
+ * @param {http.Server} httpServer - HTTP server instance
+ */
+function initFleetWebSocket(httpServer) {
+  wss = new WebSocket.Server({
+    server: httpServer,
+    path: '/ws/fleet'
+  });
+
+  wss.on('connection', (ws, req) => {
+    console.log('[WS/FLEET] Client connected');
+    wsClients.add(ws);
+
+    // Send initial state on connection
+    try {
+      const summaryWithHierarchy = sessionRegistry.getSummaryWithHierarchy();
+      const usageLimits = usageLimitTracker.getStatus();
+
+      ws.send(JSON.stringify({
+        type: 'init',
+        timestamp: new Date().toISOString(),
+        sessions: summaryWithHierarchy.sessions.length,
+        activeSessions: summaryWithHierarchy.metrics.activeCount,
+        fiveHourPercent: usageLimits.fiveHour.percent,
+        hierarchyMetrics: summaryWithHierarchy.hierarchyMetrics
+      }));
+    } catch (err) {
+      console.error('[WS/FLEET] Error sending init state:', err.message);
+    }
+
+    ws.on('close', () => {
+      console.log('[WS/FLEET] Client disconnected');
+      wsClients.delete(ws);
+    });
+
+    ws.on('error', (err) => {
+      console.error('[WS/FLEET] Client error:', err.message);
+      wsClients.delete(ws);
+    });
+
+    // Handle ping/pong for keep-alive
+    ws.on('pong', () => {
+      ws.isAlive = true;
+    });
+  });
+
+  // Heartbeat to detect stale connections
+  const heartbeatInterval = setInterval(() => {
+    for (const ws of wsClients) {
+      if (ws.isAlive === false) {
+        wsClients.delete(ws);
+        ws.terminate();
+        continue;
+      }
+      ws.isAlive = false;
+      ws.ping();
+    }
+  }, 30000);
+
+  wss.on('close', () => {
+    clearInterval(heartbeatInterval);
+  });
+
+  // Wire up session registry events to WebSocket broadcasts
+  sessionRegistry.on('session:registered', (session) => {
+    broadcastFleetEvent({
+      type: 'session:started',
+      sessionId: session.id,
+      project: session.project,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  sessionRegistry.on('session:updated', (session) => {
+    broadcastFleetEvent({
+      type: 'session:updated',
+      sessionId: session.id,
+      status: session.status,
+      contextPercent: session.contextPercent,
+      qualityScore: session.qualityScore,
+      phase: session.phase,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  sessionRegistry.on('session:expired', (session) => {
+    broadcastFleetEvent({
+      type: 'session:completed',
+      sessionId: session.id,
+      project: session.project,
+      duration: session.runtime * 1000,
+      tokensUsed: session.tokens,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  sessionRegistry.on('delegation:added', ({ sessionId, delegation }) => {
+    broadcastFleetEvent({
+      type: 'delegation:started',
+      sessionId,
+      delegationId: delegation.delegationId,
+      pattern: delegation.metadata?.pattern || 'SEQUENTIAL',
+      taskId: delegation.taskId,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  sessionRegistry.on('delegation:updated', ({ sessionId, delegationId, status, delegation }) => {
+    if (status === 'completed') {
+      broadcastFleetEvent({
+        type: 'delegation:completed',
+        sessionId,
+        delegationId,
+        duration: delegation.createdAt ? Date.now() - new Date(delegation.createdAt).getTime() : 0,
+        quality: delegation.result?.quality || null,
+        timestamp: new Date().toISOString()
+      });
+    } else if (status === 'failed') {
+      broadcastFleetEvent({
+        type: 'delegation:failed',
+        sessionId,
+        delegationId,
+        error: delegation.error || 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  sessionRegistry.on('task:completed', (completion) => {
+    broadcastFleetEvent({
+      type: 'task:completed',
+      taskId: completion.taskId,
+      project: completion.project,
+      score: completion.score,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Wire up usage limit tracker for alerts
+  const originalGetStatus = usageLimitTracker.getStatus.bind(usageLimitTracker);
+  let lastAlertState = { fiveHour: false, daily: false };
+
+  usageLimitTracker.getStatus = function() {
+    const status = originalGetStatus();
+
+    // Check for new critical alerts
+    if (status.fiveHour.percent >= 90 && !lastAlertState.fiveHour) {
+      lastAlertState.fiveHour = true;
+      broadcastFleetEvent({
+        type: 'alert:critical',
+        id: `rate-limit-${Date.now()}`,
+        alertType: 'rate_limit',
+        message: `5-hour limit at ${status.fiveHour.percent}% - ${status.fiveHour.resetIn} remaining`,
+        timestamp: new Date().toISOString()
+      });
+    } else if (status.fiveHour.percent < 90) {
+      lastAlertState.fiveHour = false;
+    }
+
+    if (status.daily.percent >= 90 && !lastAlertState.daily) {
+      lastAlertState.daily = true;
+      broadcastFleetEvent({
+        type: 'alert:warning',
+        id: `daily-limit-${Date.now()}`,
+        alertType: 'daily_limit',
+        message: `Daily limit at ${status.daily.percent}%`,
+        timestamp: new Date().toISOString()
+      });
+    } else if (status.daily.percent < 90) {
+      lastAlertState.daily = false;
+    }
+
+    return status;
+  };
+
+  console.log('[WS/FLEET] WebSocket server initialized on /ws/fleet');
+}
+
 const server = app.listen(PORT, async () => {
   console.log('\n' + '='.repeat(70));
   console.log('GLOBAL CONTEXT MANAGER');
@@ -2492,6 +3124,15 @@ const server = app.listen(PORT, async () => {
       console.warn('[OTLP] Failed to start receiver:', err.message);
     }
   }
+
+  // Initialize Fleet WebSocket server
+  initFleetWebSocket(server);
+  console.log('');
+  console.log('Fleet Management (NEW):');
+  console.log(`  GET  /api/overview              - Fleet-level aggregated view`);
+  console.log(`  GET  /api/agent-pool/status     - Agent lineage + delegation metrics`);
+  console.log(`  WS   ws://localhost:${PORT}/ws/fleet - Real-time fleet events`);
+  console.log('');
 });
 
 // CRITICAL: Handle server port binding errors (e.g., EADDRINUSE when another session is running)
