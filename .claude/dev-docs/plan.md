@@ -1,16 +1,17 @@
 # Current Plan
-**Phase**: STABLE
-**Status**: Merged to Main - Ready for Next Task
+**Phase**: IMPLEMENTATION
+**Status**: OTLP Integration Complete - Ready for Auto-Delegation
 
 ---
 
-## Session 65: Merge + Cleanup Complete
+## Session 67: OTLP Claude Code Integration ✅
 
 | Action | Result |
 |--------|--------|
-| Merge to main | 15 commits, fast-forward |
-| tasks.json cleanup | 1725 → 216 lines (4 tasks) |
-| Branch deleted | context-tracker-consolidation |
+| OTLP receiver fix | UsageTracker now optional |
+| Claude Code config | Env vars in ~/.claude/settings.json |
+| End-to-end test | Metrics flow verified |
+| Documentation | DASHBOARD-FEATURES.md updated |
 
 ---
 
@@ -18,27 +19,23 @@
 
 | Task | Priority | Description |
 |------|----------|-------------|
-| dashboard-validation-audit | critical | Test all dashboard functions, reconcile with backend APIs |
+| auto-delegation-integration | high | Connect prompts to DelegationDecider via hooks |
 
 ---
 
 ## Backlog
 
-**LATER**:
-- auto-delegation-integration
-- dashboard-blocked-tasks-view
-
-**SOMEDAY**:
-- add-model-pricing
+**NEXT**: dashboard-blocked-tasks-view
+**LATER**: add-model-pricing
 
 ---
 
 ## Quick Commands
 
 ```bash
-# Run all tests
-npm test
+# Start dashboard with OTLP receiver
+npm run dashboard
 
-# Start dashboard
-node global-context-manager.js
+# Test OTLP health
+curl http://localhost:4318/health
 ```

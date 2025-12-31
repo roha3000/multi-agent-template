@@ -73,6 +73,7 @@
     "chokidar": "^3.6.0",
     "chromadb": "^3.1.1",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "eventsource": "^4.1.0",
     "express": "^5.2.1",
     "inquirer": "^8.2.7",

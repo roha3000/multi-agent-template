@@ -1,37 +1,41 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-30 (Session 65)
-**Current Phase**: STABLE
-**Status**: Merged to Main
+**Last Updated**: 2025-12-31 (Session 67)
+**Current Phase**: IMPLEMENTATION
+**Status**: OTLP Integration Complete
 
 ---
 
-## Session 65: Merge to Main + Cleanup (COMPLETE)
+## Session 67: OTLP Claude Code Integration (COMPLETE)
 
 ### Tasks Completed
 | Task | Action | Result |
 |------|--------|--------|
-| Merge | Fast-forward merge context-tracker-consolidation → main | 15 commits |
-| Cleanup | Archive completed tasks, slim tasks.json | 1725 → 216 lines |
-| Delete branch | Remove context-tracker-consolidation | Local + remote |
+| OTLP Receiver Fix | Made usageTracker optional | `.claude/core/otlp-receiver.js` |
+| Claude Code Config | Added OTLP env vars | `~/.claude/settings.json` |
+| End-to-End Test | Sent test metric, verified processing | Metrics tracked successfully |
+| Documentation | Added OTLP section | `docs/features/DASHBOARD-FEATURES.md` |
 
-### Summary
-| Metric | Value |
-|--------|-------|
-| Code reduction | -8,728 lines |
-| tasks.json | 4 active tasks only |
-
----
-
-## Session 64: Documentation Reorganization ✅
-- **Tasks**: docs-reorganization, document-undocumented-components
-- **Key changes**: 53 files reorganized into architecture/, guides/, features/, research/, api/
-- **Files**: CLAUDE.md, README.md, 6 command files updated
+### Files Modified
+| File | Change |
+|------|--------|
+| `.claude/core/otlp-receiver.js` | UsageTracker now optional, emits events for external handling |
+| `~/.claude/settings.json` | Added OTLP telemetry env vars |
+| `docs/features/DASHBOARD-FEATURES.md` | Added OTLP Integration section |
+| `.claude/dev-docs/tasks.json` | Task completed, backlog updated |
 
 ---
 
-## Session 63: Audit Cleanup Phase 1 ✅
-- **Tasks**: Security fixes, dependency cleanup, dead code removal
-- **Key changes**: -70 packages, -329 lines dead code, 0 vulnerabilities
+## Session 66: Dashboard Validation Audit ✅
+- **Tasks**: Swarm audit, quality circles fix, OTLP→UsageLimitTracker
+- **Key changes**: 74+ API endpoints mapped, CLI sessions gray, OTLP connected
+- **Files**: global-dashboard.html, global-context-manager.js, .env
+
+---
+
+## Session 65: Merge to Main + Cleanup ✅
+- **Tasks**: Merge context-tracker-consolidation, archive tasks
+- **Key changes**: 15 commits merged, tasks.json slimmed to 4 active
+- **Files**: branch deleted, tasks archived
 
 ---
 
@@ -41,16 +45,23 @@
 |-----------|--------|
 | Context Tracker | **CONSOLIDATED** - global-context-tracker.js |
 | Orchestrator | **CONSOLIDATED** - autonomous-orchestrator.js |
-| Dashboard | Port 3033 + optional OTLP (port 4318) |
+| Dashboard | Port 3033 + OTLP receiver (port 4318) |
 | Database | **CONSOLIDATED** - `.claude/data/memory.db` |
-| Documentation | **REORGANIZED** - Per ARCHITECTURE.md standards |
 | Tests | **2478 passing**, 60 skipped, 0 failures |
+| OTLP Integration | **COMPLETE** - env vars in ~/.claude/settings.json |
 
 ---
 
 ## Quick Reference
 
 - **Dashboard**: http://localhost:3033/
+- **OTLP Receiver**: http://localhost:4318/
 - **Branch**: `main`
 - **Architecture**: `.claude/ARCHITECTURE.md`
-- **NEXT**: dashboard-validation-audit
+- **NEXT**: auto-delegation-integration
+
+---
+
+## Next Task
+
+**auto-delegation-integration** - Connect prompts to DelegationDecider via hooks

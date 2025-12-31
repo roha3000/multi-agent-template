@@ -16,6 +16,9 @@
  * @module global-context-manager
  */
 
+// Load environment variables from .env file
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -207,7 +210,7 @@ if (ENABLE_OTLP) {
       host: '0.0.0.0'
     });
 
-    // Wire OTLP metrics to GlobalContextTracker
+    // Wire OTLP metrics to GlobalContextTracker AND UsageLimitTracker
     otlpReceiver.on('metrics', (metrics) => {
       for (const metric of metrics) {
         // Extract project folder from attributes if available
@@ -215,6 +218,13 @@ if (ENABLE_OTLP) {
                              metric.attributes?.project_folder ||
                              null;
         tracker.processOTLPMetric(metric, projectFolder);
+
+        // Also update UsageLimitTracker for dashboard usage display
+        // OTLP token metrics indicate a Claude API call occurred
+        if (metric.name === 'claude_code.token.usage' ||
+            metric.name === 'claude_code.request.count') {
+          usageLimitTracker.recordMessage();
+        }
       }
     });
 

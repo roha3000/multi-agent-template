@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 71,
-    "lastModifiedBy": "claude-session",
-    "lastModifiedAt": "2025-12-30T23:33:53.692Z"
+    "version": 72,
+    "lastModifiedBy": "e7465190-f656-495b-9420-5f35b181e7aa",
+    "lastModifiedAt": "2025-12-31T00:17:22.916Z"
   },
   "version": "1.1.0",
   "project": {
@@ -20,19 +20,18 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "dashboard-validation-audit"
+        "auto-delegation-integration"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
-      "tasks": []
+      "tasks": [
+        "dashboard-blocked-tasks-view"
+      ]
     },
     "later": {
       "description": "Future work, not yet prioritized",
-      "tasks": [
-        "auto-delegation-integration",
-        "dashboard-blocked-tasks-view"
-      ]
+      "tasks": []
     },
     "someday": {
       "description": "Ideas and possibilities, lowest priority",
@@ -43,11 +42,11 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "otlp-claude-code-integration",
+        "dashboard-validation-audit",
         "audit-cleanup-phase1",
         "audit-refresh-2025-12-29",
-        "parallel-session-crash-fix",
-        "session-task-claiming",
-        "hierarchy-phase4-dashboard-viz"
+        "parallel-session-crash-fix"
       ]
     }
   },
@@ -202,10 +201,47 @@
         "Real-time updates (SSE) verified",
         "Cost tracking and metrics display correctly"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-30T23:19:57.210Z",
-      "updated": "2025-12-30T23:19:57.210Z"
+      "updated": "2025-12-31T00:30:00.000Z",
+      "completedAt": "2025-12-31T00:30:00.000Z",
+      "completionNotes": "Swarm audit completed: 74+ API endpoints mapped, quality circles bug fixed, OTLP→UsageLimitTracker connected, dotenv added"
+    },
+    "otlp-claude-code-integration": {
+      "id": "otlp-claude-code-integration",
+      "title": "Integrate OTLP Telemetry with Claude Code CLI",
+      "description": "Configure Claude Code CLI to send telemetry metrics to the dashboard's OTLP receiver. Currently the dashboard has OTLP receiver ready (port 4318) but Claude Code CLI needs env vars set in shell profile to send metrics.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": [
+        "otlp",
+        "telemetry",
+        "claude-code",
+        "integration",
+        "dashboard"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-validation-audit"
+        ]
+      },
+      "acceptance": [
+        "Claude Code CLI sends telemetry to OTLP endpoint",
+        "Dashboard usage display updates from OTLP metrics",
+        "Shell profile (.bashrc/.zshrc) updated with required env vars",
+        "Documentation updated with setup instructions",
+        "Verified metrics flow: Claude CLI → OTLP Receiver → UsageLimitTracker → Dashboard"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-31T00:30:00.000Z",
+      "updated": "2025-12-31T00:18:00.000Z",
+      "completedAt": "2025-12-31T00:18:00.000Z",
+      "completionNotes": "Fixed OTLP receiver initialization (usageTracker optional), configured Claude Code settings with env vars, tested metrics flow end-to-end, documented in DASHBOARD-FEATURES.md"
     }
   },
   "archival": {

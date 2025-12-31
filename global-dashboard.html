@@ -2830,8 +2830,8 @@
 
         let statusClass, tooltipText;
         if (!isAutonomous) {
-          // CLI sessions don't have quality tracking
-          statusClass = isIdle ? 'idle' : 'good';
+          // CLI sessions don't have quality tracking - always show as idle/gray
+          statusClass = 'idle';
           tooltipText = `${s.project}: CLI (no quality tracking)`;
           cli++;
         } else if (isIdle) {

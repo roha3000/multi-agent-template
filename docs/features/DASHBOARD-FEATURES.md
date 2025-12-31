@@ -415,8 +415,111 @@ chmod 644 .claude/settings.local.json
 - ✅ 500+ artifacts
 - ✅ 10,000+ events (displays last 50)
 
+## OTLP Telemetry Integration
+
+The dashboard includes an **OpenTelemetry Protocol (OTLP) receiver** that accepts telemetry from Claude Code CLI sessions.
+
+### How It Works
+
+1. **Claude Code** exports metrics via OTLP (tokens, costs, requests)
+2. **Dashboard receiver** (port 4318) accepts and processes metrics
+3. **UsageLimitTracker** updates dashboard usage display
+4. **Real-time updates** via SSE to all connected clients
+
+### Configuration
+
+Add to `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/json",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4318"
+  }
+}
+```
+
+**Environment Variables:**
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `CLAUDE_CODE_ENABLE_TELEMETRY` | `1` | Enable telemetry |
+| `OTEL_METRICS_EXPORTER` | `otlp` | Use OTLP for metrics |
+| `OTEL_LOGS_EXPORTER` | `otlp` | Use OTLP for logs |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/json` | JSON format (required) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` | Dashboard receiver |
+
+### Dashboard Setup
+
+Enable OTLP in the dashboard's `.env` file:
+
+```bash
+ENABLE_OTLP=true
+OTLP_PORT=4318  # optional, default is 4318
+```
+
+### OTLP Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/metrics` | POST | Receive OTLP metrics (JSON format) |
+| `/health` | GET | Receiver health check |
+
+### Metrics Received
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `claude_code.token.usage` | Counter | Token consumption by type |
+| `claude_code.request.duration` | Histogram | API request latency |
+| `claude_code.request.count` | Counter | Total API requests |
+| `claude_code.cost.usage` | Counter | Session cost in USD |
+
+### Testing OTLP
+
+```bash
+# Check receiver health
+curl http://localhost:4318/health
+
+# Send test metric
+curl -X POST http://localhost:4318/v1/metrics \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resourceMetrics": [{
+      "scopeMetrics": [{
+        "metrics": [{
+          "name": "claude_code.token.usage",
+          "sum": {
+            "dataPoints": [{
+              "asInt": 1000,
+              "attributes": [
+                {"key": "model", "value": {"stringValue": "claude-opus-4-5"}},
+                {"key": "type", "value": {"stringValue": "input"}}
+              ]
+            }]
+          }
+        }]
+      }]
+    }]
+  }'
+```
+
+### Troubleshooting
+
+**OTLP receiver not starting:**
+- Check `ENABLE_OTLP=true` in `.env`
+- Verify port 4318 is not in use
+- Check dashboard logs for initialization errors
+
+**Metrics not appearing:**
+- Verify Claude Code settings have telemetry enabled
+- Ensure `http/json` protocol (protobuf not supported)
+- Check dashboard logs for received metrics
+
 ---
 
-**Access Dashboard:** http://localhost:3030
-**Last Updated:** 2025-12-13
-**Version:** 2.0.0 (Enhanced)
+**Access Dashboard:** http://localhost:3033
+**OTLP Receiver:** http://localhost:4318
+**Last Updated:** 2025-12-31
+**Version:** 2.1.0 (OTLP Integration)

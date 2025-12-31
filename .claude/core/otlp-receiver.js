@@ -15,8 +15,6 @@ const { MeterProvider, PeriodicExportingMetricReader } = require('@opentelemetry
 const { Resource } = require('@opentelemetry/resources');
 const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
 const EventEmitter = require('events');
-const UsageTracker = require('./usage-tracker');
-const path = require('path');
 
 class OTLPReceiver extends EventEmitter {
     constructor(options = {}) {
@@ -38,8 +36,8 @@ class OTLPReceiver extends EventEmitter {
         this.server = null;
         this.isRunning = false;
 
-        // Use provided instances or create new ones
-        this.usageTracker = options.usageTracker || new UsageTracker(this.projectRoot);
+        // Use provided instances (usageTracker is optional - metrics can be handled via events)
+        this.usageTracker = options.usageTracker || null;
         this.metricProcessor = options.metricProcessor || null;
 
         // Metrics storage for processing
@@ -255,9 +253,6 @@ class OTLPReceiver extends EventEmitter {
 
     async trackTokenUsage(model, type, count) {
         try {
-            // Map OTLP token type to UsageTracker format
-            const tokenType = this.mapTokenType(type);
-
             // Create usage entry
             const usage = {
                 orchestrationId: `otlp-${Date.now()}`, // Generate unique ID for each metric
@@ -273,8 +268,19 @@ class OTLPReceiver extends EventEmitter {
                 }
             };
 
-            // Track the usage
-            await this.usageTracker.recordUsage(usage);
+            // Track the usage if usageTracker is available
+            if (this.usageTracker) {
+                await this.usageTracker.recordUsage(usage);
+            }
+
+            // Always emit event for external handlers (e.g., global-context-manager)
+            this.emit('metrics', [{
+                name: 'claude_code.token.usage',
+                model: model,
+                type: type,
+                count: count,
+                usage: usage
+            }]);
 
             console.log(`[OTLP] Tracked usage: ${model} - ${type}: ${count} tokens`);
 
