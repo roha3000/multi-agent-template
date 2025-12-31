@@ -20,13 +20,13 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "auto-delegation-integration"
+        "dashboard-ux-redesign"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "dashboard-ux-redesign",
+        "auto-delegation-integration",
         "dashboard-blocked-tasks-view"
       ]
     },
@@ -92,39 +92,43 @@
       "delegationDepth": 0,
       "decomposition": null,
       "id": "dashboard-ux-redesign",
-      "title": "Dashboard UX Redesign - Progressive Disclosure Pattern",
-      "description": "Redesign dashboard to use progressive disclosure pattern. Make usage % primary metric, add drill-downs for quality score, confidence, tasks graph, artifacts. Add alerts banner for critical rate limits. Based on validation audit findings.",
-      "phase": "design",
+      "title": "Dashboard Fleet Management Redesign",
+      "description": "Redesign dashboard for Fleet Management mode (5+ concurrent sessions). Add agent lineage visibility, countdown timers for token/rate limits, smart defaults for metric surfacing, and alert system with banner+sound+toast. Based on agent swarm analysis and user requirements.",
+      "phase": "implementation",
       "priority": "high",
-      "estimate": "12h",
+      "estimate": "16h",
       "tags": [
         "dashboard",
         "ux",
-        "design",
+        "fleet-management",
+        "agent-monitoring",
         "visualization"
       ],
       "depends": {
         "blocks": ["dashboard-blocked-tasks-view"],
         "requires": [],
-        "related": ["dashboard-blocked-tasks-view"]
+        "related": ["dashboard-blocked-tasks-view", "auto-delegation-integration"]
       },
       "acceptance": [
-        "Usage % is primary metric in header (larger than quality score)",
-        "Alert banner displays when rate limit severity is critical",
-        "Account summary shows total cost, sessions, projects",
-        "Quality score clicks open drill-down with 6-dimension breakdown",
-        "Confidence score displays and has drill-down",
-        "Tasks drill-down shows D3.js dependency graph",
-        "Artifacts drill-down shows file table with view/launch",
-        "All drill-downs accessible via keyboard (ESC to close)",
-        "Mobile responsive layout works",
-        "Performance: drill-downs open in <200ms"
+        "Fleet overview shows all projects/sessions at a glance",
+        "5-hour countdown timer with remaining time visible",
+        "Session context countdown shows time until auto-compact",
+        "Agent lineage tree shows full parent-child delegation hierarchy",
+        "Alert banner with sound for critical alerts (token exhaustion, rate limit)",
+        "Toast notifications for other events (task claimed, session started)",
+        "Smart defaults auto-surface relevant metrics based on context",
+        "New /api/agent-pool/status endpoint returns lineage + metrics",
+        "New /api/overview endpoint returns fleet-level aggregates",
+        "WebSocket channel /ws/fleet for real-time delegation events",
+        "Keyboard navigation (arrows, ESC, number keys)",
+        "Performance: overview loads <500ms, drill-downs <200ms"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "assignee": null,
       "created": "2025-12-31T01:00:00.000Z",
-      "updated": "2025-12-31T01:00:00.000Z",
+      "updated": "2025-12-31T04:00:00.000Z",
       "designDocs": [
+        "docs/design/DASHBOARD-FLEET-MANAGEMENT-DESIGN.md",
         "docs/design/DASHBOARD-UX-REDESIGN.md",
         "docs/audits/dashboard-validation-2025-12-31.md"
       ]
