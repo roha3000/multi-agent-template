@@ -1,17 +1,19 @@
 # Current Plan
-**Phase**: IMPLEMENTATION
-**Status**: OTLP Integration Complete - Ready for Auto-Delegation
+**Phase**: DESIGN
+**Status**: Dashboard Validation Complete - UX Redesign Spec Ready
 
 ---
 
-## Session 67: OTLP Claude Code Integration ✅
+## Session 68: Dashboard Validation & UX Design ✅
 
 | Action | Result |
 |--------|--------|
-| OTLP receiver fix | UsageTracker now optional |
-| Claude Code config | Env vars in ~/.claude/settings.json |
-| End-to-end test | Metrics flow verified |
-| Documentation | DASHBOARD-FEATURES.md updated |
+| API endpoint audit | 84 endpoints mapped, 15 used in UI |
+| Bug fix | `/api/tasks/graph` - added getAllTasks() method |
+| Gap analysis | 10 high-priority endpoints not visualized |
+| UX recommendations | Progressive disclosure pattern proposed |
+| Design spec | `docs/design/DASHBOARD-UX-REDESIGN.md` created |
+| Task created | `dashboard-ux-redesign` added to backlog |
 
 ---
 
@@ -25,17 +27,29 @@
 
 ## Backlog
 
-**NEXT**: dashboard-blocked-tasks-view
-**LATER**: add-model-pricing
+**NEXT**: dashboard-ux-redesign (blocks dashboard-blocked-tasks-view)
+**LATER**: dashboard-blocked-tasks-view, add-model-pricing
+
+---
+
+## Key Findings
+
+1. **Usage % under-emphasized** - Should be primary metric
+2. **Quality score over-emphasized** - Move to drill-down
+3. **Confidence score missing** - Add new display
+4. **No alerts display** - Critical rate alerts hidden
+5. **Need drill-down pattern** - Progressive disclosure
 
 ---
 
 ## Quick Commands
 
 ```bash
-# Start dashboard with OTLP receiver
-npm run dashboard
+# Start dashboard
+node global-context-manager.js
 
-# Test OTLP health
-curl http://localhost:4318/health
+# Test API endpoints
+curl http://localhost:3033/api/account
+curl http://localhost:3033/api/usage/alerts
+curl http://localhost:3033/api/tasks/graph
 ```

@@ -1178,7 +1178,8 @@ class CoordinationDB extends EventEmitter {
    * @param {string} options.agentType - Type of agent claiming (cli/autonomous)
    * @param {Object} options.metadata - Additional claim metadata
    * @param {boolean} options.force - Force claim even if held by same session
-   * @returns {Object} Claim result { claimed, claim?, error?, existingClaim? }
+   * @param {string[]} options.ancestors - Array of ancestor task IDs (parent, grandparent, etc.)
+   * @returns {Object} Claim result { claimed, claim?, error?, existingClaim?, blockedByAncestor? }
    */
   claimTask(taskId, sessionId, options = {}) {
     const now = Date.now();
@@ -1186,14 +1187,43 @@ class CoordinationDB extends EventEmitter {
       ttlMs = this.options.claimConfig.defaultTTL,
       agentType = 'unknown',
       metadata = {},
-      force = false
+      force = false,
+      ancestors = []
     } = options;
 
     const expiresAt = now + ttlMs;
 
     // Use transaction for atomicity
     const txn = this.db.transaction(() => {
-      // Check for existing claim
+      // HIERARCHICAL CLAIMING: Check if any ancestor is claimed by a different session
+      // If an ancestor is claimed by another session, this task is implicitly reserved
+      if (ancestors && ancestors.length > 0) {
+        for (const ancestorId of ancestors) {
+          const ancestorClaim = this._stmts.getTaskClaim.get(ancestorId);
+          if (ancestorClaim) {
+            const isExpired = ancestorClaim.expires_at < now;
+            const isSameSession = ancestorClaim.session_id === sessionId;
+
+            if (!isExpired && !isSameSession) {
+              // Ancestor is claimed by different session - block this claim
+              return {
+                claimed: false,
+                error: 'ANCESTOR_CLAIMED',
+                blockedByAncestor: {
+                  taskId: ancestorId,
+                  sessionId: ancestorClaim.session_id,
+                  claimedAt: ancestorClaim.claimed_at,
+                  expiresAt: ancestorClaim.expires_at,
+                  remainingMs: ancestorClaim.expires_at - now,
+                  agentType: ancestorClaim.agent_type
+                }
+              };
+            }
+          }
+        }
+      }
+
+      // Check for existing claim on this task
       const existing = this._stmts.getTaskClaim.get(taskId);
 
       if (existing) {
@@ -1522,6 +1552,65 @@ class CoordinationDB extends EventEmitter {
       remainingMs: claim.remainingMs,
       claimedAt: claim.claimedAt,
       expiresAt: claim.expiresAt
+    };
+  }
+
+  /**
+   * Check if a task is reserved (either directly claimed or has a claimed ancestor)
+   * Used for hierarchical claiming - a task is reserved if any ancestor is claimed
+   * @param {string} taskId - Task ID to check
+   * @param {string[]} ancestors - Array of ancestor task IDs (parent, grandparent, etc.)
+   * @param {string} excludeSessionId - Session to exclude from reservation check (optional)
+   * @returns {Object} Reservation status { reserved, directClaim?, ancestorClaim?, holder? }
+   */
+  isTaskReserved(taskId, ancestors = [], excludeSessionId = null) {
+    const now = Date.now();
+
+    // Check direct claim on this task
+    const directClaim = this.getClaim(taskId);
+    if (directClaim) {
+      // If excluding a session and this is that session's claim, don't count as reserved
+      if (excludeSessionId && directClaim.sessionId === excludeSessionId) {
+        return {
+          reserved: false,
+          ownedBySelf: true,
+          directClaim
+        };
+      }
+      return {
+        reserved: true,
+        directClaim: true,
+        holder: directClaim.sessionId,
+        claim: directClaim
+      };
+    }
+
+    // Check ancestor claims
+    for (const ancestorId of ancestors) {
+      const ancestorClaim = this._stmts.getTaskClaim.get(ancestorId);
+      if (ancestorClaim && ancestorClaim.expires_at > now) {
+        // If excluding a session and this is that session's claim, don't count as reserved
+        if (excludeSessionId && ancestorClaim.session_id === excludeSessionId) {
+          return {
+            reserved: false,
+            ownedBySelf: true,
+            ancestorTaskId: ancestorId,
+            claim: this._formatTaskClaimRow(ancestorClaim, now)
+          };
+        }
+        return {
+          reserved: true,
+          ancestorClaim: true,
+          ancestorTaskId: ancestorId,
+          holder: ancestorClaim.session_id,
+          claim: this._formatTaskClaimRow(ancestorClaim, now)
+        };
+      }
+    }
+
+    return {
+      reserved: false,
+      holder: null
     };
   }
 

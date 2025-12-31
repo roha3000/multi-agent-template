@@ -578,8 +578,79 @@ class TaskManager extends EventEmitter {
    * @param {string} phase - Current phase
    * @param {Object} options - { fallbackToNext: true }
    * @returns {Task|null} Highest priority ready task
+   * @deprecated Use claimNextTask() instead - this method now claims tasks automatically.
+   *             getNextTask() is maintained for backwards compatibility but will be removed in v2.0.
    */
   getNextTask(phase, options = {}) {
+    // DEPRECATED: This method now claims tasks to prevent race conditions.
+    // Use claimNextTask() directly for full claim information.
+    console.warn(
+      '[DEPRECATED] TaskManager.getNextTask() is deprecated. ' +
+      'Use claimNextTask() instead for proper task claiming. ' +
+      'getNextTask() now automatically claims tasks.'
+    );
+
+    const { fallbackToNext = true } = options;
+
+    // Try 'now' tier first
+    let result = this.claimNextTask(phase, {
+      preferTier: 'now',
+      fallbackToNext: false,
+      agentType: 'cli'
+    });
+
+    if (result.task) {
+      return result.task;
+    }
+
+    // Try 'now' tier without phase filter
+    result = this.claimNextTask(null, {
+      preferTier: 'now',
+      fallbackToNext: false,
+      agentType: 'cli'
+    });
+
+    if (result.task) {
+      this.emit('task:phase-mismatch', {
+        task: result.task,
+        requestedPhase: phase,
+        taskPhase: result.task.phase
+      });
+      return result.task;
+    }
+
+    // Fallback to 'next' tier if enabled
+    if (fallbackToNext) {
+      result = this.claimNextTask(phase, {
+        preferTier: 'next',
+        fallbackToNext: false,
+        agentType: 'cli'
+      });
+
+      if (result.task) {
+        // Promote task from 'next' to 'now'
+        this._promoteTask(result.task.id, 'next', 'now');
+        this.emit('task:promoted', {
+          task: result.task,
+          from: 'next',
+          to: 'now'
+        });
+        return result.task;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Peek at the next task without claiming it (read-only query)
+   * Use this for display purposes only, NOT for selecting work.
+   * @param {string} phase - Current phase to filter tasks
+   * @param {Object} options - Query options
+   * @param {boolean} options.fallbackToNext - Allow fallback to 'next' tier (default: true)
+   * @returns {Task|null} Highest priority ready task (NOT claimed)
+   */
+  peekNextTask(phase, options = {}) {
     const { fallbackToNext = true } = options;
 
     // Try 'now' tier first
@@ -592,11 +663,6 @@ class TaskManager extends EventEmitter {
     // Try 'now' tier without phase filter (in case no phase-matching tasks)
     const readyAnyPhase = this.getReadyTasks({ backlog: 'now' });
     if (readyAnyPhase.length > 0) {
-      this.emit('task:phase-mismatch', {
-        task: readyAnyPhase[0],
-        requestedPhase: phase,
-        taskPhase: readyAnyPhase[0].phase
-      });
       return readyAnyPhase[0];
     }
 
@@ -604,13 +670,6 @@ class TaskManager extends EventEmitter {
     if (fallbackToNext) {
       const nextTier = this.getReadyTasks({ phase, backlog: 'next' });
       if (nextTier.length > 0) {
-        // Promote task from 'next' to 'now'
-        this._promoteTask(nextTier[0].id, 'next', 'now');
-        this.emit('task:promoted', {
-          task: nextTier[0],
-          from: 'next',
-          to: 'now'
-        });
         return nextTier[0];
       }
     }
@@ -650,6 +709,14 @@ class TaskManager extends EventEmitter {
    */
   getTask(taskId) {
     return this.tasks.tasks[taskId] || null;
+  }
+
+  /**
+   * Get all tasks (public wrapper for TaskGraph compatibility)
+   * @returns {Task[]} Array of all tasks
+   */
+  getAllTasks() {
+    return this._getAllTasks();
   }
 
   // ====================================================================
@@ -2424,8 +2491,9 @@ class TaskManager extends EventEmitter {
 
   /**
    * Check if a task is available for claiming
+   * Includes hierarchical claim check - a task is unavailable if any ancestor is claimed by another session
    * @param {Object} task - Task object to check
-   * @returns {Object} { available: boolean, reason?: string, existingClaim?: Object }
+   * @returns {Object} { available: boolean, reason?: string, existingClaim?: Object, blockedByAncestor?: Object }
    */
   _isTaskAvailableForClaim(task) {
     if (!task) {
@@ -2447,25 +2515,47 @@ class TaskManager extends EventEmitter {
       return { available: false, reason: 'Task has unmet dependencies' };
     }
 
-    // Check for existing claim in CoordinationDB
+    // Check for existing claim or ancestor claim in CoordinationDB
     if (this._coordinationDb) {
-      const existingClaim = this._coordinationDb.getClaim(task.id);
-      if (existingClaim) {
-        // Check if claim is expired
-        if (existingClaim.expiresAt > Date.now()) {
-          // Active claim exists
-          if (existingClaim.sessionId === this.sessionId) {
-            // We own this claim
-            return { available: true, reason: 'Already claimed by this session', existingClaim };
-          }
-          // Another session owns it
+      // Get ancestor task IDs for hierarchical claim check
+      const ancestors = this.getHierarchyAncestors(task.id).map(t => t.id);
+
+      // Use isTaskReserved for hierarchical check
+      const reservationStatus = this._coordinationDb.isTaskReserved(
+        task.id,
+        ancestors,
+        this.sessionId  // Exclude our own session
+      );
+
+      if (reservationStatus.reserved) {
+        if (reservationStatus.directClaim) {
+          // Task itself is claimed by another session
           return {
             available: false,
-            reason: `Task claimed by session ${existingClaim.sessionId}`,
-            existingClaim
+            reason: `Task claimed by session ${reservationStatus.holder}`,
+            existingClaim: reservationStatus.claim
+          };
+        } else if (reservationStatus.ancestorClaim) {
+          // An ancestor is claimed by another session - task is implicitly reserved
+          return {
+            available: false,
+            reason: `Task reserved by ancestor ${reservationStatus.ancestorTaskId} (session ${reservationStatus.holder})`,
+            blockedByAncestor: {
+              ancestorTaskId: reservationStatus.ancestorTaskId,
+              sessionId: reservationStatus.holder,
+              claim: reservationStatus.claim
+            }
           };
         }
-        // Claim is expired, task is available
+      }
+
+      // Check if we already own this task or an ancestor
+      if (reservationStatus.ownedBySelf) {
+        return {
+          available: true,
+          reason: 'Already owned by this session',
+          existingClaim: reservationStatus.directClaim || reservationStatus.claim
+        };
       }
     }
 
@@ -2560,9 +2650,13 @@ class TaskManager extends EventEmitter {
 
       // Attempt atomic claim via CoordinationDB
       if (this._coordinationDb) {
+        // Get ancestor task IDs for hierarchical claiming
+        const ancestors = this.getHierarchyAncestors(task.id).map(t => t.id);
+
         const claimResult = this._coordinationDb.claimTask(task.id, this.sessionId, {
           ttlMs: ttlMs,
-          agentType: agentType
+          agentType: agentType,
+          ancestors: ancestors  // Pass ancestors for hierarchical claim check
         });
 
         if (claimResult.claimed) {
@@ -2584,14 +2678,15 @@ class TaskManager extends EventEmitter {
           };
         }
 
-        // Claim failed (likely race condition)
+        // Claim failed (race condition, already claimed, or ancestor claimed)
         if (!fallbackToNext) {
           return {
             task: null,
             claim: null,
             error: claimResult.error || 'Failed to claim task',
             attempts: attempts,
-            existingClaim: claimResult.holder ? { sessionId: claimResult.holder } : null
+            existingClaim: claimResult.existingClaim || null,
+            blockedByAncestor: claimResult.blockedByAncestor || null
           };
         }
 

@@ -434,7 +434,7 @@ describe('TaskManager', () => {
   // QUERY - getNextTask
   // ===================================================================
 
-  describe('Query - getNextTask', () => {
+  describe('Query - peekNextTask (read-only)', () => {
     beforeEach(() => {
       taskManager.createTask({
         title: 'Critical Implementation',
@@ -461,14 +461,14 @@ describe('TaskManager', () => {
     });
 
     test('should return highest priority ready task for phase', () => {
-      const task = taskManager.getNextTask('implementation');
+      const task = taskManager.peekNextTask('implementation');
       expect(task).toBeDefined();
       expect(task.priority).toBe('critical');
     });
 
     test('should return null when no ready tasks for phase and fallback disabled', () => {
       // With fallback disabled, should return null when no tasks match the phase
-      const task = taskManager.getNextTask('validation', { fallbackToNext: false });
+      const task = taskManager.peekNextTask('validation', { fallbackToNext: false });
       // Implementation falls back to any phase in 'now' tier, so we get a task
       // To truly get null, we need empty 'now' tier
       expect(task).toBeDefined(); // Fallback behavior returns a task from another phase
@@ -478,19 +478,68 @@ describe('TaskManager', () => {
       // Clear the now tier
       taskManager.tasks.backlog.now.tasks = [];
 
-      const task = taskManager.getNextTask('validation', { fallbackToNext: false });
+      const task = taskManager.peekNextTask('validation', { fallbackToNext: false });
       expect(task).toBeNull();
     });
 
     test('should fallback to any phase if no phase-matching tasks', () => {
-      const task = taskManager.getNextTask('design');
+      const task = taskManager.peekNextTask('design');
       // Should return a task from another phase
       expect(task).toBeDefined();
+    });
+
+    test('should fallback to next tier if now tier is empty', () => {
+      // Clear now tier
+      taskManager.tasks.backlog.now.tasks = [];
+
+      const nextTask = taskManager.createTask({
+        title: 'Next Tier Task',
+        phase: 'implementation',
+        priority: 'high',
+        backlogTier: 'next'
+      });
+
+      const task = taskManager.peekNextTask('implementation');
+      expect(task).toBeDefined();
+      expect(task.id).toBe(nextTask.id);
+      // peekNextTask does NOT promote - it's read-only
+      expect(taskManager.tasks.backlog.next.tasks).toContain(nextTask.id);
+    });
+  });
+
+  // ===================================================================
+  // DEPRECATED - getNextTask (claims tasks, use claimNextTask instead)
+  // ===================================================================
+
+  describe('Deprecated - getNextTask (now claims tasks)', () => {
+    beforeEach(() => {
+      // Suppress deprecation warning for these tests
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      taskManager.createTask({
+        title: 'Task to Claim',
+        phase: 'implementation',
+        priority: 'critical',
+        backlogTier: 'now'
+      });
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    test('should return task and emit deprecation warning', () => {
+      const task = taskManager.getNextTask('implementation');
+      expect(task).toBeDefined();
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('[DEPRECATED]')
+      );
     });
 
     test('should promote from next tier if now tier is empty', () => {
       // Clear now tier
       taskManager.tasks.backlog.now.tasks = [];
+      taskManager.tasks.tasks = {};
 
       const nextTask = taskManager.createTask({
         title: 'Next Tier Task',
@@ -502,7 +551,7 @@ describe('TaskManager', () => {
       const task = taskManager.getNextTask('implementation');
       expect(task).toBeDefined();
       expect(task.id).toBe(nextTask.id);
-      // Should have been promoted to now
+      // getNextTask DOES promote (for backwards compatibility)
       expect(taskManager.tasks.backlog.now.tasks).toContain(nextTask.id);
     });
   });

@@ -26,6 +26,7 @@
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
+        "dashboard-ux-redesign",
         "dashboard-blocked-tasks-view"
       ]
     },
@@ -83,6 +84,50 @@
       "assignee": null,
       "created": "2025-12-19T04:07:23.583Z",
       "updated": "2025-12-28T03:00:00.000Z"
+    },
+    "dashboard-ux-redesign": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "dashboard-ux-redesign",
+      "title": "Dashboard UX Redesign - Progressive Disclosure Pattern",
+      "description": "Redesign dashboard to use progressive disclosure pattern. Make usage % primary metric, add drill-downs for quality score, confidence, tasks graph, artifacts. Add alerts banner for critical rate limits. Based on validation audit findings.",
+      "phase": "design",
+      "priority": "high",
+      "estimate": "12h",
+      "tags": [
+        "dashboard",
+        "ux",
+        "design",
+        "visualization"
+      ],
+      "depends": {
+        "blocks": ["dashboard-blocked-tasks-view"],
+        "requires": [],
+        "related": ["dashboard-blocked-tasks-view"]
+      },
+      "acceptance": [
+        "Usage % is primary metric in header (larger than quality score)",
+        "Alert banner displays when rate limit severity is critical",
+        "Account summary shows total cost, sessions, projects",
+        "Quality score clicks open drill-down with 6-dimension breakdown",
+        "Confidence score displays and has drill-down",
+        "Tasks drill-down shows D3.js dependency graph",
+        "Artifacts drill-down shows file table with view/launch",
+        "All drill-downs accessible via keyboard (ESC to close)",
+        "Mobile responsive layout works",
+        "Performance: drill-downs open in <200ms"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2025-12-31T01:00:00.000Z",
+      "updated": "2025-12-31T01:00:00.000Z",
+      "designDocs": [
+        "docs/design/DASHBOARD-UX-REDESIGN.md",
+        "docs/audits/dashboard-validation-2025-12-31.md"
+      ]
     },
     "dashboard-blocked-tasks-view": {
       "parentTaskId": null,

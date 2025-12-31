@@ -682,4 +682,230 @@ describe('Task Claims', () => {
 
   });
 
+  // ============================================================================
+  // HIERARCHICAL CLAIMING
+  // ============================================================================
+
+  describe('Hierarchical Claiming', () => {
+    // Task hierarchy for tests:
+    // parent-task
+    //   ├── child-task-1
+    //   │   └── grandchild-task
+    //   └── child-task-2
+    const parentTask = 'parent-task';
+    const childTask1 = 'child-task-1';
+    const childTask2 = 'child-task-2';
+    const grandchildTask = 'grandchild-task';
+
+    describe('claimTask() with ancestors', () => {
+
+      test('should block claim when parent is claimed by another session', () => {
+        // Session 1 claims parent
+        const parentResult = db.claimTask(parentTask, sessionId1, { ttlMs: 600000 });
+        expect(parentResult.claimed).toBe(true);
+
+        // Session 2 tries to claim child - should be blocked
+        const childResult = db.claimTask(childTask1, sessionId2, {
+          ttlMs: 600000,
+          ancestors: [parentTask]
+        });
+
+        expect(childResult.claimed).toBe(false);
+        expect(childResult.error).toBe('ANCESTOR_CLAIMED');
+        expect(childResult.blockedByAncestor.taskId).toBe(parentTask);
+        expect(childResult.blockedByAncestor.sessionId).toBe(sessionId1);
+      });
+
+      test('should block claim when grandparent is claimed by another session', () => {
+        // Session 1 claims parent
+        db.claimTask(parentTask, sessionId1, { ttlMs: 600000 });
+
+        // Session 2 tries to claim grandchild - should be blocked
+        const grandchildResult = db.claimTask(grandchildTask, sessionId2, {
+          ttlMs: 600000,
+          ancestors: [childTask1, parentTask]  // child first, then parent
+        });
+
+        expect(grandchildResult.claimed).toBe(false);
+        expect(grandchildResult.error).toBe('ANCESTOR_CLAIMED');
+        expect(grandchildResult.blockedByAncestor.taskId).toBe(parentTask);
+      });
+
+      test('should allow claim when same session owns ancestor', () => {
+        // Session 1 claims parent
+        db.claimTask(parentTask, sessionId1, { ttlMs: 600000 });
+
+        // Same session claims child - should succeed
+        const childResult = db.claimTask(childTask1, sessionId1, {
+          ttlMs: 600000,
+          ancestors: [parentTask]
+        });
+
+        expect(childResult.claimed).toBe(true);
+      });
+
+      test('should allow claim when ancestor claim is expired', async () => {
+        // Session 1 claims parent with very short TTL
+        db.claimTask(parentTask, sessionId1, { ttlMs: 50 });
+
+        // Wait for expiration
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Session 2 tries to claim child - should succeed (ancestor expired)
+        const childResult = db.claimTask(childTask1, sessionId2, {
+          ttlMs: 600000,
+          ancestors: [parentTask]
+        });
+
+        expect(childResult.claimed).toBe(true);
+      });
+
+      test('should allow claim when no ancestors provided', () => {
+        // Session 1 claims parent
+        db.claimTask(parentTask, sessionId1, { ttlMs: 600000 });
+
+        // Session 2 claims unrelated task (no ancestors)
+        const result = db.claimTask(taskId1, sessionId2, { ttlMs: 600000 });
+
+        expect(result.claimed).toBe(true);
+      });
+
+      test('should allow claim when ancestors list is empty', () => {
+        // Session 1 claims parent
+        db.claimTask(parentTask, sessionId1, { ttlMs: 600000 });
+
+        // Session 2 claims task with empty ancestors
+        const result = db.claimTask(taskId1, sessionId2, {
+          ttlMs: 600000,
+          ancestors: []
+        });
+
+        expect(result.claimed).toBe(true);
+      });
+
+    });
+
+    describe('isTaskReserved()', () => {
+
+      test('should return reserved=true when task itself is claimed', () => {
+        db.claimTask(taskId1, sessionId1, { ttlMs: 600000 });
+
+        const status = db.isTaskReserved(taskId1, []);
+
+        expect(status.reserved).toBe(true);
+        expect(status.directClaim).toBe(true);
+        expect(status.holder).toBe(sessionId1);
+      });
+
+      test('should return reserved=true when ancestor is claimed', () => {
+        db.claimTask(parentTask, sessionId1, { ttlMs: 600000 });
+
+        const status = db.isTaskReserved(childTask1, [parentTask]);
+
+        expect(status.reserved).toBe(true);
+        expect(status.ancestorClaim).toBe(true);
+        expect(status.ancestorTaskId).toBe(parentTask);
+        expect(status.holder).toBe(sessionId1);
+      });
+
+      test('should return reserved=false when excludeSessionId matches holder', () => {
+        db.claimTask(parentTask, sessionId1, { ttlMs: 600000 });
+
+        const status = db.isTaskReserved(childTask1, [parentTask], sessionId1);
+
+        expect(status.reserved).toBe(false);
+        expect(status.ownedBySelf).toBe(true);
+      });
+
+      test('should return reserved=false when no claims exist', () => {
+        const status = db.isTaskReserved(taskId1, [parentTask, childTask1]);
+
+        expect(status.reserved).toBe(false);
+        expect(status.holder).toBeNull();
+      });
+
+      test('should check direct claim before ancestor claims', () => {
+        // Both task and ancestor are claimed by different sessions
+        db.claimTask(parentTask, sessionId1, { ttlMs: 600000 });
+        db.claimTask(childTask1, sessionId2, { ttlMs: 600000 });
+
+        const status = db.isTaskReserved(childTask1, [parentTask]);
+
+        // Should report direct claim, not ancestor
+        expect(status.reserved).toBe(true);
+        expect(status.directClaim).toBe(true);
+        expect(status.holder).toBe(sessionId2);
+      });
+
+    });
+
+    describe('Hierarchical Workflow', () => {
+
+      test('session should be able to work on entire task tree after claiming parent', () => {
+        // Session 1 claims parent task
+        const parentResult = db.claimTask(parentTask, sessionId1, { ttlMs: 600000 });
+        expect(parentResult.claimed).toBe(true);
+
+        // Session 1 can claim children without issue
+        const child1Result = db.claimTask(childTask1, sessionId1, {
+          ttlMs: 600000,
+          ancestors: [parentTask]
+        });
+        expect(child1Result.claimed).toBe(true);
+
+        const child2Result = db.claimTask(childTask2, sessionId1, {
+          ttlMs: 600000,
+          ancestors: [parentTask]
+        });
+        expect(child2Result.claimed).toBe(true);
+
+        // Session 1 can claim grandchild
+        const grandchildResult = db.claimTask(grandchildTask, sessionId1, {
+          ttlMs: 600000,
+          ancestors: [childTask1, parentTask]
+        });
+        expect(grandchildResult.claimed).toBe(true);
+
+        // Session 2 cannot claim any of them
+        const blockedChild = db.claimTask(childTask1, sessionId2, {
+          ttlMs: 600000,
+          ancestors: [parentTask]
+        });
+        expect(blockedChild.claimed).toBe(false);
+        expect(blockedChild.error).toBe('ANCESTOR_CLAIMED');
+
+        const blockedGrandchild = db.claimTask(grandchildTask, sessionId2, {
+          ttlMs: 600000,
+          ancestors: [childTask1, parentTask]
+        });
+        expect(blockedGrandchild.claimed).toBe(false);
+        expect(blockedGrandchild.error).toBe('ANCESTOR_CLAIMED');
+      });
+
+      test('releasing parent should allow other sessions to claim children', () => {
+        // Session 1 claims parent
+        db.claimTask(parentTask, sessionId1, { ttlMs: 600000 });
+
+        // Session 2 blocked
+        let childResult = db.claimTask(childTask1, sessionId2, {
+          ttlMs: 600000,
+          ancestors: [parentTask]
+        });
+        expect(childResult.claimed).toBe(false);
+
+        // Session 1 releases parent
+        db.releaseClaim(parentTask, sessionId1, 'completed');
+
+        // Session 2 can now claim child
+        childResult = db.claimTask(childTask1, sessionId2, {
+          ttlMs: 600000,
+          ancestors: [parentTask]
+        });
+        expect(childResult.claimed).toBe(true);
+      });
+
+    });
+
+  });
+
 });

@@ -1,41 +1,49 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-31 (Session 67)
+**Last Updated**: 2025-12-31 (Session 69)
 **Current Phase**: IMPLEMENTATION
-**Status**: OTLP Integration Complete
+**Status**: Hierarchical Task Claiming Complete
 
 ---
 
-## Session 67: OTLP Claude Code Integration (COMPLETE)
+## Session 69: Hierarchical Task Claiming (COMPLETE)
 
 ### Tasks Completed
 | Task | Action | Result |
 |------|--------|--------|
-| OTLP Receiver Fix | Made usageTracker optional | `.claude/core/otlp-receiver.js` |
-| Claude Code Config | Added OTLP env vars | `~/.claude/settings.json` |
-| End-to-End Test | Sent test metric, verified processing | Metrics tracked successfully |
-| Documentation | Added OTLP section | `docs/features/DASHBOARD-FEATURES.md` |
+| Deprecate getNextTask() | Made it call claimNextTask() internally | Backwards compatible with warning |
+| Add peekNextTask() | Read-only query method | For display purposes only |
+| Hierarchical claiming | Block claims when ancestor claimed by other session | Implicit reservation model |
+| isTaskReserved() | New method for reservation checks | Checks direct + ancestor claims |
+| Tests | 13 new tests for hierarchical claiming | All pass |
 
 ### Files Modified
 | File | Change |
 |------|--------|
-| `.claude/core/otlp-receiver.js` | UsageTracker now optional, emits events for external handling |
-| `~/.claude/settings.json` | Added OTLP telemetry env vars |
-| `docs/features/DASHBOARD-FEATURES.md` | Added OTLP Integration section |
-| `.claude/dev-docs/tasks.json` | Task completed, backlog updated |
+| `.claude/core/coordination-db.js` | Added ancestors check in claimTask(), isTaskReserved() |
+| `.claude/core/task-manager.js` | Pass ancestors in claimNextTask(), updated _isTaskAvailableForClaim() |
+| `.claude/core/task-manager.test.js` | Tests for peekNextTask() and deprecated getNextTask() |
+| `__tests__/core/task-claims.test.js` | 13 new hierarchical claiming tests |
+| `TASK_MANAGEMENT_README.md` | Documented hierarchical claiming |
+
+### Key Design Decisions
+1. **Implicit reservation** - Claiming parent reserves all descendants (no explicit child claims)
+2. **Same session allowed** - Owning session can work on any task in its tree
+3. **Auto-cleanup** - Releasing parent frees all descendants
+4. **Backwards compatible** - getNextTask() still works (with deprecation warning)
 
 ---
 
-## Session 66: Dashboard Validation Audit ✅
-- **Tasks**: Swarm audit, quality circles fix, OTLP→UsageLimitTracker
-- **Key changes**: 74+ API endpoints mapped, CLI sessions gray, OTLP connected
-- **Files**: global-dashboard.html, global-context-manager.js, .env
+## Session 68: Dashboard Validation & UX Design ✅
+- **Tasks**: API audit, gap analysis, UX design spec
+- **Key changes**: 84 endpoints mapped, 10 high-priority gaps identified
+- **Files**: dashboard-validation audit, DASHBOARD-UX-REDESIGN.md
 
 ---
 
-## Session 65: Merge to Main + Cleanup ✅
-- **Tasks**: Merge context-tracker-consolidation, archive tasks
-- **Key changes**: 15 commits merged, tasks.json slimmed to 4 active
-- **Files**: branch deleted, tasks archived
+## Session 67: OTLP Claude Code Integration ✅
+- **Tasks**: OTLP receiver fix, Claude Code config
+- **Key changes**: UsageTracker optional, telemetry env vars configured
+- **Files**: otlp-receiver.js, ~/.claude/settings.json
 
 ---
 
@@ -47,8 +55,8 @@
 | Orchestrator | **CONSOLIDATED** - autonomous-orchestrator.js |
 | Dashboard | Port 3033 + OTLP receiver (port 4318) |
 | Database | **CONSOLIDATED** - `.claude/data/memory.db` |
-| Tests | **2478 passing**, 60 skipped, 0 failures |
-| OTLP Integration | **COMPLETE** - env vars in ~/.claude/settings.json |
+| Tests | **2492 passing**, 60 skipped, 0 failures |
+| Task Claiming | **HIERARCHICAL** - parent claim reserves subtasks |
 
 ---
 

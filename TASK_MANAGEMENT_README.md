@@ -215,14 +215,19 @@ score += successRate * 10; // 0-10 points based on history
 ```javascript
 const taskManager = new TaskManager({ memoryStore });
 
-// Query tasks
+// Query tasks (read-only, no claiming)
 taskManager.getReadyTasks({ phase, backlog, priority, tags });
-taskManager.getNextTask(phase);  // Highest-priority ready task
+taskManager.peekNextTask(phase);  // Preview next task WITHOUT claiming
 taskManager.getTask(taskId);
 taskManager.getBlockedTasks();
 taskManager.getDependencyGraph(taskId);
 taskManager.getBacklogSummary();
 taskManager.getStats();
+
+// Claim tasks (for work selection - prevents race conditions)
+const { task, claim } = taskManager.claimNextTask(phase, { agentType: 'cli' });
+taskManager.releaseTaskClaim(taskId, 'completed');
+taskManager.extendClaim(taskId);  // Extend TTL
 
 // Create/Update
 taskManager.createTask({ title, phase, priority, ... });
@@ -232,6 +237,44 @@ taskManager.deleteTask(taskId);
 
 // Backlog Management
 taskManager.moveToBacklog(taskId, 'now');
+```
+
+> **IMPORTANT**: When selecting work, always use `claimNextTask()` to prevent
+> race conditions between parallel CLI sessions. `peekNextTask()` is for
+> display purposes only. The deprecated `getNextTask()` now internally claims.
+
+### Hierarchical Claiming
+
+When a session claims a parent task, all its subtasks are **implicitly reserved**:
+
+```
+Session A claims "implement-auth" (parent)
+├── All descendants implicitly reserved
+│   ├── "auth-login" (subtask) - reserved
+│   ├── "auth-logout" (subtask) - reserved
+│   └── "auth-session" (subtask) - reserved
+│
+└── Session A spawns subagents for subtasks
+
+Session B tries to claim "auth-login"
+└── BLOCKED: ancestor "implement-auth" claimed by Session A
+```
+
+**Key behaviors:**
+- Claiming a parent blocks other sessions from claiming any descendant
+- Same session can freely work on all tasks in its claimed tree
+- Releasing parent automatically frees all descendants
+- Subagents spawned by the owning session work within the parent's claim
+
+```javascript
+// Session A claims parent - implicitly reserves all subtasks
+const { task, claim } = taskManager.claimNextTask('implementation');
+
+// Session A's subagents work on subtasks (no separate claim needed)
+// Other sessions are blocked from claiming subtasks
+
+// Release parent when done - frees entire tree
+taskManager.releaseTaskClaim(task.id, 'completed');
 ```
 
 ### Events
@@ -256,20 +299,24 @@ taskManager.on('task:promoted', ({ task, from, to }) => { ... });
 ```javascript
 // In autonomous-orchestrator.js
 
-const taskManager = new TaskManager({ memoryStore });
+const taskManager = new TaskManager({ memoryStore, sessionId: 'my-session' });
 
 function generatePhasePrompt(phase) {
-  // Get next recommended task
-  const task = taskManager.getNextTask(phase);
+  // Claim next task atomically (prevents race conditions with other sessions)
+  const { task, claim, error } = taskManager.claimNextTask(phase, {
+    agentType: 'autonomous',
+    ttlMs: 30 * 60 * 1000  // 30 minute TTL
+  });
 
   if (!task) {
-    return "No tasks ready. Consider creating new tasks or advancing phase.";
+    return `No tasks ready: ${error || 'Consider creating new tasks or advancing phase.'}`;
   }
 
   const prompt = `
-## Current Task
+## Current Task (Claimed)
 
 **${task.id}**: ${task.title}
+**Claimed Until**: ${new Date(claim.expiresAt).toISOString()}
 
 **Description**: ${task.description}
 
@@ -279,10 +326,10 @@ ${task.acceptance.map(c => `- [ ] ${c}`).join('\n')}
 **Estimated Effort**: ${task.estimate}
 
 **Instructions**:
-1. Mark task as in_progress: taskManager.updateStatus('${task.id}', 'in_progress')
+1. Task is already claimed - other sessions cannot take it
 2. Complete all acceptance criteria
 3. Run tests and validation
-4. Mark complete: taskManager.updateStatus('${task.id}', 'completed')
+4. Release claim: taskManager.releaseTaskClaim('${task.id}', 'completed')
 5. System will automatically select next task
   `;
 
@@ -291,8 +338,9 @@ ${task.acceptance.map(c => `- [ ] ${c}`).join('\n')}
 
 // After quality gate passes:
 if (isPhaseComplete(phase, score)) {
+  taskManager.releaseTaskClaim(currentTaskId, 'completed');
   taskManager.updateStatus(currentTaskId, 'completed');
-  const nextTask = taskManager.getNextTask(nextPhase);
+  const { task: nextTask } = taskManager.claimNextTask(nextPhase);
   // Continue with next task...
 }
 ```
@@ -424,8 +472,8 @@ const task = taskManager.createTask({
   backlogTier: 'now'
 });
 
-// Get next task
-const next = taskManager.getNextTask('implementation');
+// Claim next task for work
+const { task: next, claim } = taskManager.claimNextTask('implementation');
 
 // Listen to events
 taskManager.on('task:completed', ({ task }) => {
