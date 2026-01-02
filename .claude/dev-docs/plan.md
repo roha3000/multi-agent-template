@@ -1,39 +1,30 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Session 78 Complete
+**Status**: Dashboard Filtering Fixed - Session 81
 
 ---
 
-## Session 78 Summary ✅
+## Session 81 Summary ✅
 
-- ✅ Messages/tokens display fixed
-- ✅ Researched CLI session activity logging
-- ✅ Implemented subagent completion tracking (completedDelegations)
-- ✅ Dashboard now shows completed delegations in Hierarchy tab
-- ✅ Added 8 new tests for completedDelegations (61 total)
-- ✅ Created implementation plan for `cli-session-activity-logs`
+- ✅ Fixed inactive projects showing in dashboard
+- ✅ Updated fetchSessions() to only create placeholders for active projects
+- ✅ Added cleanup logic in SSE handler to remove stale sessions
 
 ---
 
-## Next Session: CLI Activity Logs
+## Files Modified
 
-Task: `cli-session-activity-logs` (3h estimate)
+| File | Change |
+|------|--------|
+| global-dashboard.html | Fixed inactive project filtering in fetchSessions() and SSE handler |
 
-### Phase 1: API Endpoint
-- Add `GET /api/logs/:sessionId/activity`
-- Read from `.claude/logs/tool-audit.jsonl`
-- Filter by claudeSessionId
+---
 
-### Phase 2: Dashboard UI
-- Update `updateLogsPane()` for CLI sessions
-- Render tool calls in table format
+## Next Priority: Auto-Delegation Integration
 
-### Phase 3: Real-time Updates
-- Enhance PostToolUse hook to emit SSE
-- Add streaming endpoint
+Task: `auto-delegation-integration` (20h estimate)
 
-### Phase 4: Testing
-- E2E tests for CLI logs display
+**Summary**: Connect prompts to DelegationDecider for automatic task complexity analysis.
 
 ---
 
@@ -46,6 +37,6 @@ node global-context-manager.js
 # View dashboard
 start http://localhost:3033/
 
-# Run E2E tests
-npm test -- tests/e2e/dashboard-fleet-ui.e2e.test.js
+# Run all tests
+npm test -- --silent
 ```

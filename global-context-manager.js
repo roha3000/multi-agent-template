@@ -2651,6 +2651,168 @@ app.delete('/api/logs/:sessionId', (req, res) => {
   res.json({ success: true });
 });
 
+// Debug endpoint for tool audit logs
+app.get('/api/logs/debug/activity', (req, res) => {
+  const auditLogPath = path.join(process.cwd(), '.claude', 'logs', 'tool-audit.jsonl');
+  const exists = fs.existsSync(auditLogPath);
+  let content = null;
+  let lines = [];
+  if (exists) {
+    content = fs.readFileSync(auditLogPath, 'utf8');
+    lines = content.trim().split('\n').filter(Boolean);
+  }
+  res.json({ path: auditLogPath, exists, lineCount: lines.length, lines: lines.slice(0, 10) });
+});
+
+// Get CLI session activity logs from tool-audit.jsonl
+app.get('/api/logs/:sessionId/activity', async (req, res) => {
+  const sessionId = req.params.sessionId;
+  const limit = parseInt(req.query.limit) || 100;
+  const offset = parseInt(req.query.offset) || 0;
+
+  const auditLogPath = path.join(process.cwd(), '.claude', 'logs', 'tool-audit.jsonl');
+  console.log('[ACTIVITY LOG] Requested sessionId:', sessionId, 'Path:', auditLogPath);
+
+  try {
+    if (!fs.existsSync(auditLogPath)) {
+      console.log('[ACTIVITY LOG] File does not exist');
+      return res.json({ entries: [], count: 0, total: 0, sessionId, debug: { path: auditLogPath, exists: false } });
+    }
+
+    const content = fs.readFileSync(auditLogPath, 'utf8');
+    const lines = content.trim().split('\n').filter(Boolean);
+    console.log('[ACTIVITY LOG] File has', lines.length, 'lines');
+
+    // Parse and filter by sessionId
+    const allEntries = [];
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        console.log('[ACTIVITY LOG] Entry sessionId:', entry.sessionId, 'Match:', entry.sessionId === sessionId);
+        // Match by sessionId or by project path (cwd)
+        if (entry.sessionId === sessionId ||
+            (entry.cwd && entry.cwd.includes(sessionId))) {
+          allEntries.push(entry);
+        }
+      } catch (parseErr) {
+        // Skip malformed lines
+      }
+    }
+    console.log('[ACTIVITY LOG] Matched entries:', allEntries.length);
+
+    // Sort by timestamp descending (newest first)
+    allEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    // Apply pagination
+    const entries = allEntries.slice(offset, offset + limit);
+
+    res.json({
+      entries,
+      count: entries.length,
+      total: allEntries.length,
+      sessionId,
+      hasMore: offset + limit < allEntries.length
+    });
+  } catch (err) {
+    console.error('[ACTIVITY LOG] Error reading tool audit log:', err);
+    res.status(500).json({ error: 'Failed to read activity logs', message: err.message });
+  }
+});
+
+// SSE stream for CLI session activity logs (real-time updates)
+app.get('/api/logs/:sessionId/activity/stream', (req, res) => {
+  const sessionId = req.params.sessionId;
+  const auditLogPath = path.join(process.cwd(), '.claude', 'logs', 'tool-audit.jsonl');
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*'
+  });
+
+  // Send initial connection message
+  res.write(`data: ${JSON.stringify({ type: 'connected', sessionId })}\n\n`);
+
+  let lastSize = 0;
+  let watcher = null;
+
+  // Initialize lastSize
+  try {
+    if (fs.existsSync(auditLogPath)) {
+      lastSize = fs.statSync(auditLogPath).size;
+    }
+  } catch (e) {
+    // Ignore
+  }
+
+  // Function to check for new entries
+  const checkForNewEntries = () => {
+    try {
+      if (!fs.existsSync(auditLogPath)) return;
+
+      const stats = fs.statSync(auditLogPath);
+      if (stats.size > lastSize) {
+        // Read new content
+        const fd = fs.openSync(auditLogPath, 'r');
+        const buffer = Buffer.alloc(stats.size - lastSize);
+        fs.readSync(fd, buffer, 0, buffer.length, lastSize);
+        fs.closeSync(fd);
+
+        const newContent = buffer.toString('utf8');
+        const newLines = newContent.trim().split('\n').filter(Boolean);
+
+        for (const line of newLines) {
+          try {
+            const entry = JSON.parse(line);
+            // Only send entries for this session
+            if (entry.sessionId === sessionId ||
+                (entry.cwd && entry.cwd.includes(sessionId))) {
+              res.write(`data: ${JSON.stringify({ type: 'activity', entry })}\n\n`);
+            }
+          } catch (parseErr) {
+            // Skip malformed lines
+          }
+        }
+
+        lastSize = stats.size;
+      }
+    } catch (err) {
+      console.error('[ACTIVITY STREAM] Error checking for new entries:', err.message);
+    }
+  };
+
+  // Watch file for changes
+  try {
+    const logsDir = path.dirname(auditLogPath);
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+
+    watcher = fs.watch(logsDir, (eventType, filename) => {
+      if (filename === 'tool-audit.jsonl') {
+        checkForNewEntries();
+      }
+    });
+  } catch (err) {
+    console.error('[ACTIVITY STREAM] Failed to watch file:', err.message);
+  }
+
+  // Send heartbeat every 30 seconds
+  const heartbeat = setInterval(() => {
+    res.write(`data: ${JSON.stringify({ type: 'heartbeat' })}\n\n`);
+  }, 30000);
+
+  // Cleanup on disconnect
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    if (watcher) watcher.close();
+    console.log(`[ACTIVITY STREAM] Client disconnected from session ${sessionId}`);
+  });
+
+  console.log(`[ACTIVITY STREAM] Client connected to session ${sessionId}`);
+});
+
 // SSE for Command Center real-time updates
 app.get('/api/sse/command-center', (req, res) => {
   res.writeHead(200, {

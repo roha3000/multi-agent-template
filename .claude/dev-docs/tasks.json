@@ -19,12 +19,11 @@
   "backlog": {
     "now": {
       "description": "Current sprint tasks",
-      "tasks": ["dashboard-v4-redesign"]
+      "tasks": []
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "cli-session-activity-logs",
         "auto-delegation-integration",
         "dashboard-blocked-tasks-view"
       ]
@@ -42,6 +41,8 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "cli-session-activity-logs",
+        "dashboard-v4-redesign",
         "dashboard-fleet-ui-completion",
         "otlp-claude-code-integration",
         "dashboard-validation-audit",
@@ -96,10 +97,12 @@
         "Keyboard nav: j/k navigate, 1-5 tabs, n launcher",
         "All E2E tests pass"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-01T12:00:00.000Z",
+      "updated": "2026-01-02T12:00:00.000Z",
+      "completedAt": "2026-01-02T12:00:00.000Z",
+      "completionNotes": "All 6 subtasks complete. 2-panel layout, 5 tabs, CLI/AUTO badges, session launcher, keyboard nav. 29 E2E tests passing.",
       "designDocs": [
         "docs/design/dashboard-v4-final.html",
         "docs/design/DASHBOARD-V4-IMPLEMENTATION-PLAN.md"
@@ -129,10 +132,11 @@
         "Responsive breakpoints for narrow screens",
         "Proper scrolling in each panel"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-01T12:00:00.000Z"
+      "updated": "2026-01-02T12:00:00.000Z",
+      "completedAt": "2026-01-02T12:00:00.000Z"
     },
     "dashboard-v4-sessions": {
       "parentTaskId": "dashboard-v4-redesign",
@@ -158,10 +162,11 @@
         "No health/confidence on session items",
         "Session selection highlighting works"
       ],
-      "status": "blocked",
+      "status": "completed",
       "assignee": null,
       "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-01T12:00:00.000Z"
+      "updated": "2026-01-02T12:00:00.000Z",
+      "completedAt": "2026-01-02T12:00:00.000Z"
     },
     "dashboard-v4-tabs": {
       "parentTaskId": "dashboard-v4-redesign",
@@ -188,10 +193,11 @@
         "Logs tab with color-coded activity stream",
         "Tab switching works via click and keyboard (1-5)"
       ],
-      "status": "blocked",
+      "status": "completed",
       "assignee": null,
       "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-01T12:00:00.000Z"
+      "updated": "2026-01-02T12:00:00.000Z",
+      "completedAt": "2026-01-02T12:00:00.000Z"
     },
     "dashboard-v4-backend": {
       "parentTaskId": "dashboard-v4-redesign",
@@ -216,10 +222,11 @@
         "Health/confidence only on task objects",
         "Hierarchy summary in /api/agent-pool/status"
       ],
-      "status": "blocked",
+      "status": "completed",
       "assignee": null,
       "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-01T12:00:00.000Z"
+      "updated": "2026-01-02T12:00:00.000Z",
+      "completedAt": "2026-01-02T12:00:00.000Z"
     },
     "dashboard-v4-launcher": {
       "parentTaskId": "dashboard-v4-redesign",
@@ -244,10 +251,11 @@
         "Launches claude --dangerously-skip-permissions in new terminal",
         "Keyboard shortcut 'n' opens modal"
       ],
-      "status": "blocked",
+      "status": "completed",
       "assignee": null,
       "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-01T12:00:00.000Z"
+      "updated": "2026-01-02T12:00:00.000Z",
+      "completedAt": "2026-01-02T12:00:00.000Z"
     },
     "dashboard-v4-testing": {
       "parentTaskId": "dashboard-v4-redesign",
@@ -273,10 +281,11 @@
         "Performance <500ms load, <200ms tab switch",
         "Works in Chrome, Firefox, Edge"
       ],
-      "status": "blocked",
+      "status": "completed",
       "assignee": null,
       "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-01T12:00:00.000Z"
+      "updated": "2026-01-02T12:00:00.000Z",
+      "completedAt": "2026-01-02T12:00:00.000Z"
     },
     "add-model-pricing": {
       "parentTaskId": null,
@@ -398,10 +407,12 @@
         "Real-time updates via SSE when new tool calls occur",
         "Consistent format between CLI and autonomous session logs"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2026-01-02T06:00:00.000Z",
       "updated": "2026-01-02T07:00:00.000Z",
+      "completedAt": "2026-01-02T08:00:00.000Z",
+      "completionNotes": "Implemented all 4 phases: API endpoint, dashboard UI update, SSE streaming, E2E tests. 9 new tests added.",
       "researchComplete": true,
       "implementationPlan": {
         "phase1": {

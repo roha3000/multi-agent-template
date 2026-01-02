@@ -1,153 +1,75 @@
-# Project Summary
-
-**Last Updated**: 2025-12-30T22:50:00.000Z
-**Current Phase**: Implementation
-**Overall Progress**: 35%
+# PROJECT SUMMARY - Multi-Agent Template
+**Last Updated**: 2026-01-02 (Session 81)
+**Current Phase**: IMPLEMENTATION
+**Status**: Dashboard Filtering Fixed
 
 ---
 
-## Session 12: Dashboard CoordinationDB Consolidation (CURRENT)
+## Session 81: Dashboard Inactive Project Filtering ✅
 
-### Work Completed
-| Task | Status | Notes |
-|------|--------|-------|
-| Fix CoordinationDB path mismatch | Done | Consolidated to canonical path |
-| Fix session ID type mismatch | Done | String conversion for compatibility |
-| Add critical safety rules | Done | Prevent killing all node.exe |
-| Create global CLAUDE.md | Done | ~/.claude/CLAUDE.md for all projects |
+Fixed bug where inactive projects (6 of 7) were showing in the dashboard session list even when they had no active sessions.
 
-### Key Fixes
-- **Root cause identified**: Dashboard used `.coordination/sessions.db` while TaskManager used `.claude/dev-docs/.coordination/tasks.db` (duplicate DB)
-- **Fixed**: Consolidated to canonical path per ARCHITECTURE.md
-- **Safety**: Added warnings against `taskkill //IM node.exe` which crashes Claude Code
+### Bug Fix
+| Issue | Fix |
+|-------|-----|
+| Inactive projects showing | Only create placeholder sessions for `p.status === 'active'` projects |
+| Stale sessions persisting | Added cleanup logic to remove sessions when project becomes inactive |
 
 ### Files Modified
-| File | Change |
-|------|--------|
-| global-context-manager.js | Fixed DB path + type conversion |
-| CLAUDE.md | Added critical safety rules |
-| ~/.claude/CLAUDE.md | Created global safety rules |
+| File | Changes |
+|------|---------|
+| `global-dashboard.html` | Fixed `fetchSessions()` and SSE handler to filter inactive projects |
 
 ---
 
-## Session 11: Express 5 Route Syntax Fix
-- **Tasks**: express5-route-fix
-- **Key changes**: Updated route syntax for path-to-regexp v8
-- **Files**: global-context-manager.js
+## Session 80: CLI Session Activity Logs ✅
+- **Tasks**: Activity API, SSE streaming, tool details in Logs tab
+- **Files**: global-context-manager.js, global-dashboard.html, hooks, tests
 
 ---
 
-## Project Overview
-
-Multi-agent development framework with continuous loop orchestration, autonomous usage tracking, and real-time monitoring dashboard. Focus on **automated context window management** to prevent compaction through intelligent checkpoint triggering.
-
-### Key Objectives
-- ✅ Build comprehensive dashboard testing infrastructure
-- 🔄 Implement automated usage tracking via OpenTelemetry
-- ⏳ Enable multi-project continuous loop support
-- ✅ Achieve production-ready code quality (85/100 minimum)
+## Session 79: Dashboard v4 Verification ✅
+- **Tasks**: Verified all 6 Dashboard v4 subtasks complete
+- **Files**: tasks.json updated
 
 ---
 
-
-## Phase Progress
-
-| Phase | Status | Quality Score | Artifacts |
-|-------|--------|---------------|-----------|
-| Research | ✅ Completed | 85/100 | 1 |
-| Planning 👉 | 🔄 In Progress | 85/100 | 0 |
-| Design | ⏳ Not Started | N/A | 0 |
-| Test-First | ⏳ Not Started | N/A | 0 |
-| Implementation | ⏳ Not Started | N/A | 1 |
-| Validation | ⏳ Not Started | N/A | 0 |
-| Iteration | ⏳ Not Started | N/A | 0 |
+## Session 78: Subagent Completion Tracking ✅
+- **Tasks**: Track completed delegations, hierarchy tab shows history
+- **Files**: session-registry.js, global-dashboard.html
 
 ---
 
-
-## Quality Metrics
-
-**Average Score**: 85.0/100  
-**Highest Score**: 85/100  
-**Lowest Score**: 85/100  
-**Phases Completed**: 2/7
-
-### Phase Scores
-| Phase | Score | Status |
-|-------|-------|--------|
-| Research | 85/100 | ✅ Passed |
-| Planning | 85/100 | ✅ Passed |
+## Session 77: Dashboard Controls & Short IDs ✅
+- **Tasks**: Modal fix, session controls, short IDs
+- **Files**: global-dashboard.html, global-context-manager.js
 
 ---
 
+## Project Health
 
-## Recent Activity
-
-- **Planning** by Strategic Planner (Score: 85/100)  
-  _11/18/2025, 8:53:23 PM_
-
-- **Planning** by Test Agent  
-  _11/18/2025, 8:53:22 PM_
-
-- **Planning** by Test Agent  
-  _11/18/2025, 8:53:22 PM_
-
-- **Planning** by Strategic Planner (Score: 85/100)  
-  _11/18/2025, 8:51:41 PM_
-
-- **Research** by Test Agent  
-  _11/18/2025, 8:51:41 PM_
-
-- **Planning** by Test Agent  
-  _11/18/2025, 8:51:41 PM_
-
-- **Research** by Test Agent  
-  _11/18/2025, 8:45:07 PM_
-
-- **Planning** by Test Agent  
-  _11/18/2025, 8:45:07 PM_
+| Component | Status |
+|-----------|--------|
+| Context Tracker | **CONSOLIDATED** - global-context-tracker.js |
+| Session Registry | **ENHANCED** - claudeSessionId support |
+| Dashboard | Port 3033 - v4 layout + activity logs |
+| Hooks | SessionStart + SessionEnd + PostToolUse configured |
+| Tests | 2539+ passing (9 new for CLI logs) |
 
 ---
 
+## Quick Reference
 
-## Key Decisions
-
-### 1. Use PostgreSQL
-
-**Phase**: Planning  
-**Agent**: System Architect  
-**When**: 11/18/2025, 8:53:23 PM
-
-**Rationale**: Better for relational data
-
-### 2. Use PostgreSQL
-
-**Phase**: Planning  
-**Agent**: System Architect  
-**When**: 11/18/2025, 8:51:41 PM
-
-**Rationale**: Better for relational data
-
+- **Dashboard**: http://localhost:3033/
+- **Start**: `node global-context-manager.js`
+- **Tests**: `npm test -- --silent`
 
 ---
 
+## Next Steps (Resume Here)
 
-## Generated Artifacts
-
-### Implementation
-
-- `test-component.tsx`
-
-### Research
-
-- `docs/db-research.md`
-
-
----
-
-
-## Next Steps
-
-1. Transition to Design phase
-
----
+1. **Pick next task** from backlog:
+   - `auto-delegation-integration` (20h) - Hook-based delegation analysis
+   - `dashboard-blocked-tasks-view` (2h) - Show blocked tasks + dependencies
+2. **Test CLI activity logs**: Use tools, check Logs tab shows details
+3. **New session required**: PostToolUse hook needs new session to activate

@@ -3030,6 +3030,7 @@
     let predictions = {};
     let usageLimits = {};
     let eventSource = null;
+    let activityEventSource = null; // SSE for CLI activity logs
     // Per-project task/execution data (key = project path)
     const projectDataMap = new Map();
     // Legacy single-project references (for backward compatibility)
@@ -3431,8 +3432,9 @@
             });
           }
 
-          // If no CLI sessions but project exists, still show it
-          if (cliSessions.length === 0) {
+          // If no CLI sessions but project is ACTIVE, show a placeholder
+          // Skip inactive projects entirely to avoid showing stale entries
+          if (cliSessions.length === 0 && p.status === 'active') {
             allSessions.push({
               id: `cli-${p.folder}-default`,
               project: p.name,
@@ -3861,8 +3863,9 @@
                 }
               }
 
-              // Only create default session if no real CLI sessions exist
-              if (cliSessions.length === 0) {
+              // Only create default session if no real CLI sessions exist AND project is active
+              // Skip inactive projects to avoid showing stale entries
+              if (cliSessions.length === 0 && p.status === 'active') {
                 const existing = sessions.find(s => s.id === defaultSessionId);
                 const newContextPercent = p.metrics?.contextPercent || 0;
 
@@ -3885,7 +3888,7 @@
                     folder: p.folder,
                     cliSessionId: 'default',
                     sessionType: 'cli',
-                    status: p.status === 'active' ? 'active' : 'idle',
+                    status: 'active',  // Only active projects reach here now
                     contextPercent: newContextPercent,
                     cost: p.metrics?.cost || 0,
                     tokens: p.metrics?.contextUsed || 0,
@@ -3907,6 +3910,13 @@
                     lastUpdate: p.metrics?.lastUpdate,
                     startTime: p.metrics?.lastUpdate
                   });
+                }
+              } else if (cliSessions.length === 0 && p.status !== 'active') {
+                // Remove stale default session if project became inactive
+                const staleIdx = sessions.findIndex(s => s.id === defaultSessionId);
+                if (staleIdx !== -1) {
+                  sessions.splice(staleIdx, 1);
+                  anyChanged = true;
                 }
               }
             }
@@ -5241,20 +5251,50 @@
       const pane = document.getElementById('pane-logs');
       if (!pane) return;
 
+      // Close previous activity stream if any
+      if (activityEventSource) {
+        activityEventSource.close();
+        activityEventSource = null;
+      }
+
       if (!session) {
         pane.innerHTML = '<div class="section-header">Logs</div><p style="color: var(--text-muted)">Select a session to view logs.</p>';
         return;
       }
 
-      // CLI sessions don't have logs in the dashboard
+      // CLI sessions: fetch tool activity from API
       if (!session.registryId) {
+        console.log('[Dashboard] CLI session detected, fetching activity for:', session.id);
         pane.innerHTML = `
-          <div class="section-header">Activity Log</div>
-          <p style="color: var(--text-muted); padding: 12px;">
-            CLI sessions run independently and log to their terminal.<br><br>
-            Logs are only available for autonomous orchestrator sessions.
-          </p>
+          <div class="section-header">Tool Activity</div>
+          <p style="color: var(--text-muted); padding: 12px;">Loading CLI session activity...</p>
         `;
+
+        // Try to get session ID - use cliSessionId (for CLI) or claudeSessionId (for autonomous) or fall back to id
+        const sessionId = session.cliSessionId || session.claudeSessionId || session.id;
+        console.log('[Dashboard] Using sessionId:', sessionId);
+        let activityCount = 0;
+
+        fetch(`/api/logs/${encodeURIComponent(sessionId)}/activity?limit=50`)
+          .then(res => res.json())
+          .then(data => {
+            console.log('[Dashboard] Activity data received:', data);
+            activityCount = data.total || 0;
+            renderActivityTable(pane, data.entries || [], activityCount, data.hasMore);
+
+            // Subscribe to SSE for real-time updates
+            subscribeToActivityStream(sessionId, pane, () => activityCount);
+          })
+          .catch(err => {
+            console.error('[Dashboard] Failed to fetch CLI activity:', err);
+            pane.innerHTML = `
+              <div class="section-header">Tool Activity</div>
+              <p style="color: var(--text-muted); padding: 12px;">
+                Could not load activity logs.<br>
+                <span style="font-size:12px;color:var(--color-danger)">${escapeHtml(err.message)}</span>
+              </p>
+            `;
+          });
         return;
       }
 
@@ -5273,6 +5313,90 @@
           `).join('') : '<tr><td colspan="3" style="color:var(--text-muted)">No log entries</td></tr>'}
         </table>
       `;
+    }
+
+    function renderActivityTable(pane, entries, total, hasMore) {
+      if (entries.length > 0) {
+        pane.innerHTML = `
+          <div class="section-header">Tool Activity <span style="font-weight:normal;color:var(--text-muted)" id="activity-count">(${total} total)</span></div>
+          <table class="data-table" id="activity-table">
+            <thead><tr><th style="width:70px">Time</th><th style="width:40px"></th><th style="width:70px">Tool</th><th>Details</th></tr></thead>
+            <tbody id="activity-tbody">
+              ${entries.map(e => `
+                <tr>
+                  <td style="color:var(--text-muted);font-size:11px">${new Date(e.timestamp).toLocaleTimeString()}</td>
+                  <td style="color:var(--color-${e.success ? 'success' : 'danger'})">${e.success ? '✓' : '✗'}</td>
+                  <td style="font-weight:500">${escapeHtml(e.tool)}</td>
+                  <td style="color:var(--text-muted);font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(e.summary || '')}">${escapeHtml(e.summary || '')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          ${hasMore ? '<p style="color:var(--text-muted);font-size:12px;padding:8px;">Showing most recent 50 entries</p>' : ''}
+        `;
+      } else {
+        pane.innerHTML = `
+          <div class="section-header">Tool Activity <span style="font-weight:normal;color:var(--text-muted)" id="activity-count">(0 total)</span></div>
+          <table class="data-table" id="activity-table">
+            <thead><tr><th style="width:70px">Time</th><th style="width:40px"></th><th style="width:70px">Tool</th><th>Details</th></tr></thead>
+            <tbody id="activity-tbody">
+              <tr id="no-activity-row"><td colspan="4" style="color:var(--text-muted)">No activity yet - tool calls will appear here</td></tr>
+            </tbody>
+          </table>
+        `;
+      }
+    }
+
+    function subscribeToActivityStream(sessionId, pane, getCount) {
+      try {
+        activityEventSource = new EventSource(`/api/logs/${encodeURIComponent(sessionId)}/activity/stream`);
+
+        activityEventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'activity' && data.entry) {
+              const tbody = document.getElementById('activity-tbody');
+              const countSpan = document.getElementById('activity-count');
+              const noActivityRow = document.getElementById('no-activity-row');
+
+              if (tbody) {
+                // Remove "no activity" row if present
+                if (noActivityRow) noActivityRow.remove();
+
+                // Create new row at the top
+                const tr = document.createElement('tr');
+                tr.style.animation = 'fadeIn 0.3s ease-in';
+                tr.innerHTML = `
+                  <td style="color:var(--text-muted);font-size:11px">${new Date(data.entry.timestamp).toLocaleTimeString()}</td>
+                  <td style="color:var(--color-${data.entry.success ? 'success' : 'danger'})">${data.entry.success ? '✓' : '✗'}</td>
+                  <td style="font-weight:500">${escapeHtml(data.entry.tool)}</td>
+                  <td style="color:var(--text-muted);font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(data.entry.summary || '')}">${escapeHtml(data.entry.summary || '')}</td>
+                `;
+                tbody.insertBefore(tr, tbody.firstChild);
+
+                // Limit visible rows to 50
+                while (tbody.children.length > 50) {
+                  tbody.removeChild(tbody.lastChild);
+                }
+              }
+
+              // Update count
+              if (countSpan) {
+                const currentCount = parseInt(countSpan.textContent.match(/\d+/)?.[0] || '0') + 1;
+                countSpan.textContent = `(${currentCount} total)`;
+              }
+            }
+          } catch (err) {
+            console.error('[Dashboard] Error processing activity event:', err);
+          }
+        };
+
+        activityEventSource.onerror = (err) => {
+          console.warn('[Dashboard] Activity stream error, will retry:', err);
+        };
+      } catch (err) {
+        console.error('[Dashboard] Failed to subscribe to activity stream:', err);
+      }
     }
 
     function updateAllTabPanes(session) {

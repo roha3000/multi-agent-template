@@ -1,53 +1,47 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2026-01-02 (Session 78)
+**Last Updated**: 2026-01-02 (Session 81)
 **Current Phase**: IMPLEMENTATION
-**Status**: Subagent Completion Tracking (Complete)
+**Status**: Dashboard Filtering Fixed
 
 ---
 
-## Session 78: Subagent Completion Tracking ✅
+## Session 81: Dashboard Inactive Project Filtering ✅
 
-Researched CLI activity logging, implemented subagent completion tracking, dashboard now shows delegation history.
+Fixed bug where inactive projects (6 of 7) were showing in the dashboard session list even when they had no active sessions.
 
-### Features Added
-| Feature | Description |
-|---------|-------------|
-| completedDelegations | Session registry now tracks completed delegations (not deleted) |
-| Delegation history | Hierarchy tab shows active + completed delegations |
-| Real-time refresh | Dashboard refreshes when delegations complete/fail |
-| New API methods | `getCompletedDelegations()`, `getAllDelegations()` |
-| Pruning | Keeps last 50 completed delegations per session |
+### Bug Fix
+| Issue | Fix |
+|-------|-----|
+| Inactive projects showing | Only create placeholder sessions for `p.status === 'active'` projects |
+| Stale sessions persisting | Added cleanup logic to remove sessions when project becomes inactive |
 
 ### Files Modified
 | File | Changes |
 |------|---------|
-| `.claude/core/session-registry.js` | Added completedDelegations array, getter methods |
-| `global-dashboard.html` | Hierarchy tab shows delegations, refresh on complete |
-| `__tests__/core/session-registry.test.js` | +8 new tests (61 total) |
-| `.claude/dev-docs/tasks.json` | Updated cli-session-activity-logs with implementation plan |
+| `global-dashboard.html` | Fixed `fetchSessions()` and SSE handler to filter inactive projects |
+
+---
+
+## Session 80: CLI Session Activity Logs ✅
+- **Tasks**: Activity API, SSE streaming, tool details in Logs tab
+- **Files**: global-context-manager.js, global-dashboard.html, hooks, tests
+
+---
+
+## Session 79: Dashboard v4 Verification ✅
+- **Tasks**: Verified all 6 Dashboard v4 subtasks complete
+- **Files**: tasks.json updated
+
+---
+
+## Session 78: Subagent Completion Tracking ✅
+- **Tasks**: Track completed delegations, hierarchy tab shows history
+- **Files**: session-registry.js, global-dashboard.html
 
 ---
 
 ## Session 77: Dashboard Controls & Short IDs ✅
-- **Tasks**: Modal fix, session controls, short IDs, phantom sessions
-- **Files**: global-dashboard.html, global-context-manager.js
-
----
-
-## Session 76: Session Lifecycle & Context Sync ✅
-- **Tasks**: SessionStart/End hooks, context sync, active-only filter
-- **Files**: hooks/session-start.js, hooks/session-end.js, global-context-manager.js
-
----
-
-## Session 75: Dashboard v4 Bug Fixes ✅
-- **Tasks**: Fixed blank dashboard, session list, null errors
-- **Files**: global-dashboard.html, global-context-manager.js
-
----
-
-## Session 74: Dashboard v4 Redesign ✅
-- **Tasks**: Complete redesign from card-based to 2-panel layout
+- **Tasks**: Modal fix, session controls, short IDs
 - **Files**: global-dashboard.html, global-context-manager.js
 
 ---
@@ -58,9 +52,9 @@ Researched CLI activity logging, implemented subagent completion tracking, dashb
 |-----------|--------|
 | Context Tracker | **CONSOLIDATED** - global-context-tracker.js |
 | Session Registry | **ENHANCED** - claudeSessionId support |
-| Dashboard | Port 3033 - v4 layout, lifecycle hooks |
-| Hooks | SessionStart + SessionEnd configured |
-| Tests | 29 E2E passing |
+| Dashboard | Port 3033 - v4 layout + activity logs |
+| Hooks | SessionStart + SessionEnd + PostToolUse configured |
+| Tests | 2539+ passing (9 new for CLI logs) |
 
 ---
 
@@ -68,15 +62,14 @@ Researched CLI activity logging, implemented subagent completion tracking, dashb
 
 - **Dashboard**: http://localhost:3033/
 - **Start**: `node global-context-manager.js`
-- **Tests**: `npm test -- tests/e2e/dashboard-fleet-ui.e2e.test.js`
+- **Tests**: `npm test -- --silent`
 
 ---
 
 ## Next Steps (Resume Here)
 
 1. **Pick next task** from backlog:
-   - `cli-session-activity-logs` - Research PostToolUse hooks for CLI activity
-   - `auto-delegation-integration` - Hook-based delegation analysis
-   - `dashboard-blocked-tasks-view` - Show blocked tasks + dependencies
-2. **Test session lifecycle**: Start new session, verify it appears in dashboard
-3. **Test session end**: Exit session, verify it disappears from dashboard
+   - `auto-delegation-integration` (20h) - Hook-based delegation analysis
+   - `dashboard-blocked-tasks-view` (2h) - Show blocked tasks + dependencies
+2. **Test CLI activity logs**: Use tools, check Logs tab shows details
+3. **New session required**: PostToolUse hook needs new session to activate

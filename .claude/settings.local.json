@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/session-start.js"
+            "command": "node .claude/hooks/session-start.js"
           }
         ]
       }
@@ -41,7 +41,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/session-end.js"
+            "command": "node .claude/hooks/session-end.js"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/track-progress.js"
           }
         ]
       }
