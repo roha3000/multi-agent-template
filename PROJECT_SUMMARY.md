@@ -1,33 +1,36 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2026-01-02 (Session 77)
+**Last Updated**: 2026-01-02 (Session 78)
 **Current Phase**: IMPLEMENTATION
-**Status**: Dashboard Controls & Short IDs (Complete)
+**Status**: Subagent Completion Tracking (Complete)
 
 ---
 
-## Session 77: Dashboard Controls & Short IDs ✅
+## Session 78: Subagent Completion Tracking ✅
 
-Fixed session control buttons, short IDs, eliminated phantom sessions, improved CLI UX.
+Researched CLI activity logging, implemented subagent completion tracking, dashboard now shows delegation history.
 
 ### Features Added
 | Feature | Description |
 |---------|-------------|
-| +Session modal fix | Fixed CSS class mismatch (`.visible` → `.open`) |
-| Session controls | Fixed pause/skip/end to use `registryId` for autonomous sessions |
-| CLI buttons disabled | Control buttons disabled for CLI sessions (can't control remotely) |
-| Skip-task endpoint | Added `/api/sessions/:id/skip-task` backend endpoint |
-| Short session IDs | Maps long IDs to simple S1, S2, S3... format |
-| Active-only filter | Dashboard only shows active sessions |
-| No phantom sessions | OTLP metrics without session ID are now ignored |
-| CLI logs message | Logs tab shows explanation for CLI sessions |
+| completedDelegations | Session registry now tracks completed delegations (not deleted) |
+| Delegation history | Hierarchy tab shows active + completed delegations |
+| Real-time refresh | Dashboard refreshes when delegations complete/fail |
+| New API methods | `getCompletedDelegations()`, `getAllDelegations()` |
+| Pruning | Keeps last 50 completed delegations per session |
 
 ### Files Modified
 | File | Changes |
 |------|---------|
-| `global-dashboard.html` | Modal fix, short IDs, disabled buttons, logs message |
-| `global-context-manager.js` | Added `/api/sessions/:id/skip-task` endpoint |
-| `.claude/core/global-context-tracker.js` | Ignore metrics without session ID |
-| `.claude/dev-docs/tasks.json` | Added `cli-session-activity-logs` research task |
+| `.claude/core/session-registry.js` | Added completedDelegations array, getter methods |
+| `global-dashboard.html` | Hierarchy tab shows delegations, refresh on complete |
+| `__tests__/core/session-registry.test.js` | +8 new tests (61 total) |
+| `.claude/dev-docs/tasks.json` | Updated cli-session-activity-logs with implementation plan |
+
+---
+
+## Session 77: Dashboard Controls & Short IDs ✅
+- **Tasks**: Modal fix, session controls, short IDs, phantom sessions
+- **Files**: global-dashboard.html, global-context-manager.js
 
 ---
 
@@ -71,9 +74,9 @@ Fixed session control buttons, short IDs, eliminated phantom sessions, improved 
 
 ## Next Steps (Resume Here)
 
-1. **Debug messages/tokens display**: Dashboard shows 0 despite correct API data
-   - Check `updateOverviewPane()` - expects `session.messages`, `session.inputTokens`
-   - Verify session object structure in browser console
+1. **Pick next task** from backlog:
+   - `cli-session-activity-logs` - Research PostToolUse hooks for CLI activity
+   - `auto-delegation-integration` - Hook-based delegation analysis
+   - `dashboard-blocked-tasks-view` - Show blocked tasks + dependencies
 2. **Test session lifecycle**: Start new session, verify it appears in dashboard
 3. **Test session end**: Exit session, verify it disappears from dashboard
-4. **Commit changes**: Create commit for session lifecycle features

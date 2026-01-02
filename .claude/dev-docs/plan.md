@@ -1,29 +1,39 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Session 77 Complete
+**Status**: Session 78 Complete
 
 ---
 
-## Session 77 Summary ✅
+## Session 78 Summary ✅
 
-All items completed and committed:
-- Fixed +Session modal (CSS `.visible` → `.open`)
-- Session controls use `registryId` for autonomous sessions
-- CLI session buttons disabled (can't control remotely)
-- Added `/api/sessions/:id/skip-task` endpoint
-- Short session ID mapping (S1, S2, S3...)
-- Active-only session filter (hides inactive history)
-- Eliminated phantom 'default' sessions
-- CLI logs tab shows explanatory message
-- Added `cli-session-activity-logs` research task
+- ✅ Messages/tokens display fixed
+- ✅ Researched CLI session activity logging
+- ✅ Implemented subagent completion tracking (completedDelegations)
+- ✅ Dashboard now shows completed delegations in Hierarchy tab
+- ✅ Added 8 new tests for completedDelegations (61 total)
+- ✅ Created implementation plan for `cli-session-activity-logs`
 
 ---
 
-## Next Steps
+## Next Session: CLI Activity Logs
 
-1. Research CLI session activity logs (new task)
-2. Continue Dashboard v4 feature work
-3. Or pick up `auto-delegation-integration`
+Task: `cli-session-activity-logs` (3h estimate)
+
+### Phase 1: API Endpoint
+- Add `GET /api/logs/:sessionId/activity`
+- Read from `.claude/logs/tool-audit.jsonl`
+- Filter by claudeSessionId
+
+### Phase 2: Dashboard UI
+- Update `updateLogsPane()` for CLI sessions
+- Render tool calls in table format
+
+### Phase 3: Real-time Updates
+- Enhance PostToolUse hook to emit SSE
+- Add streaming endpoint
+
+### Phase 4: Testing
+- E2E tests for CLI logs display
 
 ---
 

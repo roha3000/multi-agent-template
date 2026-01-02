@@ -371,18 +371,17 @@
       "childTaskIds": [],
       "delegatedTo": null,
       "delegationDepth": 0,
-      "decomposition": null,
+      "decomposition": "sequential",
       "id": "cli-session-activity-logs",
-      "title": "Research: Activity Logs for CLI Sessions in Dashboard",
-      "description": "Explore options to capture and display activity logs (tool calls, file edits, commands) for CLI sessions in the dashboard. Currently only autonomous orchestrator sessions have logs. Research: PostToolUse hooks, OTLP event streaming, Claude Code log files.",
-      "phase": "research",
+      "title": "CLI Session Activity Logs in Dashboard",
+      "description": "Display tool calls, file edits, and commands for CLI sessions in the dashboard Logs tab. Research complete - PostToolUse hook already writes to tool-audit.jsonl. Need to wire this to dashboard API and UI.",
+      "phase": "implementation",
       "priority": "medium",
-      "estimate": "2h",
+      "estimate": "3h",
       "tags": [
         "dashboard",
         "logging",
         "hooks",
-        "research",
         "cli-sessions"
       ],
       "depends": {
@@ -393,16 +392,68 @@
         ]
       },
       "acceptance": [
-        "Document available Claude Code hooks (PostToolUse, PreToolUse, etc.)",
-        "Assess overhead of hook-based activity logging",
-        "Explore alternative approaches (OTLP events, log files)",
-        "Recommend implementation approach with trade-offs",
-        "Create implementation plan if viable"
+        "API endpoint /api/logs/:sessionId/activity serves tool-audit.jsonl data",
+        "Logs tab displays tool calls for CLI sessions (not just 'logs to terminal' message)",
+        "Activity entries show: timestamp, tool name, status (success/fail)",
+        "Real-time updates via SSE when new tool calls occur",
+        "Consistent format between CLI and autonomous session logs"
       ],
       "status": "ready",
       "assignee": null,
       "created": "2026-01-02T06:00:00.000Z",
-      "updated": "2026-01-02T06:00:00.000Z"
+      "updated": "2026-01-02T07:00:00.000Z",
+      "researchComplete": true,
+      "implementationPlan": {
+        "phase1": {
+          "title": "API Endpoint for Tool Audit Logs",
+          "files": ["global-context-manager.js"],
+          "steps": [
+            "Add GET /api/logs/:sessionId/activity endpoint",
+            "Read from .claude/logs/tool-audit.jsonl",
+            "Filter by claudeSessionId (from hook metadata)",
+            "Return parsed JSON array of tool calls"
+          ]
+        },
+        "phase2": {
+          "title": "Dashboard Logs Tab Update",
+          "files": ["global-dashboard.html"],
+          "steps": [
+            "Update updateLogsPane() to fetch /api/logs/:sessionId/activity for CLI sessions",
+            "Render tool calls in same table format as autonomous logs",
+            "Show tool name, status, timestamp columns"
+          ]
+        },
+        "phase3": {
+          "title": "Real-time Updates",
+          "files": [".claude/hooks/track-progress.js", "global-context-manager.js"],
+          "steps": [
+            "Enhance PostToolUse hook to emit SSE event after writing to JSONL",
+            "Add /api/logs/:sessionId/activity/stream SSE endpoint",
+            "Dashboard subscribes for live tool call updates"
+          ]
+        },
+        "phase4": {
+          "title": "Testing",
+          "files": ["__tests__/e2e/dashboard-cli-logs.e2e.test.js"],
+          "steps": [
+            "Test API returns correct tool audit data",
+            "Test dashboard renders logs for CLI sessions",
+            "Test SSE streaming works"
+          ]
+        }
+      },
+      "researchFindings": {
+        "existingInfrastructure": [
+          "PostToolUse hook writes to .claude/logs/tool-audit.jsonl",
+          "LogStreamer exists for autonomous session logs",
+          "SSE infrastructure in place for real-time updates"
+        ],
+        "dataFormat": {
+          "file": ".claude/logs/tool-audit.jsonl",
+          "fields": ["timestamp", "tool", "success", "sessionId"]
+        },
+        "recommendation": "Extend existing LogStreamer pattern for tool-audit.jsonl"
+      }
     },
     "dashboard-blocked-tasks-view": {
       "parentTaskId": null,
