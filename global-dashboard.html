@@ -5203,6 +5203,18 @@
         return;
       }
 
+      // CLI sessions don't have logs in the dashboard
+      if (!session.registryId) {
+        pane.innerHTML = `
+          <div class="section-header">Activity Log</div>
+          <p style="color: var(--text-muted); padding: 12px;">
+            CLI sessions run independently and log to their terminal.<br><br>
+            Logs are only available for autonomous orchestrator sessions.
+          </p>
+        `;
+        return;
+      }
+
       const logs = session.logs || session.activityLog || [];
 
       pane.innerHTML = `
