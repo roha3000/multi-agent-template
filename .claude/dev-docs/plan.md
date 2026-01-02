@@ -1,32 +1,26 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Session Lifecycle Hooks Added, Context Sync In Progress
+**Status**: Dashboard Controls & Short IDs Complete
 
 ---
 
-## Session 76 Progress
+## Session 77 Progress
 
 ### Completed
-- SessionEnd hook created (`.claude/hooks/session-end.js`)
-- SessionStart hook updated to register with dashboard
-- `/api/sessions/end-by-claude-id` endpoint added
-- GlobalContextTracker → SessionRegistry sync implemented
-- `/api/overview` defaults to active sessions only
-- Hierarchy tab UI improved with friendly labels
-
-### Known Issue
-Messages/tokens showing 0 in Overview pane. Context % works.
+- Fixed +Session modal (CSS `.visible` → `.open`)
+- Session controls now use `registryId` for autonomous sessions
+- CLI sessions show toast warning (can't be controlled remotely)
+- Added `/api/sessions/:id/skip-task` endpoint
+- Short session ID mapping (S1, S2, S3...)
 
 ---
 
 ## Next Steps
 
-1. Debug messages/tokens display issue
-   - Dashboard expects `session.messages`, `session.inputTokens`, `session.outputTokens`
-   - Sync code sends these fields but they don't appear
-   - Check browser console for actual session object structure
-2. Test session lifecycle (start → appears, exit → disappears)
-3. Commit session lifecycle changes
+1. Test +Session button in browser
+2. Test session control buttons (autonomous sessions)
+3. Verify short IDs display correctly
+4. Commit session 77 changes
 
 ---
 

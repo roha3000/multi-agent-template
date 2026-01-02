@@ -1288,11 +1288,15 @@ The dev-docs 3-file pattern preserves all critical context.
    * @returns {number} Current context percentage for the session
    */
   processOTLPMetric(metric, projectFolder = null) {
-    // Extract session ID from metric attributes
+    // Extract session ID from metric attributes - skip if none provided
     const sessionId = metric.attributes?.['conversation.id'] ||
                      metric.attributes?.['session.id'] ||
-                     metric.attributes?.session_id ||
-                     'default';
+                     metric.attributes?.session_id;
+
+    // Ignore metrics without a valid session ID
+    if (!sessionId) {
+      return 0;
+    }
 
     // Resolve project folder if not provided
     const resolvedProjectFolder = projectFolder || this._resolveProjectFolder(sessionId);

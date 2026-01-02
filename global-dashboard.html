@@ -3033,6 +3033,10 @@
     // Queue filter state
     let queueFilter = 'all'; // 'all', 'claimed', 'available', 'mine'
 
+    // Short session ID mapping (longId -> shortId like "S1", "S2", etc.)
+    const shortIdMap = new Map();
+    let shortIdCounter = 1;
+
     // Settings (persisted to localStorage)
     let settings = {
       showErrorCount: true,
@@ -3342,10 +3346,16 @@
 
         // 1. Add all CLI sessions from projects (each as separate entry)
         for (const p of (projectsData.projects || [])) {
-          // Filter out agent-* sessions (subagent tasks) - they should roll up to parent
+          // Filter out agent-* sessions (subagent tasks) and 'default' placeholder
+          // 'default' is a legacy placeholder that shouldn't appear when real sessions exist
+          const hasRealSessions = (p.sessions || []).some(s => s.id && s.id !== 'default' && !s.id.startsWith('agent-'));
           const cliSessions = (p.sessions || []).filter(s => {
             const id = s.id || '';
-            return !id.startsWith('agent-') && !id.includes('/agent-');
+            // Skip agent sessions
+            if (id.startsWith('agent-') || id.includes('/agent-')) return false;
+            // Skip 'default' placeholder if real sessions exist
+            if (id === 'default' && hasRealSessions) return false;
+            return true;
           });
 
           // Always show each CLI session separately
@@ -3357,13 +3367,15 @@
             const existingSession = sessions.find(s => s.id === sessionId);
 
             // Consider session active if:
-            // 1. Project is marked active, OR
-            // 2. Session is marked as current, OR
-            // 3. Has activity within the last 5 minutes
+            // 1. Session is explicitly marked active, OR
+            // 2. Has activity within the last 5 minutes
             const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
             const lastUpdateTime = typeof cliSession.lastUpdate === 'number' ? cliSession.lastUpdate : 0;
             const hasRecentActivity = lastUpdateTime > fiveMinutesAgo;
-            const isActive = p.status === 'active' || cliSession.isActive || hasRecentActivity;
+            const isActive = cliSession.isActive || hasRecentActivity;
+
+            // Only show active sessions (skip old/inactive ones)
+            if (!isActive) continue;
 
             allSessions.push({
               id: sessionId,
@@ -3506,6 +3518,9 @@
           return !cliId.startsWith('agent-');
         });
 
+        // Clean up short IDs for sessions that no longer exist
+        cleanupShortIds(sessions.map(s => s.id));
+
         // Note: Enrichment with task/execution data happens in fetchTasksAndExecution()
         updateTrafficLights();
         updateSessionList();
@@ -3579,6 +3594,27 @@
       if (isStale) return { status: 'stale', claim };
       if (isMine) return { status: 'mine', claim };
       return { status: 'claimed', claim };
+    }
+
+    // Get or assign a short session ID (S1, S2, S3...)
+    function getShortSessionId(longId) {
+      if (!longId) return '';
+      if (shortIdMap.has(longId)) {
+        return shortIdMap.get(longId);
+      }
+      const shortId = `S${shortIdCounter++}`;
+      shortIdMap.set(longId, shortId);
+      return shortId;
+    }
+
+    // Clean up short IDs for sessions that no longer exist
+    function cleanupShortIds(currentSessionIds) {
+      const currentSet = new Set(currentSessionIds);
+      for (const [longId] of shortIdMap) {
+        if (!currentSet.has(longId)) {
+          shortIdMap.delete(longId);
+        }
+      }
     }
 
     // Format session ID for display (short version)
@@ -4061,8 +4097,8 @@
       if (isAutonomous && !isIdle && quality < 50) borderClass = 'critical';
       else if (isAutonomous && !isIdle && quality < 75) borderClass = 'warning';
 
-      // Format session ID for display
-      const sessionIdShort = s.cliSessionId || (s.registryId ? `#${s.registryId}` : '');
+      // Format session ID for display - use short sequential ID (S1, S2, S3...)
+      const sessionIdShort = getShortSessionId(s.id);
       const sessionTypeLabel = isAutonomous ? 'AUTO' : 'CLI';
       const sessionTypeBadgeClass = isAutonomous ? 'autonomous' : 'cli';
 
@@ -4595,39 +4631,84 @@
     }
 
     // ===== SESSION CONTROLS =====
+    // Helper to get registry ID for session control operations
+    function getSessionRegistryId(id) {
+      const session = sessions.find(s => s.id === id);
+      if (!session) return null;
+      // Use registryId for autonomous sessions (numeric ID in SessionRegistry)
+      // CLI sessions don't have registryId and can't be controlled remotely
+      return session.registryId;
+    }
+
     async function togglePause(id) {
       const session = sessions.find(s => s.id === id);
       if (!session) return;
 
+      const registryId = getSessionRegistryId(id);
+      if (!registryId) {
+        showToast('warning', 'Not Available', 'CLI sessions cannot be paused remotely. Use Ctrl+C in the terminal.');
+        return;
+      }
+
       const action = session.status === 'paused' ? 'resume' : 'pause';
       try {
-        await fetch(`/api/sessions/${id}/${action}`, { method: 'POST' });
+        const res = await fetch(`/api/sessions/${registryId}/${action}`, { method: 'POST' });
+        if (!res.ok) {
+          const data = await res.json();
+          showToast('error', 'Failed', data.error || `Failed to ${action} session`);
+          return;
+        }
         fetchSessions();
       } catch (err) {
         console.error(`Failed to ${action} session:`, err);
+        showToast('error', 'Error', err.message);
       }
     }
 
     async function skipTask(id) {
+      const registryId = getSessionRegistryId(id);
+      if (!registryId) {
+        showToast('warning', 'Not Available', 'CLI sessions cannot skip tasks remotely.');
+        return;
+      }
+
       if (!confirm('Skip current task and move to next?')) return;
       try {
-        await fetch(`/api/sessions/${id}/skip-task`, { method: 'POST' });
+        const res = await fetch(`/api/sessions/${registryId}/skip-task`, { method: 'POST' });
+        if (!res.ok) {
+          const data = await res.json();
+          showToast('error', 'Failed', data.error || 'Failed to skip task');
+          return;
+        }
         fetchSessions();
       } catch (err) {
         console.error('Failed to skip task:', err);
+        showToast('error', 'Error', err.message);
       }
     }
 
     async function endSession(id) {
+      const registryId = getSessionRegistryId(id);
+      if (!registryId) {
+        showToast('warning', 'Not Available', 'CLI sessions cannot be ended remotely. Use Ctrl+C in the terminal.');
+        return;
+      }
+
       if (!confirm('End this session? This cannot be undone.')) return;
       try {
-        await fetch(`/api/sessions/${id}/end`, { method: 'POST' });
+        const res = await fetch(`/api/sessions/${registryId}/end`, { method: 'POST' });
+        if (!res.ok) {
+          const data = await res.json();
+          showToast('error', 'Failed', data.error || 'Failed to end session');
+          return;
+        }
         if (selectedSessionId === id) {
           selectedSessionId = null;
         }
         fetchSessions();
       } catch (err) {
         console.error('Failed to end session:', err);
+        showToast('error', 'Error', err.message);
       }
     }
 
@@ -4827,7 +4908,7 @@
     function openNewSessionModal() {
       const modal = document.getElementById('sessionLauncherModal');
       if (modal) {
-        modal.classList.add('visible');
+        modal.classList.add('open');
         launcherSelectedPath = null;
         const customInput = document.getElementById('customProjectPath');
         if (customInput) {
@@ -4840,7 +4921,7 @@
 
     function closeNewSessionModal() {
       const modal = document.getElementById('sessionLauncherModal');
-      if (modal) modal.classList.remove('visible');
+      if (modal) modal.classList.remove('open');
       launcherSelectedPath = null;
     }
 
@@ -5075,8 +5156,8 @@
         return;
       }
 
+      const shortId = getShortSessionId(session.id);
       const rows = [
-        ['Session ID', session.id],
         ['Type', session.type || 'CLI'],
         ['Project', session.project || '-'],
         ['Phase', session.phase || '-'],
@@ -5090,6 +5171,7 @@
       pane.innerHTML = `
         <div class="section-header">Session Details</div>
         <table class="data-table">
+          <tr><td style="width:120px;color:var(--text-muted)">Session</td><td><strong>${escapeHtml(shortId)}</strong> <span style="color:var(--text-muted);font-size:11px">${escapeHtml(session.id)}</span></td></tr>
           ${rows.map(([k, v]) => `<tr><td style="width:120px;color:var(--text-muted)">${k}</td><td>${escapeHtml(String(v))}</td></tr>`).join('')}
         </table>
       `;

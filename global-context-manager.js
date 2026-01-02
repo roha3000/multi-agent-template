@@ -1987,6 +1987,32 @@ app.post('/api/sessions/:id/end', (req, res) => {
   res.json({ success: true, session });
 });
 
+// Skip current task and move to next in queue
+app.post('/api/sessions/:id/skip-task', (req, res) => {
+  const id = parseInt(req.params.id);
+  const session = sessionRegistry.get(id);
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  // Move current task to skipped, advance to next in queue
+  const skippedTask = session.currentTask;
+  const taskQueue = session.taskQueue || [];
+  const nextTask = taskQueue.length > 0 ? taskQueue.shift() : null;
+
+  const updates = {
+    currentTask: nextTask,
+    taskQueue: taskQueue,
+    skippedTasks: [...(session.skippedTasks || []), skippedTask].filter(Boolean)
+  };
+
+  sessionRegistry.update(id, updates);
+
+  console.log(`[COMMAND CENTER] Session ${id} skipped task: ${skippedTask?.title || 'none'}, next: ${nextTask?.title || 'none'}`);
+  res.json({ success: true, skippedTask, nextTask });
+});
+
 // End session by Claude Code session ID (used by SessionEnd hook)
 app.post('/api/sessions/end-by-claude-id', (req, res) => {
   const { claudeSessionId, reason } = req.body;

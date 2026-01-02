@@ -1,37 +1,34 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2026-01-02 (Session 76)
+**Last Updated**: 2026-01-02 (Session 77)
 **Current Phase**: IMPLEMENTATION
-**Status**: Session Lifecycle Hooks + Context Sync (In Progress)
+**Status**: Dashboard Controls & Short IDs (Complete)
 
 ---
 
-## Session 76: Session Lifecycle & Context Sync (CURRENT)
+## Session 77: Dashboard Controls & Short IDs (CURRENT)
 
-Added session lifecycle hooks and linked GlobalContextTracker to SessionRegistry.
+Fixed session control buttons and added short session ID mapping.
 
 ### Features Added
 | Feature | Description |
 |---------|-------------|
-| SessionEnd hook | Deregisters session from dashboard on exit |
-| SessionStart hook | Registers session with dashboard, includes Claude session ID |
-| Context sync | Links GlobalContextTracker to SessionRegistry for real metrics |
-| Active-only filter | `/api/overview` now defaults to active sessions only |
-| Hierarchy UI | Improved agent hierarchy tab with user-friendly labels |
+| +Session modal fix | Fixed CSS class mismatch (`.visible` → `.open`) |
+| Session controls | Fixed pause/skip/end to use `registryId` for autonomous sessions |
+| CLI control warnings | Shows toast warning that CLI sessions can't be controlled remotely |
+| Skip-task endpoint | Added `/api/sessions/:id/skip-task` backend endpoint |
+| Short session IDs | Maps long IDs to simple S1, S2, S3... format |
 
 ### Files Modified
 | File | Changes |
 |------|---------|
-| `.claude/hooks/session-start.js` | Rewrote to register with dashboard API |
-| `.claude/hooks/session-end.js` | **NEW** - Calls /api/sessions/end-by-claude-id |
-| `.claude/settings.local.json` | Added SessionStart/SessionEnd hook config |
-| `.claude/core/session-registry.js` | Added claudeSessionId field, lookup methods |
-| `global-context-manager.js` | Added sync handler, end-by-claude-id endpoint, activeOnly filter |
-| `global-dashboard.html` | Improved hierarchy pane labels and status display |
+| `global-dashboard.html` | Fixed modal class, added `getShortSessionId()`, updated controls |
+| `global-context-manager.js` | Added `/api/sessions/:id/skip-task` endpoint |
 
-### Known Issue
-- Messages/tokens not displaying in Overview pane despite correct field names
-- Context % displays correctly
-- Debug next session: check how dashboard merges tracker vs registry sessions
+---
+
+## Session 76: Session Lifecycle & Context Sync ✅
+- **Tasks**: SessionStart/End hooks, context sync, active-only filter
+- **Files**: hooks/session-start.js, hooks/session-end.js, global-context-manager.js
 
 ---
 
