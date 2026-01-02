@@ -50,15 +50,15 @@
       background: var(--bg-primary);
       color: var(--text-primary);
       line-height: 1.5;
-      overflow: hidden;
-      height: 100vh;
+      overflow-y: auto;
+      min-height: 100vh;
     }
 
     /* ===== LAYOUT ===== */
     .app-container {
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      min-height: 100vh;
     }
 
     .header {
@@ -228,10 +228,10 @@
     .fleet-header {
       background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
       border-bottom: 1px solid var(--border-color);
-      padding: 12px 20px;
+      padding: 8px 16px;
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 20px;
+      gap: 12px;
       align-items: center;
     }
 
@@ -285,7 +285,7 @@
 
     .fleet-stats {
       display: flex;
-      gap: 20px;
+      gap: 12px;
     }
 
     .fleet-stat {
@@ -310,11 +310,10 @@
 
     /* ===== ALERT BANNER ===== */
     .alert-banner {
-      display: none;
+      display: none;  /* Hidden by default, shown via .visible class */
       background: var(--color-danger);
       color: white;
       padding: 8px 20px;
-      display: flex;
       align-items: center;
       justify-content: space-between;
       font-size: 13px;
@@ -435,9 +434,14 @@
     /* ===== PROJECT CARDS (Fleet View) ===== */
     .project-cards {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 16px;
-      padding: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+      padding: 12px 16px;
+    }
+
+    .project-cards:empty {
+      display: none;  /* Collapse when no active projects */
+      padding: 0;
     }
 
     .project-card {
@@ -448,7 +452,7 @@
     }
 
     .project-card-header {
-      padding: 12px 16px;
+      padding: 8px 12px;
       border-bottom: 1px solid var(--border-color);
       display: flex;
       justify-content: space-between;
@@ -480,11 +484,11 @@
     }
 
     .project-card-body {
-      padding: 12px 16px;
+      padding: 8px 12px;
     }
 
     .project-task-list {
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
 
     .project-task-item {
@@ -523,7 +527,7 @@
     }
 
     .project-card-footer {
-      padding: 10px 16px;
+      padding: 6px 12px;
       background: var(--bg-tertiary);
       display: flex;
       justify-content: space-between;
@@ -598,11 +602,159 @@
       margin-top: 2px;
     }
 
+    /* ===== FLEET LINEAGE PANEL ===== */
+    .fleet-lineage-panel {
+      display: none;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      max-height: 300px;
+      overflow: hidden;
+    }
+
+    .fleet-lineage-panel.visible {
+      display: block;
+    }
+
+    .fleet-lineage-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 16px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .fleet-lineage-header h3 {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .fleet-lineage-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .fleet-lineage-btn {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .fleet-lineage-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .fleet-lineage-content {
+      padding: 12px 16px;
+      overflow-y: auto;
+      max-height: 250px;
+    }
+
+    .fleet-lineage-empty {
+      color: var(--text-muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .lineage-tree {
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
+    .lineage-node {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 2px 0;
+      cursor: pointer;
+    }
+
+    .lineage-node:hover {
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+    }
+
+    .lineage-node-prefix {
+      color: var(--text-muted);
+      user-select: none;
+    }
+
+    .lineage-node-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .lineage-node-status.active { background: var(--color-success); animation: pulse 2s infinite; }
+    .lineage-node-status.idle { background: var(--text-muted); }
+    .lineage-node-status.completed { background: var(--color-info); }
+    .lineage-node-status.error { background: var(--color-danger); }
+
+    .lineage-node-label {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .lineage-node-meta {
+      color: var(--text-muted);
+      font-size: 11px;
+      margin-left: auto;
+    }
+
+    .lineage-node-children {
+      margin-left: 20px;
+    }
+
+    .lineage-node-children.collapsed {
+      display: none;
+    }
+
+    /* View Lineage button in fleet header */
+    .fleet-view-lineage-btn {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .fleet-view-lineage-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .fleet-view-lineage-btn.active {
+      background: var(--color-info);
+      color: white;
+      border-color: var(--color-info);
+    }
+
     /* ===== MAIN CONTENT (SPLIT PANE) ===== */
     .main-content {
       flex: 1;
       display: flex;
       overflow: hidden;
+      min-height: 0;  /* Allow flex children to shrink below content size */
     }
 
     /* ===== SESSION LIST (LEFT PANE) ===== */
@@ -1656,6 +1808,27 @@
       .session-list {
         width: 280px;
       }
+
+      /* Compact fleet header for small screens */
+      .fleet-header {
+        padding: 6px 12px;
+        gap: 8px;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .fleet-metric-card:last-child {
+        display: none;  /* Hide agent pool on small screens */
+      }
+
+      .fleet-stats {
+        gap: 8px;
+      }
+
+      .project-cards {
+        grid-template-columns: 1fr;  /* Single column on small screens */
+        gap: 8px;
+        padding: 8px 12px;
+      }
     }
 
     @media (max-width: 768px) {
@@ -2180,15 +2353,15 @@
     <div class="fleet-header" id="fleetHeader" role="region" aria-label="Fleet overview">
       <!-- 5-Hour Countdown Timer -->
       <div class="fleet-metric-card">
-        <h3>5-Hour Limit</h3>
+        <h3>Active Session</h3>
         <div class="fleet-countdown">
-          <span class="countdown-time" id="fleetCountdownTime">--:--</span>
+          <span class="countdown-time" id="fleetContextPercent">--%</span>
           <div class="countdown-bar">
-            <div class="countdown-bar-fill" id="fleetCountdownFill" style="width: 0%"></div>
+            <div class="countdown-bar-fill" id="fleetContextFill" style="width: 0%"></div>
           </div>
         </div>
         <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
-          <span id="fleetPaceStatus">Pace: -- msg/hr</span>
+          <span id="fleetSessionCost">Context window usage</span>
         </div>
       </div>
 
@@ -2209,6 +2382,9 @@
             <div class="fleet-stat-label">Alerts</div>
           </div>
         </div>
+        <button class="fleet-view-lineage-btn" id="viewLineageBtn" onclick="toggleFleetLineage()" title="Toggle Agent Lineage (A)">
+          <span>🌳</span> View Lineage
+        </button>
       </div>
 
       <!-- Account Totals -->
@@ -2238,6 +2414,27 @@
         <button class="alert-banner-btn" onclick="dismissAlertBanner()">Dismiss</button>
         <button class="alert-banner-btn" onclick="muteAlertSound()" id="alertMuteBtn">🔊 Mute</button>
       </div>
+    </div>
+
+    <!-- Fleet Lineage Panel (Toggle) -->
+    <div class="fleet-lineage-panel" id="fleetLineageSection" role="region" aria-label="Agent lineage hierarchy">
+      <div class="fleet-lineage-header">
+        <h3>Agent Lineage</h3>
+        <div class="fleet-lineage-actions">
+          <button class="fleet-lineage-btn" onclick="expandAllLineage()" title="Expand All">+</button>
+          <button class="fleet-lineage-btn" onclick="collapseAllLineage()" title="Collapse All">−</button>
+          <button class="fleet-lineage-btn" onclick="refreshFleetLineage()" title="Refresh">↻</button>
+          <button class="fleet-lineage-btn" onclick="toggleFleetLineage()" title="Close">×</button>
+        </div>
+      </div>
+      <div class="fleet-lineage-content" id="fleetHierarchyContainer">
+        <div class="fleet-lineage-empty">No agent hierarchy data available</div>
+      </div>
+    </div>
+
+    <!-- Project Cards Container (Fleet Overview) -->
+    <div class="project-cards" id="projectCards" role="list" aria-label="Project overview">
+      <!-- Populated by updateProjectCards() -->
     </div>
 
     <!-- Main Content (Split Pane) -->
@@ -4151,40 +4348,97 @@
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-      if (e.target.tagName === 'INPUT') return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
       const sessionList = sessions;
       const currentIndex = sessionList.findIndex(s => s.id === selectedSessionId);
 
       switch (e.key) {
-        case 'j': // Next session
+        // Session navigation (j/k or arrow keys)
+        case 'j':
+        case 'ArrowDown':
+          e.preventDefault();
           if (currentIndex < sessionList.length - 1) {
             selectSession(sessionList[currentIndex + 1].id);
           } else if (sessionList.length > 0) {
             selectSession(sessionList[0].id);
           }
           break;
-        case 'k': // Previous session
+        case 'k':
+        case 'ArrowUp':
+          e.preventDefault();
           if (currentIndex > 0) {
             selectSession(sessionList[currentIndex - 1].id);
           } else if (sessionList.length > 0) {
             selectSession(sessionList[sessionList.length - 1].id);
           }
           break;
+
+        // Project card jump (1-9)
+        case '1': case '2': case '3': case '4': case '5':
+        case '6': case '7': case '8': case '9':
+          const projectIndex = parseInt(e.key);
+          const projectCard = document.querySelector(`.project-card[data-project-index="${projectIndex}"]`);
+          if (projectCard) {
+            projectCard.click();
+            projectCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          break;
+
+        // Toggle actions
+        case 'a': // Toggle Agent Lineage panel
+        case 'A':
+          toggleFleetLineage();
+          break;
+        case 'l': // Toggle Logs (expand detail panel)
+        case 'L':
+          if (selectedSessionId) {
+            const logsSection = document.querySelector('.log-list');
+            if (logsSection) {
+              logsSection.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
+          break;
+        case 'm': // Mute/Unmute alerts
+        case 'M':
+          muteAlertSound();
+          showToast('info', 'Alerts', FleetState.alertMuted ? 'Alerts muted' : 'Alerts unmuted', 2000);
+          break;
+
+        // Session controls
         case 'p': // Pause/Resume
           if (selectedSessionId) togglePause(selectedSessionId);
           break;
         case 's': // Skip task
           if (selectedSessionId) skipTask(selectedSessionId);
           break;
+
+        // Escape
         case 'Escape':
-          selectedSessionId = null;
-          updateSessionList();
-          document.getElementById('detailEmpty').style.display = 'flex';
-          document.getElementById('detailContent').style.display = 'none';
+          // Close lineage panel if open
+          if (FleetLineageState.visible) {
+            toggleFleetLineage();
+          } else {
+            // Deselect session
+            selectedSessionId = null;
+            updateSessionList();
+            document.getElementById('detailEmpty').style.display = 'flex';
+            document.getElementById('detailContent').style.display = 'none';
+          }
           break;
+
+        // Help
         case '?':
-          alert('Keyboard Shortcuts:\n\nj/k - Navigate sessions\np - Pause/Resume\ns - Skip task\nEsc - Deselect');
+          alert('Keyboard Shortcuts:\n\n' +
+            '↑/↓ or j/k - Navigate sessions\n' +
+            '1-9 - Jump to project card\n' +
+            'a - Toggle Agent Lineage\n' +
+            'l - Jump to Logs\n' +
+            'm - Mute/Unmute alerts\n' +
+            'p - Pause/Resume session\n' +
+            's - Skip current task\n' +
+            'Esc - Close panel or deselect\n' +
+            '? - Show this help');
           break;
       }
     });
@@ -4456,30 +4710,34 @@
 
       const { global, account, agentPool, alertCount } = overview;
 
-      // 5-Hour Countdown
-      if (global.fiveHourLimit) {
-        const { percent, resetIn, pace } = global.fiveHourLimit;
-        const remaining = 100 - percent;
+      // Active Session Context (from real globalTracker data)
+      const activeProject = overview.projects?.find(p =>
+        p.activeSessionCount > 0 || p.sessions?.some(s => s.status === 'active')
+      );
+      const activeSession = activeProject?.sessions?.find(s => s.status === 'active');
 
-        // Parse resetIn string (e.g., "2h 15m") to display
-        const countdownEl = document.getElementById('fleetCountdownTime');
-        const countdownFill = document.getElementById('fleetCountdownFill');
-        const paceStatus = document.getElementById('fleetPaceStatus');
+      const contextPercent = activeSession?.contextPercent || 0;
+      const sessionCost = activeSession?.cost || 0;
+      const remaining = 100 - contextPercent;
 
-        if (countdownEl) {
-          countdownEl.textContent = resetIn || '--:--';
-          countdownEl.className = 'countdown-time' + (percent > 90 ? ' critical' : percent > 75 ? ' warning' : '');
-        }
+      const contextEl = document.getElementById('fleetContextPercent');
+      const contextFill = document.getElementById('fleetContextFill');
+      const costEl = document.getElementById('fleetSessionCost');
 
-        if (countdownFill) {
-          countdownFill.style.width = remaining + '%';
-          countdownFill.className = 'countdown-bar-fill' + (percent > 90 ? ' critical' : percent > 75 ? ' warning' : '');
-        }
+      if (contextEl) {
+        contextEl.textContent = contextPercent.toFixed(1) + '%';
+        contextEl.className = 'countdown-time' + (contextPercent > 85 ? ' critical' : contextPercent > 70 ? ' warning' : '');
+      }
 
-        if (paceStatus && pace) {
-          const paceClass = pace.status === 'critical' ? 'critical' : pace.status === 'warning' ? 'warning' : '';
-          paceStatus.innerHTML = `Pace: <span class="${paceClass}">${pace.current}</span> / ${pace.safe} msg/hr`;
-        }
+      if (contextFill) {
+        contextFill.style.width = contextPercent + '%';
+        contextFill.className = 'countdown-bar-fill' + (contextPercent > 85 ? ' critical' : contextPercent > 70 ? ' warning' : '');
+      }
+
+      if (costEl) {
+        costEl.textContent = activeSession
+          ? `$${sessionCost.toFixed(2)} this session`
+          : 'No active session';
       }
 
       // Fleet Status
@@ -4701,6 +4959,233 @@
         default:
           console.log('[FLEET WS] Unknown event:', msg.type);
       }
+    }
+
+    // =====================================================================
+    // PROJECT CARDS RENDERING
+    // =====================================================================
+
+    // Update project cards from FleetState.overview
+    function updateProjectCards() {
+      const container = document.getElementById('projectCards');
+      if (!container) return;
+
+      const overview = FleetState.overview;
+      if (!overview || !overview.projects || overview.projects.length === 0) {
+        container.innerHTML = '';  // Hide completely when no projects
+        return;
+      }
+
+      // Filter to only show active projects (with active sessions)
+      const activeProjects = overview.projects.filter(p =>
+        p.activeSessionCount > 0 || p.sessions?.some(s => s.status === 'active')
+      );
+
+      if (activeProjects.length === 0) {
+        container.innerHTML = '';  // Hide completely when no active projects
+        return;
+      }
+
+      container.innerHTML = activeProjects.map((project, index) => {
+        const healthScore = project.health || 0;
+        const healthDots = renderHealthDots(healthScore);
+        const activeTasks = project.activeTasks || [];
+        const sessionCount = project.sessions?.length || 0;
+
+        return `
+          <div class="project-card" role="listitem" data-project-index="${index + 1}" tabindex="0"
+               onclick="selectProject('${project.id}')"
+               onkeydown="if(event.key==='Enter'||event.key===' ')selectProject('${project.id}')">
+            <div class="project-card-header">
+              <div class="project-card-title">
+                <span>${project.name || project.id}</span>
+                ${healthDots}
+              </div>
+              <span class="project-task-progress">${sessionCount} session${sessionCount !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="project-card-body">
+              <div class="project-task-list">
+                ${activeTasks.length > 0 ? activeTasks.slice(0, 3).map(task => `
+                  <div class="project-task-item">
+                    <div class="project-task-status ${task.status || 'pending'}"></div>
+                    <span class="project-task-name">${task.title || task.id}</span>
+                    ${task.progress ? `<span class="project-task-progress">${task.progress}%</span>` : ''}
+                  </div>
+                `).join('') : '<div class="project-task-item"><span class="project-task-name" style="color: var(--text-muted)">No active tasks</span></div>'}
+                ${activeTasks.length > 3 ? `<div class="project-task-item"><span class="project-task-name" style="color: var(--text-muted)">+${activeTasks.length - 3} more...</span></div>` : ''}
+              </div>
+            </div>
+            <div class="project-card-footer">
+              <span>Cost: $${(project.cost || 0).toFixed(2)}</span>
+              <button class="project-expand-btn" onclick="event.stopPropagation(); expandProject('${project.id}')">
+                Details ▸
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render health dots (0-5 filled based on score)
+    function renderHealthDots(score) {
+      const filled = Math.round((score / 100) * 5);
+      let dots = '<div class="project-health-dots">';
+      for (let i = 0; i < 5; i++) {
+        dots += `<div class="project-health-dot ${i < filled ? '' : 'empty'}"></div>`;
+      }
+      dots += '</div>';
+      return dots;
+    }
+
+    // Select a project (jump to its sessions in session list)
+    function selectProject(projectId) {
+      // Find first session of this project
+      const session = sessions.find(s => s.project === projectId);
+      if (session) {
+        selectSession(session.id);
+        // Scroll session into view
+        const sessionEl = document.querySelector(`[data-session-id="${session.id}"]`);
+        if (sessionEl) sessionEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // Expand project details (show all sessions for project)
+    function expandProject(projectId) {
+      // Filter to show only this project's sessions
+      const projectSessions = sessions.filter(s => s.project === projectId);
+      if (projectSessions.length > 0) {
+        // Expand the project group if collapsed
+        const groupEl = document.querySelector(`.session-group[data-project="${projectId}"]`);
+        if (groupEl && groupEl.classList.contains('collapsed')) {
+          groupEl.classList.remove('collapsed');
+        }
+        // Select first session
+        selectSession(projectSessions[0].id);
+      }
+    }
+
+    // =====================================================================
+    // FLEET LINEAGE FUNCTIONS
+    // =====================================================================
+
+    // Fleet lineage state
+    const FleetLineageState = {
+      visible: false,
+      hierarchy: null,
+      expandedNodes: new Set()
+    };
+
+    // Toggle fleet lineage panel visibility
+    function toggleFleetLineage() {
+      const panel = document.getElementById('fleetLineageSection');
+      const btn = document.getElementById('viewLineageBtn');
+
+      FleetLineageState.visible = !FleetLineageState.visible;
+
+      if (FleetLineageState.visible) {
+        panel.classList.add('visible');
+        btn.classList.add('active');
+        fetchFleetHierarchy();
+      } else {
+        panel.classList.remove('visible');
+        btn.classList.remove('active');
+      }
+    }
+
+    // Fetch fleet hierarchy from /api/agent-pool/status
+    async function fetchFleetHierarchy() {
+      try {
+        const res = await fetch('/api/agent-pool/status');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        FleetLineageState.hierarchy = await res.json();
+        renderFleetLineage();
+        return FleetLineageState.hierarchy;
+      } catch (err) {
+        console.error('[FLEET] Failed to fetch hierarchy:', err);
+        document.getElementById('fleetHierarchyContainer').innerHTML =
+          '<div class="fleet-lineage-empty">Failed to load agent hierarchy</div>';
+        return null;
+      }
+    }
+
+    // Render fleet lineage tree
+    function renderFleetLineage() {
+      const content = document.getElementById('fleetHierarchyContainer');
+      const hierarchy = FleetLineageState.hierarchy;
+
+      if (!hierarchy || !hierarchy.tree || hierarchy.tree.length === 0) {
+        content.innerHTML = '<div class="fleet-lineage-empty">No agent hierarchy data available</div>';
+        return;
+      }
+
+      content.innerHTML = `<div class="lineage-tree">${renderLineageNodes(hierarchy.tree, '')}</div>`;
+    }
+
+    // Recursively render lineage nodes
+    function renderLineageNodes(nodes, prefix) {
+      if (!nodes || nodes.length === 0) return '';
+
+      return nodes.map((node, index) => {
+        const isLast = index === nodes.length - 1;
+        const nodePrefix = prefix + (isLast ? '└── ' : '├── ');
+        const childPrefix = prefix + (isLast ? '    ' : '│   ');
+        const isExpanded = FleetLineageState.expandedNodes.has(node.id);
+        const hasChildren = node.children && node.children.length > 0;
+
+        const statusClass = node.status === 'active' ? 'active' :
+                           node.status === 'completed' ? 'completed' :
+                           node.status === 'error' ? 'error' : 'idle';
+
+        return `
+          <div class="lineage-node" data-node-id="${node.id}" onclick="toggleLineageNode('${node.id}')">
+            <span class="lineage-node-prefix">${nodePrefix}</span>
+            <div class="lineage-node-status ${statusClass}"></div>
+            <span class="lineage-node-label">${node.label || node.id}</span>
+            ${hasChildren ? `<span style="color: var(--text-muted)">[${node.children.length}]</span>` : ''}
+            <span class="lineage-node-meta">${node.taskId || ''}</span>
+          </div>
+          ${hasChildren ? `<div class="lineage-node-children ${isExpanded ? '' : 'collapsed'}" data-parent="${node.id}">
+            ${renderLineageNodes(node.children, childPrefix)}
+          </div>` : ''}
+        `;
+      }).join('');
+    }
+
+    // Toggle lineage node expand/collapse
+    function toggleLineageNode(nodeId) {
+      const childrenEl = document.querySelector(`.lineage-node-children[data-parent="${nodeId}"]`);
+      if (!childrenEl) return;
+
+      if (FleetLineageState.expandedNodes.has(nodeId)) {
+        FleetLineageState.expandedNodes.delete(nodeId);
+        childrenEl.classList.add('collapsed');
+      } else {
+        FleetLineageState.expandedNodes.add(nodeId);
+        childrenEl.classList.remove('collapsed');
+      }
+    }
+
+    // Expand all lineage nodes
+    function expandAllLineage() {
+      document.querySelectorAll('.lineage-node-children').forEach(el => {
+        el.classList.remove('collapsed');
+        const parentId = el.dataset.parent;
+        if (parentId) FleetLineageState.expandedNodes.add(parentId);
+      });
+    }
+
+    // Collapse all lineage nodes
+    function collapseAllLineage() {
+      document.querySelectorAll('.lineage-node-children').forEach(el => {
+        el.classList.add('collapsed');
+      });
+      FleetLineageState.expandedNodes.clear();
+    }
+
+    // Refresh fleet lineage
+    function refreshFleetLineage() {
+      fetchFleetHierarchy();
     }
 
     // Start fleet management on page load

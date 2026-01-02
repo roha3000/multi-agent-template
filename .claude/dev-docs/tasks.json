@@ -24,7 +24,6 @@
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "dashboard-fleet-ui-completion",
         "auto-delegation-integration",
         "dashboard-blocked-tasks-view"
       ]
@@ -42,6 +41,7 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "dashboard-fleet-ui-completion",
         "otlp-claude-code-integration",
         "dashboard-validation-audit",
         "audit-cleanup-phase1",
@@ -331,10 +331,12 @@
         "Keys a/l/m toggle lineage, logs, mute",
         "All E2E tests pass (dashboard-fleet-ui.e2e.test.js)"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-31T05:10:00.000Z",
-      "updated": "2025-12-31T05:10:00.000Z"
+      "updated": "2025-12-31T06:30:00.000Z",
+      "completedAt": "2025-12-31T06:30:00.000Z",
+      "completionNotes": "Session 72: Added #projectCards container, Fleet Lineage panel (fleetLineageSection), View Lineage button, fetchFleetHierarchy(), updateProjectCards(), renderFleetLineage(), enhanced keyboard nav (arrows, 1-9, a/l/m). All 14 E2E tests + 2507 unit tests pass."
     }
   },
   "archival": {

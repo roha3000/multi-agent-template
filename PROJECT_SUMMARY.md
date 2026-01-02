@@ -1,51 +1,87 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2025-12-31 (Session 71)
+**Last Updated**: 2026-01-01 (Session 73)
 **Current Phase**: IMPLEMENTATION
-**Status**: Fleet Management Dashboard - Phase 1 & 2 Complete, Phase 3 In Progress
+**Status**: Fleet Management Dashboard - Live Testing Complete ✅
 
 ---
 
-## Session 71: Fleet Management Dashboard Implementation (CURRENT)
+## Session 73: Live Server Testing & Bug Fixes (CURRENT)
 
 ### Work Completed
 | Deliverable | Status |
 |-------------|--------|
-| `/api/overview` endpoint | Complete |
-| `/api/agent-pool/status` endpoint | Complete |
-| `/ws/fleet` WebSocket channel | Complete |
-| Smart defaults calculation | Complete |
-| Fleet header with countdown timers | Complete |
-| Alert banner with sound | Complete |
-| Toast notification system | Complete |
-| WebSocket integration | Complete |
-| Project cards rendering | In Progress |
+| Dashboard server testing (port 3033 + OTLP 4318) | ✅ Complete |
+| Fleet Overview API verification | ✅ Complete |
+| `/api/sessions/:id/hierarchy` endpoint added | ✅ Fixed |
+| `/api/overview` now includes globalTracker projects | ✅ Fixed |
+| E2E tests (14/14 passing) | ✅ Complete |
+| Full test suite (2507 passing) | ✅ Complete |
 
-### Implementation Details
-
-**Backend (global-context-manager.js)**:
-- Added `/api/overview` - aggregates all projects/sessions with usage limits
-- Added `/api/agent-pool/status` - agent hierarchy and delegation metrics
-- Added `/ws/fleet` WebSocket - real-time fleet events (session, delegation, alerts)
-- Added `calculateSmartDefaults()` - auto-surfaces relevant metrics
-- Added `buildAgentHierarchyTree()` - builds lineage trees for visualization
-
-**Frontend (global-dashboard.html)**:
-- Added fleet header with 5-hour countdown timer
-- Added pace tracking (current vs safe msg/hr)
-- Added fleet status cards (active sessions, projects, alerts)
-- Added alert banner for critical notifications with audio
-- Added toast notification system for events
-- Added WebSocket client for real-time updates
-- Started project cards implementation (incomplete)
+### Bugs Fixed
+- **`/api/sessions/:id/hierarchy`** - Was missing, returning HTML 404. Added proper JSON endpoint.
+- **`/api/overview`** - Was showing 0 projects (only used sessionRegistry). Now includes projects from globalTracker.
 
 ### Files Modified
 | File | Changes |
 |------|---------|
-| `global-context-manager.js` | +450 lines - Fleet API endpoints + WebSocket |
-| `global-dashboard.html` | +350 lines - Fleet UI components + JS |
+| `global-context-manager.js` | +25 lines - Added hierarchy endpoint, fixed overview to include tracker projects |
 
-### Branch
-`feature/dashboard-fleet-management` (1 commit ahead of main)
+---
+
+## Session 72: Fleet Management Dashboard UI Completion ✅
+
+### Work Completed
+| Deliverable | Status |
+|-------------|--------|
+| Project cards container (#projectCards) | Complete |
+| Fleet Lineage panel with View Lineage button | Complete |
+| updateProjectCards() function | Complete |
+| fetchFleetHierarchy() from /api/agent-pool/status | Complete |
+| Arrow keys (up/down) navigation | Complete |
+| Number keys 1-9 project jump | Complete |
+| Keys a/l/m toggle lineage/logs/mute | Complete |
+| E2E tests verification | Complete (14 passed) |
+
+### Implementation Details
+
+**HTML Additions (global-dashboard.html)**:
+- Added `#fleetLineageSection` panel with expand/collapse/refresh controls
+- Added `#fleetHierarchyContainer` for lineage tree rendering
+- Added `#projectCards` container for project overview cards
+- Added "View Lineage" button in Fleet Status card
+
+**JavaScript Functions Added**:
+- `updateProjectCards()` - renders project cards from FleetState.overview
+- `renderHealthDots()` - visual health indicator (0-5 dots)
+- `selectProject()` / `expandProject()` - project interaction handlers
+- `toggleFleetLineage()` - show/hide lineage panel
+- `fetchFleetHierarchy()` - fetch from /api/agent-pool/status
+- `renderFleetLineage()` / `renderLineageNodes()` - recursive tree rendering
+- `toggleLineageNode()` / `expandAllLineage()` / `collapseAllLineage()`
+
+**Keyboard Navigation Enhanced**:
+- Arrow Up/Down + j/k: Navigate sessions
+- 1-9: Jump to project card by index
+- a/A: Toggle Agent Lineage panel
+- l/L: Jump to logs section
+- m/M: Mute/unmute alerts
+- Escape: Close panel or deselect
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `global-dashboard.html` | +350 lines - CSS, HTML, JS for fleet UI |
+
+### Tests
+- 14 E2E tests pass (dashboard-fleet-ui.e2e.test.js)
+- 2507 unit tests pass (full suite)
+
+---
+
+## Session 71: Fleet Management Dashboard Backend ✅
+- **Tasks**: Fleet APIs, WebSocket channel, smart defaults, alert system
+- **Key changes**: /api/overview, /api/agent-pool/status, /ws/fleet, countdown timers
+- **Files**: global-context-manager.js, global-dashboard.html
 
 ---
 
@@ -53,13 +89,6 @@
 - **Tasks**: Agent swarm analysis, user requirements, design spec
 - **Key changes**: Full design doc with wireframes, API specs
 - **Files**: `docs/design/DASHBOARD-FLEET-MANAGEMENT-DESIGN.md`
-
----
-
-## Session 69: Hierarchical Task Claiming ✅
-- **Tasks**: getNextTask deprecation, peekNextTask, hierarchical claiming
-- **Key changes**: Parent claim reserves all descendants, 13 new tests
-- **Files**: coordination-db.js, task-manager.js
 
 ---
 

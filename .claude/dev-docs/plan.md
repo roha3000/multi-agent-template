@@ -1,51 +1,34 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Fleet Management Dashboard - Phase 3 In Progress
+**Status**: Fleet Management Dashboard - Live Testing Complete ✅
 
 ---
 
-## Session 71: Dashboard Fleet Management Implementation
+## Session 73: Live Server Testing & Bug Fixes ✅
 
-### Completed ✅
+### Completed
 
-| Phase | Deliverable | Status |
-|-------|-------------|--------|
-| 1 | `/api/overview` endpoint | Complete |
-| 1 | `/api/agent-pool/status` endpoint | Complete |
-| 1 | `/ws/fleet` WebSocket | Complete |
-| 1 | Smart defaults calculation | Complete |
-| 2 | Fleet header with countdown | Complete |
-| 2 | Alert banner + sound | Complete |
-| 2 | Toast notifications | Complete |
+| Task | Status |
+|------|--------|
+| Start dashboard server (port 3033 + OTLP 4318) | ✅ Complete |
+| Verify Fleet Overview API returns data | ✅ Complete |
+| Verify project cards container in HTML | ✅ Complete |
+| Verify keyboard navigation handlers | ✅ Complete |
+| Fix missing `/api/sessions/:id/hierarchy` endpoint | ✅ Fixed |
+| Fix `/api/overview` not showing globalTracker projects | ✅ Fixed |
+| All 14 E2E tests passing | ✅ Complete |
 
-### In Progress
+### Bugs Fixed
 
-| Phase | Deliverable | Status |
-|-------|-------------|--------|
-| 3 | Project cards rendering | Started - need `updateProjectCards()` |
-
-### Remaining
-
-| Phase | Deliverable | Notes |
-|-------|-------------|-------|
-| 3 | Fleet overview layout | Project cards with sessions |
-| 4 | Agent lineage tree | Tree visualization component |
-| 5 | Keyboard navigation | Arrows, ESC, number keys |
+1. **`/api/sessions/:id/hierarchy`** - Was returning HTML 404, now returns JSON
+2. **`/api/overview`** - Was showing 0 projects (only sessionRegistry), now includes globalTracker projects
 
 ---
 
-## Resume Points
+## Next Steps
 
-1. Add `updateProjectCards()` function after `updateAlertBanner()` in global-dashboard.html
-2. The function should render project cards from `FleetState.overview.projects`
-3. Each card shows: project name, health dots, active tasks, session list
-4. Cards should be expandable to show session details
-
----
-
-## Branch
-
-`feature/dashboard-fleet-management` - 1 commit ahead of main
+1. **Manual QA in browser**: Open http://localhost:3033 and test UI
+2. **Next priority**: `auto-delegation-integration` or `dashboard-blocked-tasks-view`
 
 ---
 
@@ -58,6 +41,6 @@ npm test
 # Start dashboard
 npm run dashboard:server
 
-# Check branch
-git log --oneline -5
+# Run E2E tests specifically
+npm test -- tests/e2e/dashboard-fleet-ui.e2e.test.js
 ```

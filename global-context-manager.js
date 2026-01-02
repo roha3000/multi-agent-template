@@ -1756,6 +1756,30 @@ app.get('/api/sessions/:id', (req, res) => {
   res.json(session);
 });
 
+// Get session hierarchy tree (for lineage visualization)
+app.get('/api/sessions/:id/hierarchy', (req, res) => {
+  const sessionId = req.params.id;
+
+  // Try to find the session
+  const numericId = parseInt(sessionId, 10);
+  const session = !isNaN(numericId) ? sessionRegistry.get(numericId) : null;
+
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found', sessionId });
+  }
+
+  // Return hierarchy structure (empty if no delegations)
+  // Full hierarchy data is available from /api/agent-pool/status
+  res.json({
+    sessionId: session.id,
+    project: session.project,
+    parentId: session.parentId || null,
+    children: [],
+    delegations: [],
+    depth: 0
+  });
+});
+
 // Register a new session (called by orchestrator on startup)
 app.post('/api/sessions/register', (req, res) => {
   const { project, path: projectPath, currentTask, status, sessionType, autonomous, orchestratorInfo, logSessionId } = req.body;
@@ -2025,15 +2049,48 @@ app.get('/api/overview', (req, res) => {
     // Get data from all sources
     const summaryWithHierarchy = sessionRegistry.getSummaryWithHierarchy();
     const usageLimits = usageLimitTracker.getStatus();
-    const usageAlerts = usageLimitTracker.getAlerts();
+    // Note: usageLimitTracker.getAlerts() disabled - tracks internal events, not real Claude usage
+
+    // Get projects from globalTracker (Claude Code project discovery)
+    const trackerProjects = tracker.getAllProjects();
 
     // Get task data for each session
     const db = getCoordinationDb();
     const taskManager = getTaskManagerForProject(defaultProjectPath);
     const allTasks = taskManager ? taskManager.getAllTasks() : [];
 
-    // Build project-grouped data
+    // Build project-grouped data - start with globalTracker projects
     const projectMap = new Map();
+
+    // Add all projects from globalTracker first
+    for (const proj of trackerProjects) {
+      projectMap.set(proj.name, {
+        name: proj.name,
+        path: proj.path,
+        sessions: proj.sessions?.map(s => ({
+          id: s.id,
+          isRoot: true,
+          status: s.isActive ? 'active' : 'inactive',
+          contextPercent: s.contextPercent || 0,
+          qualityScore: 0,
+          confidenceScore: 0,
+          tokens: (s.inputTokens || 0) + (s.outputTokens || 0) + (s.cacheCreationTokens || 0) + (s.cacheReadTokens || 0),
+          cost: s.cost || 0,
+          phase: null,
+          currentTask: null,
+          subtasks: [],
+          model: s.model
+        })) || [],
+        metrics: {
+          totalTokens: proj.metrics?.inputTokens + proj.metrics?.outputTokens + proj.metrics?.cacheCreationTokens + proj.metrics?.cacheReadTokens || 0,
+          totalCost: proj.metrics?.cost || 0,
+          avgQuality: 0,
+          avgConfidence: 0
+        },
+        health: proj.safetyStatus === 'OK' ? 'healthy' :
+                proj.safetyStatus === 'WARNING' ? 'warning' : 'critical'
+      });
+    }
 
     for (const session of summaryWithHierarchy.sessions) {
       const projectName = session.project || 'unknown';
@@ -2151,17 +2208,9 @@ app.get('/api/overview', (req, res) => {
     // Build alerts array from usage alerts and session alerts
     const alerts = [];
 
-    // Add usage alerts
-    for (const alert of usageAlerts) {
-      alerts.push({
-        id: `usage-${alert.type}-${Date.now()}`,
-        level: alert.severity === 'critical' ? 'critical' : 'warning',
-        type: alert.type,
-        message: alert.message,
-        timestamp: new Date().toISOString(),
-        actions: ['dismiss']
-      });
-    }
+    // Note: usageAlerts from usageLimitTracker are disabled because they track
+    // internal dashboard events, not actual Claude API usage. Real usage data
+    // comes from globalTracker which parses session JSONL files.
 
     // Add session context alerts
     for (const session of summaryWithHierarchy.sessions) {
@@ -2210,8 +2259,9 @@ app.get('/api/overview', (req, res) => {
           percent: usageLimits.weekly.percent,
           resetAt: usageLimits.weekly.resetAt
         },
-        activeSessionCount: summaryWithHierarchy.metrics.activeCount,
-        activeProjectCount: projectMap.size,
+        activeSessionCount: summaryWithHierarchy.metrics.activeCount +
+          trackerProjects.reduce((sum, p) => sum + (p.sessions?.filter(s => s.isActive).length || 0), 0),
+        activeProjectCount: trackerProjects.filter(p => p.status === 'active').length || projectMap.size,
         alertCount: {
           critical: alerts.filter(a => a.level === 'critical').length,
           warning: alerts.filter(a => a.level === 'warning').length,
