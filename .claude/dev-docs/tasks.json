@@ -24,6 +24,7 @@
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
+        "cli-session-activity-logs",
         "auto-delegation-integration",
         "dashboard-blocked-tasks-view"
       ]
@@ -364,6 +365,44 @@
         "docs/design/DASHBOARD-UX-REDESIGN.md",
         "docs/audits/dashboard-validation-2025-12-31.md"
       ]
+    },
+    "cli-session-activity-logs": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "cli-session-activity-logs",
+      "title": "Research: Activity Logs for CLI Sessions in Dashboard",
+      "description": "Explore options to capture and display activity logs (tool calls, file edits, commands) for CLI sessions in the dashboard. Currently only autonomous orchestrator sessions have logs. Research: PostToolUse hooks, OTLP event streaming, Claude Code log files.",
+      "phase": "research",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "logging",
+        "hooks",
+        "research",
+        "cli-sessions"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-v4-redesign"
+        ]
+      },
+      "acceptance": [
+        "Document available Claude Code hooks (PostToolUse, PreToolUse, etc.)",
+        "Assess overhead of hook-based activity logging",
+        "Explore alternative approaches (OTLP events, log files)",
+        "Recommend implementation approach with trade-offs",
+        "Create implementation plan if viable"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2026-01-02T06:00:00.000Z",
+      "updated": "2026-01-02T06:00:00.000Z"
     },
     "dashboard-blocked-tasks-view": {
       "parentTaskId": null,
