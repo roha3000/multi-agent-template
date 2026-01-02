@@ -1,48 +1,52 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2026-01-02 (Session 81)
+**Last Updated**: 2026-01-02 (Session 82)
 **Current Phase**: IMPLEMENTATION
-**Status**: Dashboard Filtering Fixed
+**Status**: Auto-Delegation Task Setup Complete
 
 ---
 
-## Session 81: Dashboard Inactive Project Filtering ✅
+## Session 82: Session Type Fix + Child Tasks ✅
 
-Fixed bug where inactive projects (6 of 7) were showing in the dashboard session list even when they had no active sessions.
+### Work Completed
+| Task | Description | Status |
+|------|-------------|--------|
+| Child tasks created | 6 phases for auto-delegation-integration | ✅ |
+| Task tree fix | generateTreeData() now uses childTaskIds | ✅ |
+| Tasks tab fix | Shows subtasks from /api/tasks/tree | ✅ |
+| Session type fix | CLI→autonomous upgrade, deduplication | ✅ |
+| Reload endpoint | POST /api/tasks/reload for cache refresh | ✅ |
 
-### Bug Fix
-| Issue | Fix |
-|-------|-----|
-| Inactive projects showing | Only create placeholder sessions for `p.status === 'active'` projects |
-| Stale sessions persisting | Added cleanup logic to remove sessions when project becomes inactive |
+### Session Type Deduplication Logic
+```
+1. By claudeSessionId - prevents duplicate registrations
+2. By project path - orchestrator upgrades recent CLI session to autonomous
+3. Never downgrades autonomous → cli
+```
 
 ### Files Modified
 | File | Changes |
 |------|---------|
-| `global-dashboard.html` | Fixed `fetchSessions()` and SSE handler to filter inactive projects |
+| `.claude/dev-docs/tasks.json` | Added 6 child tasks for auto-delegation |
+| `.claude/core/task-graph.js` | Fixed generateTreeData() to use childTaskIds |
+| `global-dashboard.html` | Tasks tab fetches/displays subtasks |
+| `global-context-manager.js` | Session deduplication + /api/tasks/reload |
+
+---
+
+## Session 81: Dashboard Inactive Project Filtering ✅
+- **Bug**: Inactive projects showing in session list
+- **Fix**: Filter by `p.status === 'active'` in fetchSessions()
 
 ---
 
 ## Session 80: CLI Session Activity Logs ✅
 - **Tasks**: Activity API, SSE streaming, tool details in Logs tab
-- **Files**: global-context-manager.js, global-dashboard.html, hooks, tests
+- **Files**: global-context-manager.js, global-dashboard.html
 
 ---
 
 ## Session 79: Dashboard v4 Verification ✅
 - **Tasks**: Verified all 6 Dashboard v4 subtasks complete
-- **Files**: tasks.json updated
-
----
-
-## Session 78: Subagent Completion Tracking ✅
-- **Tasks**: Track completed delegations, hierarchy tab shows history
-- **Files**: session-registry.js, global-dashboard.html
-
----
-
-## Session 77: Dashboard Controls & Short IDs ✅
-- **Tasks**: Modal fix, session controls, short IDs
-- **Files**: global-dashboard.html, global-context-manager.js
 
 ---
 
@@ -51,10 +55,23 @@ Fixed bug where inactive projects (6 of 7) were showing in the dashboard session
 | Component | Status |
 |-----------|--------|
 | Context Tracker | **CONSOLIDATED** - global-context-tracker.js |
-| Session Registry | **ENHANCED** - claudeSessionId support |
-| Dashboard | Port 3033 - v4 layout + activity logs |
-| Hooks | SessionStart + SessionEnd + PostToolUse configured |
-| Tests | 2539+ passing (9 new for CLI logs) |
+| Session Registry | **ENHANCED** - deduplication by claudeSessionId |
+| Dashboard | Port 3033 - v4 layout + subtask display |
+| Tests | 2539 passing |
+
+---
+
+## Active Task: auto-delegation-integration
+
+### Child Tasks (6 phases)
+| Phase | Task | Status | Est |
+|-------|------|--------|-----|
+| 1 | Core Hook Infrastructure | ready | 3h |
+| 2 | Decision Integration | blocked | 4h |
+| 3 | Control Skills | blocked | 2h |
+| 4 | Execution Integration | blocked | 5h |
+| 5 | Dashboard Integration | blocked | 4h |
+| 6 | Polish and Documentation | blocked | 2h |
 
 ---
 
@@ -63,13 +80,6 @@ Fixed bug where inactive projects (6 of 7) were showing in the dashboard session
 - **Dashboard**: http://localhost:3033/
 - **Start**: `node global-context-manager.js`
 - **Tests**: `npm test -- --silent`
+- **Reload tasks**: `curl -X POST localhost:3033/api/tasks/reload`
 
 ---
-
-## Next Steps (Resume Here)
-
-1. **Pick next task** from backlog:
-   - `auto-delegation-integration` (20h) - Hook-based delegation analysis
-   - `dashboard-blocked-tasks-view` (2h) - Show blocked tasks + dependencies
-2. **Test CLI activity logs**: Use tools, check Logs tab shows details
-3. **New session required**: PostToolUse hook needs new session to activate

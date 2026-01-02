@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 73,
-    "lastModifiedBy": "459a29e6-736a-49d3-babf-7758d8a66905",
-    "lastModifiedAt": "2025-12-31T04:58:46.210Z"
+    "version": 74,
+    "lastModifiedBy": 1,
+    "lastModifiedAt": "2026-01-02T08:14:39.485Z"
   },
   "version": "1.1.0",
   "project": {
@@ -19,18 +19,19 @@
   "backlog": {
     "now": {
       "description": "Current sprint tasks",
-      "tasks": []
+      "tasks": [
+        "auto-delegation-integration"
+      ]
     },
     "next": {
       "description": "Next priority after now is complete",
-      "tasks": [
-        "auto-delegation-integration",
-        "dashboard-blocked-tasks-view"
-      ]
+      "tasks": []
     },
     "later": {
       "description": "Future work, not yet prioritized",
-      "tasks": []
+      "tasks": [
+        "dashboard-blocked-tasks-view"
+      ]
     },
     "someday": {
       "description": "Ideas and possibilities, lowest priority",
@@ -45,11 +46,7 @@
         "dashboard-v4-redesign",
         "dashboard-fleet-ui-completion",
         "otlp-claude-code-integration",
-        "dashboard-validation-audit",
-        "audit-cleanup-phase1",
-        "audit-refresh-2025-12-29",
-        "parallel-session-crash-fix",
-        "dashboard-ux-redesign"
+        "dashboard-validation-audit"
       ]
     }
   },
@@ -83,7 +80,10 @@
       "depends": {
         "blocks": [],
         "requires": [],
-        "related": ["dashboard-ux-redesign", "dashboard-blocked-tasks-view"]
+        "related": [
+          "dashboard-ux-redesign",
+          "dashboard-blocked-tasks-view"
+        ]
       },
       "acceptance": [
         "2-panel layout (sessions + content) renders at full and half-screen",
@@ -119,9 +119,15 @@
       "phase": "implementation",
       "priority": "high",
       "estimate": "2h",
-      "tags": ["dashboard", "css", "layout"],
+      "tags": [
+        "dashboard",
+        "css",
+        "layout"
+      ],
       "depends": {
-        "blocks": ["dashboard-v4-sessions"],
+        "blocks": [
+          "dashboard-v4-sessions"
+        ],
         "requires": [],
         "related": []
       },
@@ -149,10 +155,18 @@
       "phase": "implementation",
       "priority": "high",
       "estimate": "2h",
-      "tags": ["dashboard", "sessions", "ui"],
+      "tags": [
+        "dashboard",
+        "sessions",
+        "ui"
+      ],
       "depends": {
-        "blocks": ["dashboard-v4-tabs"],
-        "requires": ["dashboard-v4-layout"],
+        "blocks": [
+          "dashboard-v4-tabs"
+        ],
+        "requires": [
+          "dashboard-v4-layout"
+        ],
         "related": []
       },
       "acceptance": [
@@ -179,10 +193,18 @@
       "phase": "implementation",
       "priority": "high",
       "estimate": "3h",
-      "tags": ["dashboard", "tabs", "ui"],
+      "tags": [
+        "dashboard",
+        "tabs",
+        "ui"
+      ],
       "depends": {
-        "blocks": ["dashboard-v4-backend"],
-        "requires": ["dashboard-v4-sessions"],
+        "blocks": [
+          "dashboard-v4-backend"
+        ],
+        "requires": [
+          "dashboard-v4-sessions"
+        ],
         "related": []
       },
       "acceptance": [
@@ -210,10 +232,18 @@
       "phase": "implementation",
       "priority": "high",
       "estimate": "2h",
-      "tags": ["dashboard", "backend", "api"],
+      "tags": [
+        "dashboard",
+        "backend",
+        "api"
+      ],
       "depends": {
-        "blocks": ["dashboard-v4-launcher"],
-        "requires": ["dashboard-v4-tabs"],
+        "blocks": [
+          "dashboard-v4-launcher"
+        ],
+        "requires": [
+          "dashboard-v4-tabs"
+        ],
         "related": []
       },
       "acceptance": [
@@ -239,10 +269,18 @@
       "phase": "implementation",
       "priority": "medium",
       "estimate": "2h",
-      "tags": ["dashboard", "launcher", "cli"],
+      "tags": [
+        "dashboard",
+        "launcher",
+        "cli"
+      ],
       "depends": {
-        "blocks": ["dashboard-v4-testing"],
-        "requires": ["dashboard-v4-backend"],
+        "blocks": [
+          "dashboard-v4-testing"
+        ],
+        "requires": [
+          "dashboard-v4-backend"
+        ],
         "related": []
       },
       "acceptance": [
@@ -268,10 +306,16 @@
       "phase": "testing",
       "priority": "high",
       "estimate": "2h",
-      "tags": ["dashboard", "testing", "e2e"],
+      "tags": [
+        "dashboard",
+        "testing",
+        "e2e"
+      ],
       "depends": {
         "blocks": [],
-        "requires": ["dashboard-v4-launcher"],
+        "requires": [
+          "dashboard-v4-launcher"
+        ],
         "related": []
       },
       "acceptance": [
@@ -320,61 +364,6 @@
       "created": "2025-12-19T04:07:23.583Z",
       "updated": "2025-12-28T03:00:00.000Z"
     },
-    "dashboard-ux-redesign": {
-      "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "decomposition": null,
-      "id": "dashboard-ux-redesign",
-      "title": "Dashboard Fleet Management Redesign",
-      "description": "Redesign dashboard for Fleet Management mode (5+ concurrent sessions). Add agent lineage visibility, countdown timers for token/rate limits, smart defaults for metric surfacing, and alert system with banner+sound+toast. Based on agent swarm analysis and user requirements.",
-      "phase": "implementation",
-      "priority": "high",
-      "estimate": "16h",
-      "tags": [
-        "dashboard",
-        "ux",
-        "fleet-management",
-        "agent-monitoring",
-        "visualization"
-      ],
-      "depends": {
-        "blocks": [
-          "dashboard-blocked-tasks-view"
-        ],
-        "requires": [],
-        "related": [
-          "dashboard-blocked-tasks-view",
-          "auto-delegation-integration"
-        ]
-      },
-      "acceptance": [
-        "Fleet overview shows all projects/sessions at a glance",
-        "5-hour countdown timer with remaining time visible",
-        "Session context countdown shows time until auto-compact",
-        "Agent lineage tree shows full parent-child delegation hierarchy",
-        "Alert banner with sound for critical alerts (token exhaustion, rate limit)",
-        "Toast notifications for other events (task claimed, session started)",
-        "Smart defaults auto-surface relevant metrics based on context",
-        "New /api/agent-pool/status endpoint returns lineage + metrics",
-        "New /api/overview endpoint returns fleet-level aggregates",
-        "WebSocket channel /ws/fleet for real-time delegation events",
-        "Keyboard navigation (arrows, ESC, number keys)",
-        "Performance: overview loads <500ms, drill-downs <200ms"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2025-12-31T01:00:00.000Z",
-      "updated": "2025-12-31T05:00:00.000Z",
-      "completedAt": "2025-12-31T05:00:00.000Z",
-      "completionNotes": "All 5 phases complete: Backend APIs, Fleet header/alerts, Project cards, Agent lineage tree, Keyboard navigation. 14 new E2E tests added.",
-      "designDocs": [
-        "docs/design/DASHBOARD-FLEET-MANAGEMENT-DESIGN.md",
-        "docs/design/DASHBOARD-UX-REDESIGN.md",
-        "docs/audits/dashboard-validation-2025-12-31.md"
-      ]
-    },
     "cli-session-activity-logs": {
       "parentTaskId": null,
       "childTaskIds": [],
@@ -417,7 +406,9 @@
       "implementationPlan": {
         "phase1": {
           "title": "API Endpoint for Tool Audit Logs",
-          "files": ["global-context-manager.js"],
+          "files": [
+            "global-context-manager.js"
+          ],
           "steps": [
             "Add GET /api/logs/:sessionId/activity endpoint",
             "Read from .claude/logs/tool-audit.jsonl",
@@ -427,7 +418,9 @@
         },
         "phase2": {
           "title": "Dashboard Logs Tab Update",
-          "files": ["global-dashboard.html"],
+          "files": [
+            "global-dashboard.html"
+          ],
           "steps": [
             "Update updateLogsPane() to fetch /api/logs/:sessionId/activity for CLI sessions",
             "Render tool calls in same table format as autonomous logs",
@@ -436,7 +429,10 @@
         },
         "phase3": {
           "title": "Real-time Updates",
-          "files": [".claude/hooks/track-progress.js", "global-context-manager.js"],
+          "files": [
+            ".claude/hooks/track-progress.js",
+            "global-context-manager.js"
+          ],
           "steps": [
             "Enhance PostToolUse hook to emit SSE event after writing to JSONL",
             "Add /api/logs/:sessionId/activity/stream SSE endpoint",
@@ -445,7 +441,9 @@
         },
         "phase4": {
           "title": "Testing",
-          "files": ["__tests__/e2e/dashboard-cli-logs.e2e.test.js"],
+          "files": [
+            "__tests__/e2e/dashboard-cli-logs.e2e.test.js"
+          ],
           "steps": [
             "Test API returns correct tool audit data",
             "Test dashboard renders logs for CLI sessions",
@@ -461,7 +459,12 @@
         ],
         "dataFormat": {
           "file": ".claude/logs/tool-audit.jsonl",
-          "fields": ["timestamp", "tool", "success", "sessionId"]
+          "fields": [
+            "timestamp",
+            "tool",
+            "success",
+            "sessionId"
+          ]
         },
         "recommendation": "Extend existing LogStreamer pattern for tool-audit.jsonl"
       }
@@ -506,10 +509,17 @@
     },
     "auto-delegation-integration": {
       "parentTaskId": null,
-      "childTaskIds": [],
+      "childTaskIds": [
+        "auto-delegation-phase1-hook",
+        "auto-delegation-phase2-decision",
+        "auto-delegation-phase3-skills",
+        "auto-delegation-phase4-execution",
+        "auto-delegation-phase5-dashboard",
+        "auto-delegation-phase6-polish"
+      ],
       "delegatedTo": null,
       "delegationDepth": 0,
-      "decomposition": null,
+      "decomposition": "sequential",
       "id": "auto-delegation-integration",
       "title": "Auto-Delegation Integration - Connect Prompts to DelegationDecider",
       "description": "Bridge the gap between user prompts and the existing DelegationDecider/hierarchy system. Use Claude Code hooks to intercept prompts, analyze complexity, and inject delegation recommendations into conversation context. Enables automatic use of Task tool for complex tasks.",
@@ -541,17 +551,186 @@
         "Documentation complete",
         "Performance targets met (< 200ms hook, < 500ms decision)"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "assignee": null,
       "created": "2025-12-29T16:00:00.000Z",
-      "updated": "2025-12-29T16:00:00.000Z",
+      "updated": "2026-01-02T08:14:39.461Z",
       "designDocs": [
         "docs/AUTO-DELEGATION-ARCHITECTURE.md",
         "docs/AUTO-DELEGATION-IMPLEMENTATION-PLAN.md",
         "docs/AUTO-DELEGATION-CONTROL-INTERFACE.md",
         "docs/AUTO-DELEGATION-UX-DESIGN.md",
         "docs/AUTO-DELEGATION-TESTING-STRATEGY.md"
-      ]
+      ],
+      "started": "2026-01-02T08:14:39.461Z"
+    },
+    "auto-delegation-phase1-hook": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "id": "auto-delegation-phase1-hook",
+      "title": "Phase 1: Core Hook Infrastructure",
+      "description": "Get the basic hook working and injecting analysis into prompts. Create delegation-hook.js, delegation-bridge.js, add getQuickHint() to DelegationDecider, hook installer, config schema.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "3h",
+      "tags": ["auto-delegation", "hooks", "infrastructure"],
+      "depends": {
+        "blocks": ["auto-delegation-phase2-decision"],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "Hook executes on every prompt submission",
+        "Analysis output appears in conversation",
+        "Config can enable/disable hook",
+        "Hook completes in < 200ms"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2026-01-02T08:20:00.000Z",
+      "updated": "2026-01-02T08:20:00.000Z"
+    },
+    "auto-delegation-phase2-decision": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "id": "auto-delegation-phase2-decision",
+      "title": "Phase 2: Decision Integration",
+      "description": "Connect hook to full DelegationDecider and TaskDecomposer. Integrate TaskDecomposer, add pattern selection, implement tasks.json lookup, per-task delegationConfig, caching.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "4h",
+      "tags": ["auto-delegation", "decision-engine", "integration"],
+      "depends": {
+        "blocks": ["auto-delegation-phase3-skills"],
+        "requires": ["auto-delegation-phase1-hook"],
+        "related": []
+      },
+      "acceptance": [
+        "Complex prompts get accurate delegation recommendations",
+        "Tasks from tasks.json are recognized and enriched",
+        "Per-task config overrides global settings",
+        "Repeated prompts use cached decisions"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2026-01-02T08:20:00.000Z",
+      "updated": "2026-01-02T08:20:00.000Z"
+    },
+    "auto-delegation-phase3-skills": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "id": "auto-delegation-phase3-skills",
+      "title": "Phase 3: Control Skills",
+      "description": "Give users explicit control over delegation. Create /delegate, /direct, /delegation-status, /delegation-config skills.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": ["auto-delegation", "skills", "ux"],
+      "depends": {
+        "blocks": ["auto-delegation-phase4-execution"],
+        "requires": ["auto-delegation-phase2-decision"],
+        "related": []
+      },
+      "acceptance": [
+        "/delegate forces delegation for any prompt",
+        "/direct forces direct execution",
+        "/delegation-status shows active delegations",
+        "/delegation-config allows runtime config changes"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2026-01-02T08:20:00.000Z",
+      "updated": "2026-01-02T08:20:00.000Z"
+    },
+    "auto-delegation-phase4-execution": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "id": "auto-delegation-phase4-execution",
+      "title": "Phase 4: Execution Integration",
+      "description": "Make delegated tasks actually execute through orchestration. Add executeWithDelegationHint(), wire Task tool to AgentOrchestrator, implement parallel/sequential/debate patterns.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "5h",
+      "tags": ["auto-delegation", "orchestration", "execution"],
+      "depends": {
+        "blocks": ["auto-delegation-phase5-dashboard"],
+        "requires": ["auto-delegation-phase3-skills"],
+        "related": []
+      },
+      "acceptance": [
+        "Delegated tasks spawn real sub-agents via Task tool",
+        "Parallel pattern runs subtasks concurrently",
+        "Sequential pattern respects dependencies",
+        "Hierarchy is tracked correctly"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2026-01-02T08:20:00.000Z",
+      "updated": "2026-01-02T08:20:00.000Z"
+    },
+    "auto-delegation-phase5-dashboard": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "id": "auto-delegation-phase5-dashboard",
+      "title": "Phase 5: Dashboard Integration",
+      "description": "Provide visibility into delegation activity. Add SSE events, delegation panel, history endpoint, settings UI, real-time progress.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "4h",
+      "tags": ["auto-delegation", "dashboard", "ui"],
+      "depends": {
+        "blocks": ["auto-delegation-phase6-polish"],
+        "requires": ["auto-delegation-phase4-execution"],
+        "related": []
+      },
+      "acceptance": [
+        "Dashboard shows active delegations",
+        "Progress updates in real-time",
+        "Settings can be changed from dashboard",
+        "History shows past delegations"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2026-01-02T08:20:00.000Z",
+      "updated": "2026-01-02T08:20:00.000Z"
+    },
+    "auto-delegation-phase6-polish": {
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "id": "auto-delegation-phase6-polish",
+      "title": "Phase 6: Polish and Documentation",
+      "description": "Production-ready implementation. Comprehensive error handling, graceful degradation, telemetry, user documentation, performance optimization.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": ["auto-delegation", "documentation", "polish"],
+      "depends": {
+        "blocks": [],
+        "requires": ["auto-delegation-phase5-dashboard"],
+        "related": []
+      },
+      "acceptance": [
+        "Hook failures don't break Claude Code",
+        "Errors are logged with context",
+        "Documentation is complete",
+        "Performance meets targets"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2026-01-02T08:20:00.000Z",
+      "updated": "2026-01-02T08:20:00.000Z"
     },
     "dashboard-validation-audit": {
       "id": "dashboard-validation-audit",
@@ -646,7 +825,9 @@
       "depends": {
         "blocks": [],
         "requires": [],
-        "related": ["dashboard-ux-redesign"]
+        "related": [
+          "dashboard-ux-redesign"
+        ]
       },
       "acceptance": [
         "Project cards container (#projectCards) renders in HTML",
@@ -669,6 +850,6 @@
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2025-12-30T23:12:37.206Z"
+    "lastArchived": "2026-01-02T08:14:39.484Z"
   }
 }

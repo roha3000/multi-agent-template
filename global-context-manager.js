@@ -1277,6 +1277,21 @@ app.get('/api/tasks', (req, res) => {
   });
 });
 
+// Reload tasks from disk (useful after external edits to tasks.json)
+app.post('/api/tasks/reload', (req, res) => {
+  if (!taskManager) {
+    return res.status(503).json({ error: 'TaskManager not initialized' });
+  }
+  try {
+    taskManager.reload();
+    console.log('[TASK MANAGER] Tasks reloaded from disk');
+    res.json({ success: true, stats: taskManager.getStats() });
+  } catch (err) {
+    console.error('[TASK MANAGER] Reload error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Update task status
 app.post('/api/tasks/:id/status', (req, res) => {
   if (!taskManager) {
@@ -1875,6 +1890,71 @@ app.get('/api/sessions/:id/hierarchy', (req, res) => {
 // Register a new session (called by orchestrator on startup or SessionStart hook)
 app.post('/api/sessions/register', (req, res) => {
   const { project, path: projectPath, currentTask, status, sessionType, autonomous, orchestratorInfo, logSessionId, claudeSessionId } = req.body;
+
+  // Deduplication logic to prevent duplicate sessions
+  // 1. By claudeSessionId - prevents hook from overwriting orchestrator session
+  // 2. By project path for autonomous - orchestrator upgrades existing CLI session
+
+  // Check by claudeSessionId first
+  if (claudeSessionId) {
+    const existingSession = sessionRegistry.getByClaudeSessionId(claudeSessionId);
+    if (existingSession) {
+      // Session already exists - don't create duplicate
+      // Never downgrade sessionType (autonomous should stay autonomous)
+      const updates = {
+        status: status || existingSession.status,
+        currentTask: currentTask || existingSession.currentTask
+      };
+
+      // Upgrade to autonomous if requested
+      if (sessionType === 'autonomous' && existingSession.sessionType !== 'autonomous') {
+        updates.sessionType = 'autonomous';
+        updates.autonomous = true;
+        updates.orchestratorInfo = orchestratorInfo || existingSession.orchestratorInfo;
+      }
+
+      sessionRegistry.update(existingSession.id, updates);
+      console.log(`[COMMAND CENTER] Session dedupe (claudeSessionId): ${existingSession.id} (${project}) [${existingSession.sessionType}] - ignored ${sessionType}`);
+      return res.json({ success: true, id: existingSession.id, deduplicated: true });
+    }
+  }
+
+  // For autonomous registrations without claudeSessionId, check if there's a recent CLI session for same project
+  // This handles: CLI session starts (hook registers as cli) -> orchestrator runs (should upgrade to autonomous)
+  if (sessionType === 'autonomous' && !claudeSessionId && projectPath) {
+    const allSessions = sessionRegistry.getAll();
+    const normalizedPath = projectPath.replace(/\\/g, '/').toLowerCase();
+
+    // Find most recent CLI session for this project (within last 5 minutes)
+    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+    const recentCliSession = allSessions
+      .filter(s => {
+        const sessionPath = (s.path || '').replace(/\\/g, '/').toLowerCase();
+        const isMatch = sessionPath === normalizedPath ||
+                        sessionPath.includes(normalizedPath) ||
+                        normalizedPath.includes(sessionPath);
+        const isRecent = new Date(s.startTime).getTime() > fiveMinutesAgo;
+        const isCli = s.sessionType === 'cli';
+        return isMatch && isRecent && isCli;
+      })
+      .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))[0];
+
+    if (recentCliSession) {
+      // Upgrade the CLI session to autonomous
+      const updates = {
+        sessionType: 'autonomous',
+        autonomous: true,
+        status: status || recentCliSession.status,
+        currentTask: currentTask || recentCliSession.currentTask,
+        orchestratorInfo: orchestratorInfo || null,
+        logSessionId: logSessionId || recentCliSession.logSessionId
+      };
+
+      sessionRegistry.update(recentCliSession.id, updates);
+      console.log(`[COMMAND CENTER] Session upgraded: ${recentCliSession.id} (${project}) cli -> autonomous`);
+      return res.json({ success: true, id: recentCliSession.id, upgraded: true });
+    }
+  }
 
   // Try to get initial context data from tracker
   // Field names must match what dashboard expects

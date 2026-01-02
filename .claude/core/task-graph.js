@@ -107,24 +107,45 @@ class TaskGraph {
   generateTreeData() {
     const tasks = this.taskManager.getAllTasks();
     const taskMap = new Map(tasks.map(t => [t.id, { ...t, children: [] }]));
+    const addedAsChild = new Set();
 
-    // Find root tasks (no requirements)
-    const roots = [];
-
+    // First pass: Build parent-child relationships from childTaskIds
     for (const task of tasks) {
-      const hasRequirements = task.depends?.requires?.length > 0;
-
-      if (!hasRequirements) {
-        roots.push(taskMap.get(task.id));
-      } else {
-        // Add as child to first requirement
-        const parentId = task.depends.requires[0];
-        const parent = taskMap.get(parentId);
-        if (parent) {
-          parent.children.push(taskMap.get(task.id));
+      if (task.childTaskIds && task.childTaskIds.length > 0) {
+        const parentNode = taskMap.get(task.id);
+        if (parentNode) {
+          for (const childId of task.childTaskIds) {
+            const childNode = taskMap.get(childId);
+            if (childNode) {
+              parentNode.children.push(childNode);
+              addedAsChild.add(childId);
+            }
+          }
         }
       }
     }
+
+    // Second pass: Add dependency-based children (for tasks without explicit childTaskIds)
+    for (const task of tasks) {
+      if (addedAsChild.has(task.id)) continue; // Already added as child
+
+      const hasRequirements = task.depends?.requires?.length > 0;
+
+      if (hasRequirements) {
+        // Add as child to first requirement (only if not already added via childTaskIds)
+        const parentId = task.depends.requires[0];
+        const parent = taskMap.get(parentId);
+        if (parent && !addedAsChild.has(task.id)) {
+          parent.children.push(taskMap.get(task.id));
+          addedAsChild.add(task.id);
+        }
+      }
+    }
+
+    // Find root tasks (not added as children anywhere)
+    const roots = tasks
+      .filter(t => !addedAsChild.has(t.id))
+      .map(t => taskMap.get(t.id));
 
     return {
       id: 'root',

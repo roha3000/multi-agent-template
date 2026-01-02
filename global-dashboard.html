@@ -5078,7 +5078,7 @@
       `;
     }
 
-    function updateTasksPane(session) {
+    async function updateTasksPane(session) {
       const pane = document.getElementById('pane-tasks');
       if (!pane) return;
 
@@ -5090,12 +5090,51 @@
       const task = session.currentTask || {};
       const queue = session.taskQueue || [];
 
+      // Fetch child tasks if current task has children
+      let childTasksHtml = '';
+      if (task.id) {
+        try {
+          const treeRes = await fetch('/api/tasks/tree');
+          if (treeRes.ok) {
+            const treeData = await treeRes.json();
+            const findTask = (nodes, id) => {
+              for (const n of (nodes || [])) {
+                if (n.id === id) return n;
+                const found = findTask(n.children, id);
+                if (found) return found;
+              }
+              return null;
+            };
+            const parentTask = findTask(treeData.children, task.id);
+            if (parentTask && parentTask.children && parentTask.children.length > 0) {
+              const statusColors = { ready: '#4ade80', blocked: '#fbbf24', in_progress: '#3b82f6', completed: '#22c55e' };
+              childTasksHtml = `
+                <div class="section-header">Subtasks (${parentTask.children.length})</div>
+                <table class="data-table">
+                  <tr><th>Task</th><th>Status</th><th>Est</th></tr>
+                  ${parentTask.children.map(c => `
+                    <tr>
+                      <td>${escapeHtml(c.title || c.id)}</td>
+                      <td><span class="status-badge" style="background:${statusColors[c.status] || '#94a3b8'}">${c.status || 'unknown'}</span></td>
+                      <td>${c.estimate || '-'}</td>
+                    </tr>
+                  `).join('')}
+                </table>
+              `;
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to fetch child tasks:', e);
+        }
+      }
+
       pane.innerHTML = `
         <div class="section-header">Active</div>
         <table class="data-table">
           <tr><th>Task</th><th>Status</th></tr>
           ${task.id ? `<tr><td>${escapeHtml(task.title || task.id)}</td><td><span class="status-badge in-progress">Active</span></td></tr>` : '<tr><td colspan="2" style="color:var(--text-muted)">No active task</td></tr>'}
         </table>
+        ${childTasksHtml}
         <div class="section-header">Queue (${queue.length})</div>
         <table class="data-table">
           <tr><th>Task</th><th>Priority</th></tr>
