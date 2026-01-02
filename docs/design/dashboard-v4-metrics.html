@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fleet Dashboard v4 - Extended Metrics</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #111;
+      --bg-tertiary: #1a1a1a;
+      --bg-hover: #222;
+      --border: #2a2a2a;
+      --border-light: #333;
+      --text-primary: #e0e0e0;
+      --text-secondary: #888;
+      --text-muted: #555;
+      --accent: #3b82f6;
+      --success: #22c55e;
+      --warning: #eab308;
+      --danger: #ef4444;
+      --purple: #a855f7;
+    }
+
+    body {
+      font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+      font-size: 11px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+
+    /* ===== TOP BAR ===== */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    .top-metrics {
+      display: flex;
+      gap: 16px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .top-metric {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .top-metric-label {
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .top-metric-value {
+      font-weight: 600;
+    }
+
+    .top-metric-value.ok { color: var(--success); }
+    .top-metric-value.warn { color: var(--warning); }
+    .top-metric-value.crit { color: var(--danger); }
+
+    .top-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .top-btn {
+      padding: 4px 8px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 10px;
+    }
+
+    .top-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* ===== MAIN LAYOUT ===== */
+    .main-container {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 36px);
+    }
+
+    .panels {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ===== LEFT PANEL ===== */
+    .left-panel {
+      width: 260px;
+      min-width: 200px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 8px 10px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .session-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .session-group {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .session-group-header {
+      padding: 6px 10px;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .session-group-header:hover {
+      background: var(--bg-hover);
+    }
+
+    .session-group-toggle {
+      color: var(--text-muted);
+      font-size: 8px;
+    }
+
+    .session-group.collapsed .session-group-toggle {
+      transform: rotate(-90deg);
+    }
+
+    .session-group.collapsed .session-group-items {
+      display: none;
+    }
+
+    .session-group-name {
+      flex: 1;
+    }
+
+    .session-group-count {
+      color: var(--text-muted);
+      font-size: 9px;
+    }
+
+    /* Enhanced session item with more metrics */
+    .session-item {
+      padding: 8px 10px 8px 18px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    .session-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .session-item.selected {
+      background: var(--bg-hover);
+      border-left: 2px solid var(--accent);
+      padding-left: 16px;
+    }
+
+    .session-row-1 {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .session-status {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .session-status.active { background: var(--success); }
+    .session-status.idle { background: var(--text-muted); }
+    .session-status.warning { background: var(--warning); }
+
+    .session-name {
+      flex: 1;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .session-phase {
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .session-row-2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    /* Mini metrics in session list */
+    .mini-metric {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .mini-metric-label {
+      color: var(--text-muted);
+    }
+
+    .mini-metric-value {
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .mini-metric-value.ok { color: var(--success); }
+    .mini-metric-value.warn { color: var(--warning); }
+    .mini-metric-value.crit { color: var(--danger); }
+
+    /* Mini bar for context/health */
+    .mini-bar {
+      width: 30px;
+      height: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .mini-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+    }
+
+    /* Prediction chip */
+    .prediction-chip {
+      font-size: 8px;
+      padding: 1px 4px;
+      border-radius: 2px;
+      background: rgba(168, 85, 247, 0.15);
+      color: var(--purple);
+    }
+
+    .prediction-chip.warn {
+      background: rgba(234, 179, 8, 0.15);
+      color: var(--warning);
+    }
+
+    .prediction-chip.crit {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+    }
+
+    /* ===== RIGHT PANEL ===== */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .view-tabs {
+      display: flex;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .view-tab {
+      padding: 8px 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      font-size: 10px;
+    }
+
+    .view-tab:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .view-content {
+      flex: 1;
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .view-pane { display: none; }
+    .view-pane.active { display: block; }
+
+    /* ===== METRICS GRID ===== */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .metric-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px;
+    }
+
+    .metric-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .metric-card-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .metric-card-trend {
+      font-size: 9px;
+    }
+
+    .metric-card-trend.up { color: var(--success); }
+    .metric-card-trend.down { color: var(--danger); }
+    .metric-card-trend.stable { color: var(--text-muted); }
+
+    .metric-card-value {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .metric-card-value.ok { color: var(--success); }
+    .metric-card-value.warn { color: var(--warning); }
+    .metric-card-value.crit { color: var(--danger); }
+
+    .metric-card-bar {
+      height: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .metric-card-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    .metric-card-sub {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Score display with ring */
+    .score-ring {
+      width: 40px;
+      height: 40px;
+      position: relative;
+    }
+
+    .score-ring svg {
+      transform: rotate(-90deg);
+    }
+
+    .score-ring-bg {
+      fill: none;
+      stroke: var(--bg-tertiary);
+      stroke-width: 4;
+    }
+
+    .score-ring-fill {
+      fill: none;
+      stroke-width: 4;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.3s;
+    }
+
+    .score-ring-value {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* ===== PREDICTION SECTION ===== */
+    .prediction-section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .prediction-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .prediction-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .prediction-icon {
+      color: var(--purple);
+    }
+
+    .prediction-items {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .prediction-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+    }
+
+    .prediction-item-icon {
+      font-size: 14px;
+    }
+
+    .prediction-item-content {
+      flex: 1;
+    }
+
+    .prediction-item-label {
+      font-size: 10px;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+
+    .prediction-item-value {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .prediction-item-value.ok { color: var(--success); }
+    .prediction-item-value.warn { color: var(--warning); }
+    .prediction-item-value.crit { color: var(--danger); }
+
+    .prediction-item-detail {
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    /* ===== DATA TABLE ===== */
+    .section-header {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+      margin-bottom: 16px;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 6px 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 9px;
+      text-transform: uppercase;
+    }
+
+    .data-table td {
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+    }
+
+    .data-table tr:hover td {
+      background: var(--bg-tertiary);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.completed { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+    .status-badge.in-progress { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
+    .status-badge.blocked { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+    .status-badge.ready { background: rgba(136, 136, 136, 0.15); color: var(--text-secondary); }
+
+    /* ===== SCORE INDICATORS ===== */
+    .inline-score {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .score-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .score-bar-inline {
+      width: 40px;
+      height: 6px;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .score-bar-inline-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+
+    /* ===== KEYBOARD BAR ===== */
+    .keyboard-bar {
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      font-size: 9px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 12px;
+    }
+
+    kbd {
+      display: inline-block;
+      padding: 1px 4px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      font-family: inherit;
+      font-size: 9px;
+      margin-right: 3px;
+    }
+
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 700px) {
+      .left-panel { width: 200px; }
+      .metrics-grid { grid-template-columns: 1fr 1fr; }
+      .prediction-items { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <span class="logo">FLEET</span>
+
+    <div class="top-metrics">
+      <div class="top-metric">
+        <span class="top-metric-label">SESSIONS</span>
+        <span class="top-metric-value ok">3</span>
+      </div>
+      <div class="top-metric">
+        <span class="top-metric-label">TASKS</span>
+        <span class="top-metric-value">4/7</span>
+      </div>
+      <div class="top-metric">
+        <span class="top-metric-label">HEALTH</span>
+        <span class="top-metric-value ok">87</span>
+      </div>
+      <div class="top-metric">
+        <span class="top-metric-label">CONFIDENCE</span>
+        <span class="top-metric-value ok">92</span>
+      </div>
+      <div class="top-metric">
+        <span class="top-metric-label">ALERTS</span>
+        <span class="top-metric-value warn">1</span>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button class="top-btn">+ Session</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-container">
+    <div class="panels">
+      <!-- LEFT: SESSIONS -->
+      <div class="left-panel">
+        <div class="panel-header">Sessions</div>
+
+        <div class="session-list">
+          <!-- Project 1 -->
+          <div class="session-group">
+            <div class="session-group-header" onclick="this.parentElement.classList.toggle('collapsed')">
+              <span class="session-group-toggle">&#9660;</span>
+              <span class="session-group-name">multi-agent-template</span>
+              <span class="session-group-count">2</span>
+            </div>
+            <div class="session-group-items">
+              <!-- Session with extended metrics -->
+              <div class="session-item selected">
+                <div class="session-row-1">
+                  <span class="session-status active"></span>
+                  <span class="session-name">main-session</span>
+                  <span class="session-phase">impl</span>
+                </div>
+                <div class="session-row-2">
+                  <div class="mini-metric">
+                    <span class="mini-metric-label">ctx</span>
+                    <span class="mini-metric-value ok">45%</span>
+                  </div>
+                  <div class="mini-metric">
+                    <span class="mini-metric-label">hlth</span>
+                    <span class="mini-metric-value ok">92</span>
+                  </div>
+                  <div class="mini-metric">
+                    <span class="mini-metric-label">conf</span>
+                    <span class="mini-metric-value ok">88</span>
+                  </div>
+                  <span class="prediction-chip">~45 msgs</span>
+                </div>
+              </div>
+
+              <div class="session-item">
+                <div class="session-row-1">
+                  <span class="session-status active"></span>
+                  <span class="session-name">research-agent</span>
+                  <span class="session-phase">research</span>
+                </div>
+                <div class="session-row-2">
+                  <div class="mini-metric">
+                    <span class="mini-metric-label">ctx</span>
+                    <span class="mini-metric-value ok">22%</span>
+                  </div>
+                  <div class="mini-metric">
+                    <span class="mini-metric-label">hlth</span>
+                    <span class="mini-metric-value ok">95</span>
+                  </div>
+                  <div class="mini-metric">
+                    <span class="mini-metric-label">conf</span>
+                    <span class="mini-metric-value ok">91</span>
+                  </div>
+                  <span class="prediction-chip">~80 msgs</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Project 2 -->
+          <div class="session-group">
+            <div class="session-group-header" onclick="this.parentElement.classList.toggle('collapsed')">
+              <span class="session-group-toggle">&#9660;</span>
+              <span class="session-group-name">api-integration</span>
+              <span class="session-group-count">1</span>
+            </div>
+            <div class="session-group-items">
+              <div class="session-item">
+                <div class="session-row-1">
+                  <span class="session-status warning"></span>
+                  <span class="session-name">test-runner</span>
+                  <span class="session-phase">testing</span>
+                </div>
+                <div class="session-row-2">
+                  <div class="mini-metric">
+                    <span class="mini-metric-label">ctx</span>
+                    <span class="mini-metric-value warn">78%</span>
+                  </div>
+                  <div class="mini-metric">
+                    <span class="mini-metric-label">hlth</span>
+                    <span class="mini-metric-value warn">68</span>
+                  </div>
+                  <div class="mini-metric">
+                    <span class="mini-metric-label">conf</span>
+                    <span class="mini-metric-value ok">85</span>
+                  </div>
+                  <span class="prediction-chip warn">~8 msgs</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: CONTENT -->
+      <div class="right-panel">
+        <div class="view-tabs">
+          <div class="view-tab active" onclick="switchTab('overview')">Overview</div>
+          <div class="view-tab" onclick="switchTab('tasks')">Tasks</div>
+          <div class="view-tab" onclick="switchTab('predictions')">Predictions</div>
+          <div class="view-tab" onclick="switchTab('logs')">Logs</div>
+        </div>
+
+        <div class="view-content">
+          <!-- OVERVIEW TAB -->
+          <div class="view-pane active" id="pane-overview">
+            <div class="section-header">main-session</div>
+
+            <!-- Metrics Grid with Health/Confidence -->
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span class="metric-card-label">Context</span>
+                  <span class="metric-card-trend stable">&#8596;</span>
+                </div>
+                <div class="metric-card-value ok">45%</div>
+                <div class="metric-card-bar">
+                  <div class="metric-card-bar-fill" style="width:45%; background:var(--success)"></div>
+                </div>
+                <div class="metric-card-sub">~45 messages remaining</div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span class="metric-card-label">Health</span>
+                  <span class="metric-card-trend up">&#8593;</span>
+                </div>
+                <div class="metric-card-value ok">92</div>
+                <div class="metric-card-bar">
+                  <div class="metric-card-bar-fill" style="width:92%; background:var(--success)"></div>
+                </div>
+                <div class="metric-card-sub">Quality + stability</div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span class="metric-card-label">Confidence</span>
+                  <span class="metric-card-trend stable">&#8596;</span>
+                </div>
+                <div class="metric-card-value ok">88</div>
+                <div class="metric-card-bar">
+                  <div class="metric-card-bar-fill" style="width:88%; background:var(--success)"></div>
+                </div>
+                <div class="metric-card-sub">Agent certainty</div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-card-header">
+                  <span class="metric-card-label">Tokens</span>
+                </div>
+                <div class="metric-card-value">24.3k</div>
+                <div class="metric-card-sub">47 minutes active</div>
+              </div>
+            </div>
+
+            <!-- Prediction Summary -->
+            <div class="prediction-section">
+              <div class="prediction-header">
+                <span class="prediction-icon">&#9881;</span>
+                <span class="prediction-title">Predictions</span>
+              </div>
+              <div class="prediction-items" style="flex-direction:row; flex-wrap:wrap;">
+                <div class="prediction-item" style="flex:1; min-width:150px;">
+                  <div class="prediction-item-content">
+                    <div class="prediction-item-label">Context Exhaustion</div>
+                    <div class="prediction-item-value ok">~45 messages</div>
+                    <div class="prediction-item-detail">Based on avg 540 tokens/msg</div>
+                  </div>
+                </div>
+                <div class="prediction-item" style="flex:1; min-width:150px;">
+                  <div class="prediction-item-content">
+                    <div class="prediction-item-label">Time to Full</div>
+                    <div class="prediction-item-value ok">~38 minutes</div>
+                    <div class="prediction-item-detail">At current rate</div>
+                  </div>
+                </div>
+                <div class="prediction-item" style="flex:1; min-width:150px;">
+                  <div class="prediction-item-content">
+                    <div class="prediction-item-label">Task Completion</div>
+                    <div class="prediction-item-value">~12 mins</div>
+                    <div class="prediction-item-detail">dashboard-ux-redesign</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Current Task -->
+            <div class="section-header">Current Task</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Task</th><th>Status</th><th>Progress</th><th>Health</th><th>Conf</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>dashboard-ux-redesign</strong></td>
+                  <td><span class="status-badge in-progress">Active</span></td>
+                  <td>60%</td>
+                  <td>
+                    <div class="inline-score">
+                      <div class="score-bar-inline">
+                        <div class="score-bar-inline-fill" style="width:92%; background:var(--success)"></div>
+                      </div>
+                      <span>92</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="inline-score">
+                      <div class="score-bar-inline">
+                        <div class="score-bar-inline-fill" style="width:88%; background:var(--success)"></div>
+                      </div>
+                      <span>88</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Subtasks with scores -->
+            <div class="section-header">Subtasks</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Subtask</th><th>Status</th><th>Agent</th><th>Hlth</th><th>Conf</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Research patterns</td>
+                  <td><span class="status-badge completed">Done</span></td>
+                  <td>research</td>
+                  <td><span style="color:var(--success)">95</span></td>
+                  <td><span style="color:var(--success)">91</span></td>
+                </tr>
+                <tr>
+                  <td>Design mockups</td>
+                  <td><span class="status-badge completed">Done</span></td>
+                  <td>main</td>
+                  <td><span style="color:var(--success)">90</span></td>
+                  <td><span style="color:var(--success)">87</span></td>
+                </tr>
+                <tr>
+                  <td>Implement layout</td>
+                  <td><span class="status-badge in-progress">Active</span></td>
+                  <td>main</td>
+                  <td><span style="color:var(--success)">92</span></td>
+                  <td><span style="color:var(--success)">88</span></td>
+                </tr>
+                <tr>
+                  <td>Add keyboard nav</td>
+                  <td><span class="status-badge ready">Ready</span></td>
+                  <td>--</td>
+                  <td>--</td>
+                  <td>--</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- TASKS TAB -->
+          <div class="view-pane" id="pane-tasks">
+            <div class="section-header">All Tasks</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Task</th><th>Status</th><th>Priority</th><th>Health</th><th>Prediction</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>dashboard-ux-redesign</td>
+                  <td><span class="status-badge in-progress">Active</span></td>
+                  <td>High</td>
+                  <td><span style="color:var(--success)">92</span></td>
+                  <td><span class="prediction-chip">~12m</span></td>
+                </tr>
+                <tr>
+                  <td>auto-delegation</td>
+                  <td><span class="status-badge ready">Ready</span></td>
+                  <td>High</td>
+                  <td>--</td>
+                  <td>--</td>
+                </tr>
+                <tr>
+                  <td>blocked-tasks-view</td>
+                  <td><span class="status-badge ready">Ready</span></td>
+                  <td>Medium</td>
+                  <td>--</td>
+                  <td>--</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- PREDICTIONS TAB -->
+          <div class="view-pane" id="pane-predictions">
+            <div class="section-header">Context Exhaustion Predictions</div>
+
+            <div class="prediction-section" style="margin-bottom:12px;">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Session</th><th>Context</th><th>Msgs Left</th><th>Time Left</th><th>Risk</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>main-session</td>
+                    <td>45%</td>
+                    <td>~45</td>
+                    <td>~38m</td>
+                    <td><span style="color:var(--success)">Low</span></td>
+                  </tr>
+                  <tr>
+                    <td>research-agent</td>
+                    <td>22%</td>
+                    <td>~80</td>
+                    <td>~65m</td>
+                    <td><span style="color:var(--success)">Low</span></td>
+                  </tr>
+                  <tr>
+                    <td>test-runner</td>
+                    <td>78%</td>
+                    <td>~8</td>
+                    <td>~6m</td>
+                    <td><span style="color:var(--danger)">High</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="section-header">Prediction Method</div>
+            <div style="font-size:10px; color:var(--text-secondary); line-height:1.6;">
+              <p><strong>Messages remaining:</strong> (100% - context%) × max_tokens ÷ avg_tokens_per_msg</p>
+              <p style="margin-top:8px;"><strong>Time remaining:</strong> messages_remaining × avg_time_per_msg</p>
+              <p style="margin-top:8px;"><strong>Risk levels:</strong></p>
+              <ul style="margin-left:16px; margin-top:4px;">
+                <li><span style="color:var(--success)">Low</span>: >30 messages remaining</li>
+                <li><span style="color:var(--warning)">Medium</span>: 10-30 messages remaining</li>
+                <li><span style="color:var(--danger)">High</span>: <10 messages remaining</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- LOGS TAB -->
+          <div class="view-pane" id="pane-logs">
+            <div class="section-header">Recent Activity</div>
+            <div style="font-size:10px;">
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted)">14:52</span>
+                <span style="color:var(--accent)">INFO</span>
+                <span>Health score updated: 92 (+2)</span>
+              </div>
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted)">14:48</span>
+                <span style="color:var(--accent)">INFO</span>
+                <span>Confidence stable at 88</span>
+              </div>
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted)">14:45</span>
+                <span style="color:var(--warning)">WARN</span>
+                <span>test-runner context at 75%</span>
+              </div>
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted)">14:41</span>
+                <span style="color:var(--accent)">INFO</span>
+                <span>Subtask completed: Design mockups</span>
+              </div>
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted)">14:35</span>
+                <span style="color:var(--accent)">INFO</span>
+                <span>Subtask completed: Research patterns (health: 95)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="keyboard-bar">
+      <span><kbd>j</kbd><kbd>k</kbd> navigate</span>
+      <span><kbd>1-4</kbd> tabs</span>
+      <span><kbd>n</kbd> new session</span>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(name) {
+      document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.view-pane').forEach(p => p.classList.remove('active'));
+      document.querySelector(`.view-tab[onclick*="${name}"]`).classList.add('active');
+      document.getElementById(`pane-${name}`).classList.add('active');
+    }
+
+    document.querySelectorAll('.session-item').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.session-item').forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+      });
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key >= '1' && e.key <= '4') {
+        const tabs = ['overview', 'tasks', 'predictions', 'logs'];
+        switchTab(tabs[parseInt(e.key) - 1]);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fleet Dashboard v4 - Final</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #111;
+      --bg-tertiary: #1a1a1a;
+      --bg-hover: #222;
+      --border: #2a2a2a;
+      --border-light: #333;
+      --text-primary: #e0e0e0;
+      --text-secondary: #888;
+      --text-muted: #555;
+      --accent: #3b82f6;
+      --success: #22c55e;
+      --warning: #eab308;
+      --danger: #ef4444;
+      --purple: #a855f7;
+      --cyan: #06b6d4;
+    }
+
+    body {
+      font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+      font-size: 11px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+
+    /* ===== TOP BAR ===== */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    .top-metrics {
+      display: flex;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .top-metric {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .top-metric-label {
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .top-metric-value {
+      font-weight: 600;
+    }
+
+    .top-metric-value.ok { color: var(--success); }
+    .top-metric-value.warn { color: var(--warning); }
+    .top-metric-value.crit { color: var(--danger); }
+
+    .top-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .top-btn {
+      padding: 4px 8px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 10px;
+    }
+
+    .top-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* ===== ALERT BANNER ===== */
+    .alert-banner {
+      display: none;
+      padding: 6px 12px;
+      background: rgba(234, 179, 8, 0.1);
+      border-bottom: 1px solid rgba(234, 179, 8, 0.3);
+      color: var(--warning);
+      font-size: 10px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .alert-banner.visible { display: flex; }
+
+    .alert-dismiss {
+      margin-left: auto;
+      cursor: pointer;
+      opacity: 0.6;
+    }
+
+    .alert-dismiss:hover { opacity: 1; }
+
+    /* ===== MAIN LAYOUT ===== */
+    .main-container {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 36px);
+    }
+
+    .panels {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ===== LEFT PANEL: SESSIONS ===== */
+    .left-panel {
+      width: 240px;
+      min-width: 180px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 8px 10px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .session-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .session-group {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .session-group-header {
+      padding: 6px 10px;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .session-group-header:hover {
+      background: var(--bg-hover);
+    }
+
+    .session-group-toggle {
+      color: var(--text-muted);
+      font-size: 8px;
+      transition: transform 0.15s;
+    }
+
+    .session-group.collapsed .session-group-toggle {
+      transform: rotate(-90deg);
+    }
+
+    .session-group.collapsed .session-group-items {
+      display: none;
+    }
+
+    .session-group-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .session-group-count {
+      color: var(--text-muted);
+      font-size: 9px;
+    }
+
+    /* Session item */
+    .session-item {
+      padding: 8px 10px 8px 18px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    .session-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .session-item.selected {
+      background: var(--bg-hover);
+      border-left: 2px solid var(--accent);
+      padding-left: 16px;
+    }
+
+    .session-row-1 {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+
+    .session-status {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .session-status.active { background: var(--success); }
+    .session-status.idle { background: var(--text-muted); }
+    .session-status.warning { background: var(--warning); }
+
+    .session-name {
+      flex: 1;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Session type badge: CLI or AUTO */
+    .session-type {
+      font-size: 8px;
+      padding: 1px 4px;
+      border-radius: 2px;
+      font-weight: 600;
+    }
+
+    .session-type.cli {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent);
+    }
+
+    .session-type.auto {
+      background: rgba(168, 85, 247, 0.15);
+      color: var(--purple);
+    }
+
+    .session-row-2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .session-phase {
+      color: var(--text-secondary);
+    }
+
+    .session-ctx {
+      margin-left: auto;
+    }
+
+    .session-ctx.warn { color: var(--warning); }
+    .session-ctx.crit { color: var(--danger); }
+
+    .prediction-chip {
+      font-size: 8px;
+      padding: 1px 4px;
+      border-radius: 2px;
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--cyan);
+    }
+
+    .prediction-chip.warn {
+      background: rgba(234, 179, 8, 0.15);
+      color: var(--warning);
+    }
+
+    .prediction-chip.crit {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+    }
+
+    /* ===== RIGHT PANEL: CONTENT ===== */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .view-tabs {
+      display: flex;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+
+    .view-tab {
+      padding: 8px 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .view-tab:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .view-content {
+      flex: 1;
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .view-pane { display: none; }
+    .view-pane.active { display: block; }
+
+    /* ===== METRICS GRID ===== */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .metric-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px;
+    }
+
+    .metric-card-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .metric-card-value {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .metric-card-value.ok { color: var(--success); }
+    .metric-card-value.warn { color: var(--warning); }
+    .metric-card-value.crit { color: var(--danger); }
+
+    .metric-card-bar {
+      height: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .metric-card-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+    }
+
+    .metric-card-sub {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ===== PREDICTION SECTION ===== */
+    .prediction-section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .prediction-header {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .prediction-items {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .prediction-item {
+      flex: 1;
+      min-width: 120px;
+      padding: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+    }
+
+    .prediction-item-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .prediction-item-value {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .prediction-item-value.ok { color: var(--success); }
+    .prediction-item-value.warn { color: var(--warning); }
+    .prediction-item-value.crit { color: var(--danger); }
+
+    .prediction-item-detail {
+      font-size: 8px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ===== DATA TABLE ===== */
+    .section-header {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+      margin-top: 16px;
+    }
+
+    .section-header:first-child {
+      margin-top: 0;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 6px 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 9px;
+      text-transform: uppercase;
+    }
+
+    .data-table td {
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+    }
+
+    .data-table tr:hover td {
+      background: var(--bg-tertiary);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.completed { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+    .status-badge.in-progress { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
+    .status-badge.blocked { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+    .status-badge.ready { background: rgba(136, 136, 136, 0.15); color: var(--text-secondary); }
+
+    /* Inline score bar */
+    .score-bar-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .score-bar-track {
+      width: 40px;
+      height: 6px;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+
+    /* ===== HIERARCHY TAB ===== */
+    .hierarchy-tree {
+      font-size: 11px;
+    }
+
+    .hierarchy-node {
+      padding: 2px 0;
+    }
+
+    .hierarchy-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .hierarchy-row:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .hierarchy-toggle {
+      color: var(--text-muted);
+      font-size: 8px;
+      width: 10px;
+      text-align: center;
+    }
+
+    .hierarchy-status {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .hierarchy-name {
+      flex: 1;
+    }
+
+    .hierarchy-type {
+      font-size: 8px;
+      padding: 1px 4px;
+      border-radius: 2px;
+    }
+
+    .hierarchy-type.cli {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent);
+    }
+
+    .hierarchy-type.auto {
+      background: rgba(168, 85, 247, 0.15);
+      color: var(--purple);
+    }
+
+    .hierarchy-meta {
+      color: var(--text-muted);
+      font-size: 9px;
+    }
+
+    .hierarchy-children {
+      margin-left: 18px;
+      border-left: 1px dashed var(--border);
+      padding-left: 8px;
+    }
+
+    /* ===== DETAILS TAB ===== */
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+    }
+
+    .detail-label {
+      color: var(--text-muted);
+    }
+
+    .detail-value {
+      font-weight: 500;
+    }
+
+    /* ===== KEYBOARD BAR ===== */
+    .keyboard-bar {
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      font-size: 9px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    kbd {
+      display: inline-block;
+      padding: 1px 4px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      font-family: inherit;
+      font-size: 9px;
+      margin-right: 3px;
+    }
+
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      .left-panel { width: 180px; min-width: 150px; }
+      .top-metrics { gap: 10px; font-size: 9px; }
+      .metrics-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <span class="logo">FLEET</span>
+
+    <div class="top-metrics">
+      <div class="top-metric">
+        <span class="top-metric-label">PROJECTS</span>
+        <span class="top-metric-value">2</span>
+      </div>
+      <div class="top-metric">
+        <span class="top-metric-label">SESSIONS</span>
+        <span class="top-metric-value ok">3</span>
+      </div>
+      <div class="top-metric">
+        <span class="top-metric-label">TASKS</span>
+        <span class="top-metric-value">4/7</span>
+      </div>
+      <div class="top-metric">
+        <span class="top-metric-label">AGENTS</span>
+        <span class="top-metric-value">2</span>
+        <span class="top-metric-label">/ 1 sub</span>
+      </div>
+      <div class="top-metric">
+        <span class="top-metric-label">WARNINGS</span>
+        <span class="top-metric-value warn">1</span>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button class="top-btn">+ Session</button>
+    </div>
+  </div>
+
+  <!-- ALERT BANNER -->
+  <div class="alert-banner visible">
+    <span>&#9888;</span>
+    <span><strong>test-runner</strong> context at 78% (~8 messages remaining)</span>
+    <span class="alert-dismiss" onclick="this.parentElement.classList.remove('visible')">&#10005;</span>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-container">
+    <div class="panels">
+      <!-- LEFT: SESSIONS -->
+      <div class="left-panel">
+        <div class="panel-header">
+          <span>Sessions</span>
+          <span>3</span>
+        </div>
+
+        <div class="session-list">
+          <!-- Project 1 -->
+          <div class="session-group">
+            <div class="session-group-header" onclick="this.parentElement.classList.toggle('collapsed')">
+              <span class="session-group-toggle">&#9660;</span>
+              <span class="session-group-name">multi-agent-template</span>
+              <span class="session-group-count">2</span>
+            </div>
+            <div class="session-group-items">
+              <div class="session-item selected" onclick="selectSession(this)">
+                <div class="session-row-1">
+                  <span class="session-status active"></span>
+                  <span class="session-name">main-session</span>
+                  <span class="session-type cli">CLI</span>
+                </div>
+                <div class="session-row-2">
+                  <span class="session-phase">implementing</span>
+                  <span class="prediction-chip">~45 msgs</span>
+                  <span class="session-ctx">45%</span>
+                </div>
+              </div>
+
+              <div class="session-item" onclick="selectSession(this)">
+                <div class="session-row-1">
+                  <span class="session-status active"></span>
+                  <span class="session-name">research-agent</span>
+                  <span class="session-type auto">AUTO</span>
+                </div>
+                <div class="session-row-2">
+                  <span class="session-phase">researching</span>
+                  <span class="prediction-chip">~80 msgs</span>
+                  <span class="session-ctx">22%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Project 2 -->
+          <div class="session-group">
+            <div class="session-group-header" onclick="this.parentElement.classList.toggle('collapsed')">
+              <span class="session-group-toggle">&#9660;</span>
+              <span class="session-group-name">api-integration</span>
+              <span class="session-group-count">1</span>
+            </div>
+            <div class="session-group-items">
+              <div class="session-item" onclick="selectSession(this)">
+                <div class="session-row-1">
+                  <span class="session-status warning"></span>
+                  <span class="session-name">test-runner</span>
+                  <span class="session-type auto">AUTO</span>
+                </div>
+                <div class="session-row-2">
+                  <span class="session-phase">testing</span>
+                  <span class="prediction-chip warn">~8 msgs</span>
+                  <span class="session-ctx warn">78%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: CONTENT -->
+      <div class="right-panel">
+        <div class="view-tabs">
+          <div class="view-tab active" onclick="switchTab('overview')">Overview</div>
+          <div class="view-tab" onclick="switchTab('tasks')">Tasks</div>
+          <div class="view-tab" onclick="switchTab('hierarchy')">Hierarchy</div>
+          <div class="view-tab" onclick="switchTab('details')">Details</div>
+          <div class="view-tab" onclick="switchTab('logs')">Logs</div>
+        </div>
+
+        <div class="view-content">
+          <!-- OVERVIEW TAB -->
+          <div class="view-pane active" id="pane-overview">
+            <div class="section-header">main-session <span style="font-weight:400;text-transform:none;color:var(--accent)">[CLI]</span></div>
+
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-card-label">Context</div>
+                <div class="metric-card-value ok">45%</div>
+                <div class="metric-card-bar">
+                  <div class="metric-card-bar-fill" style="width:45%; background:var(--success)"></div>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-label">Messages</div>
+                <div class="metric-card-value">34</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-label">Tokens</div>
+                <div class="metric-card-value">24.3k</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card-label">Duration</div>
+                <div class="metric-card-value">47m</div>
+              </div>
+            </div>
+
+            <!-- Predictions -->
+            <div class="prediction-section">
+              <div class="prediction-header">
+                <span style="color:var(--cyan)">&#8634;</span>
+                <span>Context Predictions</span>
+              </div>
+              <div class="prediction-items">
+                <div class="prediction-item">
+                  <div class="prediction-item-label">Messages Remaining</div>
+                  <div class="prediction-item-value ok">~45</div>
+                  <div class="prediction-item-detail">at 540 tokens/msg avg</div>
+                </div>
+                <div class="prediction-item">
+                  <div class="prediction-item-label">Time to Full</div>
+                  <div class="prediction-item-value ok">~38m</div>
+                  <div class="prediction-item-detail">at current rate</div>
+                </div>
+                <div class="prediction-item">
+                  <div class="prediction-item-label">Task Completion</div>
+                  <div class="prediction-item-value">~12m</div>
+                  <div class="prediction-item-detail">dashboard-ux-redesign</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Current Task (with health/confidence at task level) -->
+            <div class="section-header">Current Task</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Task</th><th>Status</th><th>Progress</th><th>Health</th><th>Confidence</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>dashboard-ux-redesign</strong></td>
+                  <td><span class="status-badge in-progress">Active</span></td>
+                  <td>60%</td>
+                  <td>
+                    <span class="score-bar-inline">
+                      <span class="score-bar-track"><span class="score-bar-fill" style="width:92%;background:var(--success)"></span></span>
+                      <span style="color:var(--success)">92</span>
+                    </span>
+                  </td>
+                  <td>
+                    <span class="score-bar-inline">
+                      <span class="score-bar-track"><span class="score-bar-fill" style="width:88%;background:var(--success)"></span></span>
+                      <span style="color:var(--success)">88</span>
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Subtasks -->
+            <div class="section-header">Subtasks (4/7)</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Subtask</th><th>Status</th><th>Agent</th><th>Health</th><th>Conf</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Research patterns</td>
+                  <td><span class="status-badge completed">Done</span></td>
+                  <td>research-agent</td>
+                  <td style="color:var(--success)">95</td>
+                  <td style="color:var(--success)">91</td>
+                </tr>
+                <tr>
+                  <td>Design mockups</td>
+                  <td><span class="status-badge completed">Done</span></td>
+                  <td>main-session</td>
+                  <td style="color:var(--success)">90</td>
+                  <td style="color:var(--success)">87</td>
+                </tr>
+                <tr>
+                  <td>Implement layout</td>
+                  <td><span class="status-badge in-progress">Active</span></td>
+                  <td>main-session</td>
+                  <td style="color:var(--success)">92</td>
+                  <td style="color:var(--success)">88</td>
+                </tr>
+                <tr>
+                  <td>Add keyboard nav</td>
+                  <td><span class="status-badge ready">Ready</span></td>
+                  <td>--</td>
+                  <td>--</td>
+                  <td>--</td>
+                </tr>
+                <tr>
+                  <td>Write tests</td>
+                  <td><span class="status-badge blocked">Blocked</span></td>
+                  <td>--</td>
+                  <td>--</td>
+                  <td>--</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- TASKS TAB -->
+          <div class="view-pane" id="pane-tasks">
+            <div class="section-header">Active Tasks</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Task</th><th>Status</th><th>Priority</th><th>Health</th><th>Conf</th><th>ETA</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>dashboard-ux-redesign</td>
+                  <td><span class="status-badge in-progress">Active</span></td>
+                  <td>High</td>
+                  <td style="color:var(--success)">92</td>
+                  <td style="color:var(--success)">88</td>
+                  <td><span class="prediction-chip">~12m</span></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="section-header">Ready Tasks</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Task</th><th>Status</th><th>Priority</th><th>Blocked By</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>auto-delegation</td>
+                  <td><span class="status-badge ready">Ready</span></td>
+                  <td>High</td>
+                  <td>--</td>
+                </tr>
+                <tr>
+                  <td>blocked-tasks-view</td>
+                  <td><span class="status-badge ready">Ready</span></td>
+                  <td>Medium</td>
+                  <td>--</td>
+                </tr>
+                <tr>
+                  <td>add-model-pricing</td>
+                  <td><span class="status-badge ready">Ready</span></td>
+                  <td>Low</td>
+                  <td>--</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="section-header">Recently Completed</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Task</th><th>Completed</th><th>Duration</th><th>Health</th><th>Conf</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>fleet-ui-completion</td>
+                  <td>2h ago</td>
+                  <td>45m</td>
+                  <td style="color:var(--success)">94</td>
+                  <td style="color:var(--success)">91</td>
+                </tr>
+                <tr>
+                  <td>otlp-integration</td>
+                  <td>4h ago</td>
+                  <td>1h 20m</td>
+                  <td style="color:var(--success)">89</td>
+                  <td style="color:var(--success)">86</td>
+                </tr>
+                <tr>
+                  <td>dashboard-audit</td>
+                  <td>6h ago</td>
+                  <td>2h</td>
+                  <td style="color:var(--success)">91</td>
+                  <td style="color:var(--success)">88</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- HIERARCHY TAB -->
+          <div class="view-pane" id="pane-hierarchy">
+            <div class="section-header">Agent Hierarchy</div>
+
+            <div class="hierarchy-tree">
+              <!-- Project 1 hierarchy -->
+              <div class="hierarchy-node">
+                <div class="hierarchy-row">
+                  <span class="hierarchy-toggle">&#9660;</span>
+                  <span class="hierarchy-status" style="background:var(--success)"></span>
+                  <span class="hierarchy-name"><strong>multi-agent-template</strong></span>
+                </div>
+                <div class="hierarchy-children">
+                  <div class="hierarchy-node">
+                    <div class="hierarchy-row">
+                      <span class="hierarchy-toggle">&#9660;</span>
+                      <span class="hierarchy-status" style="background:var(--success)"></span>
+                      <span class="hierarchy-name">main-session</span>
+                      <span class="hierarchy-type cli">CLI</span>
+                      <span class="hierarchy-meta">root - implementing</span>
+                    </div>
+                    <div class="hierarchy-children">
+                      <div class="hierarchy-node">
+                        <div class="hierarchy-row">
+                          <span class="hierarchy-toggle" style="visibility:hidden">&#9660;</span>
+                          <span class="hierarchy-status" style="background:var(--success)"></span>
+                          <span class="hierarchy-name">research-agent</span>
+                          <span class="hierarchy-type auto">AUTO</span>
+                          <span class="hierarchy-meta">sub-agent - researching</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Project 2 hierarchy -->
+              <div class="hierarchy-node" style="margin-top:12px;">
+                <div class="hierarchy-row">
+                  <span class="hierarchy-toggle">&#9660;</span>
+                  <span class="hierarchy-status" style="background:var(--warning)"></span>
+                  <span class="hierarchy-name"><strong>api-integration</strong></span>
+                </div>
+                <div class="hierarchy-children">
+                  <div class="hierarchy-node">
+                    <div class="hierarchy-row">
+                      <span class="hierarchy-toggle" style="visibility:hidden">&#9660;</span>
+                      <span class="hierarchy-status" style="background:var(--warning)"></span>
+                      <span class="hierarchy-name">test-runner</span>
+                      <span class="hierarchy-type auto">AUTO</span>
+                      <span class="hierarchy-meta">root - testing - 78% ctx</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-header">Hierarchy Summary</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Metric</th><th>Count</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Total Projects</td><td>2</td></tr>
+                <tr><td>Root Sessions</td><td>2</td></tr>
+                <tr><td>Sub-Agents</td><td>1</td></tr>
+                <tr><td>Max Depth</td><td>2</td></tr>
+                <tr><td>Active Delegations</td><td>1</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- DETAILS TAB -->
+          <div class="view-pane" id="pane-details">
+            <div class="section-header">Session: main-session</div>
+
+            <div class="detail-row">
+              <span class="detail-label">Session ID</span>
+              <span class="detail-value">a1b2c3d4-5678-90ab</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Type</span>
+              <span class="detail-value" style="color:var(--accent)">CLI</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Project</span>
+              <span class="detail-value">multi-agent-template</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Phase</span>
+              <span class="detail-value">implementing</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Model</span>
+              <span class="detail-value">claude-opus-4-5</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Started</span>
+              <span class="detail-value">47 minutes ago</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Messages</span>
+              <span class="detail-value">34</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Input Tokens</span>
+              <span class="detail-value">18,421</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Output Tokens</span>
+              <span class="detail-value">5,892</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Cache Read</span>
+              <span class="detail-value">12,340</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Context Used</span>
+              <span class="detail-value">45%</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Parent Session</span>
+              <span class="detail-value">-- (root)</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Child Agents</span>
+              <span class="detail-value">1 (research-agent)</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Claimed Task</span>
+              <span class="detail-value">dashboard-ux-redesign</span>
+            </div>
+          </div>
+
+          <!-- LOGS TAB -->
+          <div class="view-pane" id="pane-logs">
+            <div class="section-header">Activity Log</div>
+
+            <div style="font-size:10px;">
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted);width:50px;">14:58</span>
+                <span style="color:var(--accent);width:35px;">INFO</span>
+                <span>Subtask "Implement layout" started</span>
+              </div>
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted);width:50px;">14:52</span>
+                <span style="color:var(--accent);width:35px;">INFO</span>
+                <span>Task health updated: 92 (+2)</span>
+              </div>
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted);width:50px;">14:45</span>
+                <span style="color:var(--warning);width:35px;">WARN</span>
+                <span>test-runner context at 75%</span>
+              </div>
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted);width:50px;">14:41</span>
+                <span style="color:var(--accent);width:35px;">INFO</span>
+                <span>Subtask completed: Design mockups (health: 90, conf: 87)</span>
+              </div>
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted);width:50px;">14:35</span>
+                <span style="color:var(--accent);width:35px;">INFO</span>
+                <span>Subtask completed: Research patterns (health: 95, conf: 91)</span>
+              </div>
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted);width:50px;">14:32</span>
+                <span style="color:var(--purple);width:35px;">AGENT</span>
+                <span>Spawned sub-agent: research-agent [AUTO]</span>
+              </div>
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted);width:50px;">14:30</span>
+                <span style="color:var(--accent);width:35px;">INFO</span>
+                <span>Task claimed: dashboard-ux-redesign</span>
+              </div>
+              <div style="padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+                <span style="color:var(--text-muted);width:50px;">14:28</span>
+                <span style="color:var(--success);width:35px;">START</span>
+                <span>Session started [CLI] - multi-agent-template</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="keyboard-bar">
+      <span><kbd>j</kbd><kbd>k</kbd> navigate</span>
+      <span><kbd>1-5</kbd> tabs</span>
+      <span><kbd>n</kbd> new session</span>
+      <span><kbd>?</kbd> help</span>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(name) {
+      document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.view-pane').forEach(p => p.classList.remove('active'));
+      document.querySelector(`.view-tab[onclick*="${name}"]`).classList.add('active');
+      document.getElementById(`pane-${name}`).classList.add('active');
+    }
+
+    function selectSession(el) {
+      document.querySelectorAll('.session-item').forEach(s => s.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT') return;
+      if (e.key >= '1' && e.key <= '5') {
+        const tabs = ['overview', 'tasks', 'hierarchy', 'details', 'logs'];
+        switchTab(tabs[parseInt(e.key) - 1]);
+      }
+    });
+  </script>
+</body>
+</html>

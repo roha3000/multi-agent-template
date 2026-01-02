@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fleet Dashboard v4 - Responsive</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #111;
+      --bg-tertiary: #1a1a1a;
+      --bg-hover: #222;
+      --border: #2a2a2a;
+      --border-light: #333;
+      --text-primary: #e0e0e0;
+      --text-secondary: #888;
+      --text-muted: #555;
+      --accent: #3b82f6;
+      --success: #22c55e;
+      --warning: #eab308;
+      --danger: #ef4444;
+    }
+
+    body {
+      font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+      font-size: 11px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+
+    /* ===== TOP BAR ===== */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    .top-metrics {
+      display: flex;
+      gap: 16px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .top-metric {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .top-metric-label {
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .top-metric-value {
+      font-weight: 600;
+    }
+
+    .top-metric-value.ok { color: var(--success); }
+    .top-metric-value.warn { color: var(--warning); }
+    .top-metric-value.crit { color: var(--danger); }
+
+    .top-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .top-btn {
+      padding: 4px 8px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 10px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .top-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .top-btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* ===== ALERT BANNER ===== */
+    .alert-banner {
+      display: none;
+      padding: 6px 12px;
+      background: rgba(234, 179, 8, 0.1);
+      border-bottom: 1px solid rgba(234, 179, 8, 0.3);
+      color: var(--warning);
+      font-size: 10px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .alert-banner.visible { display: flex; }
+    .alert-banner.critical {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: var(--danger);
+    }
+
+    .alert-dismiss {
+      margin-left: auto;
+      cursor: pointer;
+      opacity: 0.6;
+    }
+
+    .alert-dismiss:hover { opacity: 1; }
+
+    /* ===== MAIN LAYOUT - RESPONSIVE ===== */
+    .main-container {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 36px);
+      overflow: hidden;
+    }
+
+    /* Two-panel layout: sessions + content */
+    .panels {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ===== LEFT PANEL: SESSION LIST ===== */
+    .left-panel {
+      width: 220px;
+      min-width: 180px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .panel-header {
+      padding: 8px 10px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+    }
+
+    .session-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .session-group {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .session-group-header {
+      padding: 6px 10px;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .session-group-header:hover {
+      background: var(--bg-hover);
+    }
+
+    .session-group-toggle {
+      color: var(--text-muted);
+      font-size: 8px;
+      transition: transform 0.15s;
+    }
+
+    .session-group.collapsed .session-group-toggle {
+      transform: rotate(-90deg);
+    }
+
+    .session-group.collapsed .session-group-items {
+      display: none;
+    }
+
+    .session-group-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .session-group-count {
+      color: var(--text-muted);
+      font-weight: 400;
+      font-size: 9px;
+    }
+
+    .session-item {
+      padding: 6px 10px 6px 20px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .session-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .session-item.selected {
+      background: var(--bg-hover);
+      border-left: 2px solid var(--accent);
+      padding-left: 18px;
+    }
+
+    .session-status {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .session-status.active { background: var(--success); }
+    .session-status.idle { background: var(--text-muted); }
+    .session-status.warning { background: var(--warning); }
+
+    .session-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .session-name {
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .session-meta {
+      color: var(--text-muted);
+      font-size: 9px;
+    }
+
+    .session-ctx {
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .session-ctx.warn { color: var(--warning); }
+    .session-ctx.crit { color: var(--danger); }
+
+    /* ===== RIGHT PANEL: CONTENT ===== */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .view-tabs {
+      display: flex;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+
+    .view-tab {
+      padding: 8px 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      font-size: 10px;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .view-tab:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .view-content {
+      flex: 1;
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .view-pane {
+      display: none;
+    }
+
+    .view-pane.active {
+      display: block;
+    }
+
+    /* ===== OVERVIEW TAB ===== */
+    .stats-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .stat-box {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 14px;
+      min-width: 80px;
+    }
+
+    .stat-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .stat-value.ok { color: var(--success); }
+    .stat-value.warn { color: var(--warning); }
+    .stat-value.crit { color: var(--danger); }
+
+    /* ===== DATA TABLE ===== */
+    .section-header {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+      margin-bottom: 16px;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 6px 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 9px;
+      text-transform: uppercase;
+    }
+
+    .data-table td {
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+    }
+
+    .data-table tr:hover td {
+      background: var(--bg-tertiary);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.completed { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+    .status-badge.in-progress { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
+    .status-badge.blocked { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+    .status-badge.ready { background: rgba(136, 136, 136, 0.15); color: var(--text-secondary); }
+
+    /* ===== HIERARCHY TAB ===== */
+    .hierarchy-node {
+      padding: 4px 0;
+    }
+
+    .hierarchy-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .hierarchy-row:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .hierarchy-toggle {
+      color: var(--text-muted);
+      font-size: 8px;
+      width: 10px;
+    }
+
+    .hierarchy-status {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .hierarchy-name {
+      flex: 1;
+      font-size: 11px;
+    }
+
+    .hierarchy-meta {
+      color: var(--text-muted);
+      font-size: 9px;
+    }
+
+    .hierarchy-children {
+      margin-left: 16px;
+      border-left: 1px dashed var(--border);
+      padding-left: 8px;
+    }
+
+    /* ===== LOGS TAB ===== */
+    .log-entries {
+      font-family: inherit;
+      font-size: 10px;
+    }
+
+    .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+    }
+
+    .log-time {
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .log-level {
+      flex-shrink: 0;
+      width: 40px;
+    }
+
+    .log-level.info { color: var(--accent); }
+    .log-level.warn { color: var(--warning); }
+    .log-level.error { color: var(--danger); }
+
+    .log-msg {
+      flex: 1;
+      word-break: break-word;
+    }
+
+    /* ===== DETAILS TAB ===== */
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+    }
+
+    .detail-label {
+      color: var(--text-muted);
+    }
+
+    .detail-value {
+      font-weight: 500;
+    }
+
+    /* ===== NEW SESSION MODAL ===== */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.visible {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: 320px;
+      max-width: 90%;
+    }
+
+    .modal-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .modal-body {
+      padding: 16px;
+    }
+
+    .modal-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .project-list {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+
+    .project-option {
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .project-option:last-child {
+      border-bottom: none;
+    }
+
+    .project-option:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .project-option.selected {
+      background: var(--bg-hover);
+      border-left: 2px solid var(--accent);
+    }
+
+    .project-icon {
+      color: var(--text-muted);
+    }
+
+    .project-name {
+      flex: 1;
+    }
+
+    .project-path {
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .modal-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .modal-btn {
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .modal-btn:hover {
+      background: var(--bg-hover);
+    }
+
+    .modal-btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* ===== KEYBOARD HINTS ===== */
+    .keyboard-bar {
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      font-size: 9px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    kbd {
+      display: inline-block;
+      padding: 1px 4px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      font-family: inherit;
+      font-size: 9px;
+      margin-right: 3px;
+    }
+
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+    /* ===== RESPONSIVE: NARROW ===== */
+    @media (max-width: 600px) {
+      .left-panel {
+        width: 160px;
+        min-width: 140px;
+      }
+
+      .top-metrics {
+        display: none;
+      }
+
+      .stats-row {
+        flex-direction: column;
+      }
+
+      .stat-box {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <span class="logo">FLEET</span>
+
+    <div class="top-metrics">
+      <div class="top-metric">
+        <span class="top-metric-label">SESSIONS</span>
+        <span class="top-metric-value ok">3</span>
+        <span class="top-metric-label">active</span>
+      </div>
+      <div class="top-metric">
+        <span class="top-metric-label">TASKS</span>
+        <span class="top-metric-value">4/7</span>
+      </div>
+      <div class="top-metric">
+        <span class="top-metric-label">WARNINGS</span>
+        <span class="top-metric-value warn">1</span>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button class="top-btn" onclick="toggleModal()">+ Session</button>
+    </div>
+  </div>
+
+  <!-- ALERT BANNER -->
+  <div class="alert-banner visible">
+    <span>&#9888;</span>
+    <span><strong>api-integration</strong> context at 78%</span>
+    <span class="alert-dismiss" onclick="this.parentElement.classList.remove('visible')">&#10005;</span>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <div class="main-container">
+    <div class="panels">
+      <!-- LEFT: SESSIONS -->
+      <div class="left-panel">
+        <div class="panel-header">
+          <span>Sessions</span>
+          <span style="color:var(--text-muted)">3</span>
+        </div>
+
+        <div class="session-list">
+          <div class="session-group">
+            <div class="session-group-header" onclick="this.parentElement.classList.toggle('collapsed')">
+              <span class="session-group-toggle">&#9660;</span>
+              <span class="session-group-name">multi-agent-template</span>
+              <span class="session-group-count">2</span>
+            </div>
+            <div class="session-group-items">
+              <div class="session-item selected" onclick="selectSession(this)">
+                <span class="session-status active"></span>
+                <div class="session-info">
+                  <div class="session-name">main-session</div>
+                  <div class="session-meta">implementing</div>
+                </div>
+                <span class="session-ctx">45%</span>
+              </div>
+              <div class="session-item" onclick="selectSession(this)">
+                <span class="session-status active"></span>
+                <div class="session-info">
+                  <div class="session-name">research-agent</div>
+                  <div class="session-meta">researching</div>
+                </div>
+                <span class="session-ctx">22%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="session-group">
+            <div class="session-group-header" onclick="this.parentElement.classList.toggle('collapsed')">
+              <span class="session-group-toggle">&#9660;</span>
+              <span class="session-group-name">api-integration</span>
+              <span class="session-group-count">1</span>
+            </div>
+            <div class="session-group-items">
+              <div class="session-item" onclick="selectSession(this)">
+                <span class="session-status warning"></span>
+                <div class="session-info">
+                  <div class="session-name">test-runner</div>
+                  <div class="session-meta">testing</div>
+                </div>
+                <span class="session-ctx warn">78%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: CONTENT -->
+      <div class="right-panel">
+        <div class="view-tabs">
+          <div class="view-tab active" onclick="switchTab('overview')">Overview</div>
+          <div class="view-tab" onclick="switchTab('tasks')">Tasks</div>
+          <div class="view-tab" onclick="switchTab('hierarchy')">Hierarchy</div>
+          <div class="view-tab" onclick="switchTab('logs')">Logs</div>
+          <div class="view-tab" onclick="switchTab('details')">Details</div>
+        </div>
+
+        <div class="view-content">
+          <!-- OVERVIEW TAB -->
+          <div class="view-pane active" id="pane-overview">
+            <div class="section-header">main-session</div>
+
+            <div class="stats-row">
+              <div class="stat-box">
+                <div class="stat-label">Context</div>
+                <div class="stat-value ok">45%</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Messages</div>
+                <div class="stat-value">34</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Tokens</div>
+                <div class="stat-value">24.3k</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Duration</div>
+                <div class="stat-value">47m</div>
+              </div>
+            </div>
+
+            <div class="section-header">Current Task</div>
+            <table class="data-table">
+              <tr>
+                <td><strong>dashboard-ux-redesign</strong></td>
+                <td><span class="status-badge in-progress">Active</span></td>
+                <td>60%</td>
+              </tr>
+            </table>
+
+            <div class="section-header">Subtasks (4/7)</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Task</th><th>Status</th><th>Agent</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Research patterns</td><td><span class="status-badge completed">Done</span></td><td>research</td></tr>
+                <tr><td>Design mockups</td><td><span class="status-badge completed">Done</span></td><td>main</td></tr>
+                <tr><td>Implement layout</td><td><span class="status-badge in-progress">Active</span></td><td>main</td></tr>
+                <tr><td>Add keyboard nav</td><td><span class="status-badge ready">Ready</span></td><td>--</td></tr>
+                <tr><td>Write tests</td><td><span class="status-badge blocked">Blocked</span></td><td>--</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- TASKS TAB -->
+          <div class="view-pane" id="pane-tasks">
+            <div class="section-header">All Tasks</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Task</th><th>Status</th><th>Priority</th><th>Blocks</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>dashboard-ux-redesign</td><td><span class="status-badge in-progress">Active</span></td><td>High</td><td>--</td></tr>
+                <tr><td>auto-delegation</td><td><span class="status-badge ready">Ready</span></td><td>High</td><td>--</td></tr>
+                <tr><td>blocked-tasks-view</td><td><span class="status-badge ready">Ready</span></td><td>Medium</td><td>--</td></tr>
+                <tr><td>add-model-pricing</td><td><span class="status-badge ready">Ready</span></td><td>Low</td><td>--</td></tr>
+              </tbody>
+            </table>
+
+            <div class="section-header" style="margin-top:20px">Completed Recently</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>Task</th><th>Completed</th><th>Duration</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>fleet-ui-completion</td><td>2h ago</td><td>45m</td></tr>
+                <tr><td>otlp-integration</td><td>4h ago</td><td>1h 20m</td></tr>
+                <tr><td>dashboard-audit</td><td>6h ago</td><td>2h</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- HIERARCHY TAB -->
+          <div class="view-pane" id="pane-hierarchy">
+            <div class="section-header">Agent Hierarchy - multi-agent-template</div>
+
+            <div class="hierarchy-node">
+              <div class="hierarchy-row">
+                <span class="hierarchy-toggle">&#9660;</span>
+                <span class="hierarchy-status" style="background:var(--success)"></span>
+                <span class="hierarchy-name">main-session</span>
+                <span class="hierarchy-meta">root - implementing</span>
+              </div>
+              <div class="hierarchy-children">
+                <div class="hierarchy-node">
+                  <div class="hierarchy-row">
+                    <span class="hierarchy-toggle" style="visibility:hidden">&#9660;</span>
+                    <span class="hierarchy-status" style="background:var(--success)"></span>
+                    <span class="hierarchy-name">research-agent</span>
+                    <span class="hierarchy-meta">researching</span>
+                  </div>
+                </div>
+                <div class="hierarchy-node">
+                  <div class="hierarchy-row">
+                    <span class="hierarchy-toggle" style="visibility:hidden">&#9660;</span>
+                    <span class="hierarchy-status" style="background:var(--text-muted)"></span>
+                    <span class="hierarchy-name">test-agent</span>
+                    <span class="hierarchy-meta">completed</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="hierarchy-node" style="margin-top:16px">
+              <div class="hierarchy-row">
+                <span class="hierarchy-toggle" style="visibility:hidden">&#9660;</span>
+                <span class="hierarchy-status" style="background:var(--warning)"></span>
+                <span class="hierarchy-name">api-integration / test-runner</span>
+                <span class="hierarchy-meta">testing - 78% ctx</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- LOGS TAB -->
+          <div class="view-pane" id="pane-logs">
+            <div class="section-header">Session Logs - main-session</div>
+
+            <div class="log-entries">
+              <div class="log-entry">
+                <span class="log-time">14:32:15</span>
+                <span class="log-level info">INFO</span>
+                <span class="log-msg">Task claimed: dashboard-ux-redesign</span>
+              </div>
+              <div class="log-entry">
+                <span class="log-time">14:32:18</span>
+                <span class="log-level info">INFO</span>
+                <span class="log-msg">Spawned agent: research-agent</span>
+              </div>
+              <div class="log-entry">
+                <span class="log-time">14:35:42</span>
+                <span class="log-level info">INFO</span>
+                <span class="log-msg">Subtask completed: Research patterns</span>
+              </div>
+              <div class="log-entry">
+                <span class="log-time">14:41:03</span>
+                <span class="log-level info">INFO</span>
+                <span class="log-msg">Subtask completed: Design mockups</span>
+              </div>
+              <div class="log-entry">
+                <span class="log-time">14:45:22</span>
+                <span class="log-level warn">WARN</span>
+                <span class="log-msg">api-integration context at 75%</span>
+              </div>
+              <div class="log-entry">
+                <span class="log-time">14:52:17</span>
+                <span class="log-level info">INFO</span>
+                <span class="log-msg">Starting: Implement layout</span>
+              </div>
+              <div class="log-entry">
+                <span class="log-time">15:01:45</span>
+                <span class="log-level warn">WARN</span>
+                <span class="log-msg">api-integration context at 78%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- DETAILS TAB -->
+          <div class="view-pane" id="pane-details">
+            <div class="section-header">Session Details - main-session</div>
+
+            <div class="detail-row">
+              <span class="detail-label">Session ID</span>
+              <span class="detail-value">a1b2c3d4</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Project</span>
+              <span class="detail-value">multi-agent-template</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Phase</span>
+              <span class="detail-value">implementing</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Model</span>
+              <span class="detail-value">claude-opus-4-5</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Started</span>
+              <span class="detail-value">47 minutes ago</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Messages</span>
+              <span class="detail-value">34</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Input Tokens</span>
+              <span class="detail-value">18,421</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Output Tokens</span>
+              <span class="detail-value">5,892</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Cache Read</span>
+              <span class="detail-value">12,340</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Context %</span>
+              <span class="detail-value">45%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="keyboard-bar">
+      <span><kbd>j</kbd><kbd>k</kbd> navigate</span>
+      <span><kbd>Enter</kbd> select</span>
+      <span><kbd>1-5</kbd> tabs</span>
+      <span><kbd>n</kbd> new session</span>
+      <span><kbd>?</kbd> help</span>
+    </div>
+  </div>
+
+  <!-- NEW SESSION MODAL -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-header">Launch New Session</div>
+      <div class="modal-body">
+        <div class="modal-label">Select Project</div>
+        <div class="project-list">
+          <div class="project-option selected" onclick="selectProject(this)">
+            <span class="project-icon">&#128193;</span>
+            <div>
+              <div class="project-name">multi-agent-template</div>
+              <div class="project-path">C:\Users\roha3\Claude\multi-agent-template</div>
+            </div>
+          </div>
+          <div class="project-option" onclick="selectProject(this)">
+            <span class="project-icon">&#128193;</span>
+            <div>
+              <div class="project-name">api-integration</div>
+              <div class="project-path">C:\Users\roha3\Claude\api-integration</div>
+            </div>
+          </div>
+          <div class="project-option" onclick="selectProject(this)">
+            <span class="project-icon">&#128193;</span>
+            <div>
+              <div class="project-name">docs-project</div>
+              <div class="project-path">C:\Users\roha3\Claude\docs</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:12px; font-size:10px; color:var(--text-muted);">
+          Launches: <code>claude --dangerously-skip-permissions</code>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn" onclick="toggleModal()">Cancel</button>
+        <button class="modal-btn primary" onclick="launchSession()">Launch</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(tabName) {
+      document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.view-pane').forEach(p => p.classList.remove('active'));
+
+      document.querySelector(`.view-tab[onclick*="${tabName}"]`).classList.add('active');
+      document.getElementById(`pane-${tabName}`).classList.add('active');
+    }
+
+    function selectSession(el) {
+      document.querySelectorAll('.session-item').forEach(s => s.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    function toggleModal() {
+      document.getElementById('modal').classList.toggle('visible');
+    }
+
+    function selectProject(el) {
+      document.querySelectorAll('.project-option').forEach(p => p.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    function launchSession() {
+      const selected = document.querySelector('.project-option.selected .project-path');
+      if (selected) {
+        alert(`Would launch: claude --dangerously-skip-permissions\nIn: ${selected.textContent}`);
+        toggleModal();
+      }
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'n') toggleModal();
+      if (e.key === 'Escape') document.getElementById('modal').classList.remove('visible');
+      if (e.key >= '1' && e.key <= '5') {
+        const tabs = ['overview', 'tasks', 'hierarchy', 'logs', 'details'];
+        switchTab(tabs[parseInt(e.key) - 1]);
+      }
+    });
+  </script>
+</body>
+</html>

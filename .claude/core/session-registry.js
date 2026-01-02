@@ -56,6 +56,8 @@ class SessionRegistry extends EventEmitter {
 
     const session = {
       id,
+      // Claude Code session ID (from hooks) - used for session lifecycle tracking
+      claudeSessionId: sessionData.claudeSessionId || null,
       project: sessionData.project || 'unknown',
       path: sessionData.path || process.cwd(),
       // Add projectKey for multi-project isolation (normalized path)
@@ -238,6 +240,32 @@ class SessionRegistry extends EventEmitter {
 
   get(id) {
     return this.sessions.get(id) || null;
+  }
+
+  /**
+   * Find a session by Claude Code session ID.
+   * @param {string} claudeSessionId - The Claude Code session ID
+   * @returns {Object|null} Session or null
+   */
+  getByClaudeSessionId(claudeSessionId) {
+    if (!claudeSessionId) return null;
+    for (const session of this.sessions.values()) {
+      if (session.claudeSessionId === claudeSessionId) {
+        return session;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Deregister a session by Claude Code session ID.
+   * @param {string} claudeSessionId - The Claude Code session ID
+   * @returns {Object|null} Deregistered session or null
+   */
+  deregisterByClaudeSessionId(claudeSessionId) {
+    const session = this.getByClaudeSessionId(claudeSessionId);
+    if (!session) return null;
+    return this.deregister(session.id);
   }
 
   getAll() {

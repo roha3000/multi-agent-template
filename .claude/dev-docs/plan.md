@@ -1,46 +1,44 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Fleet Management Dashboard - Live Testing Complete ✅
+**Status**: Session Lifecycle Hooks Added, Context Sync In Progress
 
 ---
 
-## Session 73: Live Server Testing & Bug Fixes ✅
+## Session 76 Progress
 
 ### Completed
+- SessionEnd hook created (`.claude/hooks/session-end.js`)
+- SessionStart hook updated to register with dashboard
+- `/api/sessions/end-by-claude-id` endpoint added
+- GlobalContextTracker → SessionRegistry sync implemented
+- `/api/overview` defaults to active sessions only
+- Hierarchy tab UI improved with friendly labels
 
-| Task | Status |
-|------|--------|
-| Start dashboard server (port 3033 + OTLP 4318) | ✅ Complete |
-| Verify Fleet Overview API returns data | ✅ Complete |
-| Verify project cards container in HTML | ✅ Complete |
-| Verify keyboard navigation handlers | ✅ Complete |
-| Fix missing `/api/sessions/:id/hierarchy` endpoint | ✅ Fixed |
-| Fix `/api/overview` not showing globalTracker projects | ✅ Fixed |
-| All 14 E2E tests passing | ✅ Complete |
-
-### Bugs Fixed
-
-1. **`/api/sessions/:id/hierarchy`** - Was returning HTML 404, now returns JSON
-2. **`/api/overview`** - Was showing 0 projects (only sessionRegistry), now includes globalTracker projects
+### Known Issue
+Messages/tokens showing 0 in Overview pane. Context % works.
 
 ---
 
 ## Next Steps
 
-1. **Manual QA in browser**: Open http://localhost:3033 and test UI
-2. **Next priority**: `auto-delegation-integration` or `dashboard-blocked-tasks-view`
+1. Debug messages/tokens display issue
+   - Dashboard expects `session.messages`, `session.inputTokens`, `session.outputTokens`
+   - Sync code sends these fields but they don't appear
+   - Check browser console for actual session object structure
+2. Test session lifecycle (start → appears, exit → disappears)
+3. Commit session lifecycle changes
 
 ---
 
 ## Quick Commands
 
 ```bash
-# Run tests
-npm test
+# Start dashboard server
+node global-context-manager.js
 
-# Start dashboard
-npm run dashboard:server
+# View dashboard
+start http://localhost:3033/
 
-# Run E2E tests specifically
+# Run E2E tests
 npm test -- tests/e2e/dashboard-fleet-ui.e2e.test.js
 ```

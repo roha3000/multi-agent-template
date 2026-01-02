@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Command Center v2</title>
+  <title>Fleet Dashboard v4</title>
   <style>
     :root {
       /* Dark theme - GitHub style */
@@ -2275,6 +2275,538 @@
       margin-bottom: 8px;
       opacity: 0.5;
     }
+
+    /* ===== DASHBOARD V4 STYLES ===== */
+
+    /* TOP BAR */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--color-info);
+    }
+
+    .top-metrics {
+      display: flex;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .top-metric {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .top-metric-label {
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .top-metric-value {
+      font-weight: 600;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .top-btn {
+      padding: 4px 8px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 10px;
+    }
+
+    .top-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* ALERT BANNER */
+    .alert-banner {
+      display: none;
+      padding: 6px 12px;
+      background: rgba(210, 153, 34, 0.1);
+      border-bottom: 1px solid rgba(210, 153, 34, 0.3);
+      color: var(--color-warning);
+      font-size: 10px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .alert-banner.visible { display: flex; }
+
+    .alert-dismiss {
+      margin-left: auto;
+      cursor: pointer;
+      opacity: 0.6;
+    }
+
+    .alert-dismiss:hover { opacity: 1; }
+
+    /* MAIN LAYOUT - 2 PANEL */
+    .main-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .panels {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 200px; /* Debug: ensure minimum height */
+    }
+
+    /* LEFT PANEL: SESSIONS */
+    .left-panel {
+      width: 260px;
+      min-width: 200px;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg-secondary);
+    }
+
+    .panel-header {
+      padding: 8px 10px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .session-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .session-group {
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .session-group-header {
+      padding: 6px 10px;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .session-group-header:hover {
+      background: var(--bg-hover);
+    }
+
+    .session-group-toggle {
+      color: var(--text-muted);
+      font-size: 8px;
+      transition: transform 0.15s;
+    }
+
+    .session-group.collapsed .session-group-toggle {
+      transform: rotate(-90deg);
+    }
+
+    .session-group.collapsed .session-group-items {
+      display: none;
+    }
+
+    .session-group-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .session-group-count {
+      color: var(--text-muted);
+      font-size: 9px;
+    }
+
+    /* Session item */
+    .session-item {
+      padding: 8px 10px 8px 18px;
+      border-bottom: 1px solid var(--border-muted);
+      cursor: pointer;
+    }
+
+    .session-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .session-item.selected {
+      background: var(--bg-hover);
+      border-left: 2px solid var(--color-info);
+      padding-left: 16px;
+    }
+
+    .session-row-1 {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+
+    .session-status {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .session-status.active { background: var(--color-success); }
+    .session-status.idle { background: var(--text-muted); }
+    .session-status.warning { background: var(--color-warning); }
+
+    .session-name {
+      flex: 1;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Session type badge */
+    .session-type {
+      font-size: 8px;
+      padding: 1px 4px;
+      border-radius: 2px;
+      font-weight: 600;
+    }
+
+    .session-type.cli {
+      background: rgba(88, 166, 255, 0.15);
+      color: var(--color-info);
+    }
+
+    .session-type.auto {
+      background: rgba(163, 113, 247, 0.15);
+      color: var(--color-purple);
+    }
+
+    .session-row-2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .session-phase {
+      color: var(--text-secondary);
+    }
+
+    .session-ctx {
+      margin-left: auto;
+    }
+
+    .session-ctx.warn { color: var(--color-warning); }
+    .session-ctx.crit { color: var(--color-danger); }
+
+    .prediction-chip {
+      font-size: 8px;
+      padding: 1px 4px;
+      border-radius: 2px;
+      background: rgba(88, 166, 255, 0.15);
+      color: var(--color-info);
+    }
+
+    .prediction-chip.warn {
+      background: rgba(210, 153, 34, 0.15);
+      color: var(--color-warning);
+    }
+
+    .prediction-chip.crit {
+      background: rgba(248, 81, 73, 0.15);
+      color: var(--color-danger);
+    }
+
+    /* RIGHT PANEL: CONTENT */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .view-tabs {
+      display: flex;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      overflow-x: auto;
+    }
+
+    .view-tab {
+      padding: 8px 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .view-tab:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+
+    .view-tab.active {
+      color: var(--color-info);
+      border-bottom-color: var(--color-info);
+    }
+
+    .view-content {
+      flex: 1;
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .view-pane { display: none; }
+    .view-pane.active { display: block; }
+
+    /* METRICS GRID */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .metric-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 10px;
+    }
+
+    .metric-card-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .metric-card-value {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .metric-card-bar {
+      height: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .metric-card-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+    }
+
+    /* PREDICTION SECTION */
+    .prediction-section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .prediction-header {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .prediction-items {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .prediction-item {
+      flex: 1;
+      min-width: 120px;
+      padding: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+    }
+
+    .prediction-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+      display: block;
+    }
+
+    .prediction-value {
+      font-size: 14px;
+      font-weight: 600;
+      display: block;
+    }
+
+    /* DATA TABLE */
+    .section-header {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-color);
+      margin-top: 16px;
+    }
+
+    .section-header:first-child {
+      margin-top: 0;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 6px 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 9px;
+      text-transform: uppercase;
+    }
+
+    .data-table td {
+      padding: 6px 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .data-table tr:hover td {
+      background: var(--bg-tertiary);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.completed { background: rgba(63, 185, 80, 0.15); color: var(--color-success); }
+    .status-badge.in-progress { background: rgba(88, 166, 255, 0.15); color: var(--color-info); }
+    .status-badge.blocked { background: rgba(248, 81, 73, 0.15); color: var(--color-danger); }
+    .status-badge.ready { background: rgba(139, 148, 158, 0.15); color: var(--text-secondary); }
+
+    /* Score bar inline */
+    .score-bar-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .score-bar-track {
+      width: 40px;
+      height: 6px;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+
+    /* HIERARCHY TAB */
+    .hierarchy-tree {
+      font-size: 11px;
+    }
+
+    .hierarchy-node {
+      padding: 2px 0;
+    }
+
+    .hierarchy-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .hierarchy-row:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .hierarchy-children {
+      margin-left: 18px;
+      border-left: 1px dashed var(--border-color);
+      padding-left: 8px;
+    }
+
+    /* KEYBOARD BAR */
+    .keyboard-bar {
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      font-size: 9px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    kbd {
+      display: inline-block;
+      padding: 1px 4px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 2px;
+      font-family: inherit;
+      font-size: 9px;
+      margin-right: 3px;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 600px) {
+      .left-panel { width: 180px; min-width: 150px; }
+      .top-metrics { gap: 10px; font-size: 9px; }
+      .metrics-grid { grid-template-columns: 1fr 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -2282,202 +2814,99 @@
   <a href="#sessionItems" class="skip-link" tabindex="1">Skip to session list</a>
 
   <div class="app-container">
-    <!-- Header -->
-    <header class="header" role="banner">
-      <h1>
-        <span class="status-dot" id="connectionDot" role="status" aria-label="Connection status: connected"></span>
-        COMMAND CENTER
-      </h1>
-      <div class="header-actions">
-        <button class="header-btn" onclick="toggleSettings()" aria-label="Open settings" tabindex="0">
-          Settings
-        </button>
-        <button class="header-btn" onclick="window.open('global-dashboard-classic.html', '_blank')" aria-label="Open classic view in new tab" tabindex="0">
-          Classic View
-        </button>
-      </div>
-    </header>
-
-    <!-- Traffic Light Status Bar -->
-    <div class="status-bar" role="region" aria-label="Quality status overview">
-      <span class="status-bar-label" id="qualityStatusLabel">Quality Status</span>
-      <div class="traffic-lights" id="trafficLights" role="group" aria-labelledby="qualityStatusLabel">
-        <!-- Populated by JS -->
-      </div>
-      <span class="status-summary" id="statusSummary" role="status" aria-live="polite">Loading...</span>
-
-      <div style="position: relative; margin-left: auto;">
-        <button class="usage-badge" onclick="toggleUsageDropdown()" aria-expanded="false" aria-controls="usageDropdown" aria-label="Usage limits" tabindex="0">
-          <span>Usage</span>
-          <div class="bar">
-            <div class="bar-fill" id="usageBarFill" style="width: 0%"></div>
-          </div>
-          <span id="usagePercent">--%</span>
-        </button>
-        <div class="usage-dropdown" id="usageDropdown" role="dialog" aria-label="Usage limits breakdown">
-          <div class="usage-limit">
-            <div class="usage-limit-header">
-              <span class="usage-limit-name">5-Hour Window</span>
-              <span class="usage-limit-value" id="usage5h">--/--</span>
-            </div>
-            <div class="usage-limit-bar">
-              <div class="usage-limit-fill" id="usage5hFill"></div>
-            </div>
-            <div class="usage-limit-meta" id="usage5hMeta">Resets in --</div>
-          </div>
-          <div class="usage-limit">
-            <div class="usage-limit-header">
-              <span class="usage-limit-name">Daily</span>
-              <span class="usage-limit-value" id="usageDaily">--/--</span>
-            </div>
-            <div class="usage-limit-bar">
-              <div class="usage-limit-fill" id="usageDailyFill"></div>
-            </div>
-            <div class="usage-limit-meta" id="usageDailyMeta">Resets in --</div>
-          </div>
-          <div class="usage-limit">
-            <div class="usage-limit-header">
-              <span class="usage-limit-name">Weekly</span>
-              <span class="usage-limit-value" id="usageWeekly">--/--</span>
-            </div>
-            <div class="usage-limit-bar">
-              <div class="usage-limit-fill" id="usageWeeklyFill"></div>
-            </div>
-            <div class="usage-limit-meta" id="usageWeeklyMeta">Resets on --</div>
-          </div>
+    <!-- TOP BAR (v4) -->
+    <div class="top-bar">
+      <span class="logo">FLEET</span>
+      <div class="top-metrics">
+        <div class="top-metric">
+          <span class="top-metric-label">PROJECTS</span>
+          <span class="top-metric-value" id="metricProjects">0</span>
         </div>
+        <div class="top-metric">
+          <span class="top-metric-label">SESSIONS</span>
+          <span class="top-metric-value" id="metricSessions">0</span>
+        </div>
+        <div class="top-metric">
+          <span class="top-metric-label">TASKS</span>
+          <span class="top-metric-value" id="metricTasks">0/0</span>
+        </div>
+        <div class="top-metric">
+          <span class="top-metric-label">AGENTS</span>
+          <span class="top-metric-value" id="metricAgents">0</span>
+          <span class="top-metric-label" id="metricSubAgents">/ 0 sub</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="top-btn header-btn-new" onclick="openNewSessionModal()">+ Session</button>
+        <button class="top-btn" onclick="toggleSettings()">⚙</button>
       </div>
     </div>
 
-    <!-- Fleet Management Header (NEW) -->
-    <div class="fleet-header" id="fleetHeader" role="region" aria-label="Fleet overview">
-      <!-- 5-Hour Countdown Timer -->
-      <div class="fleet-metric-card">
-        <h3>Active Session</h3>
-        <div class="fleet-countdown">
-          <span class="countdown-time" id="fleetContextPercent">--%</span>
-          <div class="countdown-bar">
-            <div class="countdown-bar-fill" id="fleetContextFill" style="width: 0%"></div>
-          </div>
-        </div>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
-          <span id="fleetSessionCost">Context window usage</span>
-        </div>
-      </div>
 
-      <!-- Fleet Status -->
-      <div class="fleet-metric-card">
-        <h3>Fleet Status</h3>
-        <div class="fleet-stats">
-          <div class="fleet-stat">
-            <div class="fleet-stat-value active" id="fleetActiveSessions">0</div>
-            <div class="fleet-stat-label">Active</div>
-          </div>
-          <div class="fleet-stat">
-            <div class="fleet-stat-value" id="fleetProjectCount">0</div>
-            <div class="fleet-stat-label">Projects</div>
-          </div>
-          <div class="fleet-stat">
-            <div class="fleet-stat-value" id="fleetAlertCount">0</div>
-            <div class="fleet-stat-label">Alerts</div>
-          </div>
-        </div>
-        <button class="fleet-view-lineage-btn" id="viewLineageBtn" onclick="toggleFleetLineage()" title="Toggle Agent Lineage (A)">
-          <span>🌳</span> View Lineage
-        </button>
-      </div>
-
-      <!-- Account Totals -->
-      <div class="fleet-metric-card">
-        <h3>Account</h3>
-        <div class="fleet-stats">
-          <div class="fleet-stat">
-            <div class="fleet-stat-value" id="fleetTotalCost">$0.00</div>
-            <div class="fleet-stat-label">Today</div>
-          </div>
-          <div class="fleet-stat">
-            <div class="fleet-stat-value" id="fleetTotalSessions">0</div>
-            <div class="fleet-stat-label">Sessions</div>
-          </div>
-        </div>
-      </div>
+    <!-- Alert Banner (v4) -->
+    <div class="alert-banner" id="alertBanner" role="alert">
+      <span>⚠</span>
+      <span id="alertMessage"></span>
+      <span class="alert-dismiss" onclick="dismissAlertBanner()">✕</span>
     </div>
 
-    <!-- Alert Banner (Critical Alerts) -->
-    <div class="alert-banner" id="alertBanner" role="alert" aria-live="assertive">
-      <div class="alert-banner-message">
-        <span id="alertBannerIcon">⚠</span>
-        <span id="alertBannerText">Alert message here</span>
+    <!-- MAIN CONTAINER (v4 2-panel layout) -->
+    <div class="main-container">
+      <div class="panels">
+        <!-- LEFT PANEL: SESSIONS -->
+        <div class="left-panel">
+          <div class="panel-header">
+            <span>Sessions</span>
+            <span id="sessionCount">0</span>
+          </div>
+          <div class="session-list" id="sessionList">
+            <div style="padding: 10px; color: #58a6ff;">Loading sessions...</div>
+          </div>
+          <!-- Backward compatibility for v3 tests -->
+          <div id="projectCards" style="display:none"></div>
+        </div>
+
+        <!-- RIGHT PANEL: CONTENT -->
+        <div class="right-panel">
+          <div class="view-tabs">
+            <div class="view-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</div>
+            <div class="view-tab" data-tab="tasks" onclick="switchTab('tasks')">Tasks</div>
+            <div class="view-tab" data-tab="hierarchy" onclick="switchTab('hierarchy')">Hierarchy</div>
+            <div class="view-tab" data-tab="details" onclick="switchTab('details')">Details</div>
+            <div class="view-tab" data-tab="logs" onclick="switchTab('logs')">Logs</div>
+          </div>
+          <div class="view-content">
+            <div class="view-pane active" id="pane-overview">
+              <div class="section-header">Select a session</div>
+              <p style="color: var(--text-muted)">Click a session in the left panel to view details.</p>
+            </div>
+            <div class="view-pane" id="pane-tasks">
+              <!-- Tasks tab content - Phase 3 -->
+            </div>
+            <div class="view-pane" id="pane-hierarchy">
+              <!-- Hierarchy tab content -->
+              <div id="fleetLineageSection">
+                <div id="fleetHierarchyContainer"></div>
+              </div>
+            </div>
+            <div class="view-pane" id="pane-details">
+              <!-- Details tab content - Phase 3 -->
+            </div>
+            <div class="view-pane" id="pane-logs">
+              <!-- Logs tab content - Phase 3 -->
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="alert-banner-actions">
-        <button class="alert-banner-btn" onclick="handleAlertAction('view')" id="alertBannerActionBtn">View</button>
-        <button class="alert-banner-btn" onclick="dismissAlertBanner()">Dismiss</button>
-        <button class="alert-banner-btn" onclick="muteAlertSound()" id="alertMuteBtn">🔊 Mute</button>
+
+      <!-- KEYBOARD BAR -->
+      <div class="keyboard-bar">
+        <span><kbd>j</kbd><kbd>k</kbd> navigate</span>
+        <span><kbd>1</kbd>-<kbd>5</kbd> tabs</span>
+        <span><kbd>n</kbd> new session</span>
+        <span><kbd>?</kbd> help</span>
       </div>
     </div>
-
-    <!-- Fleet Lineage Panel (Toggle) -->
-    <div class="fleet-lineage-panel" id="fleetLineageSection" role="region" aria-label="Agent lineage hierarchy">
-      <div class="fleet-lineage-header">
-        <h3>Agent Lineage</h3>
-        <div class="fleet-lineage-actions">
-          <button class="fleet-lineage-btn" onclick="expandAllLineage()" title="Expand All">+</button>
-          <button class="fleet-lineage-btn" onclick="collapseAllLineage()" title="Collapse All">−</button>
-          <button class="fleet-lineage-btn" onclick="refreshFleetLineage()" title="Refresh">↻</button>
-          <button class="fleet-lineage-btn" onclick="toggleFleetLineage()" title="Close">×</button>
-        </div>
-      </div>
-      <div class="fleet-lineage-content" id="fleetHierarchyContainer">
-        <div class="fleet-lineage-empty">No agent hierarchy data available</div>
-      </div>
-    </div>
-
-    <!-- Project Cards Container (Fleet Overview) -->
-    <div class="project-cards" id="projectCards" role="list" aria-label="Project overview">
-      <!-- Populated by updateProjectCards() -->
-    </div>
-
-    <!-- Main Content (Split Pane) -->
-    <main class="main-content" role="main">
-      <!-- Session List (Left Pane) -->
-      <nav class="session-list" role="navigation" aria-label="Session navigation">
-        <div class="session-list-header">
-          <h2 id="sessionsHeading">Sessions</h2>
-          <span class="session-count" id="sessionCount" aria-label="Total sessions">0</span>
-        </div>
-        <div class="session-filters">
-          <label class="filter-checkbox">
-            <input type="checkbox" id="filterActiveOnly" onchange="updateSessionList()">
-            <span>Active only</span>
-          </label>
-          <label class="filter-checkbox">
-            <input type="checkbox" id="filterShowCli" checked onchange="updateSessionList()">
-            <span>CLI</span>
-          </label>
-          <label class="filter-checkbox">
-            <input type="checkbox" id="filterShowAuto" checked onchange="updateSessionList()">
-            <span>Auto</span>
-          </label>
-          <label class="filter-checkbox">
-            <input type="checkbox" id="filterGroupByProject" checked onchange="updateSessionList()">
-            <span>Group</span>
-          </label>
-        </div>
-        <div class="session-items" id="sessionItems" role="listbox" aria-labelledby="sessionsHeading" tabindex="0">
-          <!-- Populated by JS -->
-        </div>
-      </nav>
-
-      <!-- Detail Panel (Right Pane) -->
-      <section class="detail-panel" id="detailPanel" role="region" aria-label="Session details" aria-live="polite">
-        <div class="detail-empty" id="detailEmpty">
-          Select a session to view details
-        </div>
-        <div id="detailContent" style="display: none; height: 100%; display: flex; flex-direction: column;">
-          <!-- Populated by JS -->
-        </div>
-      </section>
-    </main>
   </div>
 
   <!-- Settings Modal -->
@@ -2555,6 +2984,30 @@
             <div class="toggle" data-setting="showModel" onclick="toggleSetting(this)"></div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session Launcher Modal -->
+  <div class="modal-overlay" id="sessionLauncherModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Launch New Session</h2>
+        <button class="modal-close" onclick="closeNewSessionModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-muted); margin-bottom: 12px;">Select a project or enter a custom path:</p>
+        <div id="projectList" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 12px;">
+          <div style="padding: 20px; text-align: center; color: var(--text-muted);">Loading...</div>
+        </div>
+        <div style="margin-top: 12px;">
+          <label style="display: block; margin-bottom: 6px; color: var(--text-secondary);">Custom Path:</label>
+          <input type="text" id="customProjectPath" placeholder="C:\path\to\project" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-tertiary); color: var(--text-primary); font-family: monospace;">
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+        <button onclick="closeNewSessionModal()" style="padding: 8px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); cursor: pointer;">Cancel</button>
+        <button onclick="launchSession()" style="padding: 8px 16px; background: var(--color-info); border: none; border-radius: 4px; color: white; cursor: pointer;">Launch</button>
       </div>
     </div>
   </div>
@@ -2873,6 +3326,7 @@
 
     // ===== DATA FETCHING =====
     async function fetchSessions() {
+      console.log('[Dashboard] fetchSessions starting...');
       try {
         // Fetch both projects (CLI sessions) and sessions/summary (autonomous orchestrator sessions)
         const [projectsRes, summaryRes] = await Promise.all([
@@ -2881,6 +3335,7 @@
         ]);
         const projectsData = await projectsRes.json();
         const summaryData = await summaryRes.json();
+        console.log('[Dashboard] fetchSessions got projects:', projectsData?.projects?.length, 'summaries:', summaryData?.sessions?.length);
 
         // Build list of ALL sessions - never merge CLI and autonomous
         const allSessions = [];
@@ -2925,7 +3380,12 @@
               qualityBreakdown: existingSession?.qualityBreakdown || {},
               // Use per-session cost (fallback to project for backward compat)
               cost: cliSession.cost ?? p.metrics?.cost ?? 0,
-              tokens: cliSession.inputTokens + cliSession.outputTokens,
+              // Use contextUsed (includes cache tokens) to match statusline display
+              tokens: cliSession.contextUsed ?? ((cliSession.inputTokens || 0) + (cliSession.outputTokens || 0) + (cliSession.cacheReadTokens || 0) + (cliSession.cacheCreationTokens || 0)),
+              // Include individual token counts and messages for Overview pane
+              inputTokens: cliSession.inputTokens || 0,
+              outputTokens: cliSession.outputTokens || 0,
+              messages: cliSession.messageCount || 0,
               // Use per-session model (fallback to project for backward compat)
               model: cliSession.model ?? p.metrics?.model,
               messageCount: cliSession.messageCount || 0,
@@ -3005,8 +3465,12 @@
             qualityBreakdown: {},
             cost: s.cost || 0,
             tokens: s.tokens || 0,
+            // Include individual token counts and messages for Overview pane
+            inputTokens: s.inputTokens || 0,
+            outputTokens: s.outputTokens || 0,
+            messages: s.messages || 0,
             model: null,
-            messageCount: 0,
+            messageCount: s.messages || 0,
             currentTask: s.currentTask || null,
             taskQueue: s.taskQueue || [],
             taskStats: {},
@@ -3306,7 +3770,8 @@
                   existing.contextPercent = newContextPercent;
                   existing.contextUsed = cliSession.contextUsed ?? p.metrics?.contextUsed ?? 0;
                   existing.cost = isActive ? newCost : 0;
-                  existing.tokens = cliSession.inputTokens + cliSession.outputTokens;
+                  // Use contextUsed to match statusline display
+                  existing.tokens = cliSession.contextUsed ?? ((cliSession.inputTokens || 0) + (cliSession.outputTokens || 0) + (cliSession.cacheReadTokens || 0) + (cliSession.cacheCreationTokens || 0));
                   existing.model = newModel;
                   existing.messageCount = cliSession.messageCount || 0;
                   existing.safetyStatus = isActive ? p.safetyStatus : 'OK';
@@ -3326,7 +3791,8 @@
                     contextPercent: newContextPercent,
                     contextUsed: cliSession.contextUsed ?? p.metrics?.contextUsed ?? 0,
                     cost: isActive ? newCost : 0,
-                    tokens: cliSession.inputTokens + cliSession.outputTokens,
+                    // Use contextUsed (includes cache tokens) to match statusline display
+                    tokens: cliSession.contextUsed ?? ((cliSession.inputTokens || 0) + (cliSession.outputTokens || 0) + (cliSession.cacheReadTokens || 0) + (cliSession.cacheCreationTokens || 0)),
                     model: newModel,
                     messageCount: cliSession.messageCount || 0,
                     safetyStatus: isActive ? p.safetyStatus : 'OK',
@@ -3442,7 +3908,8 @@
       };
 
       eventSource.onerror = () => {
-        document.getElementById('connectionDot').style.background = 'var(--color-danger)';
+        const dot = document.getElementById('connectionDot');
+        if (dot) dot.style.background = 'var(--color-danger)';
         setTimeout(() => {
           eventSource.close();
           connectSSE();
@@ -3450,7 +3917,8 @@
       };
 
       eventSource.onopen = () => {
-        document.getElementById('connectionDot').style.background = 'var(--color-success)';
+        const dot = document.getElementById('connectionDot');
+        if (dot) dot.style.background = 'var(--color-success)';
       };
     }
 
@@ -3458,6 +3926,9 @@
     function updateTrafficLights() {
       const container = document.getElementById('trafficLights');
       const summary = document.getElementById('statusSummary');
+
+      // v4: These elements may not exist - skip if not found
+      if (!container) return;
 
       let healthy = 0, warning = 0, critical = 0, idle = 0, cli = 0;
 
@@ -3678,13 +4149,29 @@
     }
 
     function updateSessionList() {
-      const container = document.getElementById('sessionItems');
+      const container = document.getElementById('sessionList');
       const countEl = document.getElementById('sessionCount');
+
+      // Safety check
+      if (!container) {
+        console.error('[Dashboard] sessionList container not found');
+        return;
+      }
 
       // Preserve scroll position
       const scrollTop = container.scrollTop;
 
-      // Get filter settings
+      // Debug: log session count
+      console.log('[Dashboard] updateSessionList called, sessions:', sessions.length);
+
+      // If no sessions, show message
+      if (!sessions || sessions.length === 0) {
+        container.innerHTML = '<div style="padding: 12px; color: var(--text-muted); font-size: 11px;">No sessions found</div>';
+        if (countEl) countEl.textContent = '0';
+        return;
+      }
+
+      // Get filter settings (with safe defaults)
       const activeOnly = document.getElementById('filterActiveOnly')?.checked ?? false;
       const showCli = document.getElementById('filterShowCli')?.checked ?? true;
       const showAuto = document.getElementById('filterShowAuto')?.checked ?? true;
@@ -3708,10 +4195,12 @@
         return (b.lastUpdate || 0) - (a.lastUpdate || 0);
       });
 
+      console.log('[Dashboard] filteredSessions:', filteredSessions.length);
+
       // Time thresholds for activity
       const now = Date.now();
-      const thirtyMinsAgo = now - (30 * 60 * 1000);
-      const tenMinsAgo = now - (10 * 60 * 1000);
+      const thirtyMinsAgo = now - (30 * 60 * 1000);  // 30 minutes for project visibility
+      const tenMinsAgo = now - (10 * 60 * 1000);     // 10 minutes for session visibility
 
       if (groupByProject) {
         // Group sessions by project
@@ -3757,7 +4246,7 @@
           const isCollapsed = collapsedGroups.has(project);
 
           return `
-            <div class="session-group ${isCollapsed ? 'collapsed' : ''}">
+            <div class="session-group ${isCollapsed ? 'collapsed' : ''}" data-project="${project}">
               <div class="session-group-header" onclick="toggleGroup('${project}')">
                 <span class="session-group-toggle">▼</span>
                 <span>${project}</span>
@@ -3787,12 +4276,18 @@
       selectedSessionId = id;
       updateSessionList(); // Update selection highlight
       updateDetailPanel();
+      // v4: Update tab panes with selected session data
+      const session = sessions.find(s => s.id === id);
+      updateAllTabPanes(session);
     }
 
     function updateDetailPanel() {
       const session = sessions.find(s => s.id === selectedSessionId);
       const emptyEl = document.getElementById('detailEmpty');
       const contentEl = document.getElementById('detailContent');
+
+      // v4: These elements may not exist - skip if not found
+      if (!emptyEl || !contentEl) return;
 
       if (!session) {
         emptyEl.style.display = 'flex';
@@ -4063,6 +4558,9 @@
 
     // ===== USAGE DISPLAY =====
     function updateUsageDisplay() {
+      // v4: Usage display elements may not exist - skip if not found
+      if (!document.getElementById('usagePercent')) return;
+
       const fiveHour = usageLimits.fiveHour || {};
       const daily = usageLimits.daily || {};
       const weekly = usageLimits.weekly || {};
@@ -4310,6 +4808,328 @@
       button.setAttribute('aria-expanded', isOpen);
     }
 
+    // ===== TAB SWITCHING (v4) =====
+    function switchTab(name) {
+      document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.view-pane').forEach(p => p.classList.remove('active'));
+      const tab = document.querySelector(`.view-tab[data-tab="${name}"]`);
+      const pane = document.getElementById(`pane-${name}`);
+      if (tab) tab.classList.add('active');
+      if (pane) pane.classList.add('active');
+    }
+
+    // ==========================================
+    // Session Launcher Modal Functions
+    // ==========================================
+
+    let launcherSelectedPath = null;
+
+    function openNewSessionModal() {
+      const modal = document.getElementById('sessionLauncherModal');
+      if (modal) {
+        modal.classList.add('visible');
+        launcherSelectedPath = null;
+        const customInput = document.getElementById('customProjectPath');
+        if (customInput) {
+          customInput.value = '';
+          setTimeout(() => customInput.focus(), 100);
+        }
+        fetchProjects();
+      }
+    }
+
+    function closeNewSessionModal() {
+      const modal = document.getElementById('sessionLauncherModal');
+      if (modal) modal.classList.remove('visible');
+      launcherSelectedPath = null;
+    }
+
+    async function fetchProjects() {
+      const container = document.getElementById('projectList');
+      if (!container) return;
+      container.innerHTML = '<div class="loading-projects">Loading projects...</div>';
+
+      try {
+        const res = await fetch('/api/projects');
+        const data = await res.json();
+        renderProjectList(data.projects || []);
+      } catch (err) {
+        console.error('Failed to fetch projects:', err);
+        container.innerHTML = '<div class="no-projects">Enter a custom path below.</div>';
+      }
+    }
+
+    function renderProjectList(projects) {
+      const container = document.getElementById('projectList');
+      if (!container) return;
+
+      if (!projects || projects.length === 0) {
+        container.innerHTML = '<div class="no-projects">No recent projects. Enter a custom path below.</div>';
+        return;
+      }
+
+      container.innerHTML = projects.map(p => {
+        const escapedPath = (p.path || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return `
+          <div class="project-option" onclick="selectLaunchProject('${escapedPath}', this)">
+            <span class="project-name">${escapeHtml(p.name || 'Unknown')}</span>
+            <span class="project-path">${escapeHtml(p.path || '')}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectLaunchProject(path, element) {
+      launcherSelectedPath = path;
+      document.querySelectorAll('.project-option').forEach(el => el.classList.remove('selected'));
+      if (element) element.classList.add('selected');
+      const customInput = document.getElementById('customProjectPath');
+      if (customInput) customInput.value = path;
+    }
+
+    async function launchSession() {
+      const customInput = document.getElementById('customProjectPath');
+      const projectPath = (customInput && customInput.value.trim()) || launcherSelectedPath;
+
+      if (!projectPath) {
+        showToast('error', 'Error', 'Please select or enter a project path');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/sessions/launch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectPath })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showToast('success', 'Launched', 'New Claude session started');
+          closeNewSessionModal();
+        } else {
+          showToast('error', 'Failed', data.message || 'Unknown error');
+        }
+      } catch (err) {
+        console.error('Failed to launch session:', err);
+        showToast('error', 'Error', err.message || 'Failed to launch session');
+      }
+    }
+
+    // ==========================================
+    // Tab Pane Update Functions (v4)
+    // ==========================================
+
+    function updateOverviewPane(session) {
+      console.log('[Dashboard] updateOverviewPane called');
+      const pane = document.getElementById('pane-overview');
+      console.log('[Dashboard] pane-overview element:', pane);
+      if (!pane) return;
+
+      if (!session) {
+        pane.innerHTML = '<div class="section-header">Select a session</div><p style="color: var(--text-muted)">Click a session in the left panel to view details.</p>';
+        return;
+      }
+
+      const ctx = session.contextPercent || session.context || 0;
+      const msgs = session.messages || 0;
+      // Calculate tokens from percentage to match statusline (avoids systemOverhead inflation)
+      // Claude context window is ~200k, but effective is ~155k after reserved space
+      const effectiveContextWindow = 155000;
+      const tokens = Math.round((ctx / 100) * effectiveContextWindow);
+      const task = session.currentTask || {};
+
+      pane.innerHTML = `
+        <div class="section-header">${escapeHtml(session.name || session.id || 'Session')}</div>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-card-label">Context</div>
+            <div class="metric-card-value">${ctx.toFixed(1)}%</div>
+            <div class="metric-card-bar"><div class="metric-card-bar-fill" style="width:${ctx}%;background:var(--color-${ctx > 85 ? 'danger' : ctx > 70 ? 'warning' : 'success'})"></div></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-label">Messages</div>
+            <div class="metric-card-value">${msgs}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-label">Tokens</div>
+            <div class="metric-card-value">${(tokens/1000).toFixed(1)}k</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-label">Phase</div>
+            <div class="metric-card-value" style="font-size:14px">${escapeHtml(session.phase || task.phase || 'Idle')}</div>
+          </div>
+        </div>
+        ${task.id ? `
+          <div class="section-header">Current Task</div>
+          <table class="data-table">
+            <tr><th>Task</th><th>Status</th></tr>
+            <tr><td>${escapeHtml(task.title || task.id)}</td><td><span class="status-badge in-progress">Active</span></td></tr>
+          </table>
+        ` : ''}
+      `;
+    }
+
+    function updateTasksPane(session) {
+      const pane = document.getElementById('pane-tasks');
+      if (!pane) return;
+
+      if (!session) {
+        pane.innerHTML = '<div class="section-header">Tasks</div><p style="color: var(--text-muted)">Select a session to view tasks.</p>';
+        return;
+      }
+
+      const task = session.currentTask || {};
+      const queue = session.taskQueue || [];
+
+      pane.innerHTML = `
+        <div class="section-header">Active</div>
+        <table class="data-table">
+          <tr><th>Task</th><th>Status</th></tr>
+          ${task.id ? `<tr><td>${escapeHtml(task.title || task.id)}</td><td><span class="status-badge in-progress">Active</span></td></tr>` : '<tr><td colspan="2" style="color:var(--text-muted)">No active task</td></tr>'}
+        </table>
+        <div class="section-header">Queue (${queue.length})</div>
+        <table class="data-table">
+          <tr><th>Task</th><th>Priority</th></tr>
+          ${queue.slice(0, 5).map(t => `<tr><td>${escapeHtml(t.title || t.id)}</td><td>${t.priority || 'normal'}</td></tr>`).join('') || '<tr><td colspan="2" style="color:var(--text-muted)">No tasks in queue</td></tr>'}
+        </table>
+      `;
+    }
+
+    function updateHierarchyPane(session) {
+      const pane = document.getElementById('pane-hierarchy');
+      if (!pane) return;
+
+      if (!session) {
+        pane.innerHTML = '<div class="section-header">Hierarchy</div><p style="color: var(--text-muted)">Select a session to view hierarchy.</p>';
+        return;
+      }
+
+      const children = session.childAgents || session.children || [];
+
+      // Build user-friendly session label
+      function getSessionLabel(s, isRoot = false) {
+        // Prefer: name > project name > "Session #id"
+        if (s.name && !s.name.match(/^[0-9a-f-]{8,}$/i)) return s.name;
+        if (s.project && s.project !== 'unknown') return s.project;
+        const type = (s.sessionType || s.type || 'cli').toUpperCase();
+        return isRoot ? `${type} Session` : `Sub-agent #${s.id}`;
+      }
+
+      // Get status badge
+      function getStatusBadge(s) {
+        const status = s.status || 'active';
+        const colors = { active: '#4ade80', idle: '#94a3b8', ended: '#64748b', error: '#f87171' };
+        return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${colors[status] || colors.active};margin-right:6px;" title="${status}"></span>`;
+      }
+
+      const sessionLabel = getSessionLabel(session, true);
+      const sessionType = (session.sessionType || session.type || 'cli').toUpperCase();
+
+      pane.innerHTML = `
+        <div class="section-header">Agent Hierarchy</div>
+        <div class="hierarchy-tree">
+          <div class="hierarchy-node">
+            <div class="hierarchy-row" style="display:flex;align-items:center;gap:8px;">
+              ${getStatusBadge(session)}
+              <span style="font-weight:500;">${escapeHtml(sessionLabel)}</span>
+              <span class="session-type ${session.sessionType || 'cli'}" style="font-size:10px;padding:2px 6px;">${sessionType}</span>
+              ${session.phase ? `<span style="color:var(--text-muted);font-size:11px;">• ${session.phase}</span>` : ''}
+            </div>
+            ${children.length > 0 ? `
+              <div class="hierarchy-children" style="margin-left:20px;margin-top:8px;border-left:2px solid var(--border-color);padding-left:12px;">
+                ${children.map(c => {
+                  const subChildren = c.childAgents || c.children || [];
+                  return `
+                    <div class="hierarchy-node" style="margin:6px 0;">
+                      <div class="hierarchy-row" style="display:flex;align-items:center;gap:8px;">
+                        ${getStatusBadge(c)}
+                        <span>${escapeHtml(getSessionLabel(c, false))}</span>
+                        <span class="session-type auto" style="font-size:10px;padding:2px 6px;">AUTO</span>
+                      </div>
+                      ${subChildren.length === 0 ? `
+                        <div style="margin-left:20px;margin-top:4px;color:var(--text-muted);font-size:11px;">
+                          No sub-agents
+                        </div>
+                      ` : ''}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : `
+              <div style="margin-left:20px;margin-top:8px;color:var(--text-muted);font-size:12px;">
+                No agents or sub-agents delegated
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    function updateDetailsPane(session) {
+      const pane = document.getElementById('pane-details');
+      if (!pane) return;
+
+      if (!session) {
+        pane.innerHTML = '<div class="section-header">Details</div><p style="color: var(--text-muted)">Select a session to view details.</p>';
+        return;
+      }
+
+      const rows = [
+        ['Session ID', session.id],
+        ['Type', session.type || 'CLI'],
+        ['Project', session.project || '-'],
+        ['Phase', session.phase || '-'],
+        ['Model', session.model || 'claude-sonnet-4'],
+        ['Messages', session.messages || 0],
+        ['Input Tokens', (session.inputTokens || 0).toLocaleString()],
+        ['Output Tokens', (session.outputTokens || 0).toLocaleString()],
+        ['Context', `${(session.contextPercent || 0).toFixed(1)}%`]
+      ];
+
+      pane.innerHTML = `
+        <div class="section-header">Session Details</div>
+        <table class="data-table">
+          ${rows.map(([k, v]) => `<tr><td style="width:120px;color:var(--text-muted)">${k}</td><td>${escapeHtml(String(v))}</td></tr>`).join('')}
+        </table>
+      `;
+    }
+
+    function updateLogsPane(session) {
+      const pane = document.getElementById('pane-logs');
+      if (!pane) return;
+
+      if (!session) {
+        pane.innerHTML = '<div class="section-header">Logs</div><p style="color: var(--text-muted)">Select a session to view logs.</p>';
+        return;
+      }
+
+      const logs = session.logs || session.activityLog || [];
+
+      pane.innerHTML = `
+        <div class="section-header">Activity Log</div>
+        <table class="data-table">
+          <tr><th style="width:80px">Time</th><th style="width:50px">Level</th><th>Message</th></tr>
+          ${logs.length > 0 ? logs.slice(0, 20).map(l => `
+            <tr>
+              <td style="color:var(--text-muted)">${l.timestamp ? new Date(l.timestamp).toLocaleTimeString() : '-'}</td>
+              <td style="color:var(--color-${l.level === 'ERROR' ? 'danger' : l.level === 'WARN' ? 'warning' : 'info'})">${l.level || 'INFO'}</td>
+              <td>${escapeHtml(l.message || '')}</td>
+            </tr>
+          `).join('') : '<tr><td colspan="3" style="color:var(--text-muted)">No log entries</td></tr>'}
+        </table>
+      `;
+    }
+
+    function updateAllTabPanes(session) {
+      console.log('[Dashboard] updateAllTabPanes called with session:', session?.id, session);
+      updateOverviewPane(session);
+      updateTasksPane(session);
+      updateHierarchyPane(session);
+      updateDetailsPane(session);
+      updateLogsPane(session);
+    }
+
     function toggleSettings() {
       const modal = document.getElementById('settingsModal');
       modal.classList.toggle('open');
@@ -4342,7 +5162,8 @@
     // Close dropdowns when clicking outside
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.usage-badge') && !e.target.closest('.usage-dropdown')) {
-        document.getElementById('usageDropdown').classList.remove('open');
+        const dropdown = document.getElementById('usageDropdown');
+        if (dropdown) dropdown.classList.remove('open');
       }
     });
 
@@ -4374,14 +5195,13 @@
           }
           break;
 
-        // Project card jump (1-9)
+        // Tab switching (1-5) - v4
         case '1': case '2': case '3': case '4': case '5':
-        case '6': case '7': case '8': case '9':
-          const projectIndex = parseInt(e.key);
-          const projectCard = document.querySelector(`.project-card[data-project-index="${projectIndex}"]`);
-          if (projectCard) {
-            projectCard.click();
-            projectCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const tabs = ['overview', 'tasks', 'hierarchy', 'details', 'logs'];
+          const tabIndex = parseInt(e.key) - 1;
+          if (tabs[tabIndex]) {
+            e.preventDefault();
+            switchTab(tabs[tabIndex]);
           }
           break;
 
@@ -4403,6 +5223,12 @@
         case 'M':
           muteAlertSound();
           showToast('info', 'Alerts', FleetState.alertMuted ? 'Alerts muted' : 'Alerts unmuted', 2000);
+          break;
+
+        // New session launcher
+        case 'n':
+          e.preventDefault();
+          openNewSessionModal();
           break;
 
         // Session controls
@@ -4585,6 +5411,11 @@
       `;
     }
 
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     function escapeHtmlAttr(str) {
       if (!str) return '';
       return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -4740,13 +5571,28 @@
           : 'No active session';
       }
 
-      // Fleet Status
+      // ===== V4 TOP BAR METRICS =====
+      const metricProjects = document.getElementById('metricProjects');
+      const metricSessions = document.getElementById('metricSessions');
+      const metricTasks = document.getElementById('metricTasks');
+      const metricAgents = document.getElementById('metricAgents');
+      const metricSubAgents = document.getElementById('metricSubAgents');
+      const sessionCount = document.getElementById('sessionCount');
+
+      if (metricProjects) metricProjects.textContent = global.activeProjectCount || 0;
+      if (metricSessions) metricSessions.textContent = global.activeSessionCount || 0;
+      if (metricTasks) metricTasks.textContent = `${global.completedTasks || 0}/${global.totalTasks || 0}`;
+      if (metricAgents) metricAgents.textContent = agentPool?.activeAgents || 0;
+      if (metricSubAgents) metricSubAgents.textContent = `/ ${agentPool?.subAgents || 0} sub`;
+      if (sessionCount) sessionCount.textContent = global.activeSessionCount || 0;
+
+      // Legacy fleet header elements (for backward compatibility)
       const activeSessions = document.getElementById('fleetActiveSessions');
-      const projectCount = document.getElementById('fleetProjectCount');
+      const projectCountEl = document.getElementById('fleetProjectCount');
       const alertCountEl = document.getElementById('fleetAlertCount');
 
       if (activeSessions) activeSessions.textContent = global.activeSessionCount || 0;
-      if (projectCount) projectCount.textContent = global.activeProjectCount || 0;
+      if (projectCountEl) projectCountEl.textContent = global.activeProjectCount || 0;
 
       if (alertCountEl) {
         const totalAlerts = (global.alertCount?.critical || 0) + (global.alertCount?.warning || 0);
@@ -4754,7 +5600,7 @@
         alertCountEl.className = 'fleet-stat-value' + (global.alertCount?.critical > 0 ? ' critical' : totalAlerts > 0 ? ' warning' : '');
       }
 
-      // Account Totals
+      // Account Totals (legacy)
       const totalCost = document.getElementById('fleetTotalCost');
       const totalSessions = document.getElementById('fleetTotalSessions');
 
@@ -4976,10 +5822,13 @@
         return;
       }
 
-      // Filter to only show active projects (with active sessions)
-      const activeProjects = overview.projects.filter(p =>
-        p.activeSessionCount > 0 || p.sessions?.some(s => s.status === 'active')
-      );
+      // Filter to only show projects with recently active sessions (same 10-min threshold as session list)
+      const tenMinsAgo = Date.now() - (10 * 60 * 1000);
+      const activeProjects = overview.projects.filter(p => {
+        // Check if any session for this project has recent activity in our local sessions array
+        const projectSessions = sessions.filter(s => s.project === p.name);
+        return projectSessions.some(s => (s.lastUpdate || 0) > tenMinsAgo);
+      });
 
       if (activeProjects.length === 0) {
         container.innerHTML = '';  // Hide completely when no active projects
@@ -4987,15 +5836,19 @@
       }
 
       container.innerHTML = activeProjects.map((project, index) => {
-        const healthScore = project.health || 0;
+        // Convert health string to numeric score (healthy=100, warning=60, critical=20)
+        const healthScore = project.health === 'healthy' ? 100 :
+                           project.health === 'warning' ? 60 :
+                           project.health === 'critical' ? 20 : 0;
         const healthDots = renderHealthDots(healthScore);
         const activeTasks = project.activeTasks || [];
         const sessionCount = project.sessions?.length || 0;
+        const projectId = project.name; // API returns name, not id
 
         return `
           <div class="project-card" role="listitem" data-project-index="${index + 1}" tabindex="0"
-               onclick="selectProject('${project.id}')"
-               onkeydown="if(event.key==='Enter'||event.key===' ')selectProject('${project.id}')">
+               onclick="selectProject('${projectId}')"
+               onkeydown="if(event.key==='Enter'||event.key===' ')selectProject('${projectId}')">
             <div class="project-card-header">
               <div class="project-card-title">
                 <span>${project.name || project.id}</span>
@@ -5016,8 +5869,8 @@
               </div>
             </div>
             <div class="project-card-footer">
-              <span>Cost: $${(project.cost || 0).toFixed(2)}</span>
-              <button class="project-expand-btn" onclick="event.stopPropagation(); expandProject('${project.id}')">
+              <span>Cost: $${(project.metrics?.totalCost || project.cost || 0).toFixed(2)}</span>
+              <button class="project-expand-btn" onclick="event.stopPropagation(); expandProject('${projectId}')">
                 Details ▸
               </button>
             </div>

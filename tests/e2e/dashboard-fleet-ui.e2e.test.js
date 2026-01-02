@@ -209,4 +209,180 @@ describe('Fleet Management Dashboard UI', () => {
       expect(res.data).toContain('function toggleFleetLineage()');
     });
   });
+
+  // ==========================================
+  // Dashboard v4 Tests
+  // ==========================================
+
+  describe('Dashboard v4: API Endpoints', () => {
+    test('GET /api/projects returns projects array', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/api/projects');
+
+      expect(res.status).toBe(200);
+      expect(res.data).toHaveProperty('projects');
+      expect(Array.isArray(res.data.projects)).toBe(true);
+    });
+
+    test('POST /api/sessions/launch validates project path', async () => {
+      if (!serverRunning) return;
+
+      // Test with no path
+      const res = await httpRequest('POST', '/api/sessions/launch', {});
+
+      expect(res.status).toBe(400);
+      expect(res.data).toHaveProperty('success', false);
+      expect(res.data).toHaveProperty('message');
+      expect(res.data.message).toContain('required');
+    });
+
+    test('POST /api/sessions/launch validates path exists', async () => {
+      if (!serverRunning) return;
+
+      // Test with non-existent path
+      const res = await httpRequest('POST', '/api/sessions/launch', {
+        projectPath: '/nonexistent/path/that/should/not/exist'
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.data).toHaveProperty('success', false);
+      expect(res.data.message).toContain('does not exist');
+    });
+  });
+
+  describe('Dashboard v4: Layout Elements', () => {
+    test('HTML contains v4 top bar', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/');
+
+      expect(res.data).toContain('class="top-bar"');
+      expect(res.data).toContain('class="logo"');
+      expect(res.data).toContain('top-metrics');
+    });
+
+    test('HTML contains 2-panel layout', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/');
+
+      expect(res.data).toContain('class="main-container"');
+      expect(res.data).toContain('class="left-panel"');
+      expect(res.data).toContain('class="right-panel"');
+    });
+
+    test('HTML contains view tabs for 5 tabs', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/');
+
+      expect(res.data).toContain('class="view-tabs"');
+      expect(res.data).toContain('data-tab="overview"');
+      expect(res.data).toContain('data-tab="tasks"');
+      expect(res.data).toContain('data-tab="hierarchy"');
+      expect(res.data).toContain('data-tab="details"');
+      expect(res.data).toContain('data-tab="logs"');
+    });
+
+    test('HTML contains view panes for tabs', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/');
+
+      expect(res.data).toContain('id="pane-overview"');
+      expect(res.data).toContain('id="pane-tasks"');
+      expect(res.data).toContain('id="pane-hierarchy"');
+      expect(res.data).toContain('id="pane-details"');
+      expect(res.data).toContain('id="pane-logs"');
+    });
+
+    test('HTML contains keyboard bar', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/');
+
+      expect(res.data).toContain('class="keyboard-bar"');
+      expect(res.data).toContain('<kbd>');
+    });
+  });
+
+  describe('Dashboard v4: Session Launcher Modal', () => {
+    test('HTML contains session launcher modal', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/');
+
+      expect(res.data).toContain('id="sessionLauncherModal"');
+      expect(res.data).toContain('id="projectList"');
+      expect(res.data).toContain('id="customProjectPath"');
+    });
+
+    test('HTML contains session launcher functions', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/');
+
+      expect(res.data).toContain('function openNewSessionModal()');
+      expect(res.data).toContain('function closeNewSessionModal()');
+      expect(res.data).toContain('function launchSession()');
+      expect(res.data).toContain('function fetchProjects()');
+    });
+
+    test('HTML contains New Session header button', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/');
+
+      expect(res.data).toContain('header-btn-new');
+      expect(res.data).toContain('openNewSessionModal()');
+    });
+  });
+
+  describe('Dashboard v4: Tab Pane Functions', () => {
+    test('HTML contains tab update functions', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/');
+
+      expect(res.data).toContain('function updateOverviewPane');
+      expect(res.data).toContain('function updateTasksPane');
+      expect(res.data).toContain('function updateHierarchyPane');
+      expect(res.data).toContain('function updateDetailsPane');
+      expect(res.data).toContain('function updateLogsPane');
+      expect(res.data).toContain('function updateAllTabPanes');
+    });
+
+    test('HTML contains switchTab function', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/');
+
+      expect(res.data).toContain('function switchTab');
+    });
+  });
+
+  describe('Dashboard v4: Keyboard Shortcuts', () => {
+    test('HTML contains keyboard handler for tab switching (1-5)', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/');
+
+      // Check for keyboard handler that switches tabs with number keys
+      expect(res.data).toContain("switchTab('overview')");
+      expect(res.data).toContain("switchTab('tasks')");
+      expect(res.data).toContain("switchTab('hierarchy')");
+      expect(res.data).toContain("switchTab('details')");
+      expect(res.data).toContain("switchTab('logs')");
+    });
+
+    test('HTML contains n key shortcut for new session', async () => {
+      if (!serverRunning) return;
+
+      const res = await httpRequest('GET', '/');
+
+      expect(res.data).toContain("case 'n':");
+      expect(res.data).toContain('openNewSessionModal()');
+    });
+  });
 });

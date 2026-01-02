@@ -553,6 +553,46 @@ tracker.on('error', (error) => {
   console.error('[ERROR]', error);
 });
 
+// Sync context data from GlobalContextTracker to SessionRegistry
+// This links the two tracking systems so dashboard shows real context usage
+tracker.on('usage:update', (data) => {
+  if (!data.metrics) return;
+
+  const projectPath = data.projectFolder;
+  const projectName = data.projectName;
+  const metrics = data.metrics;
+
+  // Calculate total tokens from individual counts
+  const totalTokens = (metrics.inputTokens || 0) + (metrics.outputTokens || 0) +
+                      (metrics.cacheCreationTokens || 0) + (metrics.cacheReadTokens || 0);
+
+  // Find matching sessions in registry by project path or name
+  const sessions = sessionRegistry.getActive();
+  for (const session of sessions) {
+    // Match by path (normalized) or project name
+    const sessionPath = session.path?.replace(/\\/g, '/').toLowerCase() || '';
+    const trackerPath = projectPath?.replace(/\\/g, '/').toLowerCase() || '';
+
+    const pathMatch = sessionPath && trackerPath && (
+      sessionPath.includes(trackerPath) || trackerPath.includes(sessionPath)
+    );
+    const nameMatch = session.project?.toLowerCase() === projectName?.toLowerCase();
+
+    if (pathMatch || nameMatch) {
+      // Update session with all context data from tracker
+      // Field names must match what dashboard expects
+      sessionRegistry.update(session.id, {
+        contextPercent: Math.round((metrics.contextPercent || 0) * 10) / 10,
+        tokens: totalTokens,
+        inputTokens: metrics.inputTokens || 0,
+        outputTokens: metrics.outputTokens || 0,
+        cost: metrics.cost || 0,
+        messages: metrics.messageCount || 0
+      });
+    }
+  }
+});
+
 function addAlert(alert) {
   recentAlerts.unshift({
     ...alert,
@@ -854,6 +894,54 @@ app.get('/api/health', (req, res) => {
       external: memoryUsage.external
     },
     timestamp: new Date().toISOString()
+  });
+});
+
+// ============================================================================
+// SESSION LAUNCHER API (Dashboard v4)
+// ============================================================================
+
+// Launch a new Claude Code CLI session
+app.post('/api/sessions/launch', (req, res) => {
+  const { projectPath } = req.body;
+
+  // Validate projectPath is provided
+  if (!projectPath) {
+    return res.status(400).json({
+      success: false,
+      message: 'Project path is required'
+    });
+  }
+
+  // Validate path exists
+  const fs = require('fs');
+  if (!fs.existsSync(projectPath)) {
+    return res.status(400).json({
+      success: false,
+      message: `Project path does not exist: ${projectPath}`
+    });
+  }
+
+  // Launch CLI in new terminal window (Windows)
+  const { exec } = require('child_process');
+  const command = process.platform === 'win32'
+    ? `start cmd /k "cd /d ${projectPath} && claude --dangerously-skip-permissions"`
+    : `osascript -e 'tell app "Terminal" to do script "cd ${projectPath} && claude --dangerously-skip-permissions"'`;
+
+  exec(command, (error) => {
+    if (error) {
+      console.error('[Dashboard] Failed to launch session:', error.message);
+      return res.status(500).json({
+        success: false,
+        message: `Failed to launch session: ${error.message}`
+      });
+    }
+
+    console.log(`[Dashboard] Launched new session in: ${projectPath}`);
+    res.json({
+      success: true,
+      message: `Session launched in ${projectPath}`
+    });
   });
 });
 
@@ -1721,6 +1809,10 @@ app.get('/api/sessions/summary', (req, res) => {
         qualityScore: s.qualityScore,
         confidenceScore: s.confidenceScore,
         tokens: s.tokens,
+        // Include individual token counts and messages for dashboard display
+        inputTokens: s.inputTokens || 0,
+        outputTokens: s.outputTokens || 0,
+        messages: s.messages || 0,
         cost: s.cost,
         runtime: s.runtime,
         iteration: s.iteration,
@@ -1780,9 +1872,49 @@ app.get('/api/sessions/:id/hierarchy', (req, res) => {
   });
 });
 
-// Register a new session (called by orchestrator on startup)
+// Register a new session (called by orchestrator on startup or SessionStart hook)
 app.post('/api/sessions/register', (req, res) => {
-  const { project, path: projectPath, currentTask, status, sessionType, autonomous, orchestratorInfo, logSessionId } = req.body;
+  const { project, path: projectPath, currentTask, status, sessionType, autonomous, orchestratorInfo, logSessionId, claudeSessionId } = req.body;
+
+  // Try to get initial context data from tracker
+  // Field names must match what dashboard expects
+  let initialMetrics = {
+    contextPercent: 0,
+    tokens: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cost: 0,
+    messages: 0
+  };
+
+  try {
+    const trackerProjects = tracker.getAllProjects();
+    const projectName = project || 'unknown';
+    const normalizedPath = (projectPath || '').replace(/\\/g, '/').toLowerCase();
+
+    for (const proj of trackerProjects) {
+      const trackerPath = (proj.path || '').replace(/\\/g, '/').toLowerCase();
+      const pathMatch = normalizedPath && trackerPath && (
+        normalizedPath.includes(trackerPath) || trackerPath.includes(normalizedPath)
+      );
+      const nameMatch = proj.name?.toLowerCase() === projectName.toLowerCase();
+
+      if (pathMatch || nameMatch) {
+        const m = proj.metrics || {};
+        initialMetrics = {
+          contextPercent: m.contextPercent || 0,
+          tokens: (m.inputTokens || 0) + (m.outputTokens || 0) + (m.cacheCreationTokens || 0) + (m.cacheReadTokens || 0),
+          inputTokens: m.inputTokens || 0,
+          outputTokens: m.outputTokens || 0,
+          cost: m.cost || 0,
+          messages: m.messageCount || 0
+        };
+        break;
+      }
+    }
+  } catch (e) {
+    // Tracker might not have data yet - that's OK
+  }
 
   const id = sessionRegistry.register({
     project: project || 'unknown',
@@ -1792,10 +1924,12 @@ app.post('/api/sessions/register', (req, res) => {
     sessionType: sessionType || 'cli',
     autonomous: autonomous || sessionType === 'autonomous',
     orchestratorInfo: orchestratorInfo || null,
-    logSessionId: logSessionId || null
+    logSessionId: logSessionId || null,
+    claudeSessionId: claudeSessionId || null,
+    ...initialMetrics
   });
 
-  console.log(`[COMMAND CENTER] Session registered: ${id} (${project}) [${sessionType || 'cli'}]`);
+  console.log(`[COMMAND CENTER] Session registered: ${id} (${project}) [${sessionType || 'cli'}]${claudeSessionId ? ` (Claude: ${claudeSessionId.substring(0, 8)}...)` : ''}${initialMetrics.contextPercent > 0 ? ` (context: ${initialMetrics.contextPercent.toFixed(1)}%)` : ''}`);
   res.json({ success: true, id });
 });
 
@@ -1851,6 +1985,26 @@ app.post('/api/sessions/:id/end', (req, res) => {
 
   console.log(`[COMMAND CENTER] Session ${id} ended`);
   res.json({ success: true, session });
+});
+
+// End session by Claude Code session ID (used by SessionEnd hook)
+app.post('/api/sessions/end-by-claude-id', (req, res) => {
+  const { claudeSessionId, reason } = req.body;
+
+  if (!claudeSessionId) {
+    return res.status(400).json({ error: 'claudeSessionId is required' });
+  }
+
+  const session = sessionRegistry.deregisterByClaudeSessionId(claudeSessionId);
+
+  if (!session) {
+    // Session may not exist if it was never registered or already ended
+    console.log(`[COMMAND CENTER] Session end request for unknown Claude session: ${claudeSessionId} (reason: ${reason || 'unknown'})`);
+    return res.json({ success: true, found: false, message: 'Session not found or already ended' });
+  }
+
+  console.log(`[COMMAND CENTER] Session ${session.id} ended (Claude ID: ${claudeSessionId}, reason: ${reason || 'unknown'})`);
+  res.json({ success: true, found: true, session });
 });
 
 // Record task completion
@@ -2044,8 +2198,12 @@ function buildAgentHierarchyTree(session, registry, depth = 0) {
 }
 
 // Fleet Overview - aggregated view of all projects and sessions
+// Query params: ?activeOnly=true to filter out inactive sessions/projects
 app.get('/api/overview', (req, res) => {
   try {
+    // Filter mode: only show active sessions (updated within last 5 minutes)
+    const activeOnly = req.query.activeOnly !== 'false'; // Default to true
+
     // Get data from all sources
     const summaryWithHierarchy = sessionRegistry.getSummaryWithHierarchy();
     const usageLimits = usageLimitTracker.getStatus();
@@ -2062,12 +2220,12 @@ app.get('/api/overview', (req, res) => {
     // Build project-grouped data - start with globalTracker projects
     const projectMap = new Map();
 
-    // Add all projects from globalTracker first
+    // Add projects from globalTracker (filter inactive if activeOnly=true)
     for (const proj of trackerProjects) {
-      projectMap.set(proj.name, {
-        name: proj.name,
-        path: proj.path,
-        sessions: proj.sessions?.map(s => ({
+      // Filter sessions - only include active ones by default
+      const sessions = (proj.sessions || [])
+        .filter(s => !activeOnly || s.isActive)
+        .map(s => ({
           id: s.id,
           isRoot: true,
           status: s.isActive ? 'active' : 'inactive',
@@ -2080,7 +2238,15 @@ app.get('/api/overview', (req, res) => {
           currentTask: null,
           subtasks: [],
           model: s.model
-        })) || [],
+        }));
+
+      // Skip projects with no active sessions when filtering
+      if (activeOnly && sessions.length === 0) continue;
+
+      projectMap.set(proj.name, {
+        name: proj.name,
+        path: proj.path,
+        sessions,
         metrics: {
           totalTokens: proj.metrics?.inputTokens + proj.metrics?.outputTokens + proj.metrics?.cacheCreationTokens + proj.metrics?.cacheReadTokens || 0,
           totalCost: proj.metrics?.cost || 0,
@@ -2092,7 +2258,12 @@ app.get('/api/overview', (req, res) => {
       });
     }
 
-    for (const session of summaryWithHierarchy.sessions) {
+    // Filter registry sessions - skip ended sessions when activeOnly is true
+    const registrySessions = activeOnly
+      ? summaryWithHierarchy.sessions.filter(s => s.status !== 'ended')
+      : summaryWithHierarchy.sessions;
+
+    for (const session of registrySessions) {
       const projectName = session.project || 'unknown';
 
       if (!projectMap.has(projectName)) {

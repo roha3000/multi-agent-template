@@ -19,7 +19,7 @@
   "backlog": {
     "now": {
       "description": "Current sprint tasks",
-      "tasks": []
+      "tasks": ["dashboard-v4-redesign"]
     },
     "next": {
       "description": "Next priority after now is complete",
@@ -52,6 +52,231 @@
     }
   },
   "tasks": {
+    "dashboard-v4-redesign": {
+      "parentTaskId": null,
+      "childTaskIds": [
+        "dashboard-v4-layout",
+        "dashboard-v4-sessions",
+        "dashboard-v4-tabs",
+        "dashboard-v4-backend",
+        "dashboard-v4-launcher",
+        "dashboard-v4-testing"
+      ],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": "sequential",
+      "id": "dashboard-v4-redesign",
+      "title": "Dashboard v4 - Data-Dense Redesign",
+      "description": "Complete redesign of Fleet Dashboard from card-based to data-dense, table-driven layout. Optimized for half-screen use alongside CLI. Removes inaccurate metrics (limits/costs), adds CLI/AUTO session types, moves health/confidence to task-level only, adds prediction calculations.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "13h",
+      "tags": [
+        "dashboard",
+        "ux",
+        "redesign",
+        "data-dense",
+        "responsive"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["dashboard-ux-redesign", "dashboard-blocked-tasks-view"]
+      },
+      "acceptance": [
+        "2-panel layout (sessions + content) renders at full and half-screen",
+        "Top bar shows: projects, sessions, tasks (X/Y), agents/sub-agents",
+        "Sessions grouped by project with CLI/AUTO badges",
+        "Prediction chips show messages remaining",
+        "5 tabs functional: Overview, Tasks, Hierarchy, Details, Logs",
+        "Health/Confidence only on tasks (not sessions)",
+        "Hierarchy tab shows agent tree with summary",
+        "+Session launches new CLI in selected project",
+        "Keyboard nav: j/k navigate, 1-5 tabs, n launcher",
+        "All E2E tests pass"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2026-01-01T12:00:00.000Z",
+      "updated": "2026-01-01T12:00:00.000Z",
+      "designDocs": [
+        "docs/design/dashboard-v4-final.html",
+        "docs/design/DASHBOARD-V4-IMPLEMENTATION-PLAN.md"
+      ]
+    },
+    "dashboard-v4-layout": {
+      "parentTaskId": "dashboard-v4-redesign",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "id": "dashboard-v4-layout",
+      "title": "Phase 1: Core Layout & CSS",
+      "description": "Replace current card-based layout with 2-panel data-dense design. Create new CSS variables, implement top bar with simplified metrics, add responsive breakpoints.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": ["dashboard", "css", "layout"],
+      "depends": {
+        "blocks": ["dashboard-v4-sessions"],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "New CSS variables matching v4 design",
+        "Top bar with projects/sessions/tasks/agents counts",
+        "2-panel layout (left: sessions, right: content)",
+        "Responsive breakpoints for narrow screens",
+        "Proper scrolling in each panel"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2026-01-01T12:00:00.000Z",
+      "updated": "2026-01-01T12:00:00.000Z"
+    },
+    "dashboard-v4-sessions": {
+      "parentTaskId": "dashboard-v4-redesign",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "id": "dashboard-v4-sessions",
+      "title": "Phase 2: Session Panel",
+      "description": "Rebuild session list with project grouping, CLI/AUTO type badges, context %, and prediction chips. Remove health/confidence from session level.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": ["dashboard", "sessions", "ui"],
+      "depends": {
+        "blocks": ["dashboard-v4-tabs"],
+        "requires": ["dashboard-v4-layout"],
+        "related": []
+      },
+      "acceptance": [
+        "Sessions grouped by project (collapsible)",
+        "CLI/AUTO session type badge on each session",
+        "Context %, phase, prediction chip displayed",
+        "No health/confidence on session items",
+        "Session selection highlighting works"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2026-01-01T12:00:00.000Z",
+      "updated": "2026-01-01T12:00:00.000Z"
+    },
+    "dashboard-v4-tabs": {
+      "parentTaskId": "dashboard-v4-redesign",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "id": "dashboard-v4-tabs",
+      "title": "Phase 3: Tab System",
+      "description": "Implement 5-tab content area: Overview (stats, predictions, current task), Tasks (active, ready, completed), Hierarchy (agent tree), Details (session info), Logs (activity stream).",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "3h",
+      "tags": ["dashboard", "tabs", "ui"],
+      "depends": {
+        "blocks": ["dashboard-v4-backend"],
+        "requires": ["dashboard-v4-sessions"],
+        "related": []
+      },
+      "acceptance": [
+        "Overview tab with stats grid and predictions",
+        "Tasks tab with active/ready/completed sections",
+        "Hierarchy tab with agent tree and summary",
+        "Details tab with full session metadata",
+        "Logs tab with color-coded activity stream",
+        "Tab switching works via click and keyboard (1-5)"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2026-01-01T12:00:00.000Z",
+      "updated": "2026-01-01T12:00:00.000Z"
+    },
+    "dashboard-v4-backend": {
+      "parentTaskId": "dashboard-v4-redesign",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "id": "dashboard-v4-backend",
+      "title": "Phase 4: Backend Updates",
+      "description": "Add sessionType (cli/autonomous) to API responses, add prediction calculations (messagesRemaining, timeToFull), add hierarchy summary to /api/agent-pool/status.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": ["dashboard", "backend", "api"],
+      "depends": {
+        "blocks": ["dashboard-v4-launcher"],
+        "requires": ["dashboard-v4-tabs"],
+        "related": []
+      },
+      "acceptance": [
+        "sessionType field in /api/sessions/summary and /api/overview",
+        "Prediction calculations in session data",
+        "Health/confidence only on task objects",
+        "Hierarchy summary in /api/agent-pool/status"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2026-01-01T12:00:00.000Z",
+      "updated": "2026-01-01T12:00:00.000Z"
+    },
+    "dashboard-v4-launcher": {
+      "parentTaskId": "dashboard-v4-redesign",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "id": "dashboard-v4-launcher",
+      "title": "Phase 5: +Session Launcher",
+      "description": "Create /api/sessions/launch endpoint to spawn new Claude Code CLI. Implement project picker modal. Launch with --dangerously-skip-permissions.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": ["dashboard", "launcher", "cli"],
+      "depends": {
+        "blocks": ["dashboard-v4-testing"],
+        "requires": ["dashboard-v4-backend"],
+        "related": []
+      },
+      "acceptance": [
+        "/api/sessions/launch endpoint works",
+        "Project picker modal shows known projects",
+        "Launches claude --dangerously-skip-permissions in new terminal",
+        "Keyboard shortcut 'n' opens modal"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2026-01-01T12:00:00.000Z",
+      "updated": "2026-01-01T12:00:00.000Z"
+    },
+    "dashboard-v4-testing": {
+      "parentTaskId": "dashboard-v4-redesign",
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 1,
+      "id": "dashboard-v4-testing",
+      "title": "Phase 6: Testing & Polish",
+      "description": "Update E2E tests for new layout. Test keyboard navigation, responsive behavior, performance. Cross-browser testing.",
+      "phase": "testing",
+      "priority": "high",
+      "estimate": "2h",
+      "tags": ["dashboard", "testing", "e2e"],
+      "depends": {
+        "blocks": [],
+        "requires": ["dashboard-v4-launcher"],
+        "related": []
+      },
+      "acceptance": [
+        "E2E tests updated for new layout",
+        "Keyboard nav tested (j/k, 1-5, n)",
+        "Responsive behavior verified at various widths",
+        "Performance <500ms load, <200ms tab switch",
+        "Works in Chrome, Firefox, Edge"
+      ],
+      "status": "blocked",
+      "assignee": null,
+      "created": "2026-01-01T12:00:00.000Z",
+      "updated": "2026-01-01T12:00:00.000Z"
+    },
     "add-model-pricing": {
       "parentTaskId": null,
       "childTaskIds": [],
