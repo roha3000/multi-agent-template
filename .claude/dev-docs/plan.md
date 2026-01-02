@@ -1,26 +1,26 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Dashboard Controls & Short IDs Complete
+**Status**: Session 77 Complete - Ready for next task
 
 ---
 
-## Session 77 Progress
+## Session 77 Summary ✅
 
-### Completed
+All items completed and committed (08f02d3):
 - Fixed +Session modal (CSS `.visible` → `.open`)
-- Session controls now use `registryId` for autonomous sessions
+- Session controls use `registryId` for autonomous sessions
 - CLI sessions show toast warning (can't be controlled remotely)
 - Added `/api/sessions/:id/skip-task` endpoint
 - Short session ID mapping (S1, S2, S3...)
+- Active-only session filter (hides inactive history)
+- Eliminated phantom 'default' sessions (ignore OTLP without session ID)
 
 ---
 
 ## Next Steps
 
-1. Test +Session button in browser
-2. Test session control buttons (autonomous sessions)
-3. Verify short IDs display correctly
-4. Commit session 77 changes
+1. Continue Dashboard v4 feature work (see tasks.json)
+2. Or pick up next priority task
 
 ---
 

@@ -5,9 +5,9 @@
 
 ---
 
-## Session 77: Dashboard Controls & Short IDs (CURRENT)
+## Session 77: Dashboard Controls & Short IDs ✅
 
-Fixed session control buttons and added short session ID mapping.
+Fixed session control buttons, short IDs, and eliminated phantom sessions.
 
 ### Features Added
 | Feature | Description |
@@ -17,12 +17,15 @@ Fixed session control buttons and added short session ID mapping.
 | CLI control warnings | Shows toast warning that CLI sessions can't be controlled remotely |
 | Skip-task endpoint | Added `/api/sessions/:id/skip-task` backend endpoint |
 | Short session IDs | Maps long IDs to simple S1, S2, S3... format |
+| Active-only filter | Dashboard only shows active sessions |
+| No phantom sessions | OTLP metrics without session ID are now ignored |
 
 ### Files Modified
 | File | Changes |
 |------|---------|
-| `global-dashboard.html` | Fixed modal class, added `getShortSessionId()`, updated controls |
+| `global-dashboard.html` | Fixed modal, short IDs, active-only filter, control buttons |
 | `global-context-manager.js` | Added `/api/sessions/:id/skip-task` endpoint |
+| `.claude/core/global-context-tracker.js` | Ignore metrics without session ID |
 
 ---
 
