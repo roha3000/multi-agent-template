@@ -1098,6 +1098,17 @@
     .control-btn.skip:hover { border-color: var(--color-info); color: var(--color-info); }
     .control-btn.end:hover { border-color: var(--color-danger); color: var(--color-danger); }
 
+    .control-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background: var(--bg-tertiary);
+    }
+    .control-btn:disabled:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border-color: var(--border-color);
+    }
+
     /* ===== DETAIL PANEL (RIGHT PANE) ===== */
     .detail-panel {
       flex: 1;
@@ -4162,11 +4173,17 @@
             ${settings.showCost ? `<span title="Cost">$${(s.cost || 0).toFixed(2)}</span>` : ''}
           </div>
           <div class="session-controls" onclick="event.stopPropagation()">
-            <button class="control-btn pause" onclick="togglePause('${s.id}')" aria-label="${s.status === 'paused' ? 'Resume session' : 'Pause session'}">
-              ${s.status === 'paused' ? '▶' : '⏸'}
-            </button>
-            <button class="control-btn skip" onclick="skipTask('${s.id}')" aria-label="Skip current task">⏭</button>
-            <button class="control-btn end" onclick="endSession('${s.id}')" aria-label="End session">⏹</button>
+            ${s.registryId ? `
+              <button class="control-btn pause" onclick="togglePause('${s.id}')" aria-label="${s.status === 'paused' ? 'Resume session' : 'Pause session'}">
+                ${s.status === 'paused' ? '▶' : '⏸'}
+              </button>
+              <button class="control-btn skip" onclick="skipTask('${s.id}')" aria-label="Skip current task">⏭</button>
+              <button class="control-btn end" onclick="endSession('${s.id}')" aria-label="End session">⏹</button>
+            ` : `
+              <button class="control-btn pause" disabled title="CLI sessions cannot be controlled remotely">⏸</button>
+              <button class="control-btn skip" disabled title="CLI sessions cannot be controlled remotely">⏭</button>
+              <button class="control-btn end" disabled title="CLI sessions cannot be controlled remotely">⏹</button>
+            `}
           </div>
         </div>
       `;
