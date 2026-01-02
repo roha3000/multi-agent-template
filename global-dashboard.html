@@ -5104,6 +5104,8 @@
       }
 
       const children = session.childAgents || session.children || [];
+      const activeDelegations = session.activeDelegations || [];
+      const completedDelegations = session.completedDelegations || [];
 
       // Build user-friendly session label
       function getSessionLabel(s, isRoot = false) {
@@ -5117,12 +5119,52 @@
       // Get status badge
       function getStatusBadge(s) {
         const status = s.status || 'active';
-        const colors = { active: '#4ade80', idle: '#94a3b8', ended: '#64748b', error: '#f87171' };
+        const colors = { active: '#4ade80', idle: '#94a3b8', ended: '#64748b', error: '#f87171', pending: '#fbbf24', completed: '#4ade80', failed: '#f87171' };
         return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${colors[status] || colors.active};margin-right:6px;" title="${status}"></span>`;
+      }
+
+      // Format delegation for display
+      function renderDelegation(d, isCompleted = false) {
+        const statusColors = { PENDING: '#fbbf24', ACTIVE: '#4ade80', COMPLETED: '#22c55e', FAILED: '#f87171', CANCELLED: '#94a3b8' };
+        const statusColor = statusColors[d.status] || '#94a3b8';
+        const timeAgo = d.completedAt ? formatTimeAgo(new Date(d.completedAt)) : (d.createdAt ? formatTimeAgo(new Date(d.createdAt)) : '');
+        const taskLabel = d.taskId || d.metadata?.taskTitle || 'Task';
+
+        return `
+          <div style="display:flex;align-items:center;gap:8px;padding:4px 0;${isCompleted ? 'opacity:0.7;' : ''}">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${statusColor};" title="${d.status}"></span>
+            <span style="flex:1;font-size:12px;">${escapeHtml(taskLabel)}</span>
+            <span style="font-size:10px;color:var(--text-muted);">${d.status}</span>
+            ${timeAgo ? `<span style="font-size:10px;color:var(--text-muted);">${timeAgo}</span>` : ''}
+          </div>
+        `;
       }
 
       const sessionLabel = getSessionLabel(session, true);
       const sessionType = (session.sessionType || session.type || 'cli').toUpperCase();
+
+      // Build delegations section
+      let delegationsHtml = '';
+      if (activeDelegations.length > 0 || completedDelegations.length > 0) {
+        delegationsHtml = `
+          <div style="margin-top:16px;border-top:1px solid var(--border-color);padding-top:12px;">
+            <div style="font-weight:500;font-size:12px;margin-bottom:8px;color:var(--text-muted);">DELEGATIONS</div>
+            ${activeDelegations.length > 0 ? `
+              <div style="margin-bottom:8px;">
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Active (${activeDelegations.length})</div>
+                ${activeDelegations.map(d => renderDelegation(d, false)).join('')}
+              </div>
+            ` : ''}
+            ${completedDelegations.length > 0 ? `
+              <div>
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Completed (${completedDelegations.length})</div>
+                ${completedDelegations.slice(0, 10).map(d => renderDelegation(d, true)).join('')}
+                ${completedDelegations.length > 10 ? `<div style="font-size:11px;color:var(--text-muted);padding:4px 0;">...and ${completedDelegations.length - 10} more</div>` : ''}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
 
       pane.innerHTML = `
         <div class="section-header">Agent Hierarchy</div>
@@ -5161,6 +5203,7 @@
             `}
           </div>
         </div>
+        ${delegationsHtml}
       `;
     }
 
@@ -5891,10 +5934,18 @@
 
         case 'delegation:completed':
           showToast('success', 'Delegation Completed', `Delegation finished in ${Math.round(msg.duration / 1000)}s`);
+          // Refresh session data to update Hierarchy tab with completed delegation
+          if (selectedSessionId) {
+            fetchSessionDetails(selectedSessionId);
+          }
           break;
 
         case 'delegation:failed':
           showToast('error', 'Delegation Failed', msg.error || 'Unknown error');
+          // Refresh session data to update Hierarchy tab with failed delegation
+          if (selectedSessionId) {
+            fetchSessionDetails(selectedSessionId);
+          }
           break;
 
         case 'task:completed':

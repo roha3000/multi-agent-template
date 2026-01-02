@@ -110,6 +110,9 @@ class SessionRegistry extends EventEmitter {
       // Active delegations from this session
       activeDelegations: [],
 
+      // Completed delegations history (for audit trail)
+      completedDelegations: [],
+
       // Aggregated metrics from child sessions (rollup)
       rollupMetrics: {
         totalTokens: 0,
@@ -454,9 +457,27 @@ class SessionRegistry extends EventEmitter {
     if (data.result !== undefined) delegation.result = data.result;
     if (data.error !== undefined) delegation.error = data.error;
 
-    // Remove from active if completed/failed
+    // Move to completed history if finished (instead of deleting)
     if (status === DelegationStatus.COMPLETED || status === DelegationStatus.FAILED || status === DelegationStatus.CANCELLED) {
+      delegation.completedAt = new Date().toISOString();
+
+      // Move to completedDelegations for history
+      session.completedDelegations.push({ ...delegation });
+
+      // Remove from active
       session.activeDelegations = session.activeDelegations.filter(d => d.delegationId !== delegationId);
+
+      // Prune old completed delegations (keep last 50)
+      if (session.completedDelegations.length > 50) {
+        session.completedDelegations = session.completedDelegations.slice(-50);
+      }
+
+      log.info('Delegation completed and moved to history', {
+        sessionId,
+        delegationId,
+        status,
+        completedCount: session.completedDelegations.length
+      });
     }
 
     session.lastUpdate = new Date().toISOString();
@@ -477,6 +498,36 @@ class SessionRegistry extends EventEmitter {
     });
 
     return delegation;
+  }
+
+  /**
+   * Get completed delegations for a session
+   * @param {number} sessionId - Session ID
+   * @param {number} limit - Max number to return (default 20)
+   * @returns {Array} Completed delegations (most recent first)
+   */
+  getCompletedDelegations(sessionId, limit = 20) {
+    const session = this.sessions.get(sessionId);
+    if (!session) return [];
+
+    return session.completedDelegations
+      .slice(-limit)
+      .reverse(); // Most recent first
+  }
+
+  /**
+   * Get all delegations (active + completed) for a session
+   * @param {number} sessionId - Session ID
+   * @returns {Object} { active: [], completed: [] }
+   */
+  getAllDelegations(sessionId) {
+    const session = this.sessions.get(sessionId);
+    if (!session) return { active: [], completed: [] };
+
+    return {
+      active: session.activeDelegations,
+      completed: session.completedDelegations
+    };
   }
 
   /**

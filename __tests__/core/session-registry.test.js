@@ -538,6 +538,106 @@ describe('SessionRegistry', () => {
           })
         );
       });
+
+      it('should move completed delegation to completedDelegations', () => {
+        const id = registry.register({ project: 'test-project' });
+        const delegation = registry.addDelegation(id, { targetAgentId: 'agent-1', taskId: 'task-1' });
+
+        registry.updateDelegation(id, delegation.delegationId, 'completed', { result: 'success' });
+
+        const session = registry.get(id);
+        expect(session.activeDelegations).toHaveLength(0);
+        expect(session.completedDelegations).toHaveLength(1);
+        expect(session.completedDelegations[0].delegationId).toBe(delegation.delegationId);
+        expect(session.completedDelegations[0].status).toBe('completed');
+        expect(session.completedDelegations[0].completedAt).toBeDefined();
+      });
+
+      it('should move failed delegation to completedDelegations', () => {
+        const id = registry.register({ project: 'test-project' });
+        const delegation = registry.addDelegation(id, { targetAgentId: 'agent-1' });
+
+        registry.updateDelegation(id, delegation.delegationId, 'failed', { error: 'Something went wrong' });
+
+        const session = registry.get(id);
+        expect(session.activeDelegations).toHaveLength(0);
+        expect(session.completedDelegations).toHaveLength(1);
+        expect(session.completedDelegations[0].status).toBe('failed');
+        expect(session.completedDelegations[0].error).toBe('Something went wrong');
+      });
+
+      it('should prune completedDelegations to last 50', () => {
+        const id = registry.register({ project: 'test-project' });
+
+        // Add and complete 55 delegations
+        for (let i = 0; i < 55; i++) {
+          const delegation = registry.addDelegation(id, { targetAgentId: `agent-${i}`, taskId: `task-${i}` });
+          registry.updateDelegation(id, delegation.delegationId, 'completed');
+        }
+
+        const session = registry.get(id);
+        expect(session.completedDelegations).toHaveLength(50);
+        // Should keep the most recent 50 (tasks 5-54)
+        expect(session.completedDelegations[0].taskId).toBe('task-5');
+        expect(session.completedDelegations[49].taskId).toBe('task-54');
+      });
+    });
+
+    describe('getCompletedDelegations()', () => {
+      it('should return completed delegations in reverse order (most recent first)', () => {
+        const id = registry.register({ project: 'test-project' });
+
+        const del1 = registry.addDelegation(id, { targetAgentId: 'agent-1', taskId: 'task-1' });
+        registry.updateDelegation(id, del1.delegationId, 'completed');
+
+        const del2 = registry.addDelegation(id, { targetAgentId: 'agent-2', taskId: 'task-2' });
+        registry.updateDelegation(id, del2.delegationId, 'completed');
+
+        const completed = registry.getCompletedDelegations(id);
+        expect(completed).toHaveLength(2);
+        expect(completed[0].taskId).toBe('task-2'); // Most recent first
+        expect(completed[1].taskId).toBe('task-1');
+      });
+
+      it('should respect limit parameter', () => {
+        const id = registry.register({ project: 'test-project' });
+
+        for (let i = 0; i < 10; i++) {
+          const delegation = registry.addDelegation(id, { targetAgentId: `agent-${i}` });
+          registry.updateDelegation(id, delegation.delegationId, 'completed');
+        }
+
+        const completed = registry.getCompletedDelegations(id, 5);
+        expect(completed).toHaveLength(5);
+      });
+
+      it('should return empty array for non-existent session', () => {
+        const completed = registry.getCompletedDelegations(999);
+        expect(completed).toEqual([]);
+      });
+    });
+
+    describe('getAllDelegations()', () => {
+      it('should return both active and completed delegations', () => {
+        const id = registry.register({ project: 'test-project' });
+
+        const del1 = registry.addDelegation(id, { targetAgentId: 'agent-1', taskId: 'task-1' });
+        registry.updateDelegation(id, del1.delegationId, 'completed');
+
+        const del2 = registry.addDelegation(id, { targetAgentId: 'agent-2', taskId: 'task-2' });
+        registry.updateDelegation(id, del2.delegationId, 'active');
+
+        const all = registry.getAllDelegations(id);
+        expect(all.active).toHaveLength(1);
+        expect(all.completed).toHaveLength(1);
+        expect(all.active[0].taskId).toBe('task-2');
+        expect(all.completed[0].taskId).toBe('task-1');
+      });
+
+      it('should return empty arrays for non-existent session', () => {
+        const all = registry.getAllDelegations(999);
+        expect(all).toEqual({ active: [], completed: [] });
+      });
     });
 
     describe('getRollupMetrics()', () => {
