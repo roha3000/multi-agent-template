@@ -431,6 +431,132 @@ describe('TaskManager', () => {
   });
 
   // ===================================================================
+  // QUERY - getReadyTasks with Child Tasks
+  // ===================================================================
+
+  describe('Query - getReadyTasks with hierarchical tasks', () => {
+    let parentTask;
+    let childTask1;
+    let childTask2;
+    let childTask3;
+
+    beforeEach(() => {
+      // Create parent task in NOW backlog
+      parentTask = taskManager.createTask({
+        title: 'Parent Feature',
+        phase: 'implementation',
+        priority: 'high',
+        backlogTier: 'now'
+      });
+
+      // Create child tasks (NOT in backlog directly)
+      childTask1 = taskManager.createTask({
+        title: 'Child Phase 1',
+        phase: 'implementation',
+        priority: 'high',
+        parentTaskId: parentTask.id
+      });
+
+      childTask2 = taskManager.createTask({
+        title: 'Child Phase 2',
+        phase: 'implementation',
+        priority: 'high',
+        parentTaskId: parentTask.id,
+        depends: { requires: [childTask1.id], blocks: [], related: [] }
+      });
+
+      childTask3 = taskManager.createTask({
+        title: 'Child Phase 3',
+        phase: 'implementation',
+        priority: 'high',
+        parentTaskId: parentTask.id,
+        depends: { requires: [childTask2.id], blocks: [], related: [] }
+      });
+
+      // Link children to parent
+      taskManager.updateTask(parentTask.id, {
+        childTaskIds: [childTask1.id, childTask2.id, childTask3.id]
+      });
+    });
+
+    test('should include child tasks of NOW-tier parents', () => {
+      const tasks = taskManager.getReadyTasks({ backlog: 'now' });
+
+      // Should find parent and ready children
+      const taskIds = tasks.map(t => t.id);
+      expect(taskIds).toContain(parentTask.id);
+      expect(taskIds).toContain(childTask1.id); // Ready (no deps)
+      // childTask2 and childTask3 are blocked
+    });
+
+    test('should not include blocked child tasks', () => {
+      const tasks = taskManager.getReadyTasks({ backlog: 'now' });
+      const taskIds = tasks.map(t => t.id);
+
+      expect(taskIds).not.toContain(childTask2.id); // Blocked by child1
+      expect(taskIds).not.toContain(childTask3.id); // Blocked by child2
+    });
+
+    test('should score child tasks higher than parent', () => {
+      const tasks = taskManager.getReadyTasks({ backlog: 'now' });
+
+      const parent = tasks.find(t => t.id === parentTask.id);
+      const child1 = tasks.find(t => t.id === childTask1.id);
+
+      expect(child1._score).toBeGreaterThan(parent._score);
+    });
+
+    test('should penalize parent with incomplete children', () => {
+      // Create a standalone task for comparison
+      const standaloneTask = taskManager.createTask({
+        title: 'Standalone Task',
+        phase: 'implementation',
+        priority: 'high',
+        backlogTier: 'now'
+      });
+
+      const tasks = taskManager.getReadyTasks({ backlog: 'now' });
+
+      const parent = tasks.find(t => t.id === parentTask.id);
+      const standalone = tasks.find(t => t.id === standaloneTask.id);
+
+      // Parent with incomplete children should score lower than standalone
+      expect(parent._score).toBeLessThan(standalone._score);
+    });
+
+    test('should unblock next child when previous completes', () => {
+      // Complete child1
+      taskManager.updateStatus(childTask1.id, 'completed');
+
+      const tasks = taskManager.getReadyTasks({ backlog: 'now' });
+      const taskIds = tasks.map(t => t.id);
+
+      // child2 should now be ready
+      expect(taskIds).toContain(childTask2.id);
+      // child3 still blocked
+      expect(taskIds).not.toContain(childTask3.id);
+    });
+
+    test('should return child tasks first due to higher score', () => {
+      const tasks = taskManager.getReadyTasks({ backlog: 'now' });
+
+      // First task should be the ready child, not the parent
+      expect(tasks[0].parentTaskId).toBe(parentTask.id);
+    });
+
+    test('should work with nested child discovery', () => {
+      // Verify children are found even though only parent is in backlog
+      const nowBacklog = taskManager.tasks.backlog.now.tasks;
+      expect(nowBacklog).toContain(parentTask.id);
+      expect(nowBacklog).not.toContain(childTask1.id);
+
+      // But getReadyTasks should still find child1
+      const tasks = taskManager.getReadyTasks({ backlog: 'now' });
+      expect(tasks.find(t => t.id === childTask1.id)).toBeDefined();
+    });
+  });
+
+  // ===================================================================
   // QUERY - getNextTask
   // ===================================================================
 

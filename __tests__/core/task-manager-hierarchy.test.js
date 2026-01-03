@@ -54,7 +54,7 @@ describe('TaskManager Hierarchy', () => {
           backlogTier: 'now'
         });
 
-        expect(task.parentTaskId).toBeUndefined();
+        expect(task.parentTaskId).toBeNull();
       });
 
       test('should reference parent after subtask creation', () => {
@@ -81,8 +81,8 @@ describe('TaskManager Hierarchy', () => {
           backlogTier: 'now'
         });
 
-        // childTaskIds may not exist until a subtask is created
-        expect(parent.childTaskIds).toBeUndefined();
+        // childTaskIds is initialized as empty array
+        expect(parent.childTaskIds).toEqual([]);
       });
 
       test('should contain subtask IDs after creation', () => {
@@ -110,7 +110,7 @@ describe('TaskManager Hierarchy', () => {
           backlogTier: 'now'
         });
 
-        expect(task.delegatedTo).toBeUndefined();
+        expect(task.delegatedTo).toBeNull();
       });
 
       test('should store delegation info via delegateToAgent', () => {
@@ -159,7 +159,7 @@ describe('TaskManager Hierarchy', () => {
           backlogTier: 'now'
         });
 
-        expect(task.delegationDepth).toBeUndefined();
+        expect(task.delegationDepth).toBe(0);
       });
 
       test('should increment for each level of subtask', () => {
@@ -188,7 +188,7 @@ describe('TaskManager Hierarchy', () => {
           backlogTier: 'now'
         });
 
-        expect(task.decomposition).toBeUndefined();
+        expect(task.decomposition).toBeNull();
       });
 
       test('should be initialized when subtask is created', () => {

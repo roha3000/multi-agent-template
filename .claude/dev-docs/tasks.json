@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 74,
+    "version": 75,
     "lastModifiedBy": 1,
-    "lastModifiedAt": "2026-01-02T08:14:39.485Z"
+    "lastModifiedAt": "2026-01-03T01:10:57.331Z"
   },
   "version": "1.1.0",
   "project": {
@@ -554,7 +554,7 @@
       "status": "in_progress",
       "assignee": null,
       "created": "2025-12-29T16:00:00.000Z",
-      "updated": "2026-01-02T08:14:39.461Z",
+      "updated": "2026-01-03T01:10:57.330Z",
       "designDocs": [
         "docs/AUTO-DELEGATION-ARCHITECTURE.md",
         "docs/AUTO-DELEGATION-IMPLEMENTATION-PLAN.md",
@@ -575,9 +575,15 @@
       "phase": "implementation",
       "priority": "high",
       "estimate": "3h",
-      "tags": ["auto-delegation", "hooks", "infrastructure"],
+      "tags": [
+        "auto-delegation",
+        "hooks",
+        "infrastructure"
+      ],
       "depends": {
-        "blocks": ["auto-delegation-phase2-decision"],
+        "blocks": [
+          "auto-delegation-phase2-decision"
+        ],
         "requires": [],
         "related": []
       },
@@ -603,10 +609,18 @@
       "phase": "implementation",
       "priority": "high",
       "estimate": "4h",
-      "tags": ["auto-delegation", "decision-engine", "integration"],
+      "tags": [
+        "auto-delegation",
+        "decision-engine",
+        "integration"
+      ],
       "depends": {
-        "blocks": ["auto-delegation-phase3-skills"],
-        "requires": ["auto-delegation-phase1-hook"],
+        "blocks": [
+          "auto-delegation-phase3-skills"
+        ],
+        "requires": [
+          "auto-delegation-phase1-hook"
+        ],
         "related": []
       },
       "acceptance": [
@@ -631,10 +645,18 @@
       "phase": "implementation",
       "priority": "medium",
       "estimate": "2h",
-      "tags": ["auto-delegation", "skills", "ux"],
+      "tags": [
+        "auto-delegation",
+        "skills",
+        "ux"
+      ],
       "depends": {
-        "blocks": ["auto-delegation-phase4-execution"],
-        "requires": ["auto-delegation-phase2-decision"],
+        "blocks": [
+          "auto-delegation-phase4-execution"
+        ],
+        "requires": [
+          "auto-delegation-phase2-decision"
+        ],
         "related": []
       },
       "acceptance": [
@@ -659,10 +681,18 @@
       "phase": "implementation",
       "priority": "high",
       "estimate": "5h",
-      "tags": ["auto-delegation", "orchestration", "execution"],
+      "tags": [
+        "auto-delegation",
+        "orchestration",
+        "execution"
+      ],
       "depends": {
-        "blocks": ["auto-delegation-phase5-dashboard"],
-        "requires": ["auto-delegation-phase3-skills"],
+        "blocks": [
+          "auto-delegation-phase5-dashboard"
+        ],
+        "requires": [
+          "auto-delegation-phase3-skills"
+        ],
         "related": []
       },
       "acceptance": [
@@ -687,10 +717,18 @@
       "phase": "implementation",
       "priority": "medium",
       "estimate": "4h",
-      "tags": ["auto-delegation", "dashboard", "ui"],
+      "tags": [
+        "auto-delegation",
+        "dashboard",
+        "ui"
+      ],
       "depends": {
-        "blocks": ["auto-delegation-phase6-polish"],
-        "requires": ["auto-delegation-phase4-execution"],
+        "blocks": [
+          "auto-delegation-phase6-polish"
+        ],
+        "requires": [
+          "auto-delegation-phase4-execution"
+        ],
         "related": []
       },
       "acceptance": [
@@ -715,10 +753,16 @@
       "phase": "implementation",
       "priority": "medium",
       "estimate": "2h",
-      "tags": ["auto-delegation", "documentation", "polish"],
+      "tags": [
+        "auto-delegation",
+        "documentation",
+        "polish"
+      ],
       "depends": {
         "blocks": [],
-        "requires": ["auto-delegation-phase5-dashboard"],
+        "requires": [
+          "auto-delegation-phase5-dashboard"
+        ],
         "related": []
       },
       "acceptance": [

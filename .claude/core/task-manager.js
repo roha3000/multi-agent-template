@@ -539,7 +539,21 @@ class TaskManager extends EventEmitter {
     const backlogTier = filters.backlog || 'now';
     if (backlogTier !== 'all') {
       const backlogIds = this.tasks.backlog[backlogTier]?.tasks || [];
-      candidates = candidates.filter(t => backlogIds.includes(t.id));
+
+      // Also include child tasks of NOW-tier parents (for hierarchical task execution)
+      // This allows orchestrators to claim parent task, then iterate through children
+      const childTaskIds = [];
+      if (backlogTier === 'now') {
+        for (const parentId of backlogIds) {
+          const parent = this.getTask(parentId);
+          if (parent?.childTaskIds?.length > 0) {
+            childTaskIds.push(...parent.childTaskIds);
+          }
+        }
+      }
+
+      const eligibleIds = [...backlogIds, ...childTaskIds];
+      candidates = candidates.filter(t => eligibleIds.includes(t.id));
     }
 
     // Filter by status (ready or in_progress only)
@@ -815,6 +829,12 @@ class TaskManager extends EventEmitter {
       updated: new Date().toISOString(),
       started: null,
       completed: null,
+      // Hierarchy fields
+      parentTaskId: taskData.parentTaskId || null,
+      childTaskIds: taskData.childTaskIds || [],
+      delegatedTo: taskData.delegatedTo || null,
+      delegationDepth: taskData.delegationDepth || 0,
+      decomposition: taskData.decomposition || null,
     };
 
     this.tasks.tasks[id] = task;
@@ -845,7 +865,8 @@ class TaskManager extends EventEmitter {
 
     const allowedFields = [
       'title', 'description', 'phase', 'priority', 'estimate',
-      'tags', 'depends', 'acceptance', 'assignee'
+      'tags', 'depends', 'acceptance', 'assignee',
+      'parentTaskId', 'childTaskIds', 'delegatedTo', 'delegationDepth', 'decomposition'
     ];
 
     for (const field of allowedFields) {
@@ -1025,6 +1046,24 @@ class TaskManager extends EventEmitter {
       score += 5; // Neutral if no history
     }
 
+    // Child task priority bonus (25 points)
+    // Prefer child tasks over parent tasks - work on children first
+    if (task.parentTaskId) {
+      score += 25; // Child tasks get priority
+    }
+
+    // Parent with incomplete children penalty (-20 points)
+    // Don't work on parent if children are pending
+    if (task.childTaskIds && task.childTaskIds.length > 0) {
+      const incompleteChildren = task.childTaskIds.filter(childId => {
+        const child = this.getTask(childId);
+        return child && child.status !== 'completed';
+      });
+      if (incompleteChildren.length > 0) {
+        score -= 20; // Penalize parents with pending children
+      }
+    }
+
     return score;
   }
 
@@ -1132,9 +1171,24 @@ class TaskManager extends EventEmitter {
    * @private
    */
   _updateBlockedTasks(completedTaskId) {
+    // Get tasks this one explicitly blocks (via depends.blocks)
     const blocking = this._getBlocking(completedTaskId);
 
-    for (const task of blocking) {
+    // Also find tasks that require this one (via depends.requires)
+    const allTasks = this._getAllTasks();
+    const requiring = allTasks.filter(t =>
+      t.depends?.requires?.includes(completedTaskId)
+    );
+
+    // Combine both sets (deduplicate by id)
+    const toCheck = [...blocking];
+    for (const task of requiring) {
+      if (!toCheck.find(t => t.id === task.id)) {
+        toCheck.push(task);
+      }
+    }
+
+    for (const task of toCheck) {
       if (this._areRequirementsMet(task) && task.status === 'blocked') {
         task.status = 'ready';
         task.updated = new Date().toISOString();
