@@ -860,7 +860,62 @@
         "Dashboard API: 6 new endpoints for delegation hints",
         "__tests__/core/delegation-decider.test.js: 44 unit tests"
       ]
+    },
+    "dashboard-ux-redesign": {
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "decomposition": null,
+      "id": "dashboard-ux-redesign",
+      "title": "Dashboard Fleet Management Redesign",
+      "description": "Redesign dashboard for Fleet Management mode (5+ concurrent sessions). Add agent lineage visibility, countdown timers for token/rate limits, smart defaults for metric surfacing, and alert system with banner+sound+toast. Based on agent swarm analysis and user requirements.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "16h",
+      "tags": [
+        "dashboard",
+        "ux",
+        "fleet-management",
+        "agent-monitoring",
+        "visualization"
+      ],
+      "depends": {
+        "blocks": [
+          "dashboard-blocked-tasks-view"
+        ],
+        "requires": [],
+        "related": [
+          "dashboard-blocked-tasks-view",
+          "auto-delegation-integration"
+        ]
+      },
+      "acceptance": [
+        "Fleet overview shows all projects/sessions at a glance",
+        "5-hour countdown timer with remaining time visible",
+        "Session context countdown shows time until auto-compact",
+        "Agent lineage tree shows full parent-child delegation hierarchy",
+        "Alert banner with sound for critical alerts (token exhaustion, rate limit)",
+        "Toast notifications for other events (task claimed, session started)",
+        "Smart defaults auto-surface relevant metrics based on context",
+        "New /api/agent-pool/status endpoint returns lineage + metrics",
+        "New /api/overview endpoint returns fleet-level aggregates",
+        "WebSocket channel /ws/fleet for real-time delegation events",
+        "Keyboard navigation (arrows, ESC, number keys)",
+        "Performance: overview loads <500ms, drill-downs <200ms"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2025-12-31T01:00:00.000Z",
+      "updated": "2025-12-31T05:00:00.000Z",
+      "completedAt": "2025-12-31T05:00:00.000Z",
+      "completionNotes": "All 5 phases complete: Backend APIs, Fleet header/alerts, Project cards, Agent lineage tree, Keyboard navigation. 14 new E2E tests added.",
+      "designDocs": [
+        "docs/design/DASHBOARD-FLEET-MANAGEMENT-DESIGN.md",
+        "docs/design/DASHBOARD-UX-REDESIGN.md",
+        "docs/audits/dashboard-validation-2025-12-31.md"
+      ]
     }
   },
-  "lastArchived": "2025-12-29T20:01:19.141Z"
+  "lastArchived": "2026-01-02T08:14:39.465Z"
 }

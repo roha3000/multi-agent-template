@@ -172,162 +172,92 @@
 
 # Project Summary
 
-# Project Summary
-
-**Last Updated**: 2025-12-30T22:50:00.000Z
-**Current Phase**: Implementation
-**Overall Progress**: 35%
+# PROJECT SUMMARY - Multi-Agent Template
+**Last Updated**: 2026-01-02 (Session 82)
+**Current Phase**: IMPLEMENTATION
+**Status**: Auto-Delegation Task Setup Complete
 
 ---
 
-## Session 12: Dashboard CoordinationDB Consolidation (CURRENT)
+## Session 82: Session Type Fix + Child Tasks ✅
 
 ### Work Completed
-| Task | Status | Notes |
-|------|--------|-------|
-| Fix CoordinationDB path mismatch | Done | Consolidated to canonical path |
-| Fix session ID type mismatch | Done | String conversion for compatibility |
-| Add critical safety rules | Done | Prevent killing all node.exe |
-| Create global CLAUDE.md | Done | ~/.claude/CLAUDE.md for all projects |
+| Task | Description | Status |
+|------|-------------|--------|
+| Child tasks created | 6 phases for auto-delegation-integration | ✅ |
+| Task tree fix | generateTreeData() now uses childTaskIds | ✅ |
+| Tasks tab fix | Shows subtasks from /api/tasks/tree | ✅ |
+| Session type fix | CLI→autonomous upgrade, deduplication | ✅ |
+| Reload endpoint | POST /api/tasks/reload for cache refresh | ✅ |
 
-### Key Fixes
-- **Root cause identified**: Dashboard used `.coordination/sessions.db` while TaskManager used `.claude/dev-docs/.coordination/tasks.db` (duplicate DB)
-- **Fixed**: Consolidated to canonical path per ARCHITECTURE.md
-- **Safety**: Added warnings against `taskkill //IM node.exe` which crashes Claude Code
+### Session Type Deduplication Logic
+```
+1. By claudeSessionId - prevents duplicate registrations
+2. By project path - orchestrator upgrades recent CLI session to autonomous
+3. Never downgrades autonomous → cli
+```
 
 ### Files Modified
-| File | Change |
-|------|--------|
-| global-context-manager.js | Fixed DB path + type conversion |
-| CLAUDE.md | Added critical safety rules |
-| ~/.claude/CLAUDE.md | Created global safety rules |
+| File | Changes |
+|------|---------|
+| `.claude/dev-docs/tasks.json` | Added 6 child tasks for auto-delegation |
+| `.claude/core/task-graph.js` | Fixed generateTreeData() to use childTaskIds |
+| `global-dashboard.html` | Tasks tab fetches/displays subtasks |
+| `global-context-manager.js` | Session deduplication + /api/tasks/reload |
 
 ---
 
-## Session 11: Express 5 Route Syntax Fix
-- **Tasks**: express5-route-fix
-- **Key changes**: Updated route syntax for path-to-regexp v8
-- **Files**: global-context-manager.js
+## Session 81: Dashboard Inactive Project Filtering ✅
+- **Bug**: Inactive projects showing in session list
+- **Fix**: Filter by `p.status === 'active'` in fetchSessions()
 
 ---
 
-## Project Overview
-
-Multi-agent development framework with continuous loop orchestration, autonomous usage tracking, and real-time monitoring dashboard. Focus on **automated context window management** to prevent compaction through intelligent checkpoint triggering.
-
-### Key Objectives
-- ✅ Build comprehensive dashboard testing infrastructure
-- 🔄 Implement automated usage tracking via OpenTelemetry
-- ⏳ Enable multi-project continuous loop support
-- ✅ Achieve production-ready code quality (85/100 minimum)
+## Session 80: CLI Session Activity Logs ✅
+- **Tasks**: Activity API, SSE streaming, tool details in Logs tab
+- **Files**: global-context-manager.js, global-dashboard.html
 
 ---
 
-
-## Phase Progress
-
-| Phase | Status | Quality Score | Artifacts |
-|-------|--------|---------------|-----------|
-| Research | ✅ Completed | 85/100 | 1 |
-| Planning 👉 | 🔄 In Progress | 85/100 | 0 |
-| Design | ⏳ Not Started | N/A | 0 |
-| Test-First | ⏳ Not Started | N/A | 0 |
-| Implementation | ⏳ Not Started | N/A | 1 |
-| Validation | ⏳ Not Started | N/A | 0 |
-| Iteration | ⏳ Not Started | N/A | 0 |
+## Session 79: Dashboard v4 Verification ✅
+- **Tasks**: Verified all 6 Dashboard v4 subtasks complete
 
 ---
 
+## Project Health
 
-## Quality Metrics
-
-**Average Score**: 85.0/100  
-**Highest Score**: 85/100  
-**Lowest Score**: 85/100  
-**Phases Completed**: 2/7
-
-### Phase Scores
-| Phase | Score | Status |
-|-------|-------|--------|
-| Research | 85/100 | ✅ Passed |
-| Planning | 85/100 | ✅ Passed |
+| Component | Status |
+|-----------|--------|
+| Context Tracker | **CONSOLIDATED** - global-context-tracker.js |
+| Session Registry | **ENHANCED** - deduplication by claudeSessionId |
+| Dashboard | Port 3033 - v4 layout + subtask display |
+| Tests | 2539 passing |
 
 ---
 
+## Active Task: auto-delegation-integration
 
-## Recent Activity
-
-- **Planning** by Strategic Planner (Score: 85/100)  
-  _11/18/2025, 8:53:23 PM_
-
-- **Planning** by Test Agent  
-  _11/18/2025, 8:53:22 PM_
-
-- **Planning** by Test Agent  
-  _11/18/2025, 8:53:22 PM_
-
-- **Planning** by Strategic Planner (Score: 85/100)  
-  _11/18/2025, 8:51:41 PM_
-
-- **Research** by Test Agent  
-  _11/18/2025, 8:51:41 PM_
-
-- **Planning** by Test Agent  
-  _11/18/2025, 8:51:41 PM_
-
-- **Research** by Test Agent  
-  _11/18/2025, 8:45:07 PM_
-
-- **Planning** by Test Agent  
-  _11/18/2025, 8:45:07 PM_
+### Child Tasks (6 phases)
+| Phase | Task | Status | Est |
+|-------|------|--------|-----|
+| 1 | Core Hook Infrastructure | ready | 3h |
+| 2 | Decision Integration | blocked | 4h |
+| 3 | Control Skills | blocked | 2h |
+| 4 | Execution Integration | blocked | 5h |
+| 5 | Dashboard Integration | blocked | 4h |
+| 6 | Polish and Documentation | blocked | 2h |
 
 ---
 
+## Quick Reference
 
-## Key Decisions
-
-### 1. Use PostgreSQL
-
-**Phase**: Planning  
-**Agent**: System Architect  
-**When**: 11/18/2025, 8:53:23 PM
-
-**Rationale**: Better for relational data
-
-### 2. Use PostgreSQL
-
-**Phase**: Planning  
-**Agent**: System Architect  
-**When**: 11/18/2025, 8:51:41 PM
-
-**Rationale**: Better for relational data
-
+- **Dashboard**: http://localhost:3033/
+- **Start**: `node global-context-manager.js`
+- **Tests**: `npm test -- --silent`
+- **Reload tasks**: `curl -X POST localhost:3033/api/tasks/reload`
 
 ---
 
-
-## Generated Artifacts
-
-### Implementation
-
-- `test-component.tsx`
-
-### Research
-
-- `docs/db-research.md`
-
-
----
-
-
-## Next Steps
-
-1. Transition to Design phase
-
----
-
-
-[... truncated ...]
 
 ---
 
@@ -537,7 +467,7 @@ Create comprehensive system design using specialized architectural and implement
 ---
 
 
-<!-- Context loaded: 3691 tokens -->
+<!-- Context loaded: 3344 tokens -->
 
 
 # CURRENT PHASE GUIDANCE
