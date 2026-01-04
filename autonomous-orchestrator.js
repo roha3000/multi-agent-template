@@ -396,7 +396,7 @@ function evaluateTaskCompletion() {
 /**
  * Handle task completion - update TaskManager and MemoryStore
  */
-function handleTaskCompletion(taskCompletion, qualityScore) {
+async function handleTaskCompletion(taskCompletion, qualityScore) {
   if (!taskManager || !state.currentTask) return;
 
   const task = state.currentTask;
@@ -433,14 +433,22 @@ function handleTaskCompletion(taskCompletion, qualityScore) {
     );
 
     // Record completion in Command Center
-    recordTaskCompletionToCommandCenter(task, qualityScore, 0);
+    await recordTaskCompletionToCommandCenter(task, qualityScore, 0);
     console.log(`[TASK] Duration: ${durationHours.toFixed(1)}h, Quality: ${qualityScore}/100`);
+
+    // FIX: Update dashboard to show no current task
+    await updateCommandCenter({
+      currentTask: null,
+      qualityScore: qualityScore,
+      tasksCompleted: state.tasksCompleted
+    });
 
     // Clear completion file for next task
     clearTaskCompletion();
 
   } catch (err) {
     console.error('[TASK] Error handling completion:', err.message);
+    console.error('[TASK] Stack:', err.stack);
   }
 }
 
@@ -728,11 +736,20 @@ function postToDashboard(endpoint, data) {
         });
       });
 
-      req.on('error', () => resolve({ success: false }));
+      req.on('error', (err) => {
+        // Log connection errors (dashboard may not be running)
+        if (process.env.DEBUG_LOGS === 'true') {
+          console.error(`[DASHBOARD] POST ${endpoint} failed: ${err.message}`);
+        }
+        resolve({ success: false, error: err.message });
+      });
       req.write(postData);
       req.end();
-    } catch {
-      resolve({ success: false });
+    } catch (err) {
+      if (process.env.DEBUG_LOGS === 'true') {
+        console.error(`[DASHBOARD] POST ${endpoint} error: ${err.message}`);
+      }
+      resolve({ success: false, error: err.message });
     }
   });
 }
@@ -863,7 +880,8 @@ async function updateCommandCenter(updates = {}) {
 
     await postToDashboard(`/api/sessions/${registeredSessionId}/update`, sessionUpdates);
   } catch (err) {
-    // Silently handle errors - dashboard integration is non-critical
+    // Log errors but don't fail - dashboard integration is non-critical
+    console.error('[COMMAND CENTER] Update failed:', err.message);
   }
 }
 
@@ -893,14 +911,17 @@ function recordMessageUsage() {
  */
 async function recordTaskCompletionToCommandCenter(task, score, cost = 0) {
   try {
-    await postToDashboard('/api/sessions/completion', {
+    const result = await postToDashboard('/api/sessions/completion', {
       project: path.basename(CONFIG.projectPath),
       task: { id: task.id, title: task.title },
       score,
       cost
     });
+    if (!result.success) {
+      console.error('[COMMAND CENTER] Task completion record failed');
+    }
   } catch (err) {
-    // Silently handle
+    console.error('[COMMAND CENTER] Task completion error:', err.message);
   }
 }
 
@@ -908,14 +929,22 @@ async function recordTaskCompletionToCommandCenter(task, score, cost = 0) {
  * Deregister session from Command Center
  */
 async function deregisterFromCommandCenter() {
-  if (!registeredSessionId) return;
+  if (!registeredSessionId) {
+    console.log('[COMMAND CENTER] No session to deregister');
+    return;
+  }
 
   try {
-    await postToDashboard(`/api/sessions/${registeredSessionId}/end`, {});
-    console.log(`[COMMAND CENTER] Session deregistered: ${registeredSessionId}`);
+    const result = await postToDashboard(`/api/sessions/${registeredSessionId}/end`, {});
+    if (result.success) {
+      console.log(`[COMMAND CENTER] Session deregistered: ${registeredSessionId}`);
+    } else {
+      console.error(`[COMMAND CENTER] Deregistration failed for: ${registeredSessionId}`);
+    }
     registeredSessionId = null;
   } catch (err) {
-    // Silently handle
+    console.error('[COMMAND CENTER] Deregistration error:', err.message);
+    registeredSessionId = null; // Clear anyway to prevent retries
   }
 }
 
@@ -1316,7 +1345,7 @@ async function main() {
               action: 'finish'
             });
 
-            handleTaskCompletion(taskEval, phaseEval.score);
+            await handleTaskCompletion(taskEval, phaseEval.score);
             state.currentTask = null;
             state.continueWithCurrentTask = false;
 
@@ -1371,6 +1400,18 @@ async function advancePhase() {
     'INFO',
     'phase-transition'
   );
+
+  // FIX: Update Command Center with new phase immediately
+  await updateCommandCenter({
+    phase: nextPhase || 'complete',
+    qualityScore: score,
+    phaseHistory: state.sessionHistory.filter(s => s.phase === completedPhase).map(s => ({
+      session: s.session,
+      iteration: s.iteration,
+      exitReason: s.exitReason,
+      peakContext: s.peakContext
+    }))
+  });
 
   // Send phase completion notification
   if (notificationService) {
@@ -1559,8 +1600,9 @@ async function gracefulShutdown(signal) {
     }
   }
 
-  // 5. Deregister from Command Center
-  deregisterFromCommandCenter();
+  // 5. Deregister from Command Center (await to ensure it completes)
+  console.log('[SHUTDOWN] Deregistering from Command Center...');
+  await deregisterFromCommandCenter();
 
   // 6. Wait for pending HTTP requests
   console.log('[SHUTDOWN] Waiting for pending requests...');
@@ -1580,7 +1622,19 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 // RUN
 // ============================================================================
 
-main().catch(err => {
-  console.error('Orchestrator error:', err);
+main().catch(async err => {
+  console.error('Orchestrator error:', err.message);
+  console.error('Stack:', err.stack);
+
+  // Log error to dashboard before exiting
+  await logToDashboard(
+    `Orchestrator fatal error: ${err.message}`,
+    'ERROR',
+    'orchestrator-crash'
+  );
+
+  // Deregister session on error exit
+  await deregisterFromCommandCenter();
+
   process.exit(1);
 });

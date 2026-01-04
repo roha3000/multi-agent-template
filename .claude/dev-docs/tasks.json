@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 91,
-    "lastModifiedBy": "c9f40368-40b4-4fe9-82c8-7f48a2ea5bbc",
-    "lastModifiedAt": "2026-01-04T19:37:14.764Z"
+    "version": 95,
+    "lastModifiedBy": "d19ef87b-9171-454f-ba2b-dccd592eea1c",
+    "lastModifiedAt": "2026-01-04T20:27:34.435Z"
   },
   "version": "1.1.0",
   "project": {
@@ -20,19 +20,22 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "auto-delegation-integration",
-        "auto-delegation-phase5-dashboard",
         "framework-phase-gate-audit"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
-      "tasks": []
+      "tasks": [
+        "auto-delegation-integration"
+      ]
     },
     "later": {
       "description": "Future work, not yet prioritized",
       "tasks": [
-        "dashboard-blocked-tasks-view"
+        "dashboard-blocked-tasks-view",
+        "session-registry-id-persistence",
+        "session-end-hook-reliability",
+        "dashboard-stale-session-handling"
       ]
     },
     "someday": {
@@ -359,46 +362,6 @@
       "parentTaskId": null,
       "childTaskIds": []
     },
-    "auto-delegation-phase5-dashboard": {
-      "parentTaskId": "auto-delegation-integration",
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 1,
-      "id": "auto-delegation-phase5-dashboard",
-      "title": "Phase 5: Dashboard Integration",
-      "description": "Provide visibility into delegation activity. Add SSE events, delegation panel, history endpoint, settings UI, real-time progress.",
-      "phase": "implementation",
-      "priority": "medium",
-      "estimate": "4h",
-      "tags": [
-        "auto-delegation",
-        "dashboard",
-        "ui"
-      ],
-      "depends": {
-        "blocks": [
-          "auto-delegation-phase6-polish"
-        ],
-        "requires": [
-          "auto-delegation-phase4-execution",
-          "fix-direct-skill-state-check"
-        ],
-        "related": [
-          "add-hierarchy-delegation-tracking"
-        ]
-      },
-      "acceptance": [
-        "Dashboard shows active delegations",
-        "Progress updates in real-time",
-        "Settings can be changed from dashboard",
-        "History shows past delegations"
-      ],
-      "status": "in_progress",
-      "assignee": null,
-      "created": "2026-01-02T08:20:00.000Z",
-      "updated": "2026-01-04T19:08:44.815Z",
-      "started": "2026-01-04T03:56:30.090Z"
-    },
     "auto-delegation-phase6-polish": {
       "parentTaskId": "auto-delegation-integration",
       "childTaskIds": [],
@@ -428,10 +391,10 @@
         "Documentation is complete",
         "Performance meets targets"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2026-01-02T08:20:00.000Z",
-      "updated": "2026-01-02T08:20:00.000Z"
+      "updated": "2026-01-04T19:55:00.000Z"
     },
     "dashboard-validation-audit": {
       "id": "dashboard-validation-audit",
@@ -504,12 +467,124 @@
       "childTaskIds": [],
       "delegatedTo": null,
       "delegationDepth": 0
+    },
+    "session-registry-id-persistence": {
+      "id": "session-registry-id-persistence",
+      "title": "Persist Session Registry nextId to Prevent ID Collisions",
+      "description": "SessionRegistry.nextId resets to 1 when dashboard restarts, causing ID collisions with stale UI data. When old session s1 wasn't deregistered and dashboard restarts, new sessions get ID 1 again, conflicting with cached UI state. Persist nextId to memory.db so IDs are globally unique across restarts.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "1h",
+      "tags": [
+        "dashboard",
+        "session-registry",
+        "persistence",
+        "bug-fix"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "session-end-hook-reliability",
+          "dashboard-stale-session-handling"
+        ]
+      },
+      "acceptance": [
+        "nextId persisted to memory.db on each increment",
+        "nextId loaded from memory.db on dashboard startup",
+        "Session IDs never reused across dashboard restarts",
+        "Graceful fallback if memory.db unavailable",
+        "Tests verify ID persistence across simulated restarts"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2026-01-04T20:10:00.000Z",
+      "updated": "2026-01-04T20:10:00.000Z",
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0
+    },
+    "session-end-hook-reliability": {
+      "id": "session-end-hook-reliability",
+      "title": "Improve Session-End Hook Reliability",
+      "description": "The session-end.js hook sometimes fails to deregister sessions from the dashboard. Possible causes: stdin timeout before session_id received, dashboard not running, network timeout. Sessions remain in dashboard until 30-minute stale cleanup. Add retry logic, better error handling, and fallback mechanisms.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": [
+        "hooks",
+        "session-lifecycle",
+        "reliability",
+        "bug-fix"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "session-registry-id-persistence",
+          "dashboard-stale-session-handling"
+        ]
+      },
+      "acceptance": [
+        "Hook retries deregistration up to 3 times on failure",
+        "Longer stdin timeout (2s instead of 1s)",
+        "Debug logging to .claude/debug/hook-debug.log",
+        "Fallback: write deregister request to file for dashboard to process",
+        "Tests verify hook handles various failure scenarios",
+        "Metrics on hook success/failure rate"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2026-01-04T20:10:00.000Z",
+      "updated": "2026-01-04T20:10:00.000Z",
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0
+    },
+    "dashboard-stale-session-handling": {
+      "id": "dashboard-stale-session-handling",
+      "title": "Handle Stale Session Data in Dashboard UI",
+      "description": "Dashboard UI can show stale session data when session IDs are reused after dashboard restart. Old session s1 data persists in UI cache while new s1 registers with different data. UI should detect ID conflicts, clear stale data on SSE reconnect, and provide manual 'clear stale sessions' button.",
+      "phase": "implementation",
+      "priority": "low",
+      "estimate": "1h",
+      "tags": [
+        "dashboard",
+        "ui",
+        "cache",
+        "bug-fix"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "session-registry-id-persistence",
+          "session-end-hook-reliability"
+        ]
+      },
+      "acceptance": [
+        "UI clears session cache on SSE reconnect",
+        "Add 'Clear Stale Sessions' button to dashboard",
+        "Detect session ID conflicts (same ID, different claudeSessionId)",
+        "Visual indicator for potentially stale sessions",
+        "Auto-refresh session list on dashboard load"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2026-01-04T20:10:00.000Z",
+      "updated": "2026-01-04T20:10:00.000Z",
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0
     }
   },
   "archival": {
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2026-01-04T19:37:14.763Z"
+    "lastArchived": "2026-01-04T20:27:34.434Z"
   }
 }
