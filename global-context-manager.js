@@ -1832,6 +1832,9 @@ app.get('/api/sessions/summary', (req, res) => {
         runtime: s.runtime,
         iteration: s.iteration,
         phase: s.phase,
+        // Timing for dashboard activity filtering
+        startTime: s.startTime,
+        lastUpdate: s.lastUpdate,
         // Session type tracking
         sessionType: s.sessionType,
         autonomous: s.autonomous,
@@ -1900,7 +1903,7 @@ app.get('/api/sessions/:id/hierarchy', (req, res) => {
 
 // Register a new session (called by orchestrator on startup or SessionStart hook)
 app.post('/api/sessions/register', (req, res) => {
-  const { project, path: projectPath, currentTask, status, sessionType, autonomous, orchestratorInfo, logSessionId, claudeSessionId } = req.body;
+  const { project, path: projectPath, currentTask, status, sessionType, autonomous, orchestratorInfo, logSessionId, claudeSessionId, parentSessionId } = req.body;
 
   // Deduplication logic to prevent duplicate sessions
   // 1. By claudeSessionId - prevents hook from overwriting orchestrator session
@@ -2017,6 +2020,7 @@ app.post('/api/sessions/register', (req, res) => {
     orchestratorInfo: orchestratorInfo || null,
     logSessionId: logSessionId || null,
     claudeSessionId: claudeSessionId || null,
+    parentSessionId: parentSessionId || null,
     ...initialMetrics
   });
 
@@ -2134,6 +2138,207 @@ app.post('/api/sessions/completion', (req, res) => {
   usageLimitTracker.recordMessage();
 
   res.json({ success: true, completion });
+});
+
+// ============================================================================
+// DELEGATION API ENDPOINTS (Phase 5)
+// ============================================================================
+
+// Get delegation history across all sessions
+app.get('/api/delegations/history', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const status = req.query.status; // Optional filter: completed, failed, active
+    const sessionId = req.query.sessionId ? parseInt(req.query.sessionId) : null;
+
+    // Collect delegations from all sessions
+    const allDelegations = [];
+    const sessions = sessionRegistry.getAll();
+
+    for (const session of sessions) {
+      const delegations = sessionRegistry.getAllDelegations(session.id);
+
+      // Add active delegations
+      for (const d of delegations.active) {
+        if (!status || status === 'active') {
+          allDelegations.push({
+            ...d,
+            sessionId: session.id,
+            sessionProject: session.project,
+            isActive: true
+          });
+        }
+      }
+
+      // Add completed delegations
+      for (const d of delegations.completed) {
+        if (!status || d.status?.toLowerCase() === status.toLowerCase()) {
+          allDelegations.push({
+            ...d,
+            sessionId: session.id,
+            sessionProject: session.project,
+            isActive: false
+          });
+        }
+      }
+    }
+
+    // Filter by session if requested
+    let filtered = sessionId
+      ? allDelegations.filter(d => d.sessionId === sessionId)
+      : allDelegations;
+
+    // Sort by most recent first
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.completedAt || a.updatedAt || a.createdAt);
+      const dateB = new Date(b.completedAt || b.updatedAt || b.createdAt);
+      return dateB - dateA;
+    });
+
+    // Apply limit
+    const result = filtered.slice(0, limit);
+
+    res.json({
+      delegations: result,
+      total: filtered.length,
+      limit,
+      filters: { status, sessionId }
+    });
+  } catch (error) {
+    console.error('[DELEGATION API] Error getting history:', error);
+    res.status(500).json({ error: 'Failed to get delegation history', message: error.message });
+  }
+});
+
+// Get delegation statistics
+app.get('/api/delegations/stats', (req, res) => {
+  try {
+    const sessions = sessionRegistry.getAll();
+    let totalActive = 0;
+    let totalCompleted = 0;
+    let totalFailed = 0;
+    let totalCancelled = 0;
+    const patternCounts = {};
+
+    for (const session of sessions) {
+      const delegations = sessionRegistry.getAllDelegations(session.id);
+
+      totalActive += delegations.active.length;
+
+      for (const d of delegations.completed) {
+        if (d.status === 'completed' || d.status === 'COMPLETED') totalCompleted++;
+        else if (d.status === 'failed' || d.status === 'FAILED') totalFailed++;
+        else if (d.status === 'cancelled' || d.status === 'CANCELLED') totalCancelled++;
+
+        // Track patterns
+        const pattern = d.metadata?.pattern || 'unknown';
+        patternCounts[pattern] = (patternCounts[pattern] || 0) + 1;
+      }
+    }
+
+    res.json({
+      active: totalActive,
+      completed: totalCompleted,
+      failed: totalFailed,
+      cancelled: totalCancelled,
+      total: totalActive + totalCompleted + totalFailed + totalCancelled,
+      patterns: patternCounts,
+      sessionsWithDelegations: sessions.filter(s =>
+        s.activeDelegations?.length > 0 || s.completedDelegations?.length > 0
+      ).length
+    });
+  } catch (error) {
+    console.error('[DELEGATION API] Error getting stats:', error);
+    res.status(500).json({ error: 'Failed to get delegation stats', message: error.message });
+  }
+});
+
+// Get delegation configuration
+app.get('/api/delegations/config', (req, res) => {
+  try {
+    const configPath = path.join(__dirname, '.claude', 'delegation-config.json');
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      res.json({ success: true, config });
+    } else {
+      // Return default config
+      res.json({
+        success: true,
+        config: {
+          enabled: true,
+          showHints: true,
+          minComplexityThreshold: 35,
+          minSubtaskCount: 3,
+          quickAnalysisOnly: false,
+          useTaskDecomposer: true,
+          cacheEnabled: true,
+          cacheMaxAge: 60000,
+          debugMode: false
+        },
+        isDefault: true
+      });
+    }
+  } catch (error) {
+    console.error('[DELEGATION API] Error getting config:', error);
+    res.status(500).json({ error: 'Failed to get delegation config', message: error.message });
+  }
+});
+
+// Update delegation configuration
+app.put('/api/delegations/config', (req, res) => {
+  try {
+    const configPath = path.join(__dirname, '.claude', 'delegation-config.json');
+    const updates = req.body;
+
+    // Load existing config or defaults
+    let config = {
+      enabled: true,
+      showHints: true,
+      minComplexityThreshold: 35,
+      minSubtaskCount: 3,
+      quickAnalysisOnly: false,
+      useTaskDecomposer: true,
+      cacheEnabled: true,
+      cacheMaxAge: 60000,
+      debugMode: false
+    };
+
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    }
+
+    // Apply updates (only allow known keys)
+    const allowedKeys = ['enabled', 'showHints', 'minComplexityThreshold', 'minSubtaskCount',
+                         'quickAnalysisOnly', 'useTaskDecomposer', 'cacheEnabled', 'cacheMaxAge', 'debugMode'];
+
+    for (const key of allowedKeys) {
+      if (updates[key] !== undefined) {
+        config[key] = updates[key];
+      }
+    }
+
+    // Ensure directory exists
+    const configDir = path.dirname(configPath);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+
+    // Write updated config
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+    // Broadcast config change via WebSocket
+    broadcastFleetEvent({
+      type: 'delegation:configUpdated',
+      config,
+      timestamp: new Date().toISOString()
+    });
+
+    console.log('[DELEGATION API] Config updated:', Object.keys(updates).join(', '));
+    res.json({ success: true, config });
+  } catch (error) {
+    console.error('[DELEGATION API] Error updating config:', error);
+    res.status(500).json({ error: 'Failed to update delegation config', message: error.message });
+  }
 });
 
 // ============================================================================

@@ -33,6 +33,7 @@
 
 ```
 1. auto-delegation-phase5-dashboard  [MED]   4h  ← Ready
+2. framework-phase-gate-audit        [HIGH]  6h  ← Ready
 ```
 
 ---

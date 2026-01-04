@@ -52,7 +52,11 @@ class SessionRegistry extends EventEmitter {
     const now = new Date().toISOString();
 
     // Process hierarchy configuration
+    // Accept parentSessionId either directly or inside hierarchy object
     const hierarchyData = sessionData.hierarchy || {};
+    if (sessionData.parentSessionId && !hierarchyData.parentSessionId) {
+      hierarchyData.parentSessionId = sessionData.parentSessionId;
+    }
 
     const session = {
       id,

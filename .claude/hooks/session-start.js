@@ -70,16 +70,28 @@ function registerWithDashboard(sessionInfo) {
     // Detect session type based on source field
     // 'task' = spawned by Task tool (subagent), anything else = CLI session
     const isSubagent = sessionInfo?.source === 'task';
-    const sessionType = isSubagent ? 'autonomous' : 'cli';
-    debug.log('session-start', 'session-type', { source: sessionInfo?.source, isSubagent, sessionType });
+    const isOrchestratorChild = process.env.ORCHESTRATOR_SESSION === 'true';
+    const sessionType = (isSubagent || isOrchestratorChild) ? 'autonomous' : 'cli';
+
+    // Get parent session ID from environment (set by orchestrator)
+    const parentSessionId = process.env.PARENT_SESSION_ID ? parseInt(process.env.PARENT_SESSION_ID, 10) : null;
+
+    debug.log('session-start', 'session-type', {
+      source: sessionInfo?.source,
+      isSubagent,
+      isOrchestratorChild,
+      sessionType,
+      parentSessionId
+    });
 
     const payload = JSON.stringify({
       project: projectName,
       path: sessionInfo?.cwd || PROJECT_ROOT,
       status: 'active',
       sessionType: sessionType,
-      autonomous: isSubagent,
-      claudeSessionId: sessionInfo?.session_id || null
+      autonomous: isSubagent || isOrchestratorChild,
+      claudeSessionId: sessionInfo?.session_id || null,
+      parentSessionId: parentSessionId
     });
 
     const options = {

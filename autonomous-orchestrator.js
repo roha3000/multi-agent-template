@@ -74,6 +74,7 @@ const CONFIG = {
   maxSessions: parseInt(process.env.MAX_SESSIONS) || 0,
   maxIterationsPerPhase: parseInt(process.env.MAX_ITERATIONS_PER_PHASE) || 10,
   projectPath: process.env.PROJECT_PATH || process.cwd(),
+  model: process.env.CLAUDE_MODEL || 'claude-opus-4-5-20251101',
   startPhase: 'research',
   task: null,
 };
@@ -99,6 +100,9 @@ for (let i = 0; i < args.length; i++) {
       break;
     case '--delay':
       CONFIG.sessionDelay = parseInt(args[++i]);
+      break;
+    case '--model':
+      CONFIG.model = args[++i];
       break;
     case '--help':
     case '-h':
@@ -545,7 +549,7 @@ function runSession(prompt) {
     fs.writeFileSync(promptFile, prompt, 'utf8');
 
     // Use spawn with shell for proper stdout capture on all platforms
-    const args = ['-p', '--dangerously-skip-permissions'];
+    const args = ['-p', '--dangerously-skip-permissions', '--model', CONFIG.model];
     console.log(`[CMD] claude ${args.join(' ')} < ${promptFile}`);
 
     // Read prompt content and pipe via stdin
@@ -554,7 +558,13 @@ function runSession(prompt) {
     claudeProcess = spawn('claude', args, {
       cwd: CONFIG.projectPath,
       shell: true,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        // Pass parent session ID for hierarchy tracking
+        PARENT_SESSION_ID: registeredSessionId ? String(registeredSessionId) : '',
+        ORCHESTRATOR_SESSION: 'true'
+      }
     });
 
     // Write prompt to stdin
@@ -735,7 +745,13 @@ function postToDashboard(endpoint, data) {
  * @returns {Promise<boolean>} Success status
  */
 async function logToDashboard(message, level = 'INFO', source = 'orchestrator') {
-  if (!registeredSessionId) return false;
+  if (!registeredSessionId) {
+    // Debug: Log forwarding skipped - no session registered
+    if (process.env.DEBUG_LOGS === 'true') {
+      console.log('[LOG] Skipped - no registeredSessionId');
+    }
+    return false;
+  }
 
   try {
     const logEntry = {
@@ -753,9 +769,16 @@ async function logToDashboard(message, level = 'INFO', source = 'orchestrator') 
       logEntry
     );
 
+    if (!result.success && process.env.DEBUG_LOGS === 'true') {
+      console.log(`[LOG] Failed to forward: ${JSON.stringify(result)}`);
+    }
+
     return result.success;
   } catch (err) {
-    // Silently fail - logging should not disrupt execution
+    // Debug: Log error details
+    if (process.env.DEBUG_LOGS === 'true') {
+      console.log(`[LOG] Error forwarding: ${err.message}`);
+    }
     return false;
   }
 }
@@ -1237,6 +1260,9 @@ async function main() {
       const phaseEval = evaluatePhaseCompletion();
       console.log(`\n[EVALUATION] Phase: ${state.currentPhase}, Score: ${phaseEval.score}`);
 
+      // Update dashboard with quality score
+      updateCommandCenter({ qualityScore: phaseEval.score });
+
       if (currentTask && taskManagementEnabled) {
         // Check task-specific completion
         const taskEval = evaluateTaskCompletion();
@@ -1420,6 +1446,7 @@ Options:
   --max-iterations <n>     Max iterations per task/phase (default: 10)
   --task <description>     Task description (fallback if no tasks.json)
   --delay <ms>             Delay between sessions (default: 5000)
+  --model <model>          Claude model to use (default: claude-opus-4-5-20251101)
   --help, -h               Show this help
 
 Execution Modes:
