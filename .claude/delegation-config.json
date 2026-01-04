@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "showHints": true,
+  "minComplexityThreshold": 35,
+  "minSubtaskCount": 3,
+  "quickAnalysisOnly": false,
+  "useTaskDecomposer": true,
+  "cacheEnabled": true,
+  "cacheMaxAge": 60000,
+  "debugMode": false,
+  "_description": "Auto-delegation hook configuration (Phase 2). Threshold lowered to 35 to catch more technical prompts."
+}

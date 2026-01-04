@@ -1,30 +1,41 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Dashboard Filtering Fixed - Session 81
+**Status**: Auto-Delegation Phase 1 & 2 Complete - Session 83
 
 ---
 
-## Session 81 Summary ✅
+## Auto-Delegation Progress
 
-- ✅ Fixed inactive projects showing in dashboard
-- ✅ Updated fetchSessions() to only create placeholders for active projects
-- ✅ Added cleanup logic in SSE handler to remove stale sessions
-
----
-
-## Files Modified
-
-| File | Change |
-|------|--------|
-| global-dashboard.html | Fixed inactive project filtering in fetchSessions() and SSE handler |
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1 | ✅ Complete | Core Hook Infrastructure (delegation-hook.js, delegation-bridge.js) |
+| Phase 2 | ✅ Complete | Decision Integration + Quality Fixes (DelegationDecider, caching, threshold tuning) |
+| **Phase 3** | 🔲 Ready | Control Skills (/delegate, /direct, /delegation-status) |
+| Phase 4 | 🚫 Blocked | Execution Integration (requires Phase 3) |
+| Phase 5 | 🚫 Blocked | Dashboard Integration (requires Phase 4) |
+| Phase 6 | 🚫 Blocked | Polish and Documentation (requires Phase 5) |
 
 ---
 
-## Next Priority: Auto-Delegation Integration
+## Session 83 Summary ✅
 
-Task: `auto-delegation-integration` (20h estimate)
+- ✅ Quality audit of Phase 1 & 2 implementation
+- ✅ Fixed pre-decomposed task detection (childTaskIds short-circuit)
+- ✅ Lowered complexity threshold 50→35, expanded technical terms
+- ✅ Fixed dashboard alert banner crash (missing element IDs)
+- ✅ Added 8 new tests (2600 total passing)
 
-**Summary**: Connect prompts to DelegationDecider for automatic task complexity analysis.
+---
+
+## Next Priority: Phase 3 Control Skills
+
+**Task**: `auto-delegation-phase3-skills`
+
+Create user control skills:
+- `/delegate` - Force delegation for any prompt
+- `/direct` - Force direct execution
+- `/delegation-status` - Show active delegations
+- `/delegation-config` - Runtime config changes
 
 ---
 
@@ -34,9 +45,9 @@ Task: `auto-delegation-integration` (20h estimate)
 # Start dashboard server
 node global-context-manager.js
 
-# View dashboard
-start http://localhost:3033/
-
 # Run all tests
 npm test -- --silent
+
+# Test delegation hook
+echo '{"prompt": "your prompt"}' | node .claude/hooks/delegation-hook.js
 ```

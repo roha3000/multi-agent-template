@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 75,
+    "version": 77,
     "lastModifiedBy": 1,
-    "lastModifiedAt": "2026-01-03T01:10:57.331Z"
+    "lastModifiedAt": "2026-01-03T19:11:44.147Z"
   },
   "version": "1.1.0",
   "project": {
@@ -593,10 +593,13 @@
         "Config can enable/disable hook",
         "Hook completes in < 200ms"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2026-01-02T08:20:00.000Z",
-      "updated": "2026-01-02T08:20:00.000Z"
+      "updated": "2026-01-03T02:15:00.000Z",
+      "started": "2026-01-03T02:02:30.341Z",
+      "completedAt": "2026-01-03T02:15:00.000Z",
+      "completionNotes": "Created delegation-hook.js + delegation-bridge.js. Hook executes in 51-85ms (target <200ms). Config via delegation-config.json. 26 new tests, 2572 total passing."
     },
     "auto-delegation-phase2-decision": {
       "parentTaskId": "auto-delegation-integration",
@@ -629,10 +632,13 @@
         "Per-task config overrides global settings",
         "Repeated prompts use cached decisions"
       ],
-      "status": "blocked",
+      "status": "completed",
       "assignee": null,
       "created": "2026-01-02T08:20:00.000Z",
-      "updated": "2026-01-02T08:20:00.000Z"
+      "updated": "2026-01-03T19:20:00.000Z",
+      "started": "2026-01-03T19:11:44.146Z",
+      "completedAt": "2026-01-03T19:20:00.000Z",
+      "completionNotes": "Integrated full DelegationDecider and TaskDecomposer with lazy loading. Enhanced tasks.json lookup with per-task delegationConfig. Added MD5-based decision caching with TTL. 20 new tests (46 total). 2592 tests passing."
     },
     "auto-delegation-phase3-skills": {
       "parentTaskId": "auto-delegation-integration",
@@ -665,10 +671,10 @@
         "/delegation-status shows active delegations",
         "/delegation-config allows runtime config changes"
       ],
-      "status": "blocked",
+      "status": "ready",
       "assignee": null,
       "created": "2026-01-02T08:20:00.000Z",
-      "updated": "2026-01-02T08:20:00.000Z"
+      "updated": "2026-01-03T19:20:00.000Z"
     },
     "auto-delegation-phase4-execution": {
       "parentTaskId": "auto-delegation-integration",

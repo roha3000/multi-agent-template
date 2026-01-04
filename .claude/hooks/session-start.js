@@ -42,7 +42,7 @@ function readStdin() {
       clearTimeout(timeout);
       try {
         const parsed = JSON.parse(data);
-        debug.log('session-start', 'stdin-parsed', { keys: Object.keys(parsed) });
+        debug.log('session-start', 'stdin-parsed', { keys: Object.keys(parsed), source: parsed.source });
         resolve(parsed);
       } catch (e) {
         debug.log('session-start', 'stdin-parse-error', { error: e.message, data: data.substring(0, 100) });
@@ -67,11 +67,18 @@ function registerWithDashboard(sessionInfo) {
   return new Promise((resolve) => {
     const projectName = path.basename(sessionInfo?.cwd || PROJECT_ROOT);
 
+    // Detect session type based on source field
+    // 'task' = spawned by Task tool (subagent), anything else = CLI session
+    const isSubagent = sessionInfo?.source === 'task';
+    const sessionType = isSubagent ? 'autonomous' : 'cli';
+    debug.log('session-start', 'session-type', { source: sessionInfo?.source, isSubagent, sessionType });
+
     const payload = JSON.stringify({
       project: projectName,
       path: sessionInfo?.cwd || PROJECT_ROOT,
       status: 'active',
-      sessionType: 'cli',
+      sessionType: sessionType,
+      autonomous: isSubagent,
       claudeSessionId: sessionInfo?.session_id || null
     });
 

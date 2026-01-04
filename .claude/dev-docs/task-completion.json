@@ -1,73 +1,34 @@
 {
-  "taskId": "auto-delegation-integration",
+  "taskId": "auto-delegation-phase2-decision",
   "status": "completed",
-  "phase": "research",
-  "acceptanceMet": [true, true, true, true, true, true, true, true],
-  "deliverables": [
-    "docs/architecture/AUTO-DELEGATION-ARCHITECTURE.md (existing - reviewed)",
-    "docs/archive/AUTO-DELEGATION-IMPLEMENTATION-PLAN.md (existing - reviewed)",
-    "docs/api/AUTO-DELEGATION-CONTROL-INTERFACE.md (existing - reviewed)",
-    "docs/archive/AUTO-DELEGATION-UX-DESIGN.md (existing - reviewed)",
-    "docs/archive/AUTO-DELEGATION-TESTING-STRATEGY.md (existing - reviewed)",
-    ".claude/core/delegation-decider.js (existing - 891 lines)",
-    ".claude/core/task-decomposer.js (existing - 994 lines)",
-    ".claude/core/hierarchy-registry.js (existing - 716 lines)",
-    ".claude/core/delegation-context.js (existing)",
-    ".claude/core/delegation-metrics.js (existing)",
-    ".claude/core/agent-orchestrator.js (existing - 1434 lines)",
-    "__tests__/core/delegation-decider.test.js (127 tests passing)",
-    "__tests__/core/delegation-context.test.js (127 tests passing)",
-    "__tests__/core/delegation-metrics.test.js (127 tests passing)",
-    ".claude/hooks/user-prompt-submit.js (existing - can be extended)"
+  "phase": "implementation",
+  "acceptanceMet": [true, true, true, true],
+  "acceptanceCriteria": [
+    "Complex prompts get accurate delegation recommendations - VERIFIED (Full DelegationDecider integration, complexity 50+, confidence 60%+)",
+    "Tasks from tasks.json are recognized and enriched - VERIFIED (matchKnownTask returns delegationConfig for matched tasks)",
+    "Per-task config overrides global settings - VERIFIED (enrichTaskWithDelegationConfig preserves explicit delegationConfig)",
+    "Repeated prompts use cached decisions - VERIFIED (MD5 hashing, cache hit on second call, TTL support)"
   ],
-  "notes": "Research phase complete. Comprehensive analysis of existing infrastructure reveals a production-ready delegation system. Core components (DelegationDecider, TaskDecomposer, HierarchyRegistry, AgentOrchestrator) are fully implemented with 127 tests passing. The gap is the 'bridge' between user prompts and this system - currently no hook intercepts prompts to analyze complexity and inject delegation recommendations. The user-prompt-submit.js hook exists for skills activation and can be extended or paralleled for delegation analysis. Design docs provide complete specifications for all 6 implementation phases. Estimated 20h implementation effort is accurate.",
-  "completedAt": "2026-01-02T00:22:00.000Z",
-  "researchSummary": {
-    "existingInfrastructure": {
-      "delegationDecider": {
-        "file": ".claude/core/delegation-decider.js",
-        "status": "production-ready",
-        "keyMethods": ["shouldDelegate()", "evaluateBatch()", "getQuickHint()"],
-        "testCoverage": "127 tests passing"
-      },
-      "taskDecomposer": {
-        "file": ".claude/core/task-decomposer.js",
-        "status": "production-ready",
-        "strategies": ["parallel", "sequential", "hybrid", "manual"],
-        "features": "Acceptance criteria parsing, complexity scoring, dependency detection"
-      },
-      "hierarchyRegistry": {
-        "file": ".claude/core/hierarchy-registry.js",
-        "status": "production-ready",
-        "features": "Parent-child tracking, depth management, delegation status lifecycle"
-      },
-      "agentOrchestrator": {
-        "file": ".claude/core/agent-orchestrator.js",
-        "status": "production-ready",
-        "patterns": ["parallel", "sequential", "debate", "review", "ensemble", "direct"],
-        "keyMethod": "executeWithAutoDelegation()"
-      }
-    },
-    "hooksInfrastructure": {
-      "currentHooks": 11,
-      "relevantHook": "user-prompt-submit.js (skills activation)",
-      "extensionPoint": "Can add delegation analysis alongside skills",
-      "performanceBaseline": "<50ms per hook execution"
-    },
-    "designDocuments": {
-      "architecture": "Complete - Hook-based integration via user-prompt-submit",
-      "implementationPlan": "Complete - 6 phases defined",
-      "controlInterface": "Complete - /delegate, /direct, /delegation commands",
-      "uxDesign": "Complete - Inline notifications, progress tracking",
-      "testingStrategy": "Complete - 160+ new tests planned"
-    },
-    "gap": "No bridge between user prompts and DelegationDecider. Need: delegation-hook.js or extend user-prompt-submit.js to call DelegationDecider and inject <delegation-analysis> into conversation context."
+  "deliverables": [
+    ".claude/core/delegation-bridge.js (enhanced - now ~760 lines with Phase 2 features)",
+    ".claude/delegation-config.json (updated - added useTaskDecomposer, cacheEnabled, cacheMaxAge)",
+    "__tests__/core/delegation-bridge.test.js (expanded - 46 tests, 20 new for Phase 2)"
+  ],
+  "notes": "Phase 2 Decision Integration complete. Implemented full DelegationDecider and TaskDecomposer integration with lazy loading. Enhanced tasks.json lookup to include per-task delegationConfig with inference from task properties. Added decision caching with MD5 hashing and configurable TTL. All acceptance criteria verified. 2592 total tests passing.",
+  "completedAt": "2026-01-03T19:19:00.000Z",
+  "performanceMetrics": {
+    "fullDecisionAvailable": true,
+    "cachingEnabled": true,
+    "testCoverage": {
+      "newTests": 20,
+      "totalBridgeTests": 46,
+      "allTestsPassing": 2592
+    }
   },
-  "implementationReadiness": {
-    "coreComponents": "100% ready",
-    "testInfrastructure": "100% ready",
-    "hookMechanism": "100% ready",
-    "designDocs": "100% complete",
-    "missingPiece": "delegation-hook.js bridge module"
+  "phase2Features": {
+    "fullDelegationDecider": "Lazy-loaded DelegationDecider for complex prompt analysis",
+    "taskDecomposer": "TaskDecomposer integration for subtask generation",
+    "perTaskConfig": "inferDelegationConfig infers config from task properties",
+    "caching": "MD5-based caching with configurable TTL (default 60s)"
   }
 }

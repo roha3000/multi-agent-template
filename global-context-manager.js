@@ -1837,6 +1837,7 @@ app.get('/api/sessions/summary', (req, res) => {
         autonomous: s.autonomous,
         orchestratorInfo: s.orchestratorInfo,
         logSessionId: s.logSessionId,
+        claudeSessionId: s.claudeSessionId,
         // Task claim tracking (Phase 3)
         currentTaskId: currentClaim?.taskId || null,
         claimInfo: currentClaim ? {
@@ -1875,15 +1876,25 @@ app.get('/api/sessions/:id/hierarchy', (req, res) => {
     return res.status(404).json({ error: 'Session not found', sessionId });
   }
 
-  // Return hierarchy structure (empty if no delegations)
-  // Full hierarchy data is available from /api/agent-pool/status
+  // Get delegation data from session registry
+  const allDelegations = sessionRegistry.getAllDelegations ? sessionRegistry.getAllDelegations(session.id) : { active: [], completed: [] };
+  const childSessions = sessionRegistry.getChildSessions ? sessionRegistry.getChildSessions(session.id) : [];
+
+  // Return hierarchy structure with actual delegation data
   res.json({
     sessionId: session.id,
     project: session.project,
+    sessionType: session.sessionType,
     parentId: session.parentId || null,
-    children: [],
-    delegations: [],
-    depth: 0
+    children: childSessions.map(child => ({
+      id: child.id,
+      project: child.project,
+      sessionType: child.sessionType,
+      status: child.status
+    })),
+    delegations: allDelegations.active || [],
+    completedDelegations: allDelegations.completed || [],
+    depth: session.depth || 0
   });
 });
 

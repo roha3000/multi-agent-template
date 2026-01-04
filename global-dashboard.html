@@ -2856,8 +2856,8 @@
 
     <!-- Alert Banner (v4) -->
     <div class="alert-banner" id="alertBanner" role="alert">
-      <span>⚠</span>
-      <span id="alertMessage"></span>
+      <span id="alertBannerIcon">⚠</span>
+      <span id="alertBannerText"></span>
       <span class="alert-dismiss" onclick="dismissAlertBanner()">✕</span>
     </div>
 
@@ -3356,6 +3356,20 @@
         // Build list of ALL sessions - never merge CLI and autonomous
         const allSessions = [];
 
+        // Build a map of claudeSessionId -> registry session for cross-referencing
+        const registryByClaudeId = new Map();
+        // Also track which projects have autonomous sessions (without claudeSessionId)
+        const autonomousProjects = new Set();
+        for (const s of (summaryData.sessions || [])) {
+          if (s.claudeSessionId) {
+            registryByClaudeId.set(s.claudeSessionId, s);
+          }
+          // Track projects with autonomous sessions that don't have claudeSessionId
+          if ((s.sessionType === 'autonomous' || s.autonomous) && !s.claudeSessionId) {
+            autonomousProjects.add(s.project);
+          }
+        }
+
         // 1. Add all CLI sessions from projects (each as separate entry)
         for (const p of (projectsData.projects || [])) {
           // Filter out agent-* sessions (subagent tasks) and 'default' placeholder
@@ -3389,13 +3403,27 @@
             // Only show active sessions (skip old/inactive ones)
             if (!isActive) continue;
 
+            // Check registry for correct sessionType (orchestrator may have upgraded to autonomous)
+            const registrySession = registryByClaudeId.get(cliSession.id);
+
+            // If this session isn't in registry but project has an autonomous session, skip it
+            // (the autonomous session represents this Claude session)
+            if (!registrySession && autonomousProjects.has(p.name)) {
+              console.log('[Dashboard] Skipping unlinked session for autonomous project:', cliSession.id?.substring(0,8), p.name);
+              continue;
+            }
+
+            const actualSessionType = registrySession?.sessionType || 'cli';
+            const isAutonomous = actualSessionType === 'autonomous' || registrySession?.autonomous;
+
             allSessions.push({
               id: sessionId,
               project: p.name,
               path: p.path,
               folder: p.folder,
               cliSessionId: cliSession.id,
-              sessionType: 'cli',
+              sessionType: actualSessionType,
+              autonomous: isAutonomous,
               status: isActive ? 'active' : 'idle',
               // Use per-session context (fallback to project for backward compat)
               contextPercent: cliSession.contextPercent ?? p.metrics?.contextPercent ?? 0,
@@ -3470,11 +3498,49 @@
           }
         }
 
-        // 2. Add all autonomous sessions as separate entries (never merge)
+        // Track unlinked Claude sessions (in context tracker but not in registry)
+        // These may belong to autonomous orchestrators
+        const unlinkedSessionsByProject = new Map();
+        for (const p of (projectsData.projects || [])) {
+          for (const cliSession of (p.sessions || [])) {
+            if (!registryByClaudeId.has(cliSession.id)) {
+              if (!unlinkedSessionsByProject.has(p.name)) {
+                unlinkedSessionsByProject.set(p.name, []);
+              }
+              unlinkedSessionsByProject.get(p.name).push(cliSession.id);
+            }
+          }
+        }
+
+        // 2. Add sessions from registry (includes both CLI and autonomous)
+        // Skip CLI sessions that are already in allSessions from /api/projects
+        console.log('[Dashboard] Processing registry sessions:', summaryData.sessions?.length || 0);
         for (const s of (summaryData.sessions || [])) {
+          console.log('[Dashboard] Registry session:', s.id, 'type:', s.sessionType, 'autonomous:', s.autonomous, 'status:', s.status);
           if (s.status === 'ended') continue; // Skip ended sessions by default
 
+          // Use actual sessionType from registry (not hardcoded)
+          const isAutonomous = s.sessionType === 'autonomous' || s.autonomous;
+
+          // Skip CLI sessions from registry - they're already added from /api/projects
+          if (!isAutonomous) {
+            console.log('[Dashboard] Skipping CLI session from registry:', s.id);
+            continue;
+          }
+          console.log('[Dashboard] Adding autonomous session:', s.id);
+
           const projectName = s.project || s.path?.split(/[\\/]/).pop() || 'Unknown Project';
+
+          // For autonomous sessions without claudeSessionId, try to find unlinked session for same project
+          // Consume the session to prevent multiple orchestrators from claiming the same Claude session
+          let unlinkedClaudeSessionId = null;
+          if (!s.claudeSessionId && unlinkedSessionsByProject.has(projectName)) {
+            const unlinked = unlinkedSessionsByProject.get(projectName);
+            if (unlinked.length > 0) {
+              unlinkedClaudeSessionId = unlinked.shift(); // Take and remove first unlinked session
+              console.log('[Dashboard] Linking autonomous session', s.id, 'to unlinked Claude session:', unlinkedClaudeSessionId?.substring(0,8));
+            }
+          }
           const folder = s.path ? s.path.replace(/:/g, '').replace(/[\\/]/g, '-') : null;
 
           allSessions.push({
@@ -3483,7 +3549,7 @@
             path: s.path,
             folder: folder,
             cliSessionId: null,
-            sessionType: 'autonomous',
+            sessionType: s.sessionType || 'autonomous',
             status: s.status || 'active',
             contextPercent: s.contextPercent || 0,
             qualityScore: s.qualityScore || 0,
@@ -3507,8 +3573,10 @@
             orchestratorInfo: s.orchestratorInfo || null,
             confidenceScore: s.confidenceScore || null,
             registryId: s.id,
-            lastUpdate: s.lastUpdate || s.startTime,
-            startTime: s.startTime,
+            claudeSessionId: s.claudeSessionId || null,
+            unlinkedClaudeSessionId: unlinkedClaudeSessionId,
+            lastUpdate: s.lastUpdate || s.startTime || Date.now(),
+            startTime: s.startTime || Date.now(),
             // Phase 4: Claim-based current task from /api/sessions/summary
             claimedTaskId: s.currentTaskId || null,
             claimInfo: s.claimInfo || null
@@ -3530,6 +3598,8 @@
           const cliId = s.cliSessionId || '';
           return !cliId.startsWith('agent-');
         });
+
+        console.log('[Dashboard] Final sessions:', sessions.map(s => ({id: s.id, type: s.sessionType, project: s.project})));
 
         // Clean up short IDs for sessions that no longer exist
         cleanupShortIds(sessions.map(s => s.id));
@@ -5301,16 +5371,29 @@
         return;
       }
 
-      // CLI sessions: fetch tool activity from API
-      if (!session.registryId) {
-        console.log('[Dashboard] CLI session detected, fetching activity for:', session.id);
+      // Fetch tool activity from API for CLI sessions OR autonomous sessions
+      // Autonomous sessions need to find their linked Claude session
+      const isAutonomousWithoutLogs = session.registryId && session.autonomous && !session.claudeSessionId;
+
+      if (!session.registryId || isAutonomousWithoutLogs) {
+        const sessionType = isAutonomousWithoutLogs ? 'autonomous' : 'CLI';
+        console.log(`[Dashboard] ${sessionType} session detected, fetching activity for:`, session.id);
         pane.innerHTML = `
           <div class="section-header">Tool Activity</div>
-          <p style="color: var(--text-muted); padding: 12px;">Loading CLI session activity...</p>
+          <p style="color: var(--text-muted); padding: 12px;">Loading ${sessionType.toLowerCase()} session activity...</p>
         `;
 
-        // Try to get session ID - use cliSessionId (for CLI) or claudeSessionId (for autonomous) or fall back to id
-        const sessionId = session.cliSessionId || session.claudeSessionId || session.id;
+        // Try to get session ID - use cliSessionId (for CLI) or claudeSessionId (for autonomous)
+        // For autonomous without claudeSessionId, try to find unlinked session for same project
+        let sessionId = session.cliSessionId || session.claudeSessionId;
+
+        if (!sessionId && isAutonomousWithoutLogs && session.unlinkedClaudeSessionId) {
+          sessionId = session.unlinkedClaudeSessionId;
+        }
+
+        if (!sessionId) {
+          sessionId = session.id;
+        }
         console.log('[Dashboard] Using sessionId:', sessionId);
         let activityCount = 0;
 
@@ -5932,11 +6015,16 @@
 
       const criticalAlerts = overview.alerts.filter(a => a.level === 'critical');
       const banner = document.getElementById('alertBanner');
+      const bannerText = document.getElementById('alertBannerText');
+      const bannerIcon = document.getElementById('alertBannerIcon');
+
+      // Null check for missing elements
+      if (!banner || !bannerText || !bannerIcon) return;
 
       if (criticalAlerts.length > 0 && !FleetState.alertMuted) {
         const alert = criticalAlerts[0];
-        document.getElementById('alertBannerText').textContent = alert.message;
-        document.getElementById('alertBannerIcon').textContent = alert.type === 'token_exhaustion' ? '🔥' : '⚠';
+        bannerText.textContent = alert.message;
+        bannerIcon.textContent = alert.type === 'token_exhaustion' ? '🔥' : '⚠';
         banner.classList.add('visible');
         banner.classList.remove('warning');
 
