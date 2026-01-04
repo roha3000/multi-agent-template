@@ -421,6 +421,13 @@ function handleTaskCompletion(taskCompletion, qualityScore) {
     state.tasksCompleted++;
     console.log(`[TASK] Completed: ${task.title} (${task.id})`);
 
+    // Log to dashboard
+    logToDashboard(
+      `Task completed: ${task.title} (${task.id}) - Quality: ${qualityScore}/100, Duration: ${durationHours.toFixed(1)}h`,
+      'INFO',
+      'task-complete'
+    );
+
     // Record completion in Command Center
     recordTaskCompletionToCommandCenter(task, qualityScore, 0);
     console.log(`[TASK] Duration: ${durationHours.toFixed(1)}h, Quality: ${qualityScore}/100`);
@@ -472,6 +479,14 @@ function getNextTaskFromManager() {
       if (claimResult.claim) {
         console.log(`[TASK] Claim expires: ${new Date(claimResult.claim.expiresAt).toISOString()}`);
       }
+
+      // Log to dashboard
+      logToDashboard(
+        `Task claimed: ${task.title} (${task.id}) - Priority: ${task.priority}`,
+        'INFO',
+        'task-claim'
+      );
+
       return task;
     }
 
@@ -498,6 +513,13 @@ function runSession(prompt) {
     console.log('\nPrompt preview (first 500 chars):');
     console.log(prompt.substring(0, 500) + '...\n');
     console.log('─'.repeat(70) + '\n');
+
+    // Log session start to dashboard
+    logToDashboard(
+      `Session ${state.totalSessions + 1} started: ${state.currentPhase} phase, iteration ${state.phaseIteration}`,
+      'INFO',
+      'session-start'
+    );
 
     // Spawn Claude with dangerous skip permissions for autonomous execution
     // Pass prompt as argument (without -p flag which is print-and-exit mode)
@@ -555,6 +577,14 @@ function runSession(prompt) {
       console.error('[ERROR]', err.message);
       logStream.end();
       currentSessionData.exitReason = 'error';
+
+      // Log error to dashboard
+      logToDashboard(
+        `Session error: ${err.message}`,
+        'ERROR',
+        'session-error'
+      );
+
       resolve(1);
     });
 
@@ -571,13 +601,27 @@ function runSession(prompt) {
 // DASHBOARD INTEGRATION
 // ============================================================================
 
+let dashboardConnectionLost = false;
+
 function connectToDashboard() {
   console.log('[DASHBOARD] Connecting to SSE...');
 
   eventSource = new EventSource(CONFIG.dashboardUrl);
 
-  eventSource.onopen = () => {
+  eventSource.onopen = async () => {
     console.log('[DASHBOARD] Connected.\n');
+
+    // Re-register if connection was previously lost (dashboard restarted)
+    if (dashboardConnectionLost) {
+      console.log('[DASHBOARD] Reconnected after disconnect - re-registering session...');
+      dashboardConnectionLost = false;
+      try {
+        await initializeCommandCenter();
+        console.log('[DASHBOARD] Session re-registered successfully.');
+      } catch (err) {
+        console.error('[DASHBOARD] Failed to re-register session:', err.message);
+      }
+    }
   };
 
   eventSource.onmessage = (event) => {
@@ -590,8 +634,10 @@ function connectToDashboard() {
   };
 
   eventSource.onerror = () => {
-    console.error('[DASHBOARD] Connection error. Ensure dashboard is running:');
-    console.error('  npm run monitor:global\n');
+    if (!dashboardConnectionLost) {
+      console.error('[DASHBOARD] Connection error. Will re-register when dashboard reconnects.');
+      dashboardConnectionLost = true;
+    }
   };
 }
 
@@ -627,7 +673,18 @@ function handleDashboardUpdate(data) {
       eventSource = null;
     }
 
-    claudeProcess.kill('SIGTERM');
+    // Use SIGINT instead of SIGTERM - CLI handles Ctrl+C more gracefully
+    // and avoids stack overflow in exit handler during file writes
+    console.log('[ORCHESTRATOR] Sending SIGINT to gracefully end session...');
+    claudeProcess.kill('SIGINT');
+
+    // Give it time to clean up, then force kill if still running
+    setTimeout(() => {
+      if (claudeProcess && !claudeProcess.killed) {
+        console.log('[ORCHESTRATOR] Force killing after timeout...');
+        claudeProcess.kill('SIGKILL');
+      }
+    }, 5000);
   }
 }
 
@@ -668,6 +725,39 @@ function postToDashboard(endpoint, data) {
       resolve({ success: false });
     }
   });
+}
+
+/**
+ * Log a message to the dashboard Logs tab
+ * @param {string} message - Log message
+ * @param {string} level - Log level (INFO, WARN, ERROR)
+ * @param {string} source - Source identifier (phase, task, session)
+ * @returns {Promise<boolean>} Success status
+ */
+async function logToDashboard(message, level = 'INFO', source = 'orchestrator') {
+  if (!registeredSessionId) return false;
+
+  try {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      level,
+      source,
+      message,
+      sessionNumber: state.totalSessions,
+      phase: state.currentPhase,
+      taskId: state.currentTask?.id || null
+    };
+
+    const result = await postToDashboard(
+      `/api/logs/${registeredSessionId}/write`,
+      logEntry
+    );
+
+    return result.success;
+  } catch (err) {
+    // Silently fail - logging should not disrupt execution
+    return false;
+  }
 }
 
 // ============================================================================
@@ -944,12 +1034,33 @@ async function main() {
 
         // Check if there are blocked tasks that might unblock later
         const blockedTasks = taskManager.getBlockedTasks().filter(t => t.phase === state.currentPhase);
-        if (blockedTasks.length > 0) {
-          console.log(`[BLOCKED] ${blockedTasks.length} task(s) blocked - waiting for dependencies`);
-          // Could add logic to work on other phases or wait
+        const readyTasks = taskManager.getReadyTasks().filter(t => t.phase === state.currentPhase);
+        const inProgressTasks = taskManager.getInProgressTasks ?
+          taskManager.getInProgressTasks().filter(t => t.phase === state.currentPhase) : [];
+
+        if (blockedTasks.length > 0 || inProgressTasks.length > 0) {
+          // Tasks exist but are blocked or in-progress by other sessions
+          console.log(`[WAITING] ${blockedTasks.length} blocked, ${inProgressTasks.length} in-progress by other sessions`);
+          console.log(`[WAITING] Waiting ${CONFIG.sessionDelay / 1000}s before retry...`);
+          await new Promise(r => setTimeout(r, CONFIG.sessionDelay));
+          continue; // Retry claiming in same phase
         }
 
-        // Advance to next phase
+        if (readyTasks.length > 0) {
+          // Ready tasks exist but couldn't be claimed (race condition or claim failure)
+          console.log(`[RETRY] ${readyTasks.length} ready tasks exist but couldn't claim - retrying...`);
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
+
+        // No tasks at all in this phase - check if we completed work before advancing
+        if (state.tasksCompleted === 0 && state.totalSessions === 0) {
+          console.log(`[EXIT] No tasks available and no work completed - exiting`);
+          shouldContinue = false;
+          break;
+        }
+
+        // Advance to next phase only if we actually completed work
         await advancePhase();
         continue;
       }
@@ -1008,8 +1119,24 @@ async function main() {
 
       if (!safetyResult.safe) {
         console.log(`[SWARM] Safety check failed: ${safetyResult.errors.join(', ')}`);
+
+        // Log safety failure to dashboard
+        logToDashboard(
+          `Safety check failed: ${safetyResult.errors.join(', ')}`,
+          'WARN',
+          'swarm-safety'
+        );
+
         if (safetyResult.action === 'HALT_IMMEDIATELY') {
           console.log('[SWARM] HALTING due to critical safety concern');
+
+          // Log critical halt to dashboard
+          logToDashboard(
+            `CRITICAL: Halting due to safety concern - ${safetyResult.errors[0]}`,
+            'ERROR',
+            'swarm-halt'
+          );
+
           shouldContinue = false;
           break;
         }
@@ -1211,6 +1338,13 @@ async function advancePhase() {
   const iterations = state.phaseIteration;
 
   console.log(`\n[PHASE] Advancing: ${completedPhase} → ${nextPhase || 'COMPLETE'}`);
+
+  // Log phase transition to dashboard
+  logToDashboard(
+    `Phase transition: ${completedPhase} → ${nextPhase || 'COMPLETE'} (Score: ${score}/100, Iterations: ${iterations})`,
+    'INFO',
+    'phase-transition'
+  );
 
   // Send phase completion notification
   if (notificationService) {

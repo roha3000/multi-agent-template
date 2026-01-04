@@ -70,12 +70,55 @@ function readStdin() {
 }
 
 /**
+ * Check for direct execution override
+ * @returns {boolean} True if direct execution is requested
+ */
+function checkDirectExecutionOverride() {
+  const directExecPath = path.join(__dirname, '..', 'state', 'direct-execution.json');
+
+  try {
+    if (fs.existsSync(directExecPath)) {
+      const content = fs.readFileSync(directExecPath, 'utf8');
+      const state = JSON.parse(content);
+
+      if (state.directExecution) {
+        debug.log('delegation-hook', 'direct-execution-override', {
+          task: state.task,
+          reason: state.reason
+        });
+
+        // Clear the flag after processing
+        try {
+          fs.unlinkSync(directExecPath);
+          debug.log('delegation-hook', 'direct-flag-cleared', {});
+        } catch (unlinkErr) {
+          debug.log('delegation-hook', 'direct-flag-clear-error', { error: unlinkErr.message });
+        }
+
+        return true;
+      }
+    }
+  } catch (err) {
+    debug.log('delegation-hook', 'direct-check-error', { error: err.message });
+  }
+
+  return false;
+}
+
+/**
  * Main entry point
  */
 async function main() {
   debug.log('delegation-hook', 'main-start', {});
 
   try {
+    // Check for direct execution override FIRST (before any other logic)
+    if (checkDirectExecutionOverride()) {
+      debug.log('delegation-hook', 'skipped-direct-execution', {});
+      process.exit(0);
+      return;
+    }
+
     // Check config first (fast operation)
     const config = loadConfig();
     if (!config.enabled) {

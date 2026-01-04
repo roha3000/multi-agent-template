@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 79,
-    "lastModifiedBy": 52,
-    "lastModifiedAt": "2026-01-04T03:07:18.682Z"
+    "version": 87,
+    "lastModifiedBy": "audit-session",
+    "lastModifiedAt": "2026-01-04T18:45:00.000Z"
   },
   "version": "1.1.0",
   "project": {
@@ -20,7 +20,8 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "auto-delegation-integration"
+        "auto-delegation-integration",
+        "auto-delegation-phase5-dashboard"
       ]
     },
     "next": {
@@ -42,17 +43,23 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
-        "cli-session-activity-logs",
         "dashboard-v4-redesign",
+        "cli-session-activity-logs",
         "dashboard-fleet-ui-completion",
-        "otlp-claude-code-integration",
-        "dashboard-validation-audit"
+        "dashboard-validation-audit",
+        "otlp-claude-code-integration"
       ]
     }
   },
   "tasks": {
     "dashboard-v4-redesign": {
-      "parentTaskId": null,
+      "id": "dashboard-v4-redesign",
+      "title": "Dashboard v4 - Data-Dense Redesign",
+      "description": "Complete redesign of Fleet Dashboard from card-based to data-dense, table-driven layout. Optimized f...",
+      "phase": "implementation",
+      "status": "completed",
+      "completedAt": "2026-01-02T12:00:00.000Z",
+      "completionNotes": "All 6 subtasks complete. 2-panel layout, 5 tabs, CLI/AUTO badges, session launcher, keyboard nav. 29 E2E tests passing.",
       "childTaskIds": [
         "dashboard-v4-layout",
         "dashboard-v4-sessions",
@@ -61,275 +68,7 @@
         "dashboard-v4-launcher",
         "dashboard-v4-testing"
       ],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "decomposition": "sequential",
-      "id": "dashboard-v4-redesign",
-      "title": "Dashboard v4 - Data-Dense Redesign",
-      "description": "Complete redesign of Fleet Dashboard from card-based to data-dense, table-driven layout. Optimized for half-screen use alongside CLI. Removes inaccurate metrics (limits/costs), adds CLI/AUTO session types, moves health/confidence to task-level only, adds prediction calculations.",
-      "phase": "implementation",
-      "priority": "high",
-      "estimate": "13h",
-      "tags": [
-        "dashboard",
-        "ux",
-        "redesign",
-        "data-dense",
-        "responsive"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "dashboard-ux-redesign",
-          "dashboard-blocked-tasks-view"
-        ]
-      },
-      "acceptance": [
-        "2-panel layout (sessions + content) renders at full and half-screen",
-        "Top bar shows: projects, sessions, tasks (X/Y), agents/sub-agents",
-        "Sessions grouped by project with CLI/AUTO badges",
-        "Prediction chips show messages remaining",
-        "5 tabs functional: Overview, Tasks, Hierarchy, Details, Logs",
-        "Health/Confidence only on tasks (not sessions)",
-        "Hierarchy tab shows agent tree with summary",
-        "+Session launches new CLI in selected project",
-        "Keyboard nav: j/k navigate, 1-5 tabs, n launcher",
-        "All E2E tests pass"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-02T12:00:00.000Z",
-      "completedAt": "2026-01-02T12:00:00.000Z",
-      "completionNotes": "All 6 subtasks complete. 2-panel layout, 5 tabs, CLI/AUTO badges, session launcher, keyboard nav. 29 E2E tests passing.",
-      "designDocs": [
-        "docs/design/dashboard-v4-final.html",
-        "docs/design/DASHBOARD-V4-IMPLEMENTATION-PLAN.md"
-      ]
-    },
-    "dashboard-v4-layout": {
-      "parentTaskId": "dashboard-v4-redesign",
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 1,
-      "id": "dashboard-v4-layout",
-      "title": "Phase 1: Core Layout & CSS",
-      "description": "Replace current card-based layout with 2-panel data-dense design. Create new CSS variables, implement top bar with simplified metrics, add responsive breakpoints.",
-      "phase": "implementation",
-      "priority": "high",
-      "estimate": "2h",
-      "tags": [
-        "dashboard",
-        "css",
-        "layout"
-      ],
-      "depends": {
-        "blocks": [
-          "dashboard-v4-sessions"
-        ],
-        "requires": [],
-        "related": []
-      },
-      "acceptance": [
-        "New CSS variables matching v4 design",
-        "Top bar with projects/sessions/tasks/agents counts",
-        "2-panel layout (left: sessions, right: content)",
-        "Responsive breakpoints for narrow screens",
-        "Proper scrolling in each panel"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-02T12:00:00.000Z",
-      "completedAt": "2026-01-02T12:00:00.000Z"
-    },
-    "dashboard-v4-sessions": {
-      "parentTaskId": "dashboard-v4-redesign",
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 1,
-      "id": "dashboard-v4-sessions",
-      "title": "Phase 2: Session Panel",
-      "description": "Rebuild session list with project grouping, CLI/AUTO type badges, context %, and prediction chips. Remove health/confidence from session level.",
-      "phase": "implementation",
-      "priority": "high",
-      "estimate": "2h",
-      "tags": [
-        "dashboard",
-        "sessions",
-        "ui"
-      ],
-      "depends": {
-        "blocks": [
-          "dashboard-v4-tabs"
-        ],
-        "requires": [
-          "dashboard-v4-layout"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "Sessions grouped by project (collapsible)",
-        "CLI/AUTO session type badge on each session",
-        "Context %, phase, prediction chip displayed",
-        "No health/confidence on session items",
-        "Session selection highlighting works"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-02T12:00:00.000Z",
-      "completedAt": "2026-01-02T12:00:00.000Z"
-    },
-    "dashboard-v4-tabs": {
-      "parentTaskId": "dashboard-v4-redesign",
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 1,
-      "id": "dashboard-v4-tabs",
-      "title": "Phase 3: Tab System",
-      "description": "Implement 5-tab content area: Overview (stats, predictions, current task), Tasks (active, ready, completed), Hierarchy (agent tree), Details (session info), Logs (activity stream).",
-      "phase": "implementation",
-      "priority": "high",
-      "estimate": "3h",
-      "tags": [
-        "dashboard",
-        "tabs",
-        "ui"
-      ],
-      "depends": {
-        "blocks": [
-          "dashboard-v4-backend"
-        ],
-        "requires": [
-          "dashboard-v4-sessions"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "Overview tab with stats grid and predictions",
-        "Tasks tab with active/ready/completed sections",
-        "Hierarchy tab with agent tree and summary",
-        "Details tab with full session metadata",
-        "Logs tab with color-coded activity stream",
-        "Tab switching works via click and keyboard (1-5)"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-02T12:00:00.000Z",
-      "completedAt": "2026-01-02T12:00:00.000Z"
-    },
-    "dashboard-v4-backend": {
-      "parentTaskId": "dashboard-v4-redesign",
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 1,
-      "id": "dashboard-v4-backend",
-      "title": "Phase 4: Backend Updates",
-      "description": "Add sessionType (cli/autonomous) to API responses, add prediction calculations (messagesRemaining, timeToFull), add hierarchy summary to /api/agent-pool/status.",
-      "phase": "implementation",
-      "priority": "high",
-      "estimate": "2h",
-      "tags": [
-        "dashboard",
-        "backend",
-        "api"
-      ],
-      "depends": {
-        "blocks": [
-          "dashboard-v4-launcher"
-        ],
-        "requires": [
-          "dashboard-v4-tabs"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "sessionType field in /api/sessions/summary and /api/overview",
-        "Prediction calculations in session data",
-        "Health/confidence only on task objects",
-        "Hierarchy summary in /api/agent-pool/status"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-02T12:00:00.000Z",
-      "completedAt": "2026-01-02T12:00:00.000Z"
-    },
-    "dashboard-v4-launcher": {
-      "parentTaskId": "dashboard-v4-redesign",
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 1,
-      "id": "dashboard-v4-launcher",
-      "title": "Phase 5: +Session Launcher",
-      "description": "Create /api/sessions/launch endpoint to spawn new Claude Code CLI. Implement project picker modal. Launch with --dangerously-skip-permissions.",
-      "phase": "implementation",
-      "priority": "medium",
-      "estimate": "2h",
-      "tags": [
-        "dashboard",
-        "launcher",
-        "cli"
-      ],
-      "depends": {
-        "blocks": [
-          "dashboard-v4-testing"
-        ],
-        "requires": [
-          "dashboard-v4-backend"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "/api/sessions/launch endpoint works",
-        "Project picker modal shows known projects",
-        "Launches claude --dangerously-skip-permissions in new terminal",
-        "Keyboard shortcut 'n' opens modal"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-02T12:00:00.000Z",
-      "completedAt": "2026-01-02T12:00:00.000Z"
-    },
-    "dashboard-v4-testing": {
-      "parentTaskId": "dashboard-v4-redesign",
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 1,
-      "id": "dashboard-v4-testing",
-      "title": "Phase 6: Testing & Polish",
-      "description": "Update E2E tests for new layout. Test keyboard navigation, responsive behavior, performance. Cross-browser testing.",
-      "phase": "testing",
-      "priority": "high",
-      "estimate": "2h",
-      "tags": [
-        "dashboard",
-        "testing",
-        "e2e"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [
-          "dashboard-v4-launcher"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "E2E tests updated for new layout",
-        "Keyboard nav tested (j/k, 1-5, n)",
-        "Responsive behavior verified at various widths",
-        "Performance <500ms load, <200ms tab switch",
-        "Works in Chrome, Firefox, Edge"
-      ],
-      "status": "completed",
-      "assignee": null,
-      "created": "2026-01-01T12:00:00.000Z",
-      "updated": "2026-01-02T12:00:00.000Z",
-      "completedAt": "2026-01-02T12:00:00.000Z"
+      "parentTaskId": null
     },
     "add-model-pricing": {
       "parentTaskId": null,
@@ -365,109 +104,15 @@
       "updated": "2025-12-28T03:00:00.000Z"
     },
     "cli-session-activity-logs": {
-      "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "decomposition": "sequential",
       "id": "cli-session-activity-logs",
       "title": "CLI Session Activity Logs in Dashboard",
-      "description": "Display tool calls, file edits, and commands for CLI sessions in the dashboard Logs tab. Research complete - PostToolUse hook already writes to tool-audit.jsonl. Need to wire this to dashboard API and UI.",
+      "description": "Display tool calls, file edits, and commands for CLI sessions in the dashboard Logs tab. Research co...",
       "phase": "implementation",
-      "priority": "medium",
-      "estimate": "3h",
-      "tags": [
-        "dashboard",
-        "logging",
-        "hooks",
-        "cli-sessions"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "dashboard-v4-redesign"
-        ]
-      },
-      "acceptance": [
-        "API endpoint /api/logs/:sessionId/activity serves tool-audit.jsonl data",
-        "Logs tab displays tool calls for CLI sessions (not just 'logs to terminal' message)",
-        "Activity entries show: timestamp, tool name, status (success/fail)",
-        "Real-time updates via SSE when new tool calls occur",
-        "Consistent format between CLI and autonomous session logs"
-      ],
       "status": "completed",
-      "assignee": null,
-      "created": "2026-01-02T06:00:00.000Z",
-      "updated": "2026-01-02T07:00:00.000Z",
       "completedAt": "2026-01-02T08:00:00.000Z",
       "completionNotes": "Implemented all 4 phases: API endpoint, dashboard UI update, SSE streaming, E2E tests. 9 new tests added.",
-      "researchComplete": true,
-      "implementationPlan": {
-        "phase1": {
-          "title": "API Endpoint for Tool Audit Logs",
-          "files": [
-            "global-context-manager.js"
-          ],
-          "steps": [
-            "Add GET /api/logs/:sessionId/activity endpoint",
-            "Read from .claude/logs/tool-audit.jsonl",
-            "Filter by claudeSessionId (from hook metadata)",
-            "Return parsed JSON array of tool calls"
-          ]
-        },
-        "phase2": {
-          "title": "Dashboard Logs Tab Update",
-          "files": [
-            "global-dashboard.html"
-          ],
-          "steps": [
-            "Update updateLogsPane() to fetch /api/logs/:sessionId/activity for CLI sessions",
-            "Render tool calls in same table format as autonomous logs",
-            "Show tool name, status, timestamp columns"
-          ]
-        },
-        "phase3": {
-          "title": "Real-time Updates",
-          "files": [
-            ".claude/hooks/track-progress.js",
-            "global-context-manager.js"
-          ],
-          "steps": [
-            "Enhance PostToolUse hook to emit SSE event after writing to JSONL",
-            "Add /api/logs/:sessionId/activity/stream SSE endpoint",
-            "Dashboard subscribes for live tool call updates"
-          ]
-        },
-        "phase4": {
-          "title": "Testing",
-          "files": [
-            "__tests__/e2e/dashboard-cli-logs.e2e.test.js"
-          ],
-          "steps": [
-            "Test API returns correct tool audit data",
-            "Test dashboard renders logs for CLI sessions",
-            "Test SSE streaming works"
-          ]
-        }
-      },
-      "researchFindings": {
-        "existingInfrastructure": [
-          "PostToolUse hook writes to .claude/logs/tool-audit.jsonl",
-          "LogStreamer exists for autonomous session logs",
-          "SSE infrastructure in place for real-time updates"
-        ],
-        "dataFormat": {
-          "file": ".claude/logs/tool-audit.jsonl",
-          "fields": [
-            "timestamp",
-            "tool",
-            "success",
-            "sessionId"
-          ]
-        },
-        "recommendation": "Extend existing LogStreamer pattern for tool-audit.jsonl"
-      }
+      "childTaskIds": [],
+      "parentTaskId": null
     },
     "dashboard-blocked-tasks-view": {
       "parentTaskId": null,
@@ -514,6 +159,8 @@
         "auto-delegation-phase2-decision",
         "auto-delegation-phase3-skills",
         "auto-delegation-phase4-execution",
+        "fix-direct-skill-state-check",
+        "add-hierarchy-delegation-tracking",
         "auto-delegation-phase5-dashboard",
         "auto-delegation-phase6-polish"
       ],
@@ -554,7 +201,7 @@
       "status": "in_progress",
       "assignee": null,
       "created": "2025-12-29T16:00:00.000Z",
-      "updated": "2026-01-03T01:10:57.330Z",
+      "updated": "2026-01-04T18:03:40.522Z",
       "designDocs": [
         "docs/AUTO-DELEGATION-ARCHITECTURE.md",
         "docs/AUTO-DELEGATION-IMPLEMENTATION-PLAN.md",
@@ -565,157 +212,151 @@
       "started": "2026-01-02T08:14:39.461Z"
     },
     "auto-delegation-phase1-hook": {
-      "parentTaskId": "auto-delegation-integration",
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 1,
       "id": "auto-delegation-phase1-hook",
       "title": "Phase 1: Core Hook Infrastructure",
-      "description": "Get the basic hook working and injecting analysis into prompts. Create delegation-hook.js, delegation-bridge.js, add getQuickHint() to DelegationDecider, hook installer, config schema.",
       "phase": "implementation",
-      "priority": "high",
-      "estimate": "3h",
-      "tags": [
-        "auto-delegation",
-        "hooks",
-        "infrastructure"
-      ],
-      "depends": {
-        "blocks": [
-          "auto-delegation-phase2-decision"
-        ],
-        "requires": [],
-        "related": []
-      },
-      "acceptance": [
-        "Hook executes on every prompt submission",
-        "Analysis output appears in conversation",
-        "Config can enable/disable hook",
-        "Hook completes in < 200ms"
-      ],
       "status": "completed",
-      "assignee": null,
-      "created": "2026-01-02T08:20:00.000Z",
-      "updated": "2026-01-03T02:15:00.000Z",
-      "started": "2026-01-03T02:02:30.341Z",
+      "parentTaskId": "auto-delegation-integration",
       "completedAt": "2026-01-03T02:15:00.000Z",
       "completionNotes": "Created delegation-hook.js + delegation-bridge.js. Hook executes in 51-85ms (target <200ms). Config via delegation-config.json. 26 new tests, 2572 total passing."
     },
     "auto-delegation-phase2-decision": {
-      "parentTaskId": "auto-delegation-integration",
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 1,
       "id": "auto-delegation-phase2-decision",
       "title": "Phase 2: Decision Integration",
-      "description": "Connect hook to full DelegationDecider and TaskDecomposer. Integrate TaskDecomposer, add pattern selection, implement tasks.json lookup, per-task delegationConfig, caching.",
       "phase": "implementation",
-      "priority": "high",
-      "estimate": "4h",
-      "tags": [
-        "auto-delegation",
-        "decision-engine",
-        "integration"
-      ],
-      "depends": {
-        "blocks": [
-          "auto-delegation-phase3-skills"
-        ],
-        "requires": [
-          "auto-delegation-phase1-hook"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "Complex prompts get accurate delegation recommendations",
-        "Tasks from tasks.json are recognized and enriched",
-        "Per-task config overrides global settings",
-        "Repeated prompts use cached decisions"
-      ],
       "status": "completed",
-      "assignee": null,
-      "created": "2026-01-02T08:20:00.000Z",
-      "updated": "2026-01-03T19:20:00.000Z",
-      "started": "2026-01-03T19:11:44.146Z",
+      "parentTaskId": "auto-delegation-integration",
       "completedAt": "2026-01-03T19:20:00.000Z",
       "completionNotes": "Integrated full DelegationDecider and TaskDecomposer with lazy loading. Enhanced tasks.json lookup with per-task delegationConfig. Added MD5-based decision caching with TTL. 20 new tests (46 total). 2592 tests passing."
     },
     "auto-delegation-phase3-skills": {
-      "parentTaskId": "auto-delegation-integration",
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 1,
       "id": "auto-delegation-phase3-skills",
       "title": "Phase 3: Control Skills",
-      "description": "Give users explicit control over delegation. Create /delegate, /direct, /delegation-status, /delegation-config skills.",
       "phase": "implementation",
-      "priority": "medium",
-      "estimate": "2h",
-      "tags": [
-        "auto-delegation",
-        "skills",
-        "ux"
-      ],
-      "depends": {
-        "blocks": [
-          "auto-delegation-phase4-execution"
-        ],
-        "requires": [
-          "auto-delegation-phase2-decision"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "/delegate forces delegation for any prompt",
-        "/direct forces direct execution",
-        "/delegation-status shows active delegations",
-        "/delegation-config allows runtime config changes"
-      ],
       "status": "completed",
-      "assignee": null,
-      "created": "2026-01-02T08:20:00.000Z",
-      "updated": "2026-01-03T18:50:00.000Z",
+      "parentTaskId": "auto-delegation-integration",
       "completedAt": "2026-01-03T18:50:00.000Z",
       "completionNotes": "Created 4 control skills using agent swarm: /delegate (force delegation with pattern control), /direct (skip delegation), /delegation-status (view active delegations and history), /delegation-config (runtime config changes). All files in .claude/commands/. 2600 tests passing."
     },
     "auto-delegation-phase4-execution": {
-      "parentTaskId": "auto-delegation-integration",
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 1,
       "id": "auto-delegation-phase4-execution",
       "title": "Phase 4: Execution Integration",
-      "description": "Make delegated tasks actually execute through orchestration. Add executeWithDelegationHint(), wire Task tool to AgentOrchestrator, implement parallel/sequential/debate patterns.",
+      "phase": "implementation",
+      "status": "completed",
+      "parentTaskId": "auto-delegation-integration",
+      "completedAt": "2026-01-04T03:20:00.000Z",
+      "completionNotes": "Created delegation-executor.js that bridges /delegate skill to AgentOrchestrator. Generates Task tool invocations for parallel/sequential/debate/review patterns. Updated /delegate skill with execution instructions. 31 new tests, 2631 total passing."
+    },
+    "fix-direct-skill-state-check": {
+      "id": "fix-direct-skill-state-check",
+      "title": "Fix /direct Skill - Add State File Check to Hook",
+      "description": "The /direct skill documents a state file mechanism (.claude/state/direct-execution.json) but delegation-hook.js never checks for it. Users running /direct will not bypass delegation analysis. Add state file check at start of hook main().",
       "phase": "implementation",
       "priority": "high",
-      "estimate": "5h",
+      "estimate": "30m",
       "tags": [
         "auto-delegation",
-        "orchestration",
-        "execution"
+        "bug-fix",
+        "skills"
       ],
       "depends": {
         "blocks": [
           "auto-delegation-phase5-dashboard"
         ],
-        "requires": [
+        "requires": [],
+        "related": [
           "auto-delegation-phase3-skills"
-        ],
-        "related": []
+        ]
       },
       "acceptance": [
-        "Delegated tasks spawn real sub-agents via Task tool",
-        "Parallel pattern runs subtasks concurrently",
-        "Sequential pattern respects dependencies",
-        "Hierarchy is tracked correctly"
+        "/direct skill creates .claude/state/direct-execution.json",
+        "delegation-hook.js checks for state file at startup",
+        "Hook exits early when directExecution: true",
+        "State file is deleted after processing",
+        "Tests verify /direct bypasses delegation"
       ],
       "status": "completed",
       "assignee": null,
-      "created": "2026-01-02T08:20:00.000Z",
-      "updated": "2026-01-04T03:20:00.000Z",
-      "started": "2026-01-04T02:54:52.483Z",
-      "completedAt": "2026-01-04T03:20:00.000Z",
-      "completionNotes": "Created delegation-executor.js that bridges /delegate skill to AgentOrchestrator. Generates Task tool invocations for parallel/sequential/debate/review patterns. Updated /delegate skill with execution instructions. 31 new tests, 2631 total passing."
+      "created": "2026-01-04T18:30:00.000Z",
+      "updated": "2026-01-04T19:30:00.000Z",
+      "completedAt": "2026-01-04T19:30:00.000Z",
+      "completionNotes": "Added checkDirectExecutionOverride() function to delegation-hook.js. Checks for .claude/state/direct-execution.json at hook startup, exits early if directExecution: true, clears file after processing. 10 new tests added.",
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "auditSource": "Phase 1-4 Audit - Issue #1"
+    },
+    "add-hierarchy-delegation-tracking": {
+      "id": "add-hierarchy-delegation-tracking",
+      "title": "Add HierarchyManager Integration for Delegations",
+      "description": "delegation-executor.js generates Task tool invocations but doesn't register delegations with HierarchyManager. Delegations won't appear in the hierarchy tree in dashboard. Add hierarchy registration when Task tool executes.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "1h",
+      "tags": [
+        "auto-delegation",
+        "hierarchy",
+        "dashboard"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "auto-delegation-phase4-execution",
+          "auto-delegation-phase5-dashboard"
+        ]
+      },
+      "acceptance": [
+        "Delegations register parent-child relationships via HierarchyManager",
+        "Dashboard hierarchy pane shows delegation tree",
+        "Depth tracking works correctly",
+        "Tests verify hierarchy registration"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2026-01-04T18:30:00.000Z",
+      "updated": "2026-01-04T19:30:00.000Z",
+      "completedAt": "2026-01-04T19:30:00.000Z",
+      "completionNotes": "Added registerDelegationHierarchy() and getHierarchyRegistry() to delegation-executor.js. Registers parent-child hierarchy when delegations are created. Returns hierarchy info in execution result. 8 new tests added.",
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": [],
+      "auditSource": "Phase 1-4 Audit - Issue #2"
+    },
+    "orchestrator-log-forwarding": {
+      "id": "orchestrator-log-forwarding",
+      "title": "Forward Orchestrator Console Logs to Dashboard",
+      "description": "The orchestrator writes to local .claude/logs/session-N.log files but doesn't POST to the dashboard's /api/logs/:sessionId/write endpoint. Console output (phase changes, task claims, errors, execution summaries) should be visible in the dashboard Logs tab.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "1h",
+      "tags": [
+        "orchestrator",
+        "dashboard",
+        "logging",
+        "observability"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "cli-session-activity-logs"
+        ]
+      },
+      "acceptance": [
+        "Create logToDashboard(message, level, source) function in orchestrator",
+        "Call logToDashboard for: phase transitions, task claims/releases, errors, session summaries",
+        "Uses existing POST /api/logs/:sessionId/write endpoint",
+        "Falls back gracefully if dashboard not running",
+        "Logs appear in dashboard Logs tab with proper formatting",
+        "Log level filtering works (INFO, WARN, ERROR)"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2026-01-04T18:45:00.000Z",
+      "updated": "2026-01-04T19:30:00.000Z",
+      "completedAt": "2026-01-04T19:30:00.000Z",
+      "completionNotes": "Added logToDashboard() function to autonomous-orchestrator.js. Logs to /api/logs/:sessionId/write endpoint. Called on: session start, task claim, task complete, phase transition, session error, swarm safety warnings. 24 new tests added.",
+      "parentTaskId": null,
+      "childTaskIds": []
     },
     "auto-delegation-phase5-dashboard": {
       "parentTaskId": "auto-delegation-integration",
@@ -738,9 +379,12 @@
           "auto-delegation-phase6-polish"
         ],
         "requires": [
-          "auto-delegation-phase4-execution"
+          "auto-delegation-phase4-execution",
+          "fix-direct-skill-state-check"
         ],
-        "related": []
+        "related": [
+          "add-hierarchy-delegation-tracking"
+        ]
       },
       "acceptance": [
         "Dashboard shows active delegations",
@@ -751,7 +395,8 @@
       "status": "ready",
       "assignee": null,
       "created": "2026-01-02T08:20:00.000Z",
-      "updated": "2026-01-02T08:20:00.000Z"
+      "updated": "2026-01-04T19:30:00.000Z",
+      "started": "2026-01-04T03:56:30.090Z"
     },
     "auto-delegation-phase6-polish": {
       "parentTaskId": "auto-delegation-integration",
@@ -790,121 +435,37 @@
     "dashboard-validation-audit": {
       "id": "dashboard-validation-audit",
       "title": "Dashboard Validation Audit - Test All Functions & Reconcile APIs",
-      "description": "Comprehensive audit of the dashboard to identify broken features, test all current functions, and reconcile with backend APIs. Wire in any backend features not yet exposed to the dashboard.",
+      "description": "Comprehensive audit of the dashboard to identify broken features, test all current functions, and re...",
       "phase": "validation",
-      "priority": "critical",
-      "estimate": "4h",
-      "tags": [
-        "dashboard",
-        "validation",
-        "audit",
-        "api-reconciliation"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "dashboard-blocked-tasks-view"
-        ]
-      },
-      "acceptance": [
-        "All dashboard buttons/actions tested and documented",
-        "All API endpoints mapped to dashboard features",
-        "Broken features identified and fixed",
-        "Missing backend features wired into dashboard",
-        "Session management fully functional",
-        "Task claiming/releasing works correctly",
-        "Real-time updates (SSE) verified",
-        "Cost tracking and metrics display correctly"
-      ],
       "status": "completed",
-      "assignee": null,
-      "created": "2025-12-30T23:19:57.210Z",
-      "updated": "2025-12-31T00:30:00.000Z",
       "completedAt": "2025-12-31T00:30:00.000Z",
       "completionNotes": "Swarm audit completed: 74+ API endpoints mapped, quality circles bug fixed, OTLP→UsageLimitTracker connected, dotenv added"
     },
     "otlp-claude-code-integration": {
       "id": "otlp-claude-code-integration",
       "title": "Integrate OTLP Telemetry with Claude Code CLI",
-      "description": "Configure Claude Code CLI to send telemetry metrics to the dashboard's OTLP receiver. Currently the dashboard has OTLP receiver ready (port 4318) but Claude Code CLI needs env vars set in shell profile to send metrics.",
+      "description": "Configure Claude Code CLI to send telemetry metrics to the dashboard's OTLP receiver. Currently the ...",
       "phase": "implementation",
-      "priority": "high",
-      "estimate": "2h",
-      "tags": [
-        "otlp",
-        "telemetry",
-        "claude-code",
-        "integration",
-        "dashboard"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "dashboard-validation-audit"
-        ]
-      },
-      "acceptance": [
-        "Claude Code CLI sends telemetry to OTLP endpoint",
-        "Dashboard usage display updates from OTLP metrics",
-        "Shell profile (.bashrc/.zshrc) updated with required env vars",
-        "Documentation updated with setup instructions",
-        "Verified metrics flow: Claude CLI → OTLP Receiver → UsageLimitTracker → Dashboard"
-      ],
       "status": "completed",
-      "assignee": null,
-      "created": "2025-12-31T00:30:00.000Z",
-      "updated": "2025-12-31T00:18:00.000Z",
       "completedAt": "2025-12-31T00:18:00.000Z",
       "completionNotes": "Fixed OTLP receiver initialization (usageTracker optional), configured Claude Code settings with env vars, tested metrics flow end-to-end, documented in DASHBOARD-FEATURES.md"
     },
     "dashboard-fleet-ui-completion": {
-      "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "decomposition": null,
       "id": "dashboard-fleet-ui-completion",
       "title": "Complete Fleet Management Dashboard UI Features",
-      "description": "Agent edits for Fleet Lineage panel and Keyboard Navigation failed to apply in Session 72. Need to implement: (1) Project cards HTML container, (2) Fleet Lineage toggle panel with hierarchy visualization, (3) Enhanced keyboard nav (arrow keys, 1-9 project jump, a/l/m toggles).",
+      "description": "Agent edits for Fleet Lineage panel and Keyboard Navigation failed to apply in Session 72. Need to i...",
       "phase": "implementation",
-      "priority": "high",
-      "estimate": "2h",
-      "tags": [
-        "dashboard",
-        "ux",
-        "fleet-management",
-        "bug-fix"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "dashboard-ux-redesign"
-        ]
-      },
-      "acceptance": [
-        "Project cards container (#projectCards) renders in HTML",
-        "Fleet Lineage panel toggles with View Lineage button",
-        "fetchFleetHierarchy() fetches from /api/agent-pool/status",
-        "Arrow keys (up/down) navigate sessions",
-        "Number keys 1-9 jump to project cards",
-        "Keys a/l/m toggle lineage, logs, mute",
-        "All E2E tests pass (dashboard-fleet-ui.e2e.test.js)"
-      ],
       "status": "completed",
-      "assignee": null,
-      "created": "2025-12-31T05:10:00.000Z",
-      "updated": "2025-12-31T06:30:00.000Z",
       "completedAt": "2025-12-31T06:30:00.000Z",
-      "completionNotes": "Session 72: Added #projectCards container, Fleet Lineage panel (fleetLineageSection), View Lineage button, fetchFleetHierarchy(), updateProjectCards(), renderFleetLineage(), enhanced keyboard nav (arrows, 1-9, a/l/m). All 14 E2E tests + 2507 unit tests pass."
+      "completionNotes": "Session 72: Added #projectCards container, Fleet Lineage panel (fleetLineageSection), View Lineage button, fetchFleetHierarchy(), updateProjectCards(), renderFleetLineage(), enhanced keyboard nav (arrows, 1-9, a/l/m). All 14 E2E tests + 2507 unit tests pass.",
+      "childTaskIds": [],
+      "parentTaskId": null
     }
   },
   "archival": {
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2026-01-02T08:14:39.484Z"
+    "lastArchived": "2026-01-04T03:29:33.344Z"
   }
 }

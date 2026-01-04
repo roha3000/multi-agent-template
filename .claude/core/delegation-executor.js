@@ -23,6 +23,7 @@ const TASKS_JSON = path.join(PROJECT_ROOT, '.claude/dev-docs/tasks.json');
 // Lazy load dependencies to keep startup fast
 let _delegationBridge = null;
 let _taskDecomposer = null;
+let _hierarchyRegistry = null;
 
 /**
  * Lazy load DelegationBridge
@@ -55,6 +56,108 @@ function getTaskDecomposer() {
     }
   }
   return _taskDecomposer;
+}
+
+/**
+ * Lazy load HierarchyRegistry
+ * @returns {Object|null}
+ */
+function getHierarchyRegistry() {
+  if (!_hierarchyRegistry) {
+    try {
+      const { getHierarchyRegistry } = require('./hierarchy-registry');
+      _hierarchyRegistry = getHierarchyRegistry();
+    } catch (error) {
+      console.error('[DelegationExecutor] Failed to load HierarchyRegistry:', error.message);
+      return null;
+    }
+  }
+  return _hierarchyRegistry;
+}
+
+/**
+ * Generate a unique delegation ID
+ * @param {string} taskId - Task ID
+ * @param {string} pattern - Execution pattern
+ * @returns {string} Unique delegation ID
+ */
+function generateDelegationId(taskId, pattern) {
+  return `del-${taskId}-${pattern}-${Date.now()}`;
+}
+
+/**
+ * Register delegation with HierarchyRegistry
+ * @param {Object} task - Parent task
+ * @param {Array} subtasks - Subtasks being delegated
+ * @param {Object} decision - Delegation decision
+ * @param {string} parentAgentId - Parent agent ID (current session)
+ * @returns {Object} Registration result with delegationId
+ */
+function registerDelegationHierarchy(task, subtasks, decision, parentAgentId = null) {
+  const registry = getHierarchyRegistry();
+  if (!registry) {
+    return { registered: false, reason: 'HierarchyRegistry not available' };
+  }
+
+  try {
+    const delegationId = generateDelegationId(task.id, decision.pattern);
+
+    // If no parent agent ID, use the task ID as a pseudo-parent for root delegations
+    const effectiveParentId = parentAgentId || `session-${Date.now()}`;
+
+    // Register the parent agent as root if it doesn't exist
+    if (!registry.getNode(effectiveParentId)) {
+      try {
+        registry.registerHierarchy(null, effectiveParentId, {
+          delegationId: null,
+          taskId: task.id,
+          agentType: 'orchestrator'
+        });
+      } catch (err) {
+        // Ignore if already registered
+      }
+    }
+
+    // Register delegation record
+    registry.registerDelegation(delegationId, {
+      parentAgentId: effectiveParentId,
+      childAgentId: null, // Will be set when Task tool executes
+      taskId: task.id,
+      metadata: {
+        pattern: decision.pattern,
+        subtaskCount: subtasks.length,
+        confidence: decision.confidence
+      }
+    });
+
+    // Register each subtask as a child in the hierarchy
+    const childRegistrations = [];
+    for (let i = 0; i < subtasks.length; i++) {
+      const subtask = subtasks[i];
+      const childAgentId = `${delegationId}-child-${i + 1}`;
+
+      try {
+        registry.registerHierarchy(effectiveParentId, childAgentId, {
+          delegationId,
+          taskId: subtask.id || `${task.id}-sub-${i + 1}`,
+          agentType: determineAgentType(subtask, task)
+        });
+        childRegistrations.push(childAgentId);
+      } catch (err) {
+        console.warn(`[DelegationExecutor] Failed to register child ${i + 1}:`, err.message);
+      }
+    }
+
+    return {
+      registered: true,
+      delegationId,
+      parentAgentId: effectiveParentId,
+      childAgentIds: childRegistrations
+    };
+  } catch (error) {
+    console.error('[DelegationExecutor] Failed to register hierarchy:', error.message);
+    return { registered: false, reason: error.message };
+  }
 }
 
 /**
@@ -530,6 +633,9 @@ function executeDelegation(input) {
   // Apply pattern override
   const pattern = options.pattern || decision.pattern;
 
+  // Register delegation with HierarchyRegistry (for dashboard visibility)
+  const hierarchyResult = registerDelegationHierarchy(task, subtasks, { ...decision, pattern });
+
   // Handle dry run
   if (options.dryRun) {
     return {
@@ -591,6 +697,7 @@ function executeDelegation(input) {
       subtaskCount: subtasks.length,
       taskInvocations
     },
+    hierarchy: hierarchyResult,
     duration: Date.now() - startTime
   };
 }
@@ -712,6 +819,11 @@ module.exports = {
   generateReviewTasks,
   determineAgentType,
   buildSubtaskPrompt,
+
+  // Hierarchy integration
+  registerDelegationHierarchy,
+  generateDelegationId,
+  getHierarchyRegistry,
 
   // Utilities
   mapPatternToStrategy,

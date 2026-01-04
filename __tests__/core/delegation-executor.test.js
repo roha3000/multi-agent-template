@@ -32,6 +32,23 @@ jest.mock('../../.claude/core/task-decomposer', () => ({
   }))
 }));
 
+// Mock HierarchyRegistry
+const mockHierarchyRegistry = {
+  getNode: jest.fn(),
+  registerHierarchy: jest.fn(),
+  registerDelegation: jest.fn()
+};
+
+jest.mock('../../.claude/core/hierarchy-registry', () => ({
+  getHierarchyRegistry: jest.fn(() => mockHierarchyRegistry),
+  HierarchyRegistry: jest.fn(),
+  DelegationStatus: {
+    PENDING: 'pending',
+    ACTIVE: 'active',
+    COMPLETED: 'completed'
+  }
+}));
+
 const {
   parseArguments,
   resolveTask,
@@ -44,7 +61,9 @@ const {
   determineAgentType,
   buildSubtaskPrompt,
   executeDelegation,
-  formatExecutionPlan
+  formatExecutionPlan,
+  registerDelegationHierarchy,
+  generateDelegationId
 } = require('../../.claude/core/delegation-executor');
 
 const mockBridge = require('../../.claude/core/delegation-bridge');
@@ -388,6 +407,121 @@ describe('DelegationExecutor', () => {
       expect(formatted).toContain('sequential');
       expect(formatted).toContain('[SEQ 1/2]');
       expect(formatted).toContain('Task');
+    });
+  });
+
+  describe('generateDelegationId', () => {
+    test('generates unique delegation ID with task and pattern', () => {
+      const id = generateDelegationId('task-123', 'parallel');
+
+      expect(id).toContain('del-');
+      expect(id).toContain('task-123');
+      expect(id).toContain('parallel');
+    });
+
+    test('generates different IDs for same input at different times', async () => {
+      const id1 = generateDelegationId('task-123', 'sequential');
+      await new Promise(r => setTimeout(r, 10));
+      const id2 = generateDelegationId('task-123', 'sequential');
+
+      expect(id1).not.toBe(id2);
+    });
+  });
+
+  describe('registerDelegationHierarchy', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockHierarchyRegistry.getNode.mockReturnValue(null);
+      mockHierarchyRegistry.registerHierarchy.mockReturnValue({ agentId: 'test' });
+      mockHierarchyRegistry.registerDelegation.mockReturnValue({ delegationId: 'test' });
+    });
+
+    test('registers parent and children in hierarchy', () => {
+      const task = { id: 'parent-task', title: 'Parent Task' };
+      const subtasks = [
+        { id: 'sub-1', title: 'Subtask 1' },
+        { id: 'sub-2', title: 'Subtask 2' }
+      ];
+      const decision = { pattern: 'parallel', confidence: 85 };
+
+      const result = registerDelegationHierarchy(task, subtasks, decision);
+
+      expect(result.registered).toBe(true);
+      expect(result.delegationId).toContain('del-');
+      expect(result.delegationId).toContain('parent-task');
+      expect(result.childAgentIds).toHaveLength(2);
+    });
+
+    test('registers delegation record with metadata', () => {
+      const task = { id: 'task-1', title: 'Test' };
+      const subtasks = [{ id: 'sub-1', title: 'Sub' }];
+      const decision = { pattern: 'sequential', confidence: 90 };
+
+      registerDelegationHierarchy(task, subtasks, decision);
+
+      expect(mockHierarchyRegistry.registerDelegation).toHaveBeenCalledWith(
+        expect.stringContaining('del-'),
+        expect.objectContaining({
+          taskId: 'task-1',
+          metadata: expect.objectContaining({
+            pattern: 'sequential',
+            subtaskCount: 1,
+            confidence: 90
+          })
+        })
+      );
+    });
+
+    test('handles registry errors gracefully', () => {
+      mockHierarchyRegistry.registerDelegation.mockImplementation(() => {
+        throw new Error('Registry error');
+      });
+
+      const task = { id: 'task-1', title: 'Test' };
+      const subtasks = [{ id: 'sub-1', title: 'Sub' }];
+      const decision = { pattern: 'parallel', confidence: 80 };
+
+      const result = registerDelegationHierarchy(task, subtasks, decision);
+
+      expect(result.registered).toBe(false);
+      expect(result.reason).toContain('Registry error');
+    });
+
+    test('creates parent node if not exists', () => {
+      mockHierarchyRegistry.getNode.mockReturnValue(null);
+
+      const task = { id: 'task-1', title: 'Test' };
+      const subtasks = [{ id: 'sub-1', title: 'Sub' }];
+      const decision = { pattern: 'parallel', confidence: 80 };
+
+      registerDelegationHierarchy(task, subtasks, decision);
+
+      // First call should be to register the parent
+      expect(mockHierarchyRegistry.registerHierarchy).toHaveBeenCalled();
+    });
+  });
+
+  describe('executeDelegation with hierarchy', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockHierarchyRegistry.getNode.mockReturnValue(null);
+      mockHierarchyRegistry.registerHierarchy.mockReturnValue({ agentId: 'test' });
+      mockHierarchyRegistry.registerDelegation.mockReturnValue({ delegationId: 'test' });
+    });
+
+    test('includes hierarchy result in execution response', () => {
+      mockBridge.getFullDecision.mockReturnValue({
+        shouldDelegate: true,
+        confidence: 80,
+        pattern: 'parallel'
+      });
+      mockBridge.matchKnownTask.mockReturnValue(null);
+
+      const result = executeDelegation('--force complex task implementation');
+
+      expect(result.success).toBe(true);
+      expect(result.hierarchy).toBeDefined();
+      expect(result.hierarchy.registered).toBe(true);
     });
   });
 });
