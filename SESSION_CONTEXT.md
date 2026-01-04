@@ -172,89 +172,64 @@
 
 # Project Summary
 
-# PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2026-01-02 (Session 82)
-**Current Phase**: IMPLEMENTATION
-**Status**: Auto-Delegation Task Setup Complete
+# Project Summary
+
+**Last Updated**: 2026-01-03T01:30:00.000Z
+**Current Phase**: Implementation
+**Overall Progress**: 55%
 
 ---
 
-## Session 82: Session Type Fix + Child Tasks ✅
+## Session 83: Orchestrator Child Task Iteration (CURRENT)
 
 ### Work Completed
 | Task | Description | Status |
 |------|-------------|--------|
-| Child tasks created | 6 phases for auto-delegation-integration | ✅ |
-| Task tree fix | generateTreeData() now uses childTaskIds | ✅ |
-| Tasks tab fix | Shows subtasks from /api/tasks/tree | ✅ |
-| Session type fix | CLI→autonomous upgrade, deduplication | ✅ |
-| Reload endpoint | POST /api/tasks/reload for cache refresh | ✅ |
+| Child task discovery | `getReadyTasks()` now includes children of NOW-tier parents | Done |
+| Task scoring | Children score +25, parents with pending children -20 | Done |
+| Hierarchy fields | `createTask()` now initializes parentTaskId, childTaskIds, etc. | Done |
+| Unblock via requires | `_updateBlockedTasks()` checks both `blocks` and `requires` | Done |
+| Tests | 7 new hierarchical task tests added | Done |
 
-### Session Type Deduplication Logic
-```
-1. By claudeSessionId - prevents duplicate registrations
-2. By project path - orchestrator upgrades recent CLI session to autonomous
-3. Never downgrades autonomous → cli
-```
+### Implementation Details
+**Problem**: Orchestrator claimed parent task but didn't iterate through child tasks
+**Solution**: Enhanced TaskManager to automatically find and prioritize child tasks
 
-### Files Modified
-| File | Changes |
-|------|---------|
-| `.claude/dev-docs/tasks.json` | Added 6 child tasks for auto-delegation |
-| `.claude/core/task-graph.js` | Fixed generateTreeData() to use childTaskIds |
-| `global-dashboard.html` | Tasks tab fetches/displays subtasks |
-| `global-context-manager.js` | Session deduplication + /api/tasks/reload |
+**Files Modified**:
+- `.claude/core/task-manager.js` (4 changes, +60 lines)
+- `.claude/core/task-manager.test.js` (7 new tests, +126 lines)
+- `__tests__/core/task-manager-hierarchy.test.js` (5 test fixes)
+
+### Test Results
+- All 2546 tests passing
+- 7 new hierarchical task tests added
 
 ---
 
-## Session 81: Dashboard Inactive Project Filtering ✅
-- **Bug**: Inactive projects showing in session list
-- **Fix**: Filter by `p.status === 'active'` in fetchSessions()
-
----
-
-## Session 80: CLI Session Activity Logs ✅
-- **Tasks**: Activity API, SSE streaming, tool details in Logs tab
+## Session 82: Session Type Deduplication ✅
+- **Tasks**: session-type-dedup, child-tasks-display
+- **Key changes**: CLI→autonomous upgrade logic, child tasks in dashboard
 - **Files**: global-context-manager.js, global-dashboard.html
-
----
-
-## Session 79: Dashboard v4 Verification ✅
-- **Tasks**: Verified all 6 Dashboard v4 subtasks complete
-
----
-
-## Project Health
-
-| Component | Status |
-|-----------|--------|
-| Context Tracker | **CONSOLIDATED** - global-context-tracker.js |
-| Session Registry | **ENHANCED** - deduplication by claudeSessionId |
-| Dashboard | Port 3033 - v4 layout + subtask display |
-| Tests | 2539 passing |
 
 ---
 
 ## Active Task: auto-delegation-integration
 
-### Child Tasks (6 phases)
-| Phase | Task | Status | Est |
-|-------|------|--------|-----|
-| 1 | Core Hook Infrastructure | ready | 3h |
-| 2 | Decision Integration | blocked | 4h |
-| 3 | Control Skills | blocked | 2h |
-| 4 | Execution Integration | blocked | 5h |
-| 5 | Dashboard Integration | blocked | 4h |
-| 6 | Polish and Documentation | blocked | 2h |
+| Phase | Task | Status |
+|-------|------|--------|
+| 1 | Core Hook Infrastructure | ready |
+| 2 | Decision Integration | blocked |
+| 3 | Control Skills | blocked |
+| 4 | Execution Integration | blocked |
+| 5 | Dashboard Integration | blocked |
+| 6 | Polish and Documentation | blocked |
 
 ---
 
 ## Quick Reference
-
 - **Dashboard**: http://localhost:3033/
-- **Start**: `node global-context-manager.js`
-- **Tests**: `npm test -- --silent`
-- **Reload tasks**: `curl -X POST localhost:3033/api/tasks/reload`
+- **Tests**: `npm test` (2546 passing)
+- **Start Dashboard**: `node global-context-manager.js`
 
 ---
 
@@ -467,7 +442,7 @@ Create comprehensive system design using specialized architectural and implement
 ---
 
 
-<!-- Context loaded: 3344 tokens -->
+<!-- Context loaded: 3154 tokens -->
 
 
 # CURRENT PHASE GUIDANCE
