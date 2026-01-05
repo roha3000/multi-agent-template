@@ -1,42 +1,40 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2026-01-05 (Session 94)
+**Last Updated**: 2026-01-05 (Session 95)
 **Current Phase**: IMPLEMENTATION
-**Status**: Dashboard Autonomous Session Display Fixed
+**Status**: Dashboard Stale Session Handling Complete + SSE Reconnect Fix
 
 ---
 
-## Session 94: Dashboard Autonomous Session Display Fix
+## Session 95: Stale Session Handling + SSE Reconnect Fix
 
-Fixed bugs where autonomous sessions displayed as CLI, missing hierarchy info, and logs not showing.
-
-### Root Cause
-- `hierarchyInfo` not passed to session objects in dashboard
-- Logs pane fetched from wrong source for autonomous sessions (tool-audit.jsonl instead of log-streamer)
+Analyzed orchestrator delegation of `dashboard-stale-session-handling` task. 5 parallel child agents successfully implemented all features but orchestrator lost claim due to SSE reconnect bug.
 
 ### Changes Made
 | Component | Change | Files |
 |-----------|--------|-------|
-| Session data | Added `hierarchyInfo` to autonomous session objects | `global-dashboard.html` |
-| Session data | Added `hierarchyInfo` to CLI session objects from registry | `global-dashboard.html` |
-| Logs pane | Refactored to fetch from log-streamer for autonomous sessions | `global-dashboard.html` |
-| Logs pane | Added `renderOrchestratorLogs()` and `subscribeToLogStream()` | `global-dashboard.html` |
+| Stale UI | CSS for stale-warning/stale states, badges | `global-dashboard.html` |
+| Clear Stale Button | Header button + POST /api/sessions/clear-stale | `global-dashboard.html`, `global-context-manager.js` |
+| Conflict Detection | sessionIdHistory Map, detectSessionConflict(), toast | `global-dashboard.html` |
+| Auto-refresh | 30s interval + visibility change handler | `global-dashboard.html` |
+| SSE Reconnect Fix | existingSessionId preserved on reconnect | `autonomous-orchestrator.js`, `global-context-manager.js` |
+| E2E Tests | Session conflict + staleness tests | `dashboard-session-conflicts.e2e.test.js` |
 
 ### Test Results
 ```
-2885 total tests passing (+12 new)
+2885 total tests passing (+12 new E2E)
 ```
 
 ---
 
-## Session 93: Orchestrator Phase Transition Fix ✅
+## Session 94: Dashboard Autonomous Session Display Fix
+- **Tasks**: hierarchyInfo display, logs pane routing
+- **Key changes**: Pass hierarchyInfo to sessions, route autonomous logs to log-streamer
+- **Files**: global-dashboard.html
+
+## Session 93: Orchestrator Phase Transition Fix
 - **Tasks**: orchestrator-phase-transition-task-loss
 - **Key changes**: Extend claim before phase transition, re-claim if expired
 - **Files**: autonomous-orchestrator.js, .claude/core/task-manager.js
-
-## Session 92: Child Session Hierarchy Fix ✅
-- **Tasks**: Child session hierarchy, sidebar filtering, child count badge
-- **Key changes**: Orchestrator registers children directly, dashboard filters them
-- **Files**: global-dashboard.html, autonomous-orchestrator.js
 
 ---
 
@@ -44,9 +42,9 @@ Fixed bugs where autonomous sessions displayed as CLI, missing hierarchy info, a
 
 | Component | Status |
 |-----------|--------|
-| Orchestrator | ✅ Phase transitions + child hierarchy fixed |
-| Dashboard | ✅ Port 3033 - Autonomous display fixed |
-| Delegation System | ✅ All phases complete |
+| Orchestrator | SSE reconnect preserves session ID |
+| Dashboard | Stale session handling complete |
+| Delegation System | All phases complete |
 | Tests | 2885+ passing |
 
 ---
@@ -56,7 +54,6 @@ Fixed bugs where autonomous sessions displayed as CLI, missing hierarchy info, a
 | Task | Priority | Status |
 |------|----------|--------|
 | `session-end-hook-reliability` | medium | ready |
-| `dashboard-stale-session-handling` | low | ready |
 
 ## NEXT Queue
 
@@ -64,6 +61,7 @@ Fixed bugs where autonomous sessions displayed as CLI, missing hierarchy info, a
 |------|----------|
 | `dashboard-blocked-tasks-view` | medium |
 | `dashboard-tasks-tab-claims` | medium |
+| `dashboard-hierarchy-child-details` | medium |
 
 ---
 

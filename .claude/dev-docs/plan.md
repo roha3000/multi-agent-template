@@ -1,6 +1,6 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Session Cleanup & Hook Reliability (Orchestrator-driven)
+**Status**: Stale Session Handling Complete
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Task | Status |
 |------|--------|
-| GlobalContextTracker session cleanup | ✅ Complete |
-| Dashboard sessionCount fix (1190→5) | ✅ Complete |
+| `dashboard-stale-session-handling` | Completed (5 parallel agents) |
+| SSE reconnect session ID preservation | Completed |
 
-**Changes**: Added auto-cleanup to GlobalContextTracker - prunes sessions inactive >10min from memory. Only loads recent sessions at startup. Added `/api/tracker/stats`, `/api/tracker/cleanup` endpoints.
+**Changes**: Child agents implemented stale UI, clear button, conflict detection, auto-refresh. Fixed orchestrator SSE reconnect to preserve session ID and maintain claims.
 
 ---
 
@@ -19,7 +19,7 @@
 
 | Task | Priority | Status |
 |------|----------|--------|
-| `session-end-hook-reliability` | medium | in-progress (orchestrator) |
+| `session-end-hook-reliability` | medium | ready |
 
 ---
 
@@ -39,9 +39,9 @@
 # Start dashboard
 node global-context-manager.js
 
-# Check session stats
-curl http://localhost:3033/api/tracker/stats
+# Run tests
+npm test -- --silent
 
-# Force cleanup
-curl -X POST http://localhost:3033/api/tracker/cleanup
+# Run orchestrator
+node autonomous-orchestrator.js --model claude-opus-4-5-20251101
 ```
