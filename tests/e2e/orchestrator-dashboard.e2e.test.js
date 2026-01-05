@@ -277,15 +277,18 @@ describe('Orchestrator → Dashboard Communication', () => {
       let summaryRes = await httpRequest('GET', '/api/sessions/summary');
       let session = summaryRes.data.sessions.find(s => s.id === sessionId);
       expect(session).toBeDefined();
+      expect(session.status).toBe('active');
 
       // Deregister
       const deregisterRes = await httpRequest('POST', `/api/sessions/${sessionId}/end`);
       expect(deregisterRes.status).toBe(200);
 
-      // Verify removed
+      // Verify session is marked as ended (but kept for hierarchy visibility)
       summaryRes = await httpRequest('GET', '/api/sessions/summary');
       session = summaryRes.data.sessions.find(s => s.id === sessionId);
-      expect(session).toBeUndefined();
+      expect(session).toBeDefined();
+      expect(session.status).toBe('ended');
+      expect(session.endedAt).toBeDefined();
     }, TEST_TIMEOUT);
   });
 

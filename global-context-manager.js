@@ -1848,12 +1848,15 @@ app.get('/api/sessions/summary', (req, res) => {
         // Timing for dashboard activity filtering
         startTime: s.startTime,
         lastUpdate: s.lastUpdate,
+        endedAt: s.endedAt || null,
         // Session type tracking
         sessionType: s.sessionType,
         autonomous: s.autonomous,
         orchestratorInfo: s.orchestratorInfo,
         logSessionId: s.logSessionId,
         claudeSessionId: s.claudeSessionId,
+        // Hierarchy info for parent-child relationships
+        hierarchyInfo: s.hierarchyInfo || null,
         // Task claim tracking (Phase 3)
         currentTaskId: currentClaim?.taskId || null,
         claimInfo: currentClaim ? {

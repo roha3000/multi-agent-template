@@ -1,16 +1,17 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Log Detail Modal Complete
+**Status**: Dashboard Session Filtering Fixed
 
 ---
 
-## Session 91 Summary
+## Session 92 Summary
 
 | Task | Status |
 |------|--------|
-| Dashboard log detail modal | ✅ Complete |
-| track-progress.js getToolDetail() | ✅ Complete |
-| 70 new tests (35 unit + 35 E2E) | ✅ Complete |
+| Dashboard CLI session duplication fix | ✅ Complete |
+| Session filtering for autonomous children | ✅ Complete |
+| API response fields (endedAt, hierarchyInfo) | ✅ Complete |
+| 8 new E2E tests | ✅ Complete |
 
 ---
 
@@ -42,6 +43,6 @@ node global-context-manager.js
 npm test -- --silent
 
 # Run specific tests
-npm test -- --testPathPattern="track-progress" --silent
-npm test -- --testPathPattern="dashboard-log-detail" --silent
+npm test -- --testPathPattern="dashboard-session-filtering" --silent
+npm test -- --testPathPattern="orchestrator-dashboard" --silent
 ```

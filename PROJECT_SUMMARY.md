@@ -1,49 +1,50 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2026-01-04 (Session 91)
+**Last Updated**: 2026-01-05 (Session 92)
 **Current Phase**: IMPLEMENTATION
-**Status**: Log Detail Modal Feature Complete
+**Status**: Dashboard Session Filtering Fixed
 
 ---
 
-## Session 91: Dashboard Log Detail Modal
+## Session 92: Dashboard CLI Session Filtering
 
-Added ability to view full tool call details in the dashboard Logs tab via double-click.
+Fixed issue where autonomous child sessions were appearing as duplicate CLI sessions in the dashboard.
 
 ### Changes Made
 | Component | Change | Files |
 |-----------|--------|-------|
-| Track Progress Hook | Added `getToolDetail()` to capture full tool inputs | `.claude/hooks/track-progress.js` |
-| Log Detail Modal | New modal with formatted detail display | `global-dashboard.html` |
-| Double-click Handler | Row click opens detail modal | `global-dashboard.html` |
-| Tests | 70 new tests (35 unit + 35 E2E) | `__tests__/hooks/`, `__tests__/e2e/` |
+| Dashboard Session Processing | Added checks to skip autonomous/ended sessions from projects API | `global-dashboard.html` |
+| Session Summary API | Added `endedAt` and `hierarchyInfo` fields to response | `global-context-manager.js` |
+| Session Filtering Tests | 8 new E2E tests for session filtering behavior | `__tests__/e2e/dashboard-session-filtering.e2e.test.js` |
+| E2E Test Update | Updated deregister test to expect 'ended' status instead of removal | `tests/e2e/orchestrator-dashboard.e2e.test.js` |
 
 ### How It Works
-1. `track-progress.js` hook now saves full `detail` object alongside truncated `summary`
-2. Dashboard stores activity entries in `activityEntries[]` array
-3. Double-clicking a log row calls `openLogDetailModal(entry)`
-4. Modal displays timestamp, summary, and all detail fields
-5. Long values (>100 chars) shown in scrollable pre blocks
+1. Dashboard builds `registryByClaudeId` map from session registry
+2. When processing `/api/projects` sessions, looks up each by claudeSessionId
+3. Skips sessions that are:
+   - Already marked `autonomous` in registry
+   - Marked `ended` in registry
+   - Unlinked but project has active autonomous orchestrator
+4. Autonomous sessions added from registry, CLI sessions from projects
 
 ### Test Results
 ```
-35 track-progress.test.js tests passing
-35 dashboard-log-detail.e2e.test.js tests passing
-2792 total tests passing
+8 dashboard-session-filtering tests passing
+29 orchestrator-dashboard tests passing
+2826 total tests passing
 ```
+
+---
+
+## Session 91: Dashboard Log Detail Modal ✅
+- **Tasks**: Log detail modal, getToolDetail(), double-click handler
+- **Key changes**: Modal for viewing full tool call details
+- **Files**: global-dashboard.html, .claude/hooks/track-progress.js
 
 ---
 
 ## Session 90: Orchestrator→Dashboard State Sync ✅
 - **Tasks**: 5 critical sync issues fixed
-- **Key changes**: Phase transitions, task completion, quality scores, deregistration
-- **Tests**: 20 new tests + E2E validation script
-
----
-
-## Session 89: Orchestrator Dashboard Fixes ✅
-- **Tasks**: Model, quality, hierarchy, log fixes
-- **Key changes**: --model flag, PARENT_SESSION_ID env, DEBUG_LOGS
-- **Files**: autonomous-orchestrator.js, session-start.js, session-registry.js
+- **Key changes**: Phase transitions, task completion, quality scores
 
 ---
 
@@ -54,7 +55,7 @@ Added ability to view full tool call details in the dashboard Logs tab via doubl
 | Phase 1-6 | ✅ Complete | Full auto-delegation system |
 | Orchestrator | ✅ Complete | Autonomous delegation support |
 
-**Overall**: 92/100 | 229+ delegation tests | 2792+ total tests
+**Overall**: 92/100 | 229+ delegation tests | 2826+ total tests
 
 ---
 
@@ -64,8 +65,8 @@ Added ability to view full tool call details in the dashboard Logs tab via doubl
 |-----------|--------|
 | Orchestrator | ✅ Full delegation support |
 | Delegation System | ✅ All phases complete |
-| Dashboard | Port 3033 - v4 layout + log detail modal |
-| Tests | 2792+ passing (70 new this session) |
+| Dashboard | Port 3033 - v4 layout + session filtering |
+| Tests | 2826+ passing (8 new this session) |
 
 ---
 

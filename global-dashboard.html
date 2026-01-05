@@ -3428,14 +3428,15 @@
 
         // Build a map of claudeSessionId -> registry session for cross-referencing
         const registryByClaudeId = new Map();
-        // Also track which projects have autonomous sessions (without claudeSessionId)
+        // Track projects with active autonomous sessions (orchestrators or children)
         const autonomousProjects = new Set();
         for (const s of (summaryData.sessions || [])) {
           if (s.claudeSessionId) {
             registryByClaudeId.set(s.claudeSessionId, s);
           }
-          // Track projects with autonomous sessions that don't have claudeSessionId
-          if ((s.sessionType === 'autonomous' || s.autonomous) && !s.claudeSessionId) {
+          // Track projects with active autonomous sessions to help filter unlinked sessions
+          // This catches both parent orchestrators (no claudeSessionId) and children (with claudeSessionId)
+          if ((s.sessionType === 'autonomous' || s.autonomous) && s.status === 'active') {
             autonomousProjects.add(s.project);
           }
         }
@@ -3476,8 +3477,8 @@
             // Check registry for correct sessionType (orchestrator may have upgraded to autonomous)
             const registrySession = registryByClaudeId.get(cliSession.id);
 
-            // If this session isn't in registry but project has an autonomous session, skip it
-            // (the autonomous session represents this Claude session)
+            // If this session isn't in registry but project has an active autonomous session, skip it
+            // (it's likely a child session that hasn't been fully linked yet)
             if (!registrySession && autonomousProjects.has(p.name)) {
               console.log('[Dashboard] Skipping unlinked session for autonomous project:', cliSession.id?.substring(0,8), p.name);
               continue;
@@ -3489,6 +3490,12 @@
             // Skip autonomous sessions here - they'll be added from registry with auto- prefix
             if (isAutonomous) {
               console.log('[Dashboard] Skipping autonomous session from projects (will be added from registry):', cliSession.id?.substring(0,8));
+              continue;
+            }
+
+            // Skip ended sessions that are in the registry - they shouldn't appear as active CLI
+            if (registrySession?.status === 'ended') {
+              console.log('[Dashboard] Skipping ended session from projects:', cliSession.id?.substring(0,8));
               continue;
             }
 
