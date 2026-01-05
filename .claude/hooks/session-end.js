@@ -30,11 +30,11 @@ function readStdin() {
   return new Promise((resolve) => {
     let data = '';
 
-    // Set a timeout in case stdin is empty
+    // Set a timeout in case stdin is empty (2s for reliability)
     const timeout = setTimeout(() => {
       debug.log('session-end', 'stdin-timeout', {});
       resolve(null);
-    }, 1000);
+    }, 2000);
 
     process.stdin.setEncoding('utf8');
     process.stdin.on('data', (chunk) => {

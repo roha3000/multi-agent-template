@@ -1,16 +1,16 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Phase Transition Bug Fixed
+**Status**: Dashboard Autonomous Session Display Fixed
 
 ---
 
-## Session 93 Summary
+## Session 94 Summary
 
 | Task | Status |
 |------|--------|
-| `orchestrator-phase-transition-task-loss` | ✅ Complete |
+| Dashboard autonomous session display | ✅ Complete |
 
-**Fix**: Orchestrator now extends claim before phase transition, re-claims if expired. Added `claimSpecificTask()` to TaskManager. Fixed `extendClaim()` return check. 11 new tests, 2873 total passing.
+**Fix**: Added missing `hierarchyInfo` to session objects. Refactored logs pane to fetch from log-streamer for autonomous sessions. 2885 tests passing.
 
 ---
 

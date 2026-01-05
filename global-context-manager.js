@@ -2177,6 +2177,64 @@ app.post('/api/sessions/end-by-claude-id', (req, res) => {
   res.json({ success: true, found: true, session });
 });
 
+// Clear stale sessions from the dashboard
+app.post('/api/sessions/clear-stale', (req, res) => {
+  try {
+    const STALE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+    const now = Date.now();
+    const allSessions = sessionRegistry.getAll();
+    let clearedCount = 0;
+    const clearedSessions = [];
+
+    for (const session of allSessions) {
+      // Determine if session is stale based on multiple criteria
+      const lastUpdate = session.lastUpdate ? new Date(session.lastUpdate).getTime() : 0;
+      const registeredAt = session.registeredAt ? new Date(session.registeredAt).getTime() : 0;
+      const lastHeartbeat = session.lastHeartbeat ? new Date(session.lastHeartbeat).getTime() : 0;
+
+      // Use the most recent activity timestamp
+      const lastActivity = Math.max(lastUpdate, registeredAt, lastHeartbeat);
+      const timeSinceActivity = now - lastActivity;
+
+      const isStale = (
+        // Session status is 'ended'
+        session.status === 'ended' ||
+        // No activity for 30+ minutes
+        (timeSinceActivity > STALE_THRESHOLD_MS) ||
+        // Session has error status and is old
+        (session.status === 'error' && timeSinceActivity > STALE_THRESHOLD_MS / 2)
+      );
+
+      if (isStale) {
+        const deregistered = sessionRegistry.deregister(session.id);
+        if (deregistered) {
+          clearedCount++;
+          clearedSessions.push({
+            id: session.id,
+            project: session.project,
+            status: session.status,
+            reason: session.status === 'ended' ? 'ended' :
+                    session.status === 'error' ? 'error' : 'inactive'
+          });
+        }
+      }
+    }
+
+    console.log(`[COMMAND CENTER] Cleared ${clearedCount} stale sessions:`, clearedSessions.map(s => `${s.id}(${s.reason})`).join(', ') || 'none');
+    res.json({
+      success: true,
+      clearedCount,
+      clearedSessions
+    });
+  } catch (error) {
+    console.error('[COMMAND CENTER] Error clearing stale sessions:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Record task completion
 app.post('/api/sessions/completion', (req, res) => {
   const { project, task, score, cost } = req.body;

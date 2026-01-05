@@ -1,44 +1,42 @@
 # PROJECT SUMMARY - Multi-Agent Template
-**Last Updated**: 2026-01-05 (Session 93)
+**Last Updated**: 2026-01-05 (Session 94)
 **Current Phase**: IMPLEMENTATION
-**Status**: Phase Transition Task Loss Fixed
+**Status**: Dashboard Autonomous Session Display Fixed
 
 ---
 
-## Session 93: Orchestrator Phase Transition Fix
+## Session 94: Dashboard Autonomous Session Display Fix
 
-Fixed critical bug where orchestrator lost task during phase transitions (implement → test), causing skipped phases and score 0.
+Fixed bugs where autonomous sessions displayed as CLI, missing hierarchy info, and logs not showing.
 
 ### Root Cause
-- `continueWithCurrentTask` flag set but claim not verified/extended
-- Claim could expire during phase work
-- No re-claim logic if claim lost
+- `hierarchyInfo` not passed to session objects in dashboard
+- Logs pane fetched from wrong source for autonomous sessions (tool-audit.jsonl instead of log-streamer)
 
 ### Changes Made
 | Component | Change | Files |
 |-----------|--------|-------|
-| Claim extension | Extend claim before continuing to next phase | `autonomous-orchestrator.js` |
-| Re-claim logic | Attempt to re-claim if extend fails | `autonomous-orchestrator.js` |
-| claimSpecificTask | New method to claim specific task by ID | `.claude/core/task-manager.js` |
-| extendClaim fix | Fixed to use `result.success` not `result.refreshed` | `.claude/core/task-manager.js` |
-| reversePhaseMap | Map orchestrator phases to tasks.json phases | `autonomous-orchestrator.js` |
+| Session data | Added `hierarchyInfo` to autonomous session objects | `global-dashboard.html` |
+| Session data | Added `hierarchyInfo` to CLI session objects from registry | `global-dashboard.html` |
+| Logs pane | Refactored to fetch from log-streamer for autonomous sessions | `global-dashboard.html` |
+| Logs pane | Added `renderOrchestratorLogs()` and `subscribeToLogStream()` | `global-dashboard.html` |
 
 ### Test Results
 ```
-2873 total tests passing (+11 new)
+2885 total tests passing (+12 new)
 ```
 
 ---
+
+## Session 93: Orchestrator Phase Transition Fix ✅
+- **Tasks**: orchestrator-phase-transition-task-loss
+- **Key changes**: Extend claim before phase transition, re-claim if expired
+- **Files**: autonomous-orchestrator.js, .claude/core/task-manager.js
 
 ## Session 92: Child Session Hierarchy Fix ✅
 - **Tasks**: Child session hierarchy, sidebar filtering, child count badge
 - **Key changes**: Orchestrator registers children directly, dashboard filters them
 - **Files**: global-dashboard.html, autonomous-orchestrator.js
-
-## Session 91: Dashboard Log Detail Modal ✅
-- **Tasks**: Log detail modal, getToolDetail(), double-click handler
-- **Key changes**: Modal for viewing full tool call details
-- **Files**: global-dashboard.html, .claude/hooks/track-progress.js
 
 ---
 
@@ -46,10 +44,10 @@ Fixed critical bug where orchestrator lost task during phase transitions (implem
 
 | Component | Status |
 |-----------|--------|
-| Orchestrator | ✅ Phase transitions fixed + child hierarchy |
+| Orchestrator | ✅ Phase transitions + child hierarchy fixed |
+| Dashboard | ✅ Port 3033 - Autonomous display fixed |
 | Delegation System | ✅ All phases complete |
-| Dashboard | Port 3033 - v4 layout working |
-| Tests | 2873+ passing |
+| Tests | 2885+ passing |
 
 ---
 
@@ -75,11 +73,3 @@ Fixed critical bug where orchestrator lost task during phase transitions (implem
 - **Start**: `node global-context-manager.js`
 - **Tests**: `npm test -- --silent`
 - **Orchestrator**: `node autonomous-orchestrator.js --model claude-opus-4-5-20251101`
-
----
-
-## Next Steps (Resume Here)
-
-1. **Session-End Hook Reliability** - Retry logic for deregistration
-2. **Dashboard Stale Session Handling** - Clear cache on reconnect
-3. **Dashboard Blocked Tasks View** - Show dependencies visually

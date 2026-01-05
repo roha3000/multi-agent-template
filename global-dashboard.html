@@ -916,6 +916,59 @@
       border-left: 3px solid var(--color-danger);
     }
 
+    /* Stale session indicators - sessions with no recent updates */
+    .session-item.stale-warning {
+      border-left: 3px solid var(--color-warning);
+      opacity: 0.85;
+    }
+
+    .session-item.stale-warning .session-name {
+      color: var(--color-warning);
+    }
+
+    .session-item.stale {
+      border-left: 3px solid var(--text-muted);
+      opacity: 0.65;
+      background: var(--bg-secondary);
+    }
+
+    .session-item.stale .session-name {
+      color: var(--text-muted);
+    }
+
+    .session-item.stale .session-metrics {
+      color: var(--text-muted);
+    }
+
+    /* Stale indicator badge */
+    .stale-indicator {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      margin-left: 6px;
+    }
+
+    .stale-indicator.warning {
+      background: rgba(210, 153, 34, 0.2);
+      color: var(--color-warning);
+    }
+
+    .stale-indicator.stale {
+      background: rgba(139, 148, 158, 0.2);
+      color: var(--text-muted);
+    }
+
+    .stale-indicator.stale::before {
+      content: '⏸';
+    }
+
+    .stale-indicator.warning::before {
+      content: '⚠';
+    }
+
     .session-header {
       display: flex;
       justify-content: space-between;
@@ -2351,6 +2404,17 @@
       color: var(--text-primary);
     }
 
+    .top-btn-warning {
+      color: var(--color-warning);
+      border-color: rgba(210, 153, 34, 0.3);
+    }
+
+    .top-btn-warning:hover {
+      background: rgba(210, 153, 34, 0.15);
+      color: var(--color-warning);
+      border-color: var(--color-warning);
+    }
+
     /* ALERT BANNER */
     .alert-banner {
       display: none;
@@ -2849,6 +2913,7 @@
       </div>
       <div class="top-actions">
         <button class="top-btn header-btn-new" onclick="openNewSessionModal()">+ Session</button>
+        <button class="top-btn top-btn-warning" onclick="clearStaleSessions()" title="Clear stale sessions from the dashboard">Clear Stale</button>
         <button class="top-btn" onclick="toggleSettings()">⚙</button>
       </div>
     </div>
@@ -3100,6 +3165,7 @@
     let predictions = {};
     let usageLimits = {};
     let eventSource = null;
+    let sseConnectedOnce = false; // Track if SSE has connected at least once (for reconnect detection)
     let activityEventSource = null; // SSE for CLI activity logs
     // Per-project task/execution data (key = project path)
     const projectDataMap = new Map();
@@ -3114,10 +3180,18 @@
     };
     // Queue filter state
     let queueFilter = 'all'; // 'all', 'claimed', 'available', 'mine'
+    // Track last session fetch to prevent excessive refreshes
+    let lastSessionFetch = 0;
 
     // Short session ID mapping (longId -> shortId like "S1", "S2", etc.)
     const shortIdMap = new Map();
     let shortIdCounter = 1;
+
+    // Session ID conflict tracking (detects when same ID has different claudeSessionId)
+    // Key: registry session ID, Value: { claudeSessionId, firstSeen, project }
+    const sessionIdHistory = new Map();
+    // List of detected conflicts for UI display
+    let sessionConflicts = [];
 
     // Settings (persisted to localStorage)
     let settings = {
@@ -3208,6 +3282,25 @@
       setInterval(fetchTasksAndExecution, 10000);
       // Refresh claims every 15 seconds
       setInterval(fetchInFlightTasks, 15000);
+      // Refresh session list every 30 seconds to catch new/ended sessions
+      // SSE handles incremental updates, but this catches sessions that appear/disappear
+      setInterval(fetchSessions, 30000);
+
+      // Refresh session list when page becomes visible (user returns to tab)
+      // This ensures stale data is refreshed after the user was away
+      // Throttle to avoid excessive fetches (minimum 5 seconds between fetches)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          const now = Date.now();
+          const timeSinceLastFetch = now - lastSessionFetch;
+          if (timeSinceLastFetch >= 5000) {
+            console.log('[Dashboard] Page became visible, refreshing sessions...');
+            fetchSessions();
+          } else {
+            console.log('[Dashboard] Page became visible, skipping refresh (fetched', Math.round(timeSinceLastFetch / 1000), 's ago)');
+          }
+        }
+      });
     }
 
     async function fetchTasksAndExecution() {
@@ -3413,6 +3506,7 @@
     // ===== DATA FETCHING =====
     async function fetchSessions() {
       console.log('[Dashboard] fetchSessions starting...');
+      lastSessionFetch = Date.now(); // Track fetch time for throttling
       try {
         // Fetch both projects (CLI sessions) and sessions/summary (autonomous orchestrator sessions)
         const [projectsRes, summaryRes] = await Promise.all([
@@ -3539,7 +3633,9 @@
               startTime: cliSession.lastUpdate, // For display
               // Phase 4: Claim-based current task (CLI sessions look up from claimsData)
               claimedTaskId: existingSession?.claimedTaskId || null,
-              claimInfo: existingSession?.claimInfo || null
+              claimInfo: existingSession?.claimInfo || null,
+              // Hierarchy info from registry session if available
+              hierarchyInfo: registrySession?.hierarchyInfo || null
             });
           }
 
@@ -3663,7 +3759,9 @@
             startTime: s.startTime ? new Date(s.startTime).getTime() : Date.now(),
             // Phase 4: Claim-based current task from /api/sessions/summary
             claimedTaskId: s.currentTaskId || null,
-            claimInfo: s.claimInfo || null
+            claimInfo: s.claimInfo || null,
+            // Hierarchy info for parent-child relationships
+            hierarchyInfo: s.hierarchyInfo || null
           });
         }
 
@@ -3687,6 +3785,9 @@
 
         // Clean up short IDs for sessions that no longer exist
         cleanupShortIds(sessions.map(s => s.id));
+
+        // Check for session ID conflicts (same ID, different claudeSessionId)
+        checkAllSessionConflicts(sessions);
 
         // Note: Enrichment with task/execution data happens in fetchTasksAndExecution()
         updateTrafficLights();
@@ -3750,6 +3851,50 @@
       return heartbeatTime < twoMinutesAgo;
     }
 
+    // Session staleness thresholds (in milliseconds)
+    const SESSION_STALE_THRESHOLDS = {
+      warning: 5 * 60 * 1000,  // 5 minutes - session is becoming stale
+      stale: 10 * 60 * 1000    // 10 minutes - session is stale
+    };
+
+    // Check session staleness based on lastUpdate timestamp
+    // Returns: 'active' | 'warning' | 'stale'
+    function getSessionStaleness(session) {
+      if (!session || !session.lastUpdate) return 'active';
+
+      // Don't mark ended/completed sessions as stale (they're intentionally inactive)
+      if (session.status === 'completed' || session.status === 'ended') {
+        return 'active';
+      }
+
+      const now = Date.now();
+      const lastUpdate = typeof session.lastUpdate === 'number'
+        ? session.lastUpdate
+        : new Date(session.lastUpdate).getTime();
+      const elapsed = now - lastUpdate;
+
+      if (elapsed >= SESSION_STALE_THRESHOLDS.stale) {
+        return 'stale';
+      } else if (elapsed >= SESSION_STALE_THRESHOLDS.warning) {
+        return 'warning';
+      }
+      return 'active';
+    }
+
+    // Get stale indicator HTML for session display
+    function getStaleIndicatorHtml(staleness, lastUpdate) {
+      if (staleness === 'active') return '';
+
+      const timeAgo = lastUpdate ? formatTimeAgo(lastUpdate) : 'unknown';
+
+      if (staleness === 'stale') {
+        return `<span class="stale-indicator stale" title="Session inactive for ${timeAgo}">Stale</span>`;
+      } else if (staleness === 'warning') {
+        return `<span class="stale-indicator warning" title="No activity for ${timeAgo}">Idle</span>`;
+      }
+      return '';
+    }
+
     // Get claim status for a task (used for UI display)
     function getClaimStatus(taskId, currentSessionId) {
       const claim = getClaimForTask(taskId);
@@ -3761,6 +3906,71 @@
       if (isStale) return { status: 'stale', claim };
       if (isMine) return { status: 'mine', claim };
       return { status: 'claimed', claim };
+    }
+
+    // ===== SESSION ID CONFLICT DETECTION =====
+    // Detects when a registry session ID is reused with a different claudeSessionId
+    // This indicates stale data from a previous dashboard instance
+
+    function detectSessionConflict(session) {
+      const registryId = session.registryId;
+      const claudeSessionId = session.claudeSessionId;
+      if (!registryId) return null;
+
+      const existing = sessionIdHistory.get(registryId);
+      if (existing) {
+        if (existing.claudeSessionId && claudeSessionId &&
+            existing.claudeSessionId !== claudeSessionId) {
+          return {
+            registryId,
+            oldClaudeSessionId: existing.claudeSessionId,
+            newClaudeSessionId: claudeSessionId,
+            project: session.project,
+            detectedAt: Date.now()
+          };
+        }
+        existing.lastSeen = Date.now();
+      } else {
+        sessionIdHistory.set(registryId, {
+          claudeSessionId: claudeSessionId || null,
+          firstSeen: Date.now(),
+          lastSeen: Date.now(),
+          project: session.project
+        });
+      }
+      return null;
+    }
+
+    function checkAllSessionConflicts(sessionList) {
+      const newConflicts = [];
+      for (const s of sessionList) {
+        const conflict = detectSessionConflict(s);
+        if (conflict && !sessionConflicts.some(c => c.registryId === conflict.registryId)) {
+          newConflicts.push(conflict);
+          console.warn('[Dashboard] Session ID conflict:', conflict);
+        }
+      }
+      if (newConflicts.length > 0) {
+        sessionConflicts = [...sessionConflicts, ...newConflicts];
+        if (typeof showToast === 'function') {
+          showToast('warning', 'Session Conflict', `${newConflicts.length} session(s) may have stale data.`);
+        }
+      }
+      return newConflicts;
+    }
+
+    function getSessionConflict(registryId) {
+      return sessionConflicts.find(c => c.registryId === registryId);
+    }
+
+    function clearSessionConflicts() {
+      sessionConflicts = [];
+      sessionIdHistory.clear();
+      console.log('[Dashboard] Session conflicts cleared');
+    }
+
+    function getConflictCount() {
+      return sessionConflicts.length;
     }
 
     // Get or assign a short session ID (S1, S2, S3...)
@@ -4127,9 +4337,22 @@
         }, 3000);
       };
 
-      eventSource.onopen = () => {
+      eventSource.onopen = async () => {
         const dot = document.getElementById('connectionDot');
         if (dot) dot.style.background = 'var(--color-success)';
+
+        // On reconnect (not first connect), clear stale session cache and fetch fresh data
+        // This prevents displaying outdated session data after connection loss
+        if (sseConnectedOnce) {
+          console.log('[Dashboard] SSE reconnected - clearing session cache and fetching fresh data');
+          sessions = [];
+          clearSessionConflicts(); // Clear conflict tracking on reconnect
+          await fetchSessions();
+          renderSessions();
+        } else {
+          console.log('[Dashboard] SSE connected (first time)');
+          sseConnectedOnce = true;
+        }
       };
     }
 
@@ -4272,6 +4495,16 @@
       if (isAutonomous && !isIdle && quality < 50) borderClass = 'critical';
       else if (isAutonomous && !isIdle && quality < 75) borderClass = 'warning';
 
+      // Check for stale sessions (no recent updates)
+      const sessionStaleness = getSessionStaleness(s);
+      let staleClass = '';
+      if (sessionStaleness === 'stale') {
+        staleClass = 'stale';
+      } else if (sessionStaleness === 'warning') {
+        staleClass = 'stale-warning';
+      }
+      const staleIndicator = getStaleIndicatorHtml(sessionStaleness, s.lastUpdate);
+
       // Format session ID for display - use short sequential ID (S1, S2, S3...)
       const sessionIdShort = getShortSessionId(s.id);
       const sessionTypeLabel = isAutonomous ? 'AUTO' : 'CLI';
@@ -4313,17 +4546,17 @@
       const taskPhase = s.currentTask?.phase || s.phase;
 
       return `
-        <div class="session-item ${borderClass} ${isSelected ? 'selected' : ''}"
+        <div class="session-item ${borderClass} ${staleClass} ${isSelected ? 'selected' : ''}"
              onclick="selectSession('${s.id}')"
              role="option"
              tabindex="0"
              aria-selected="${isSelected}"
-             aria-label="${s.project} ${sessionTypeLabel} session, quality ${qualityDisplay}"
+             aria-label="${s.project} ${sessionTypeLabel} session, quality ${qualityDisplay}${sessionStaleness !== 'active' ? ', ' + sessionStaleness : ''}"
              onkeydown="if(event.key==='Enter'||event.key===' ')selectSession('${s.id}')">
           <div class="session-header">
             <span class="session-name">
               <span class="session-type-badge ${sessionTypeBadgeClass}">${sessionTypeLabel}</span>
-              ${s.project}
+              ${s.project}${staleIndicator}
             </span>
             <span class="quality-badge ${qualityClass}" aria-label="Quality score ${qualityDisplay}">${qualityDisplay}</span>
           </div>
@@ -5541,10 +5774,14 @@
       const pane = document.getElementById('pane-logs');
       if (!pane) return;
 
-      // Close previous activity stream if any
+      // Close previous event sources if any
       if (activityEventSource) {
         activityEventSource.close();
         activityEventSource = null;
+      }
+      if (logStreamEventSource) {
+        logStreamEventSource.close();
+        logStreamEventSource = null;
       }
 
       if (!session) {
@@ -5552,30 +5789,51 @@
         return;
       }
 
-      // Fetch tool activity from API for CLI sessions OR autonomous sessions
-      // Autonomous sessions need to find their linked Claude session
-      const isAutonomousWithoutLogs = session.registryId && session.autonomous && !session.claudeSessionId;
+      // Determine session type and appropriate log source
+      const isAutonomous = session.autonomous || session.sessionType === 'autonomous';
+      const hasCliSessionId = !!session.cliSessionId;
 
-      if (!session.registryId || isAutonomousWithoutLogs) {
-        const sessionType = isAutonomousWithoutLogs ? 'autonomous' : 'CLI';
-        console.log(`[Dashboard] ${sessionType} session detected, fetching activity for:`, session.id);
+      // Autonomous sessions: fetch from log-streamer (session-{id}.log files)
+      if (isAutonomous && session.registryId) {
+        console.log('[Dashboard] Autonomous session detected, fetching logs for registryId:', session.registryId);
         pane.innerHTML = `
-          <div class="section-header">Tool Activity</div>
-          <p style="color: var(--text-muted); padding: 12px;">Loading ${sessionType.toLowerCase()} session activity...</p>
+          <div class="section-header">Orchestrator Logs</div>
+          <p style="color: var(--text-muted); padding: 12px;">Loading orchestrator logs...</p>
         `;
 
-        // Try to get session ID - use cliSessionId (for CLI) or claudeSessionId (for autonomous)
-        // For autonomous without claudeSessionId, try to find unlinked session for same project
-        let sessionId = session.cliSessionId || session.claudeSessionId;
+        // Fetch historical logs from log-streamer
+        fetch(`/api/logs/${session.registryId}/history?lines=100`)
+          .then(res => res.json())
+          .then(data => {
+            console.log('[Dashboard] Orchestrator logs received:', data);
+            const entries = data.entries || [];
+            renderOrchestratorLogs(pane, entries, entries.length);
 
-        if (!sessionId && isAutonomousWithoutLogs && session.unlinkedClaudeSessionId) {
-          sessionId = session.unlinkedClaudeSessionId;
-        }
+            // Subscribe to real-time log stream
+            subscribeToLogStream(session.registryId, pane);
+          })
+          .catch(err => {
+            console.error('[Dashboard] Failed to fetch orchestrator logs:', err);
+            pane.innerHTML = `
+              <div class="section-header">Orchestrator Logs</div>
+              <p style="color: var(--text-muted); padding: 12px;">
+                No logs available yet.<br>
+                <span style="font-size:12px;color:var(--text-muted)">Logs will appear when the orchestrator runs.</span>
+              </p>
+            `;
+          });
+        return;
+      }
 
-        if (!sessionId) {
-          sessionId = session.id;
-        }
-        console.log('[Dashboard] Using sessionId:', sessionId);
+      // CLI sessions: fetch from tool-audit.jsonl
+      if (hasCliSessionId) {
+        const sessionId = session.cliSessionId;
+        console.log('[Dashboard] CLI session detected, fetching activity for:', sessionId);
+        pane.innerHTML = `
+          <div class="section-header">Tool Activity</div>
+          <p style="color: var(--text-muted); padding: 12px;">Loading CLI session activity...</p>
+        `;
+
         let activityCount = 0;
 
         fetch(`/api/logs/${encodeURIComponent(sessionId)}/activity?limit=50`)
@@ -5601,6 +5859,7 @@
         return;
       }
 
+      // Fallback: try to use in-memory logs
       const logs = session.logs || session.activityLog || [];
 
       pane.innerHTML = `
@@ -5621,6 +5880,95 @@
     // Store activity entries for detail panel access
     let activityEntries = [];
     let selectedLogIndex = -1;
+    let logStreamEventSource = null;
+
+    // Render orchestrator logs (from log-streamer)
+    function renderOrchestratorLogs(pane, entries, total) {
+      pane.innerHTML = `
+        <div style="display:flex;flex-direction:column;height:100%;">
+          <div class="section-header">Orchestrator Logs <span style="font-weight:normal;color:var(--text-muted)" id="log-count">(${total} entries)</span></div>
+          <div style="flex:1;overflow-y:auto;">
+            <table class="data-table" id="orchestrator-logs-table">
+              <thead><tr><th style="width:70px">Time</th><th style="width:50px">Level</th><th style="width:90px">Source</th><th>Message</th></tr></thead>
+              <tbody id="orchestrator-logs-tbody">
+                ${entries.length > 0 ? entries.map(e => {
+                  const levelColor = e.level === 'ERROR' ? 'var(--color-danger)' :
+                                    e.level === 'WARN' ? 'var(--color-warning)' :
+                                    e.level === 'DEBUG' ? 'var(--text-muted)' : 'var(--color-info)';
+                  const timeStr = e.timestamp ? new Date(e.timestamp).toLocaleTimeString() : e.time || '-';
+                  return `
+                    <tr>
+                      <td style="color:var(--text-muted);font-size:11px">${escapeHtml(timeStr)}</td>
+                      <td style="color:${levelColor};font-weight:500">${escapeHtml(e.level || 'INFO')}</td>
+                      <td style="color:var(--text-muted);font-size:11px">${escapeHtml(e.source || 'orchestrator')}</td>
+                      <td style="font-size:12px">${escapeHtml(e.message || e.text || '')}</td>
+                    </tr>
+                  `;
+                }).join('') : '<tr id="no-logs-row"><td colspan="4" style="color:var(--text-muted)">No log entries yet</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // Subscribe to real-time log stream for orchestrator sessions
+    function subscribeToLogStream(sessionId, pane) {
+      // Close previous stream if any
+      if (logStreamEventSource) {
+        logStreamEventSource.close();
+        logStreamEventSource = null;
+      }
+
+      try {
+        logStreamEventSource = new EventSource(`/api/logs/${sessionId}/stream`);
+
+        logStreamEventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'log' && data.entry) {
+              const tbody = document.getElementById('orchestrator-logs-tbody');
+              const countSpan = document.getElementById('log-count');
+              const noLogsRow = document.getElementById('no-logs-row');
+
+              if (noLogsRow) noLogsRow.remove();
+
+              if (tbody) {
+                const e = data.entry;
+                const levelColor = e.level === 'ERROR' ? 'var(--color-danger)' :
+                                  e.level === 'WARN' ? 'var(--color-warning)' :
+                                  e.level === 'DEBUG' ? 'var(--text-muted)' : 'var(--color-info)';
+                const timeStr = e.timestamp ? new Date(e.timestamp).toLocaleTimeString() : e.time || '-';
+
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = `
+                  <td style="color:var(--text-muted);font-size:11px">${escapeHtml(timeStr)}</td>
+                  <td style="color:${levelColor};font-weight:500">${escapeHtml(e.level || 'INFO')}</td>
+                  <td style="color:var(--text-muted);font-size:11px">${escapeHtml(e.source || 'orchestrator')}</td>
+                  <td style="font-size:12px">${escapeHtml(e.message || e.text || '')}</td>
+                `;
+                tbody.insertBefore(newRow, tbody.firstChild);
+
+                // Update count
+                if (countSpan) {
+                  const current = parseInt(countSpan.textContent.match(/\d+/)?.[0] || '0');
+                  countSpan.textContent = `(${current + 1} entries)`;
+                }
+              }
+            }
+          } catch (err) {
+            console.warn('[Dashboard] Error parsing log stream data:', err);
+          }
+        };
+
+        logStreamEventSource.onerror = (err) => {
+          console.warn('[Dashboard] Log stream error:', err);
+          // Don't close on error - let it reconnect
+        };
+      } catch (err) {
+        console.error('[Dashboard] Failed to subscribe to log stream:', err);
+      }
+    }
 
     function renderActivityTable(pane, entries, total, hasMore) {
       // Store entries for later access
@@ -6904,6 +7252,86 @@
     // Refresh fleet lineage
     function refreshFleetLineage() {
       fetchFleetHierarchy();
+    }
+
+    // Clear stale sessions from the dashboard
+    async function clearStaleSessions() {
+      // Confirmation dialog
+      const confirmed = confirm(
+        'Clear stale sessions?\n\n' +
+        'This will remove sessions that:\n' +
+        '- Have not been updated in 30+ minutes\n' +
+        '- Are marked as "ended" status\n' +
+        '- Have no recent heartbeat\n\n' +
+        'This action cannot be undone.'
+      );
+
+      if (!confirmed) return;
+
+      try {
+        const res = await fetch('/api/sessions/clear-stale', { method: 'POST' });
+        const result = await res.json();
+
+        if (result.success) {
+          const count = result.clearedCount || 0;
+          showAlertBanner(
+            count > 0
+              ? `Cleared ${count} stale session${count !== 1 ? 's' : ''}`
+              : 'No stale sessions found',
+            count > 0 ? 'warning' : 'info'
+          );
+
+          // Refresh the sessions list
+          await fetchSessions();
+          updateUI();
+        } else {
+          showAlertBanner(`Failed to clear sessions: ${result.error || 'Unknown error'}`, 'error');
+        }
+      } catch (error) {
+        console.error('[Dashboard] Failed to clear stale sessions:', error);
+        showAlertBanner('Failed to clear stale sessions: ' + error.message, 'error');
+      }
+    }
+
+    // Show alert banner with message and type
+    function showAlertBanner(message, type = 'info') {
+      const banner = document.getElementById('alertBanner');
+      const text = document.getElementById('alertBannerText');
+      const icon = document.getElementById('alertBannerIcon');
+
+      if (!banner || !text) return;
+
+      text.textContent = message;
+
+      // Set icon based on type
+      switch (type) {
+        case 'error':
+          icon.textContent = '!';
+          banner.style.background = 'rgba(248, 81, 73, 0.1)';
+          banner.style.borderColor = 'rgba(248, 81, 73, 0.3)';
+          break;
+        case 'warning':
+          icon.textContent = '⚠';
+          banner.style.background = 'rgba(210, 153, 34, 0.1)';
+          banner.style.borderColor = 'rgba(210, 153, 34, 0.3)';
+          break;
+        case 'success':
+          icon.textContent = '✓';
+          banner.style.background = 'rgba(63, 185, 80, 0.1)';
+          banner.style.borderColor = 'rgba(63, 185, 80, 0.3)';
+          break;
+        default:
+          icon.textContent = 'ℹ';
+          banner.style.background = 'rgba(88, 166, 255, 0.1)';
+          banner.style.borderColor = 'rgba(88, 166, 255, 0.3)';
+      }
+
+      banner.style.display = 'flex';
+
+      // Auto-dismiss after 5 seconds
+      setTimeout(() => {
+        banner.style.display = 'none';
+      }, 5000);
     }
 
     // Start fleet management on page load

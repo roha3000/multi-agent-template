@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 114,
-    "lastModifiedBy": "a45bfca4-a597-4db8-9fba-929b25aacc93",
-    "lastModifiedAt": "2026-01-05T04:54:33.442Z"
+    "version": 116,
+    "lastModifiedBy": 435,
+    "lastModifiedAt": "2026-01-05T05:00:33.989Z"
   },
   "version": "1.1.0",
   "project": {
@@ -405,14 +405,15 @@
         "Tests verify hook handles various failure scenarios",
         "Metrics on hook success/failure rate"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "assignee": null,
       "created": "2026-01-04T20:10:00.000Z",
-      "updated": "2026-01-04T20:10:00.000Z",
+      "updated": "2026-01-05T04:58:44.135Z",
       "parentTaskId": null,
       "childTaskIds": [],
       "delegatedTo": null,
-      "delegationDepth": 0
+      "delegationDepth": 0,
+      "started": "2026-01-05T04:58:44.135Z"
     },
     "dashboard-tasks-tab-claims": {
       "id": "dashboard-tasks-tab-claims",
@@ -518,14 +519,15 @@
         "Visual indicator for potentially stale sessions",
         "Auto-refresh session list on dashboard load"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "assignee": null,
       "created": "2026-01-04T20:10:00.000Z",
-      "updated": "2026-01-04T20:10:00.000Z",
+      "updated": "2026-01-05T05:00:33.986Z",
       "parentTaskId": null,
       "childTaskIds": [],
       "delegatedTo": null,
-      "delegationDepth": 0
+      "delegationDepth": 0,
+      "started": "2026-01-05T05:00:33.986Z"
     }
   },
   "archival": {
