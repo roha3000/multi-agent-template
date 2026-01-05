@@ -12,7 +12,11 @@
 const EventEmitter = require('events');
 const path = require('path');
 
-const VALID_PHASES = ['research', 'planning', 'design', 'implementation', 'testing', 'validation', 'iteration', 'complete'];
+const VALID_PHASES = [
+  'research', 'planning', 'design', 'implementation', 'testing', 'validation', 'iteration', 'complete',
+  // Orchestrator short names
+  'implement', 'test'
+];
 
 const ALLOWED_COMMANDS = [
   'npm test', 'npm run test', 'pytest', 'jest', 'npm run lint',

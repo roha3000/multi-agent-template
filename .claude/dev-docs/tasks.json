@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 95,
-    "lastModifiedBy": "d19ef87b-9171-454f-ba2b-dccd592eea1c",
-    "lastModifiedAt": "2026-01-04T20:27:34.435Z"
+    "version": 108,
+    "lastModifiedBy": "a7ff251f-6a96-4ecf-9ba6-5a5e44ee0579",
+    "lastModifiedAt": "2026-01-05T02:11:33.072Z"
   },
   "version": "1.1.0",
   "project": {
@@ -19,15 +19,11 @@
   "backlog": {
     "now": {
       "description": "Current sprint tasks",
-      "tasks": [
-        "framework-phase-gate-audit"
-      ]
+      "tasks": []
     },
     "next": {
       "description": "Next priority after now is complete",
-      "tasks": [
-        "auto-delegation-integration"
-      ]
+      "tasks": []
     },
     "later": {
       "description": "Future work, not yet prioritized",
@@ -47,11 +43,11 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "framework-phase-gate-audit",
         "dashboard-v4-redesign",
         "cli-session-activity-logs",
         "dashboard-fleet-ui-completion",
-        "dashboard-validation-audit",
-        "otlp-claude-code-integration"
+        "dashboard-validation-audit"
       ]
     }
   },
@@ -155,65 +151,6 @@
       "assignee": null,
       "created": "2025-12-28T02:35:00.000Z",
       "updated": "2025-12-28T02:35:00.000Z"
-    },
-    "auto-delegation-integration": {
-      "parentTaskId": null,
-      "childTaskIds": [
-        "auto-delegation-phase1-hook",
-        "auto-delegation-phase2-decision",
-        "auto-delegation-phase3-skills",
-        "auto-delegation-phase4-execution",
-        "fix-direct-skill-state-check",
-        "add-hierarchy-delegation-tracking",
-        "auto-delegation-phase5-dashboard",
-        "auto-delegation-phase6-polish"
-      ],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "decomposition": "sequential",
-      "id": "auto-delegation-integration",
-      "title": "Auto-Delegation Integration - Connect Prompts to DelegationDecider",
-      "description": "Bridge the gap between user prompts and the existing DelegationDecider/hierarchy system. Use Claude Code hooks to intercept prompts, analyze complexity, and inject delegation recommendations into conversation context. Enables automatic use of Task tool for complex tasks.",
-      "phase": "implementation",
-      "priority": "high",
-      "estimate": "20h",
-      "tags": [
-        "auto-delegation",
-        "hooks",
-        "integration",
-        "orchestration",
-        "feature"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "hierarchy-phase3-auto-delegation",
-          "session-task-claiming"
-        ]
-      },
-      "acceptance": [
-        "Hook runs on every prompt and injects delegation analysis",
-        "DelegationDecider accurately identifies complex tasks",
-        "User can force/prevent delegation with /delegate and /direct skills",
-        "Delegated tasks execute through AgentOrchestrator via Task tool",
-        "Dashboard shows delegation activity and progress",
-        "All tests pass (160+ new tests)",
-        "Documentation complete",
-        "Performance targets met (< 200ms hook, < 500ms decision)"
-      ],
-      "status": "in_progress",
-      "assignee": null,
-      "created": "2025-12-29T16:00:00.000Z",
-      "updated": "2026-01-04T18:03:40.522Z",
-      "designDocs": [
-        "docs/AUTO-DELEGATION-ARCHITECTURE.md",
-        "docs/AUTO-DELEGATION-IMPLEMENTATION-PLAN.md",
-        "docs/AUTO-DELEGATION-CONTROL-INTERFACE.md",
-        "docs/AUTO-DELEGATION-UX-DESIGN.md",
-        "docs/AUTO-DELEGATION-TESTING-STRATEGY.md"
-      ],
-      "started": "2026-01-02T08:14:39.461Z"
     },
     "auto-delegation-phase1-hook": {
       "id": "auto-delegation-phase1-hook",
@@ -362,39 +299,15 @@
       "parentTaskId": null,
       "childTaskIds": []
     },
-    "auto-delegation-phase6-polish": {
-      "parentTaskId": "auto-delegation-integration",
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 1,
-      "id": "auto-delegation-phase6-polish",
-      "title": "Phase 6: Polish and Documentation",
-      "description": "Production-ready implementation. Comprehensive error handling, graceful degradation, telemetry, user documentation, performance optimization.",
+    "auto-delegation-phase5-dashboard": {
+      "id": "auto-delegation-phase5-dashboard",
+      "title": "Phase 5: Dashboard Integration",
       "phase": "implementation",
-      "priority": "medium",
-      "estimate": "2h",
-      "tags": [
-        "auto-delegation",
-        "documentation",
-        "polish"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [
-          "auto-delegation-phase5-dashboard"
-        ],
-        "related": []
-      },
-      "acceptance": [
-        "Hook failures don't break Claude Code",
-        "Errors are logged with context",
-        "Documentation is complete",
-        "Performance meets targets"
-      ],
-      "status": "ready",
-      "assignee": null,
-      "created": "2026-01-02T08:20:00.000Z",
-      "updated": "2026-01-04T19:55:00.000Z"
+      "status": "completed",
+      "completedAt": "2026-01-04T19:55:00.000Z",
+      "completionNotes": "All 4 acceptance criteria verified. 229 delegation tests + 417 hierarchy tests passing.",
+      "parentTaskId": "auto-delegation-integration",
+      "childTaskIds": []
     },
     "dashboard-validation-audit": {
       "id": "dashboard-validation-audit",
@@ -404,15 +317,6 @@
       "status": "completed",
       "completedAt": "2025-12-31T00:30:00.000Z",
       "completionNotes": "Swarm audit completed: 74+ API endpoints mapped, quality circles bug fixed, OTLP→UsageLimitTracker connected, dotenv added"
-    },
-    "otlp-claude-code-integration": {
-      "id": "otlp-claude-code-integration",
-      "title": "Integrate OTLP Telemetry with Claude Code CLI",
-      "description": "Configure Claude Code CLI to send telemetry metrics to the dashboard's OTLP receiver. Currently the ...",
-      "phase": "implementation",
-      "status": "completed",
-      "completedAt": "2025-12-31T00:18:00.000Z",
-      "completionNotes": "Fixed OTLP receiver initialization (usageTracker optional), configured Claude Code settings with env vars, tested metrics flow end-to-end, documented in DASHBOARD-FEATURES.md"
     },
     "dashboard-fleet-ui-completion": {
       "id": "dashboard-fleet-ui-completion",
@@ -459,10 +363,12 @@
         "Tests verify gates block progression when thresholds not met",
         "Documentation updated with phase gate requirements matrix"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2026-01-04T20:00:00.000Z",
-      "updated": "2026-01-04T20:00:00.000Z",
+      "updated": "2026-01-04T21:30:00.000Z",
+      "completedAt": "2026-01-04T21:30:00.000Z",
+      "completionNotes": "Agent swarm audit complete: Documented phase gate definitions (quality-gates.js, phase-inference.js), identified enforcement mechanisms, defined expert reviewers per gate (Strategic Planner, Logic Reviewer, System Architect, Test Engineer, Senior Developer, Review Orchestrator), created PHASE-GATE-REQUIREMENTS.md with full requirements matrix including thresholds (80-90), criteria weights, special checks (architecture compliance, multi-agent sign-off), and parent-child gate enforcement rules.",
       "parentTaskId": null,
       "childTaskIds": [],
       "delegatedTo": null,
@@ -585,6 +491,6 @@
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2026-01-04T20:27:34.434Z"
+    "lastArchived": "2026-01-05T02:11:33.072Z"
   }
 }

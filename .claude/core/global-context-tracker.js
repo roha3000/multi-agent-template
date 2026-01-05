@@ -791,6 +791,20 @@ class GlobalContextTracker extends EventEmitter {
       tokensPerSecond: velocity
     };
 
+    // FIX: Also update per-session context data (not just project-level)
+    // This ensures each session has its own context metrics for dashboard display
+    if (currentSession) {
+      currentSession.contextUsed = contextUsed;
+      currentSession.contextPercent = (contextUsed / this.contextWindowSize) * 100;
+      currentSession.cost = this._calculateCost(
+        currentSession.inputTokens || 0,
+        currentSession.outputTokens || 0,
+        currentSession.cacheCreationTokens || 0,
+        currentSession.cacheReadTokens || 0,
+        currentSession.model
+      );
+    }
+
     project.status = 'active';
 
     // Emit velocity update if velocity changed significantly

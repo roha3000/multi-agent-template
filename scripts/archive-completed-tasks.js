@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 /**
  * Archive old completed tasks to reduce tasks.json size
- * Keeps the N most recently completed tasks, archives the rest
+ * Keeps the N most recently completed tasks (and active task children), archives the rest
+ *
+ * Key behavior:
+ * - Archives completed PARENT tasks from backlog.completed list
+ * - Also archives completed CHILD tasks whose parents are archived/completed
+ * - Keeps children of in-progress parent tasks (e.g., auto-delegation subtasks)
  */
 
 const fs = require('fs');
@@ -18,11 +23,16 @@ function main() {
   const tasksData = JSON.parse(fs.readFileSync(TASKS_PATH, 'utf8'));
   const completedIds = tasksData.backlog.completed.tasks;
 
-  console.log(`Found ${completedIds.length} completed tasks`);
-  console.log(`Will keep ${MAX_COMPLETED_TO_KEEP}, archive ${completedIds.length - MAX_COMPLETED_TO_KEEP}\n`);
+  // Find ALL completed task definitions (including children not in backlog)
+  const allCompletedDefs = Object.entries(tasksData.tasks)
+    .filter(([id, task]) => task.status === 'completed')
+    .map(([id, task]) => ({ id, task, parentTaskId: task.parentTaskId }));
 
-  // Get completed tasks with their timestamps
-  const completedTasks = completedIds
+  console.log(`Found ${completedIds.length} completed tasks in backlog`);
+  console.log(`Found ${allCompletedDefs.length} completed task DEFINITIONS total\n`);
+
+  // Get completed PARENT tasks (in backlog) with their timestamps
+  const completedParents = completedIds
     .map(id => {
       const task = tasksData.tasks[id];
       if (!task) {
@@ -32,27 +42,59 @@ function main() {
       return {
         id,
         task,
-        completedAt: task.completed ? new Date(task.completed).getTime() : 0
+        completedAt: task.completedAt ? new Date(task.completedAt).getTime() :
+                     task.completed ? new Date(task.completed).getTime() : 0
       };
     })
     .filter(Boolean)
     .sort((a, b) => b.completedAt - a.completedAt); // Most recent first
 
-  // Split into keep and archive
-  const tasksToKeep = completedTasks.slice(0, MAX_COMPLETED_TO_KEEP);
-  const tasksToArchive = completedTasks.slice(MAX_COMPLETED_TO_KEEP);
+  // Split parents into keep and archive
+  const parentsToKeep = completedParents.slice(0, MAX_COMPLETED_TO_KEEP);
+  const parentsToArchive = completedParents.slice(MAX_COMPLETED_TO_KEEP);
 
-  console.log('Tasks to KEEP (most recent):');
-  tasksToKeep.forEach(t => {
-    console.log(`  - ${t.id} (completed: ${t.task.completed || 'no timestamp'})`);
+  // Build set of parent IDs to keep vs archive
+  const keepParentIds = new Set(parentsToKeep.map(t => t.id));
+  const archiveParentIds = new Set(parentsToArchive.map(t => t.id));
+
+  // Find children to archive: ALL completed children whose parent is also completed
+  // (We don't need child definitions if the parent work is done)
+  const childrenToArchive = allCompletedDefs
+    .filter(({ id, parentTaskId }) => {
+      if (!parentTaskId) return false; // Not a child
+      const parent = tasksData.tasks[parentTaskId];
+      // Archive if parent is completed (regardless of whether parent is kept)
+      if (parent && parent.status === 'completed') return true;
+      // Archive if parent is being archived
+      if (archiveParentIds.has(parentTaskId)) return true;
+      return false;
+    });
+
+  // Combine parents and children to archive
+  const tasksToArchive = [
+    ...parentsToArchive,
+    ...childrenToArchive.map(({ id, task }) => ({ id, task }))
+  ];
+
+  console.log('Parent tasks to KEEP (most recent):');
+  parentsToKeep.forEach(t => {
+    console.log(`  - ${t.id} (completed: ${t.task.completedAt || t.task.completed || 'no timestamp'})`);
   });
 
-  console.log(`\nTasks to ARCHIVE (${tasksToArchive.length}):`);
-  tasksToArchive.slice(0, 5).forEach(t => {
+  console.log(`\nChildren to ARCHIVE (${childrenToArchive.length}):`);
+  childrenToArchive.slice(0, 5).forEach(({ id }) => {
+    console.log(`  - ${id}`);
+  });
+  if (childrenToArchive.length > 5) {
+    console.log(`  ... and ${childrenToArchive.length - 5} more`);
+  }
+
+  console.log(`\nTotal tasks to ARCHIVE (${tasksToArchive.length}):`);
+  tasksToArchive.slice(0, 8).forEach(t => {
     console.log(`  - ${t.id}`);
   });
-  if (tasksToArchive.length > 5) {
-    console.log(`  ... and ${tasksToArchive.length - 5} more`);
+  if (tasksToArchive.length > 8) {
+    console.log(`  ... and ${tasksToArchive.length - 8} more`);
   }
 
   // Load or create archive
@@ -67,15 +109,56 @@ function main() {
   });
 
   // Update tasks.json
-  // 1. Update completed list to only keep recent IDs
-  tasksData.backlog.completed.tasks = tasksToKeep.map(t => t.id);
+  // 1. Update completed list to only keep recent parent IDs
+  tasksData.backlog.completed.tasks = parentsToKeep.map(t => t.id);
 
   // 2. Remove archived task definitions from tasks object
   tasksToArchive.forEach(({ id }) => {
     delete tasksData.tasks[id];
   });
 
-  // 3. Add archival config
+  // 3. Slim down kept completed task definitions (archive full version, keep summary)
+  parentsToKeep.forEach(({ id, task }) => {
+    // First, archive the full definition
+    archive.tasks[id + '_full'] = task;
+
+    // Then slim down the kept definition
+    const slim = {
+      id: task.id,
+      title: task.title,
+      description: task.description?.substring(0, 100) + (task.description?.length > 100 ? '...' : ''),
+      phase: task.phase,
+      status: task.status,
+      completedAt: task.completedAt || task.completed,
+      completionNotes: task.completionNotes,
+      childTaskIds: task.childTaskIds,
+      parentTaskId: task.parentTaskId
+    };
+    tasksData.tasks[id] = slim;
+  });
+
+  // 4. Slim down completed children of in-progress parents (kept for hierarchy, but don't need full details)
+  Object.entries(tasksData.tasks).forEach(([id, task]) => {
+    if (task.status === 'completed' && task.parentTaskId) {
+      const parent = tasksData.tasks[task.parentTaskId];
+      if (parent && parent.status !== 'completed') {
+        // Archive full definition
+        archive.tasks[id + '_full'] = task;
+        // Slim it down
+        tasksData.tasks[id] = {
+          id: task.id,
+          title: task.title,
+          phase: task.phase,
+          status: task.status,
+          parentTaskId: task.parentTaskId,
+          completedAt: task.completedAt,
+          completionNotes: task.completionNotes
+        };
+      }
+    }
+  });
+
+  // 5. Add archival config
   tasksData.archival = {
     maxCompleted: MAX_COMPLETED_TO_KEEP,
     autoArchive: true,

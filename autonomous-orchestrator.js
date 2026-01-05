@@ -475,15 +475,28 @@ function getNextTaskFromManager() {
     }
 
     // Also try without phase filter as fallback
+    let usedFallback = false;
     if (!claimResult?.task) {
       claimResult = taskManager.claimNextTask(null, {
         agentType: 'autonomous',
         fallbackToNext: true
       });
+      usedFallback = true;
     }
 
     if (claimResult?.task) {
       const task = claimResult.task;
+
+      // FIX: If task was claimed via fallback, adjust orchestrator phase to match task
+      if (usedFallback && task.phase) {
+        const taskOrchestratorPhase = normalizePhase(task.phase);
+        if (taskOrchestratorPhase !== state.currentPhase) {
+          console.log(`[PHASE] Adjusting phase: ${state.currentPhase} → ${taskOrchestratorPhase} (to match claimed task)`);
+          state.currentPhase = taskOrchestratorPhase;
+          state.phaseIteration = 0; // Reset iteration count for new phase
+        }
+      }
+
       // Mark as in_progress (claim handles the coordination, this updates tasks.json status)
       taskManager.updateStatus(task.id, 'in_progress');
       console.log(`[TASK] Claimed: ${task.title} (${task.id})`);
@@ -1085,10 +1098,12 @@ async function main() {
         console.log(`\n[PHASE] No ready tasks for ${state.currentPhase} phase`);
 
         // Check if there are blocked tasks that might unblock later
-        const blockedTasks = taskManager.getBlockedTasks().filter(t => t.phase === state.currentPhase);
-        const readyTasks = taskManager.getReadyTasks().filter(t => t.phase === state.currentPhase);
+        // Use getTaskPhases to match both short and full phase names
+        const taskPhases = getTaskPhases(state.currentPhase);
+        const blockedTasks = taskManager.getBlockedTasks().filter(t => taskPhases.includes(t.phase));
+        const readyTasks = taskManager.getReadyTasks().filter(t => taskPhases.includes(t.phase));
         const inProgressTasks = taskManager.getInProgressTasks ?
-          taskManager.getInProgressTasks().filter(t => t.phase === state.currentPhase) : [];
+          taskManager.getInProgressTasks().filter(t => taskPhases.includes(t.phase)) : [];
 
         if (blockedTasks.length > 0 || inProgressTasks.length > 0) {
           // Tasks exist but are blocked or in-progress by other sessions

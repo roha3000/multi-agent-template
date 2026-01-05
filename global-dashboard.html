@@ -2995,6 +2995,63 @@
             <div class="toggle" data-setting="showModel" onclick="toggleSetting(this)"></div>
           </div>
         </div>
+
+        <div class="settings-section" id="delegationSettingsSection">
+          <h3>Auto-Delegation Settings</h3>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Auto-Delegation Enabled</div>
+              <div class="settings-description">Analyze prompts for delegation opportunities</div>
+            </div>
+            <div class="toggle" id="delegationEnabled" data-delegation-setting="enabled" onclick="toggleDelegationSetting(this)"></div>
+          </div>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Show Delegation Hints</div>
+              <div class="settings-description">Display delegation suggestions in prompts</div>
+            </div>
+            <div class="toggle" id="delegationShowHints" data-delegation-setting="showHints" onclick="toggleDelegationSetting(this)"></div>
+          </div>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Complexity Threshold</div>
+              <div class="settings-description">Minimum complexity score to suggest delegation (0-100)</div>
+            </div>
+            <input type="number" id="delegationComplexityThreshold" min="0" max="100" style="width:60px;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);" onchange="updateDelegationNumericSetting('minComplexityThreshold', this.value)">
+          </div>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Min Subtask Count</div>
+              <div class="settings-description">Minimum subtasks to trigger delegation</div>
+            </div>
+            <input type="number" id="delegationSubtaskCount" min="1" max="10" style="width:60px;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);" onchange="updateDelegationNumericSetting('minSubtaskCount', this.value)">
+          </div>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Use Task Decomposer</div>
+              <div class="settings-description">Enable AI-powered task decomposition</div>
+            </div>
+            <div class="toggle" id="delegationUseTaskDecomposer" data-delegation-setting="useTaskDecomposer" onclick="toggleDelegationSetting(this)"></div>
+          </div>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Decision Caching</div>
+              <div class="settings-description">Cache delegation decisions for faster analysis</div>
+            </div>
+            <div class="toggle" id="delegationCacheEnabled" data-delegation-setting="cacheEnabled" onclick="toggleDelegationSetting(this)"></div>
+          </div>
+          <div class="settings-option">
+            <div>
+              <div class="settings-label">Debug Mode</div>
+              <div class="settings-description">Log detailed delegation analysis output</div>
+            </div>
+            <div class="toggle" id="delegationDebugMode" data-delegation-setting="debugMode" onclick="toggleDelegationSetting(this)"></div>
+          </div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);">
+            <button onclick="viewDelegationHistory()" style="padding:8px 16px;background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);cursor:pointer;margin-right:8px;">View History</button>
+            <button onclick="loadDelegationConfig()" style="padding:8px 16px;background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);cursor:pointer;">Refresh</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -3416,6 +3473,12 @@
             const actualSessionType = registrySession?.sessionType || 'cli';
             const isAutonomous = actualSessionType === 'autonomous' || registrySession?.autonomous;
 
+            // Skip autonomous sessions here - they'll be added from registry with auto- prefix
+            if (isAutonomous) {
+              console.log('[Dashboard] Skipping autonomous session from projects (will be added from registry):', cliSession.id?.substring(0,8));
+              continue;
+            }
+
             allSessions.push({
               id: sessionId,
               project: p.name,
@@ -3575,8 +3638,9 @@
             registryId: s.id,
             claudeSessionId: s.claudeSessionId || null,
             unlinkedClaudeSessionId: unlinkedClaudeSessionId,
-            lastUpdate: s.lastUpdate || s.startTime || Date.now(),
-            startTime: s.startTime || Date.now(),
+            // Convert ISO strings to timestamps for time filtering
+            lastUpdate: s.lastUpdate ? new Date(s.lastUpdate).getTime() : (s.startTime ? new Date(s.startTime).getTime() : Date.now()),
+            startTime: s.startTime ? new Date(s.startTime).getTime() : Date.now(),
             // Phase 4: Claim-based current task from /api/sessions/summary
             claimedTaskId: s.currentTaskId || null,
             claimInfo: s.claimInfo || null
@@ -5213,7 +5277,7 @@
       `;
     }
 
-    function updateHierarchyPane(session) {
+    async function updateHierarchyPane(session) {
       const pane = document.getElementById('pane-hierarchy');
       if (!pane) return;
 
@@ -5222,9 +5286,33 @@
         return;
       }
 
-      const children = session.childAgents || session.children || [];
-      const activeDelegations = session.activeDelegations || [];
-      const completedDelegations = session.completedDelegations || [];
+      // Get the registry ID for this session (works for both CLI and autonomous)
+      const registryId = session.registryId || session.id;
+      const isAutonomous = session.autonomous || session.sessionType === 'autonomous';
+      const sessionTypeLabel = isAutonomous ? 'Autonomous' : 'CLI';
+
+      // Show loading state
+      pane.innerHTML = '<div class="section-header">Agent Hierarchy</div><p style="color: var(--text-muted)">Loading hierarchy...</p>';
+
+      // Fetch hierarchy data from API for any session with a registryId
+      let children = session.childAgents || session.children || [];
+      let activeDelegations = session.activeDelegations || [];
+      let completedDelegations = session.completedDelegations || [];
+
+      if (registryId) {
+        try {
+          const res = await fetch(`/api/sessions/${registryId}/hierarchy`);
+          if (res.ok) {
+            const hierarchy = await res.json();
+            children = hierarchy.children || [];
+            activeDelegations = hierarchy.delegations || [];
+            completedDelegations = hierarchy.completedDelegations || [];
+            console.log('[Dashboard] Hierarchy fetched for session', registryId, ':', hierarchy);
+          }
+        } catch (err) {
+          console.warn('[Dashboard] Failed to fetch hierarchy:', err);
+        }
+      }
 
       // Build user-friendly session label
       function getSessionLabel(s, isRoot = false) {
@@ -5317,7 +5405,8 @@
               </div>
             ` : `
               <div style="margin-left:20px;margin-top:8px;color:var(--text-muted);font-size:12px;">
-                No agents or sub-agents delegated
+                No child agents spawned yet.
+                ${!isAutonomous ? '<br><span style="font-size:11px;">Delegations will appear here when tasks are auto-delegated or when using <code>/delegate</code>.</span>' : ''}
               </div>
             `}
           </div>
@@ -5557,6 +5646,173 @@
           el.classList.remove('active');
         }
       });
+
+      // Load delegation config
+      loadDelegationConfig();
+    }
+
+    // Delegation settings state
+    let delegationConfig = {
+      enabled: true,
+      showHints: true,
+      minComplexityThreshold: 35,
+      minSubtaskCount: 3,
+      quickAnalysisOnly: false,
+      useTaskDecomposer: true,
+      cacheEnabled: true,
+      cacheMaxAge: 60000,
+      debugMode: false
+    };
+
+    async function loadDelegationConfig() {
+      try {
+        const res = await fetch('/api/delegations/config');
+        if (res.ok) {
+          const data = await res.json();
+          delegationConfig = data.config;
+          updateDelegationSettingsUI();
+          console.log('[Dashboard] Delegation config loaded:', delegationConfig);
+        }
+      } catch (err) {
+        console.warn('[Dashboard] Failed to load delegation config:', err);
+      }
+    }
+
+    function updateDelegationSettingsUI() {
+      // Update toggles
+      const toggleSettings = ['enabled', 'showHints', 'useTaskDecomposer', 'cacheEnabled', 'debugMode'];
+      for (const setting of toggleSettings) {
+        const el = document.querySelector(`[data-delegation-setting="${setting}"]`);
+        if (el) {
+          if (delegationConfig[setting]) {
+            el.classList.add('active');
+          } else {
+            el.classList.remove('active');
+          }
+        }
+      }
+
+      // Update numeric inputs
+      const thresholdEl = document.getElementById('delegationComplexityThreshold');
+      if (thresholdEl) thresholdEl.value = delegationConfig.minComplexityThreshold || 35;
+
+      const subtaskEl = document.getElementById('delegationSubtaskCount');
+      if (subtaskEl) subtaskEl.value = delegationConfig.minSubtaskCount || 3;
+    }
+
+    async function toggleDelegationSetting(el) {
+      el.classList.toggle('active');
+      const setting = el.dataset.delegationSetting;
+      const newValue = el.classList.contains('active');
+
+      try {
+        const res = await fetch('/api/delegations/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [setting]: newValue })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          delegationConfig = data.config;
+          console.log('[Dashboard] Delegation setting updated:', setting, '=', newValue);
+        } else {
+          // Revert on error
+          el.classList.toggle('active');
+          console.error('[Dashboard] Failed to update delegation setting');
+        }
+      } catch (err) {
+        el.classList.toggle('active');
+        console.error('[Dashboard] Error updating delegation setting:', err);
+      }
+    }
+
+    async function updateDelegationNumericSetting(setting, value) {
+      const numValue = parseInt(value, 10);
+      if (isNaN(numValue)) return;
+
+      try {
+        const res = await fetch('/api/delegations/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [setting]: numValue })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          delegationConfig = data.config;
+          console.log('[Dashboard] Delegation setting updated:', setting, '=', numValue);
+        } else {
+          console.error('[Dashboard] Failed to update delegation setting');
+        }
+      } catch (err) {
+        console.error('[Dashboard] Error updating delegation setting:', err);
+      }
+    }
+
+    async function viewDelegationHistory() {
+      try {
+        const res = await fetch('/api/delegations/history?limit=20');
+        if (!res.ok) throw new Error('Failed to fetch delegation history');
+
+        const data = await res.json();
+        const delegations = data.delegations || [];
+
+        // Create a simple modal to display history
+        let historyHtml = '<div style="max-height:400px;overflow-y:auto;">';
+
+        if (delegations.length === 0) {
+          historyHtml += '<p style="color:var(--text-muted);text-align:center;padding:20px;">No delegation history available</p>';
+        } else {
+          historyHtml += '<table class="data-table" style="width:100%">';
+          historyHtml += '<thead><tr><th>Task</th><th>Session</th><th>Status</th><th>Time</th></tr></thead><tbody>';
+
+          for (const d of delegations) {
+            const taskLabel = d.taskId || d.metadata?.taskTitle || 'Unknown';
+            const status = d.status || (d.isActive ? 'ACTIVE' : 'UNKNOWN');
+            const statusColor = status === 'COMPLETED' || status === 'completed' ? '#4ade80' :
+                                status === 'FAILED' || status === 'failed' ? '#f87171' :
+                                status === 'ACTIVE' || status === 'active' || d.isActive ? '#fbbf24' : '#94a3b8';
+            const time = d.completedAt || d.updatedAt || d.createdAt;
+            const timeStr = time ? new Date(time).toLocaleString() : '-';
+
+            historyHtml += `<tr>
+              <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(taskLabel)}</td>
+              <td>${d.sessionProject || d.sessionId || '-'}</td>
+              <td><span style="color:${statusColor};font-weight:500;">${status}</span></td>
+              <td style="font-size:11px;color:var(--text-muted);">${timeStr}</td>
+            </tr>`;
+          }
+
+          historyHtml += '</tbody></table>';
+        }
+
+        historyHtml += '</div>';
+
+        // Show in an alert for now (could be improved with a proper modal)
+        const historyModal = document.createElement('div');
+        historyModal.className = 'modal-overlay open';
+        historyModal.style.zIndex = '1001';
+        historyModal.innerHTML = `
+          <div class="modal" style="max-width:600px;">
+            <div class="modal-header">
+              <h2>Delegation History</h2>
+              <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+              ${historyHtml}
+              <p style="margin-top:12px;font-size:11px;color:var(--text-muted);">
+                Showing ${delegations.length} of ${data.total || delegations.length} delegations
+              </p>
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(historyModal);
+      } catch (err) {
+        console.error('[Dashboard] Error viewing delegation history:', err);
+        alert('Failed to load delegation history');
+      }
     }
 
     // Close dropdowns when clicking outside

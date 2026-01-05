@@ -655,6 +655,144 @@ describe('Integration: TaskManager Lookup via SessionRegistry', () => {
   });
 });
 
+describe('Per-Session Context Isolation', () => {
+  /**
+   * REGRESSION TEST: Prevents the bug where all sessions for the same project
+   * show identical context data instead of their own per-session metrics.
+   *
+   * Bug introduced in commit 1bf6a97 (2026-01-01):
+   * The usage:update sync applied PROJECT-level metrics to ALL sessions
+   * matching the project, instead of per-session metrics.
+   *
+   * @see global-context-manager.js tracker.on('usage:update', ...)
+   */
+
+  let registry;
+
+  beforeEach(() => {
+    registry = new SessionRegistry({
+      staleTimeout: 60000,
+      cleanupInterval: 300000
+    });
+  });
+
+  afterEach(() => {
+    registry.shutdown();
+  });
+
+  it('should allow different context values for sessions of the same project', () => {
+    // Register two sessions for the SAME project with different claudeSessionIds
+    const session1Id = registry.register({
+      project: 'multi-agent-template',
+      path: '/c/Users/test/Claude/multi-agent-template',
+      claudeSessionId: 'session-aaa-111',
+      contextPercent: 0,
+      tokens: 0
+    });
+
+    const session2Id = registry.register({
+      project: 'multi-agent-template',
+      path: '/c/Users/test/Claude/multi-agent-template',
+      claudeSessionId: 'session-bbb-222',
+      contextPercent: 0,
+      tokens: 0
+    });
+
+    // Update session 1 with specific context data
+    registry.update(session1Id, {
+      contextPercent: 25.5,
+      tokens: 50000,
+      inputTokens: 10000,
+      outputTokens: 5000,
+      messages: 10
+    });
+
+    // Update session 2 with DIFFERENT context data
+    registry.update(session2Id, {
+      contextPercent: 75.0,
+      tokens: 150000,
+      inputTokens: 80000,
+      outputTokens: 20000,
+      messages: 50
+    });
+
+    // Verify each session maintains its own context data
+    const s1 = registry.get(session1Id);
+    const s2 = registry.get(session2Id);
+
+    // Session 1 should have its own values
+    expect(s1.contextPercent).toBe(25.5);
+    expect(s1.tokens).toBe(50000);
+    expect(s1.messages).toBe(10);
+
+    // Session 2 should have its own different values
+    expect(s2.contextPercent).toBe(75.0);
+    expect(s2.tokens).toBe(150000);
+    expect(s2.messages).toBe(50);
+
+    // Critical: They should NOT be equal (the original bug)
+    expect(s1.contextPercent).not.toBe(s2.contextPercent);
+    expect(s1.tokens).not.toBe(s2.tokens);
+  });
+
+  it('should find session by claudeSessionId for targeted updates', () => {
+    // Register sessions with claudeSessionIds
+    registry.register({
+      project: 'test-project',
+      path: '/test/path',
+      claudeSessionId: 'claude-session-123'
+    });
+
+    registry.register({
+      project: 'test-project',
+      path: '/test/path',
+      claudeSessionId: 'claude-session-456'
+    });
+
+    // Find specific session by claudeSessionId
+    const found = registry.getByClaudeSessionId('claude-session-123');
+    expect(found).toBeDefined();
+    expect(found.claudeSessionId).toBe('claude-session-123');
+
+    // Verify we can update just this one session
+    registry.update(found.id, { contextPercent: 42.0 });
+
+    // The other session should be unaffected
+    const other = registry.getByClaudeSessionId('claude-session-456');
+    expect(other.contextPercent).not.toBe(42.0);
+  });
+
+  it('should not share context when registering multiple sessions for same project', () => {
+    // This tests the initial registration path
+    const id1 = registry.register({
+      project: 'shared-project',
+      path: '/shared/path',
+      claudeSessionId: 'new-session-1',
+      contextPercent: 10,
+      tokens: 20000
+    });
+
+    const id2 = registry.register({
+      project: 'shared-project',
+      path: '/shared/path',
+      claudeSessionId: 'new-session-2',
+      contextPercent: 0, // New session starts fresh
+      tokens: 0
+    });
+
+    const s1 = registry.get(id1);
+    const s2 = registry.get(id2);
+
+    // Session 1 keeps its initial values
+    expect(s1.contextPercent).toBe(10);
+    expect(s1.tokens).toBe(20000);
+
+    // Session 2 has its own initial values (not copied from session 1)
+    expect(s2.contextPercent).toBe(0);
+    expect(s2.tokens).toBe(0);
+  });
+});
+
 describe('GlobalContextManager API Tests', () => {
   /**
    * These tests document the expected API behavior for project isolation.

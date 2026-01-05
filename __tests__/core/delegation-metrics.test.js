@@ -498,14 +498,14 @@ describe('DelegationMetrics', () => {
     });
 
     test('should filter snapshots by options', () => {
+      // Capture midTime BEFORE any snapshots to ensure all snapshots are after it
+      const midTime = Date.now() - 10;
       metrics.takeSnapshot();
-      // Use a timestamp slightly in the past to ensure subsequent snapshots are after it
-      const midTime = Date.now() - 1;
       metrics.takeSnapshot();
       metrics.takeSnapshot();
 
       const filtered = metrics.getSnapshots({ since: midTime });
-      // All 3 snapshots should be after midTime since midTime is in the past
+      // All 3 snapshots should be after midTime since midTime was captured before snapshots
       expect(filtered.length).toBe(3);
 
       const limited = metrics.getSnapshots({ limit: 1 });

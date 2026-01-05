@@ -65,6 +65,9 @@ class SessionInitializer {
       // 2. Load or create project state
       const state = this.stateManager.load();
 
+      // 2.5. Auto-archive completed tasks to keep tasks.json lean
+      this._autoArchiveCompletedTasks();
+
       // 3. Infer target phase (now returns full inference info)
       const inferenceResult = this._inferTargetPhaseWithDetails(userInput, state, options);
       const targetPhase = inferenceResult.phase;
@@ -239,6 +242,136 @@ class SessionInitializer {
         success: false,
         error: error.message
       };
+    }
+  }
+
+  /**
+   * Auto-archive completed tasks to keep tasks.json lean
+   * Runs the archive logic inline to avoid spawning a subprocess
+   * @private
+   */
+  _autoArchiveCompletedTasks() {
+    try {
+      const tasksPath = path.join(this.projectRoot, '.claude', 'dev-docs', 'tasks.json');
+      const archivePath = path.join(this.projectRoot, '.claude', 'dev-docs', 'archives', 'tasks-archive.json');
+
+      if (!fs.existsSync(tasksPath)) return;
+
+      const tasksData = JSON.parse(fs.readFileSync(tasksPath, 'utf8'));
+      if (!tasksData.archival?.autoArchive) return;
+
+      const maxCompleted = tasksData.archival.maxCompleted || 5;
+      const completedIds = tasksData.backlog?.completed?.tasks || [];
+
+      // Find all completed task definitions
+      const allCompletedDefs = Object.entries(tasksData.tasks || {})
+        .filter(([id, task]) => task.status === 'completed')
+        .map(([id, task]) => ({ id, task, parentTaskId: task.parentTaskId }));
+
+      // Get completed parents with timestamps
+      const completedParents = completedIds
+        .map(id => {
+          const task = tasksData.tasks[id];
+          if (!task) return null;
+          return {
+            id,
+            task,
+            completedAt: task.completedAt ? new Date(task.completedAt).getTime() :
+                         task.completed ? new Date(task.completed).getTime() : 0
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.completedAt - a.completedAt);
+
+      const parentsToKeep = completedParents.slice(0, maxCompleted);
+      const parentsToArchive = completedParents.slice(maxCompleted);
+      const archiveParentIds = new Set(parentsToArchive.map(t => t.id));
+
+      // Find children to archive (completed children of completed parents)
+      const childrenToArchive = allCompletedDefs.filter(({ id, parentTaskId }) => {
+        if (!parentTaskId) return false;
+        const parent = tasksData.tasks[parentTaskId];
+        if (parent && parent.status === 'completed') return true;
+        if (archiveParentIds.has(parentTaskId)) return true;
+        return false;
+      });
+
+      const tasksToArchive = [
+        ...parentsToArchive,
+        ...childrenToArchive.map(({ id, task }) => ({ id, task }))
+      ];
+
+      if (tasksToArchive.length === 0 && parentsToKeep.length <= maxCompleted) {
+        return; // Nothing to archive
+      }
+
+      // Load or create archive
+      let archive = { archivedAt: new Date().toISOString(), tasks: {} };
+      if (fs.existsSync(archivePath)) {
+        archive = JSON.parse(fs.readFileSync(archivePath, 'utf8'));
+      }
+
+      // Archive tasks
+      tasksToArchive.forEach(({ id, task }) => {
+        archive.tasks[id] = task;
+        delete tasksData.tasks[id];
+      });
+
+      // Slim down kept completed parents
+      parentsToKeep.forEach(({ id, task }) => {
+        archive.tasks[id + '_full'] = task;
+        tasksData.tasks[id] = {
+          id: task.id,
+          title: task.title,
+          description: task.description?.substring(0, 100) + (task.description?.length > 100 ? '...' : ''),
+          phase: task.phase,
+          status: task.status,
+          completedAt: task.completedAt || task.completed,
+          completionNotes: task.completionNotes,
+          childTaskIds: task.childTaskIds,
+          parentTaskId: task.parentTaskId
+        };
+      });
+
+      // Slim completed children of in-progress parents
+      Object.entries(tasksData.tasks).forEach(([id, task]) => {
+        if (task.status === 'completed' && task.parentTaskId) {
+          const parent = tasksData.tasks[task.parentTaskId];
+          if (parent && parent.status !== 'completed') {
+            archive.tasks[id + '_full'] = task;
+            tasksData.tasks[id] = {
+              id: task.id,
+              title: task.title,
+              phase: task.phase,
+              status: task.status,
+              parentTaskId: task.parentTaskId,
+              completedAt: task.completedAt,
+              completionNotes: task.completionNotes
+            };
+          }
+        }
+      });
+
+      // Update backlog
+      tasksData.backlog.completed.tasks = parentsToKeep.map(t => t.id);
+      tasksData.archival.lastArchived = new Date().toISOString();
+
+      // Ensure archive directory exists
+      const archiveDir = path.dirname(archivePath);
+      if (!fs.existsSync(archiveDir)) {
+        fs.mkdirSync(archiveDir, { recursive: true });
+      }
+
+      // Write files
+      fs.writeFileSync(archivePath, JSON.stringify(archive, null, 2));
+      fs.writeFileSync(tasksPath, JSON.stringify(tasksData, null, 2));
+
+      if (tasksToArchive.length > 0) {
+        console.log(`[SessionInit] Auto-archived ${tasksToArchive.length} completed tasks`);
+      }
+    } catch (error) {
+      console.warn('[SessionInit] Auto-archive warning:', error.message);
+      // Non-fatal - continue with session init
     }
   }
 

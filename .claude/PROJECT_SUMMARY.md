@@ -1,86 +1,69 @@
 # Project Summary
 
-**Last Updated**: 2026-01-04T18:50:00.000Z
-**Current Phase**: Implementation
-**Overall Progress**: 72%
+**Last Updated**: 2026-01-05T02:20:00.000Z
+**Current Phase**: Validation
+**Overall Progress**: 92%
+
+---
+
+## Session 91: CLI Session Hierarchy Support + Auto-Delegation Testing (CURRENT)
+
+### Work Completed
+| Task | Status | Details |
+|------|--------|---------|
+| CLI hierarchy display | Completed | Dashboard now shows hierarchy for CLI sessions |
+| Auto-delegation testing | Completed | 2,685 tests passing, all components verified |
+| CLAUDE.md auto-delegation rule | Completed | Added rule for ≥70% confidence auto-delegation |
+
+### CLI Hierarchy Support
+Dashboard previously showed "CLI sessions don't have agent hierarchy" message. Now:
+- Hierarchy tab works for both CLI and autonomous sessions
+- New API endpoints: `POST /api/sessions/:id/delegations`, `PUT /api/sessions/:id/delegations/:delegationId`
+- delegation-executor.js registers delegations with dashboard via HTTP
+- Real-time SSE updates for delegation events
+
+### Auto-Delegation Testing Summary
+Comprehensive testing completed across all delegation scenarios:
+- Single CLI delegation: 229 tests ✅
+- Hierarchy tracking: 356 tests ✅
+- Delegation metrics: 58 tests ✅
+- Dashboard integration: 172 tests ✅
+- E2E tests: 130 tests ✅
+- **Total: 2,685 tests passing**
+
+---
+
+## Session 90: Per-Session Context Fix + Auto-Delegation Complete ✅
+- **Tasks**: Dashboard context bug fix, auto-delegation-phase6-polish
+- **Key changes**: Fixed per-session context isolation, completed all 8 auto-delegation phases
+- **Files**: global-context-manager.js, global-context-tracker.js
 
 ---
 
 ## Phase Progress
 
-| Phase | Status | Quality Score | Artifacts |
-|-------|--------|---------------|-----------|
-| Research | ✅ Completed | 85/100 | 1 |
-| Planning | ✅ Completed | 85/100 | 0 |
-| Design | ✅ Completed | 85/100 | 5 |
-| Test-First | ✅ Completed | 90/100 | 4 |
-| Implementation 👉 | 🔄 In Progress | 89/100 | 10+ |
-| Validation | ⏳ Not Started | N/A | 0 |
-| Iteration | ⏳ Not Started | N/A | 0 |
+| Phase | Status | Quality Score |
+|-------|--------|---------------|
+| Research | ✅ Completed | 85/100 |
+| Planning | ✅ Completed | 85/100 |
+| Design | ✅ Completed | 85/100 |
+| Implementation | ✅ Completed | 90/100 |
+| Testing | ✅ Completed | 90/100 |
+| Validation 👉 | 🔄 In Progress | 88/100 |
 
 ---
 
-## Session 88: Fix Audit Issues (3 Tasks Complete)
+## Backlog Status
 
-### Work Completed
-
-| Task | Files Modified | Tests Added |
-|------|----------------|-------------|
-| `fix-direct-skill-state-check` | delegation-hook.js | 10 |
-| `add-hierarchy-delegation-tracking` | delegation-executor.js | 8 |
-| `orchestrator-log-forwarding` | autonomous-orchestrator.js | 24 |
-
-**Total**: 42 new tests, 62 delegation tests passing
-
-### Implementation Details
-
-1. **Direct Execution Override** (`delegation-hook.js:76-105`)
-   - Added `checkDirectExecutionOverride()` function
-   - Checks `.claude/state/direct-execution.json` at hook startup
-   - Exits early when `directExecution: true`
-   - Clears state file after processing
-
-2. **Hierarchy Integration** (`delegation-executor.js:61-161`)
-   - Added `getHierarchyRegistry()` lazy loader
-   - Added `registerDelegationHierarchy()` to register parent-child relationships
-   - Added `generateDelegationId()` for unique delegation IDs
-   - Returns hierarchy result in execution response
-
-3. **Orchestrator Log Forwarding** (`autonomous-orchestrator.js:700-731`)
-   - Added `logToDashboard(message, level, source)` function
-   - Logs to `/api/logs/:sessionId/write` endpoint
-   - Called on: session start, task claim, task complete, phase transition, errors, safety warnings
-
-### Files Modified
-- `.claude/hooks/delegation-hook.js` - Direct execution check
-- `.claude/core/delegation-executor.js` - Hierarchy registration
-- `autonomous-orchestrator.js` - Log forwarding
-
-### Tests Added
-- `__tests__/hooks/delegation-hook-direct.test.js` (10 tests)
-- `__tests__/core/delegation-executor.test.js` (8 new tests)
-- `__tests__/core/orchestrator-log-forwarding.test.js` (24 tests)
-
----
-
-## Session 87: Phases 1-4 Audit + Task Planning ✅
-
-- Audited Phases 1-4, found 3 issues
-- Created fix tasks, all now completed in Session 88
-
----
-
-## Active Tasks (NOW Queue)
-
-| Task | Priority | Status | Blocks |
-|------|----------|--------|--------|
-| `auto-delegation-phase5-dashboard` | MEDIUM | Ready | Phase 6 |
-
----
+| Queue | Tasks |
+|-------|-------|
+| NOW | (empty) |
+| NEXT | (empty) |
+| LATER | dashboard-blocked-tasks-view, session-registry-id-persistence, session-end-hook-reliability, dashboard-stale-session-handling |
+| SOMEDAY | add-model-pricing |
 
 ## Next Steps
 
-1. Continue Phase 5 Dashboard Integration
-2. Add SSE events for delegation activity
-3. Create delegation panel in dashboard
-4. Add delegation history endpoint
+1. Test auto-delegation in live session (confidence ≥70% auto-delegates)
+2. Pick next task from LATER queue
+3. Continue validation phase for remaining features

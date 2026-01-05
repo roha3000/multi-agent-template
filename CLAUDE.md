@@ -256,6 +256,63 @@ fi
 - **Token Limits**: Generous limits since we're using the best model
 - **No Fallback Needed**: Opus 4.5 is always the answer
 
+## Auto-Delegation Rule
+
+When you see a `[Delegation Analysis]` message injected by the hook system, follow these rules:
+
+### When to Auto-Delegate
+
+**Automatically delegate (no confirmation needed) when ALL conditions are met:**
+- Decision confidence ≥ 70%
+- Task matches a known task from tasks.json
+- Suggested pattern is `parallel`, `sequential`, `debate`, or `review`
+
+### How to Auto-Delegate
+
+1. **Parse the hint** to extract task ID, pattern, and subtask count
+2. **Use the Task tool** to spawn child agents following the suggested pattern:
+   - `parallel`: Launch all subtasks simultaneously with `run_in_background: true`
+   - `sequential`: Execute subtasks one at a time, passing results forward
+   - `debate`: Spawn PRO and CON agents, then a SYNTH agent to reconcile
+   - `review`: Spawn IMPL agent, then REVIEW agent to critique
+3. **Track progress** using TodoWrite to show subtask status
+4. **Aggregate results** when all child agents complete
+
+### Example Auto-Delegation Response
+
+When you see:
+```
+[Delegation Analysis]
+Matches task: dashboard-blocked-tasks-view (dashboard-blocked-tasks-view)
+Decision confidence: 75% | Decomposable into ~4 subtasks | Suggested pattern: parallel
+```
+
+Immediately respond with Task tool calls:
+```
+I'll delegate this task using the parallel pattern with 4 agents.
+
+[Task tool call 1: Backend API for blocked tasks]
+[Task tool call 2: Frontend UI component]
+[Task tool call 3: Dependency graph visualization]
+[Task tool call 4: Integration tests]
+```
+
+### When NOT to Auto-Delegate
+
+- Confidence < 70% → Ask user: "Delegation suggested but confidence is low. Proceed?"
+- No matched task → Execute directly unless task is clearly complex
+- Pattern is `direct` → Execute without delegation
+- User used `/direct` → Skip delegation entirely
+
+### Delegation Tracking
+
+All delegations are tracked in the dashboard (port 3033):
+- Parent-child hierarchy visible in Fleet Lineage panel
+- Real-time progress via SSE updates
+- Use `/delegation-status` to check active delegations
+
+---
+
 ## Agent Collaboration Protocols
 
 ### 1. Handoff Documentation

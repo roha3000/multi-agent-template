@@ -2644,6 +2644,18 @@ class TaskManager extends EventEmitter {
     // Ensure coordination is initialized
     this._initCoordination();
 
+    // Clean up stale claims before attempting to claim
+    // This handles cases where sessions crashed without releasing claims
+    if (this._coordinationDb) {
+      try {
+        this._coordinationDb.cleanupExpiredClaims();
+        this._coordinationDb.cleanupOrphanedClaims();
+      } catch (error) {
+        // Log but don't fail on cleanup errors
+        console.warn('[TaskManager] Claim cleanup failed:', error.message);
+      }
+    }
+
     // Get filters for ready tasks
     const filters = {};
     if (phase) filters.phase = phase;

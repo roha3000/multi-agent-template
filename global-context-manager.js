@@ -555,42 +555,55 @@ tracker.on('error', (error) => {
 
 // Sync context data from GlobalContextTracker to SessionRegistry
 // This links the two tracking systems so dashboard shows real context usage
+// FIX: Use per-session metrics instead of project-level metrics to avoid duplicate context display
 tracker.on('usage:update', (data) => {
   if (!data.metrics) return;
 
-  const projectPath = data.projectFolder;
+  const projectFolder = data.projectFolder;
   const projectName = data.projectName;
-  const metrics = data.metrics;
+  const sessionId = data.sessionId; // Claude session ID that triggered this update
 
-  // Calculate total tokens from individual counts
-  const totalTokens = (metrics.inputTokens || 0) + (metrics.outputTokens || 0) +
-                      (metrics.cacheCreationTokens || 0) + (metrics.cacheReadTokens || 0);
+  // Get the specific session data from tracker (per-session metrics)
+  const trackerProject = tracker.getProject(projectFolder);
+  if (!trackerProject) return;
 
-  // Find matching sessions in registry by project path or name
-  const sessions = sessionRegistry.getActive();
-  for (const session of sessions) {
-    // Match by path (normalized) or project name
-    const sessionPath = session.path?.replace(/\\/g, '/').toLowerCase() || '';
-    const trackerPath = projectPath?.replace(/\\/g, '/').toLowerCase() || '';
+  // Find the specific session in tracker that matches this update
+  const trackerSession = trackerProject.sessions?.find(s => s.id === sessionId);
 
-    const pathMatch = sessionPath && trackerPath && (
-      sessionPath.includes(trackerPath) || trackerPath.includes(sessionPath)
-    );
-    const nameMatch = session.project?.toLowerCase() === projectName?.toLowerCase();
+  // Find matching registry session by claudeSessionId (exact match)
+  // This ensures each registry session gets its own context data
+  const registrySession = sessionRegistry.getByClaudeSessionId(sessionId);
 
-    if (pathMatch || nameMatch) {
-      // Update session with all context data from tracker
-      // Field names must match what dashboard expects
-      sessionRegistry.update(session.id, {
-        contextPercent: Math.round((metrics.contextPercent || 0) * 10) / 10,
-        tokens: totalTokens,
-        inputTokens: metrics.inputTokens || 0,
-        outputTokens: metrics.outputTokens || 0,
-        cost: metrics.cost || 0,
-        messages: metrics.messageCount || 0
-      });
-    }
+  if (registrySession && trackerSession) {
+    // Use per-session context data (not project-level aggregated metrics)
+    const sessionTokens = (trackerSession.inputTokens || 0) + (trackerSession.outputTokens || 0) +
+                          (trackerSession.cacheCreationTokens || 0) + (trackerSession.cacheReadTokens || 0);
+
+    sessionRegistry.update(registrySession.id, {
+      contextPercent: Math.round((trackerSession.contextPercent || 0) * 10) / 10,
+      tokens: sessionTokens,
+      inputTokens: trackerSession.inputTokens || 0,
+      outputTokens: trackerSession.outputTokens || 0,
+      cost: trackerSession.cost || 0,
+      messages: trackerSession.messageCount || 0
+    });
+  } else if (registrySession) {
+    // Fallback: If session not in tracker yet, use project metrics for this one session only
+    const metrics = data.metrics;
+    const totalTokens = (metrics.inputTokens || 0) + (metrics.outputTokens || 0) +
+                        (metrics.cacheCreationTokens || 0) + (metrics.cacheReadTokens || 0);
+
+    sessionRegistry.update(registrySession.id, {
+      contextPercent: Math.round((metrics.contextPercent || 0) * 10) / 10,
+      tokens: totalTokens,
+      inputTokens: metrics.inputTokens || 0,
+      outputTokens: metrics.outputTokens || 0,
+      cost: metrics.cost || 0,
+      messages: metrics.messageCount || 0
+    });
   }
+  // Note: Sessions without claudeSessionId won't be updated here
+  // They can still get initial metrics during registration
 });
 
 function addAlert(alert) {
@@ -1933,23 +1946,44 @@ app.post('/api/sessions/register', (req, res) => {
     }
   }
 
-  // For autonomous registrations without claudeSessionId, check if there's a recent CLI session for same project
-  // This handles: CLI session starts (hook registers as cli) -> orchestrator runs (should upgrade to autonomous)
+  // For autonomous registrations without claudeSessionId, check for existing sessions to reuse
   if (sessionType === 'autonomous' && !claudeSessionId && projectPath) {
     const allSessions = sessionRegistry.getAll();
     const normalizedPath = projectPath.replace(/\\/g, '/').toLowerCase();
 
-    // Find most recent CLI session for this project (within last 5 minutes)
+    // Helper to match project paths
+    const pathMatches = (sessionPath) => {
+      const normalized = (sessionPath || '').replace(/\\/g, '/').toLowerCase();
+      return normalized === normalizedPath ||
+             normalized.includes(normalizedPath) ||
+             normalizedPath.includes(normalized);
+    };
+
+    // Priority 1: Find existing autonomous sessions for same project and END them (stale cleanup)
+    // This prevents ghost sessions from accumulating when orchestrator crashes
+    const staleAutonomousSessions = allSessions.filter(s =>
+      pathMatches(s.path) &&
+      s.sessionType === 'autonomous' &&
+      s.status !== 'ended'
+    );
+
+    if (staleAutonomousSessions.length > 0) {
+      console.log(`[COMMAND CENTER] Cleaning up ${staleAutonomousSessions.length} stale autonomous session(s) for ${project}`);
+      staleAutonomousSessions.forEach(s => {
+        sessionRegistry.deregister(s.id);
+        console.log(`[COMMAND CENTER] Ended stale session: ${s.id}`);
+      });
+    }
+
+    // Priority 2: Check for recent CLI session to upgrade (within 5 minutes)
     const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
     const recentCliSession = allSessions
       .filter(s => {
-        const sessionPath = (s.path || '').replace(/\\/g, '/').toLowerCase();
-        const isMatch = sessionPath === normalizedPath ||
-                        sessionPath.includes(normalizedPath) ||
-                        normalizedPath.includes(sessionPath);
+        const isMatch = pathMatches(s.path);
         const isRecent = new Date(s.startTime).getTime() > fiveMinutesAgo;
         const isCli = s.sessionType === 'cli';
-        return isMatch && isRecent && isCli;
+        const notEnded = s.status !== 'ended';
+        return isMatch && isRecent && isCli && notEnded;
       })
       .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))[0];
 
@@ -1971,6 +2005,7 @@ app.post('/api/sessions/register', (req, res) => {
   }
 
   // Try to get initial context data from tracker
+  // FIX: Use per-session metrics when claudeSessionId is available
   // Field names must match what dashboard expects
   let initialMetrics = {
     contextPercent: 0,
@@ -1994,15 +2029,26 @@ app.post('/api/sessions/register', (req, res) => {
       const nameMatch = proj.name?.toLowerCase() === projectName.toLowerCase();
 
       if (pathMatch || nameMatch) {
-        const m = proj.metrics || {};
-        initialMetrics = {
-          contextPercent: m.contextPercent || 0,
-          tokens: (m.inputTokens || 0) + (m.outputTokens || 0) + (m.cacheCreationTokens || 0) + (m.cacheReadTokens || 0),
-          inputTokens: m.inputTokens || 0,
-          outputTokens: m.outputTokens || 0,
-          cost: m.cost || 0,
-          messages: m.messageCount || 0
-        };
+        // FIX: Look for per-session data first if claudeSessionId provided
+        if (claudeSessionId && proj.sessions) {
+          const sessionData = proj.sessions.find(s => s.id === claudeSessionId);
+          if (sessionData) {
+            // Use per-session metrics (not project-level aggregated)
+            initialMetrics = {
+              contextPercent: sessionData.contextPercent || 0,
+              tokens: (sessionData.inputTokens || 0) + (sessionData.outputTokens || 0) +
+                      (sessionData.cacheCreationTokens || 0) + (sessionData.cacheReadTokens || 0),
+              inputTokens: sessionData.inputTokens || 0,
+              outputTokens: sessionData.outputTokens || 0,
+              cost: sessionData.cost || 0,
+              messages: sessionData.messageCount || 0
+            };
+            break;
+          }
+        }
+        // Fallback: For new sessions without tracker data, start with zeros
+        // This prevents sharing project-level metrics across sessions
+        // The usage:update event will populate correct per-session metrics
         break;
       }
     }
@@ -2338,6 +2384,82 @@ app.put('/api/delegations/config', (req, res) => {
   } catch (error) {
     console.error('[DELEGATION API] Error updating config:', error);
     res.status(500).json({ error: 'Failed to update delegation config', message: error.message });
+  }
+});
+
+// Register a delegation for a session (called by delegation-executor when spawning agents)
+app.post('/api/sessions/:id/delegations', (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id, 10);
+    const { delegationId, taskId, pattern, subtaskCount, childAgentIds, metadata } = req.body;
+
+    if (!sessionId || isNaN(sessionId)) {
+      return res.status(400).json({ error: 'Invalid session ID' });
+    }
+
+    const delegation = sessionRegistry.addDelegation(sessionId, {
+      delegationId: delegationId || `del-${Date.now()}`,
+      targetAgentId: childAgentIds?.[0] || null,
+      taskId: taskId || 'unknown',
+      metadata: {
+        pattern: pattern || 'sequential',
+        subtaskCount: subtaskCount || 0,
+        childAgentIds: childAgentIds || [],
+        ...metadata
+      }
+    });
+
+    if (!delegation) {
+      return res.status(404).json({ error: 'Session not found', sessionId });
+    }
+
+    // Broadcast delegation event via SSE
+    broadcastFleetEvent({
+      type: 'delegation:added',
+      sessionId,
+      delegation,
+      timestamp: new Date().toISOString()
+    });
+
+    console.log(`[DELEGATION API] Delegation registered for session ${sessionId}:`, delegationId);
+    res.json({ success: true, delegation });
+  } catch (error) {
+    console.error('[DELEGATION API] Error registering delegation:', error);
+    res.status(500).json({ error: 'Failed to register delegation', message: error.message });
+  }
+});
+
+// Update delegation status (called when child agents complete)
+app.put('/api/sessions/:id/delegations/:delegationId', (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id, 10);
+    const { delegationId } = req.params;
+    const { status, result, error: errorMsg } = req.body;
+
+    if (!sessionId || isNaN(sessionId)) {
+      return res.status(400).json({ error: 'Invalid session ID' });
+    }
+
+    const updated = sessionRegistry.updateDelegation(sessionId, delegationId, status, result);
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Delegation not found', sessionId, delegationId });
+    }
+
+    // Broadcast delegation update via SSE
+    broadcastFleetEvent({
+      type: 'delegation:updated',
+      sessionId,
+      delegationId,
+      status,
+      timestamp: new Date().toISOString()
+    });
+
+    console.log(`[DELEGATION API] Delegation ${delegationId} updated to ${status}`);
+    res.json({ success: true, delegation: updated });
+  } catch (error) {
+    console.error('[DELEGATION API] Error updating delegation:', error);
+    res.status(500).json({ error: 'Failed to update delegation', message: error.message });
   }
 });
 

@@ -161,6 +161,77 @@ function registerDelegationHierarchy(task, subtasks, decision, parentAgentId = n
 }
 
 /**
+ * Register delegation with Dashboard SessionRegistry
+ * This enables CLI sessions to show hierarchy in the dashboard
+ * @param {number|string} sessionId - Dashboard session registry ID
+ * @param {Object} hierarchyResult - Result from registerDelegationHierarchy
+ * @param {Object} task - Task being delegated
+ * @param {string} pattern - Execution pattern
+ * @param {number} subtaskCount - Number of subtasks
+ * @returns {Object} Registration result
+ */
+function registerDelegationWithDashboard(sessionId, hierarchyResult, task, pattern, subtaskCount) {
+  if (!sessionId) {
+    return { registered: false, reason: 'No session ID provided' };
+  }
+
+  // Try to register with dashboard via HTTP API
+  const http = require('http');
+  const dashboardPort = process.env.DASHBOARD_PORT || 3033;
+
+  const postData = JSON.stringify({
+    delegationId: hierarchyResult?.delegationId || `del-${task.id}-${Date.now()}`,
+    taskId: task.id,
+    pattern: pattern,
+    subtaskCount: subtaskCount,
+    childAgentIds: hierarchyResult?.childAgentIds || [],
+    metadata: {
+      taskTitle: task.title,
+      confidence: hierarchyResult?.confidence
+    }
+  });
+
+  const options = {
+    hostname: 'localhost',
+    port: dashboardPort,
+    path: `/api/sessions/${sessionId}/delegations`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData)
+    },
+    timeout: 2000 // 2 second timeout
+  };
+
+  // Fire and forget - don't block on this
+  try {
+    const req = http.request(options, (res) => {
+      if (res.statusCode === 200) {
+        console.log(`[DelegationExecutor] Delegation registered with dashboard for session ${sessionId}`);
+      } else {
+        console.warn(`[DelegationExecutor] Dashboard registration returned ${res.statusCode}`);
+      }
+    });
+
+    req.on('error', (err) => {
+      // Silent fail - dashboard may not be running
+      console.debug?.(`[DelegationExecutor] Dashboard registration skipped: ${err.message}`);
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+    });
+
+    req.write(postData);
+    req.end();
+
+    return { registered: true, async: true };
+  } catch (error) {
+    return { registered: false, reason: error.message };
+  }
+}
+
+/**
  * Parse command-line style arguments from skill input
  * @param {string} input - Raw input from skill
  * @returns {Object} Parsed options and task description
@@ -636,6 +707,15 @@ function executeDelegation(input) {
   // Register delegation with HierarchyRegistry (for dashboard visibility)
   const hierarchyResult = registerDelegationHierarchy(task, subtasks, { ...decision, pattern });
 
+  // Register delegation with Dashboard SessionRegistry (for CLI session hierarchy display)
+  const dashboardResult = registerDelegationWithDashboard(
+    options.sessionId || options.registryId,
+    hierarchyResult,
+    task,
+    pattern,
+    subtasks.length
+  );
+
   // Handle dry run
   if (options.dryRun) {
     return {
@@ -822,6 +902,7 @@ module.exports = {
 
   // Hierarchy integration
   registerDelegationHierarchy,
+  registerDelegationWithDashboard,
   generateDelegationId,
   getHierarchyRegistry,
 
