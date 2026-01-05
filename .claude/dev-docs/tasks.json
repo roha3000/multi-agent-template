@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 116,
-    "lastModifiedBy": 435,
-    "lastModifiedAt": "2026-01-05T05:00:33.989Z"
+    "version": 118,
+    "lastModifiedBy": 478,
+    "lastModifiedAt": "2026-01-05T05:28:51.022Z"
   },
   "version": "1.1.0",
   "project": {
@@ -20,8 +20,7 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "session-end-hook-reliability",
-        "dashboard-stale-session-handling"
+        "session-end-hook-reliability"
       ]
     },
     "next": {
@@ -408,12 +407,12 @@
       "status": "in_progress",
       "assignee": null,
       "created": "2026-01-04T20:10:00.000Z",
-      "updated": "2026-01-05T04:58:44.135Z",
+      "updated": "2026-01-05T05:28:51.021Z",
       "parentTaskId": null,
       "childTaskIds": [],
       "delegatedTo": null,
       "delegationDepth": 0,
-      "started": "2026-01-05T04:58:44.135Z"
+      "started": "2026-01-05T05:28:51.021Z"
     },
     "dashboard-tasks-tab-claims": {
       "id": "dashboard-tasks-tab-claims",
@@ -490,50 +489,12 @@
       "childTaskIds": [],
       "delegatedTo": null,
       "delegationDepth": 0
-    },
-    "dashboard-stale-session-handling": {
-      "id": "dashboard-stale-session-handling",
-      "title": "Handle Stale Session Data in Dashboard UI",
-      "description": "Dashboard UI can show stale session data when session IDs are reused after dashboard restart. Old session s1 data persists in UI cache while new s1 registers with different data. UI should detect ID conflicts, clear stale data on SSE reconnect, and provide manual 'clear stale sessions' button.",
-      "phase": "implementation",
-      "priority": "low",
-      "estimate": "1h",
-      "tags": [
-        "dashboard",
-        "ui",
-        "cache",
-        "bug-fix"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "session-registry-id-persistence",
-          "session-end-hook-reliability"
-        ]
-      },
-      "acceptance": [
-        "UI clears session cache on SSE reconnect",
-        "Add 'Clear Stale Sessions' button to dashboard",
-        "Detect session ID conflicts (same ID, different claudeSessionId)",
-        "Visual indicator for potentially stale sessions",
-        "Auto-refresh session list on dashboard load"
-      ],
-      "status": "in_progress",
-      "assignee": null,
-      "created": "2026-01-04T20:10:00.000Z",
-      "updated": "2026-01-05T05:00:33.986Z",
-      "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "started": "2026-01-05T05:00:33.986Z"
     }
   },
   "archival": {
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2026-01-05T04:54:33.442Z"
+    "lastArchived": "2026-01-05T05:24:01.132Z"
   }
 }

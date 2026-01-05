@@ -28,11 +28,11 @@ function readStdin() {
   return new Promise((resolve) => {
     let data = '';
 
-    // Set a timeout in case stdin is empty
+    // Set a timeout in case stdin is empty (2s for reliability)
     const timeout = setTimeout(() => {
       debug.log('session-start', 'stdin-timeout', {});
       resolve(null);
-    }, 1000);
+    }, 2000);
 
     process.stdin.setEncoding('utf8');
     process.stdin.on('data', (chunk) => {
@@ -168,6 +168,7 @@ function loadTasksContext() {
  * Main entry point
  */
 async function main() {
+  const hookStartTime = Date.now();
   debug.log('session-start', 'main-start', {});
 
   // Read session info from stdin
@@ -187,11 +188,24 @@ async function main() {
   }
   console.log('========================\n');
 
+  // Record success metrics
+  const hookDuration = Date.now() - hookStartTime;
+  debug.recordExecution('session-start', true, hookDuration, {
+    registered: registerResult.success,
+    tasksLoaded: context.status === 'loaded'
+  });
+
   debug.log('session-start', 'exit', { context, registerResult });
   process.exit(0);
 }
 
 main().catch((err) => {
+  // Record failure metrics before exiting
+  debug.recordExecution('session-start', false, 0, {
+    errorCategory: debug.categorizeError(err),
+    error: err.message
+  });
+
   debug.log('session-start', 'main-error', { error: err.message });
   console.error('Session start hook error:', err.message);
   process.exit(1);

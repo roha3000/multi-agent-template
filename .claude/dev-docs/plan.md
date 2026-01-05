@@ -1,16 +1,17 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Dashboard Autonomous Session Display Fixed
+**Status**: Session Cleanup & Hook Reliability (Orchestrator-driven)
 
 ---
 
-## Session 94 Summary
+## Session 95 Summary
 
 | Task | Status |
 |------|--------|
-| Dashboard autonomous session display | ✅ Complete |
+| GlobalContextTracker session cleanup | ✅ Complete |
+| Dashboard sessionCount fix (1190→5) | ✅ Complete |
 
-**Fix**: Added missing `hierarchyInfo` to session objects. Refactored logs pane to fetch from log-streamer for autonomous sessions. 2885 tests passing.
+**Changes**: Added auto-cleanup to GlobalContextTracker - prunes sessions inactive >10min from memory. Only loads recent sessions at startup. Added `/api/tracker/stats`, `/api/tracker/cleanup` endpoints.
 
 ---
 
@@ -18,8 +19,7 @@
 
 | Task | Priority | Status |
 |------|----------|--------|
-| `session-end-hook-reliability` | medium | ready |
-| `dashboard-stale-session-handling` | low | ready |
+| `session-end-hook-reliability` | medium | in-progress (orchestrator) |
 
 ---
 
@@ -39,9 +39,9 @@
 # Start dashboard
 node global-context-manager.js
 
-# Run tests
-npm test -- --silent
+# Check session stats
+curl http://localhost:3033/api/tracker/stats
 
-# Run orchestrator
-node autonomous-orchestrator.js --model claude-opus-4-5-20251101
+# Force cleanup
+curl -X POST http://localhost:3033/api/tracker/cleanup
 ```

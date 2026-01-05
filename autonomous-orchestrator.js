@@ -1065,8 +1065,8 @@ async function logToDashboard(message, level = 'INFO', source = 'orchestrator') 
  */
 async function initializeCommandCenter() {
   try {
-    // Register this orchestrator session via HTTP API
-    const response = await postToDashboard('/api/sessions/register', {
+    // Build registration payload
+    const registrationPayload = {
       project: path.basename(CONFIG.projectPath),
       path: CONFIG.projectPath,
       status: 'active',
@@ -1090,7 +1090,16 @@ async function initializeCommandCenter() {
       tokens: 0,
       cost: 0,
       iteration: state.phaseIteration,
-    });
+    };
+
+    // If we already have a registered session ID (reconnecting after disconnect),
+    // pass it to preserve the ID and maintain claim ownership
+    if (registeredSessionId) {
+      registrationPayload.existingSessionId = registeredSessionId;
+    }
+
+    // Register this orchestrator session via HTTP API
+    const response = await postToDashboard('/api/sessions/register', registrationPayload);
 
     if (response.success && response.id) {
       registeredSessionId = response.id;

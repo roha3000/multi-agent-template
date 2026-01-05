@@ -369,6 +369,91 @@ const usageLimitTracker = getUsageLimitTracker();
 const logStreamer = getLogStreamer();
 console.log('[COMMAND CENTER] Session Registry, Usage Limit Tracker, and Log Streamer initialized');
 
+// Pending deregistrations directory (fallback when HTTP fails during session end)
+const PENDING_DEREGISTER_DIR = path.join(__dirname, '.claude', 'data', 'pending-deregistrations');
+
+/**
+ * Process pending deregistration files written by session-end hook fallback
+ * When sessions end while dashboard is unavailable, they write deregistration
+ * requests to files. This function processes those files and marks sessions as ended.
+ *
+ * @returns {Object} Processing result { processed: number, errors: number, files: string[] }
+ */
+function processPendingDeregistrations() {
+  const result = { processed: 0, errors: 0, files: [] };
+
+  try {
+    // Check if directory exists
+    if (!fs.existsSync(PENDING_DEREGISTER_DIR)) {
+      return result; // No pending files
+    }
+
+    // Read all pending files
+    const files = fs.readdirSync(PENDING_DEREGISTER_DIR)
+      .filter(f => f.startsWith('deregister-') && f.endsWith('.json'))
+      .sort(); // Process oldest first
+
+    for (const filename of files) {
+      const filepath = path.join(PENDING_DEREGISTER_DIR, filename);
+
+      try {
+        // Read and parse the pending request
+        const content = fs.readFileSync(filepath, 'utf8');
+        const request = JSON.parse(content);
+
+        if (!request.claudeSessionId) {
+          console.warn(`[PENDING DEREGISTER] Skipping invalid file (no claudeSessionId): ${filename}`);
+          fs.unlinkSync(filepath); // Remove invalid file
+          continue;
+        }
+
+        // Attempt to deregister the session
+        const session = sessionRegistry.deregisterByClaudeSessionId(request.claudeSessionId);
+
+        if (session) {
+          console.log(`[PENDING DEREGISTER] Processed: Session ${session.id} (Claude ID: ${request.claudeSessionId}, reason: ${request.reason})`);
+          result.processed++;
+          result.files.push(filename);
+        } else {
+          // Session may have already been deregistered or never registered
+          console.log(`[PENDING DEREGISTER] Session not found or already ended: ${request.claudeSessionId}`);
+          result.processed++; // Still count as processed
+          result.files.push(filename);
+        }
+
+        // Remove the processed file
+        fs.unlinkSync(filepath);
+
+      } catch (parseErr) {
+        console.error(`[PENDING DEREGISTER] Error processing ${filename}:`, parseErr.message);
+        result.errors++;
+
+        // Move corrupted file to a .bad extension so it doesn't block others
+        try {
+          fs.renameSync(filepath, filepath + '.bad');
+        } catch (renameErr) {
+          // If rename fails, just delete it
+          try { fs.unlinkSync(filepath); } catch (e) { /* ignore */ }
+        }
+      }
+    }
+
+    if (result.processed > 0 || result.errors > 0) {
+      console.log(`[PENDING DEREGISTER] Summary: ${result.processed} processed, ${result.errors} errors`);
+    }
+
+  } catch (dirErr) {
+    console.error('[PENDING DEREGISTER] Error reading directory:', dirErr.message);
+    result.errors++;
+  }
+
+  return result;
+}
+
+// Timer for periodic processing of pending deregistrations
+let pendingDeregisterTimer = null;
+const PENDING_DEREGISTER_INTERVAL = 30000; // Check every 30 seconds
+
 // Session series tracking for continuous loop
 let sessionSeries = {
   active: false,
@@ -885,6 +970,147 @@ app.post('/api/projects/:folder/reset', (req, res) => {
   tracker.resetProjectCheckpoints(req.params.folder);
   res.json({ success: true });
 });
+
+// ============================================================================
+// HOOK METRICS API
+// ============================================================================
+
+// Lazy-load hook metrics module
+let _hookMetricsModule = null;
+function getHookMetricsModule() {
+  if (_hookMetricsModule === null) {
+    try {
+      _hookMetricsModule = require('./.claude/core/hook-metrics');
+    } catch (e) {
+      console.warn('[HOOK-METRICS] Module not available:', e.message);
+      _hookMetricsModule = false;
+    }
+  }
+  return _hookMetricsModule || null;
+}
+
+// Get hook success/failure rate summary
+app.get('/api/hooks/metrics', (req, res) => {
+  const metricsModule = getHookMetricsModule();
+  if (!metricsModule) {
+    return res.status(503).json({
+      error: 'Hook metrics module not available',
+      message: 'The hook-metrics.js module is not loaded'
+    });
+  }
+
+  const metrics = metricsModule.getHookMetrics();
+  res.json(metrics.getSummary());
+});
+
+// Get metrics for a specific hook type
+app.get('/api/hooks/metrics/:hookType', (req, res) => {
+  const metricsModule = getHookMetricsModule();
+  if (!metricsModule) {
+    return res.status(503).json({
+      error: 'Hook metrics module not available'
+    });
+  }
+
+  const { hookType } = req.params;
+  const metrics = metricsModule.getHookMetrics();
+  const hookStats = metrics.getHookStats(hookType);
+
+  if (!hookStats) {
+    return res.status(404).json({
+      error: 'Unknown hook type',
+      hookType,
+      availableTypes: metricsModule.HOOK_TYPES
+    });
+  }
+
+  res.json(hookStats);
+});
+
+// Get rolling success rates (by time window)
+app.get('/api/hooks/metrics/rolling/:window', (req, res) => {
+  const metricsModule = getHookMetricsModule();
+  if (!metricsModule) {
+    return res.status(503).json({
+      error: 'Hook metrics module not available'
+    });
+  }
+
+  const { window } = req.params;
+  const metrics = metricsModule.getHookMetrics();
+  const rollingStats = metrics.getRollingSuccessRate(window);
+
+  if (!rollingStats) {
+    return res.status(404).json({
+      error: 'Unknown time window',
+      window,
+      availableWindows: ['minute', 'hour', 'day']
+    });
+  }
+
+  res.json(rollingStats);
+});
+
+// Get recent hook executions
+app.get('/api/hooks/executions', (req, res) => {
+  const metricsModule = getHookMetricsModule();
+  if (!metricsModule) {
+    return res.status(503).json({
+      error: 'Hook metrics module not available'
+    });
+  }
+
+  const limit = parseInt(req.query.limit) || 20;
+  const metrics = metricsModule.getHookMetrics();
+  res.json(metrics.getRecentExecutions(limit));
+});
+
+// Reset hook metrics (admin action)
+app.post('/api/hooks/metrics/reset', (req, res) => {
+  const metricsModule = getHookMetricsModule();
+  if (!metricsModule) {
+    return res.status(503).json({
+      error: 'Hook metrics module not available'
+    });
+  }
+
+  const metrics = metricsModule.getHookMetrics();
+  metrics.reset();
+  res.json({ success: true, message: 'Hook metrics reset' });
+});
+
+// Take a snapshot of current metrics (for trend analysis)
+app.post('/api/hooks/metrics/snapshot', (req, res) => {
+  const metricsModule = getHookMetricsModule();
+  if (!metricsModule) {
+    return res.status(503).json({
+      error: 'Hook metrics module not available'
+    });
+  }
+
+  const metrics = metricsModule.getHookMetrics();
+  const snapshot = metrics.takeSnapshot();
+  res.json(snapshot);
+});
+
+// Get metric snapshots (historical data)
+app.get('/api/hooks/snapshots', (req, res) => {
+  const metricsModule = getHookMetricsModule();
+  if (!metricsModule) {
+    return res.status(503).json({
+      error: 'Hook metrics module not available'
+    });
+  }
+
+  const limit = parseInt(req.query.limit) || 50;
+  const since = req.query.since ? parseInt(req.query.since) : null;
+  const metrics = metricsModule.getHookMetrics();
+  res.json(metrics.getSnapshots({ limit, since }));
+});
+
+// ============================================================================
+// HEALTH & STATUS ENDPOINTS
+// ============================================================================
 
 // Health check endpoint
 // Returns comprehensive system status including uptime, active projects, notification service, and memory usage
@@ -1919,7 +2145,29 @@ app.get('/api/sessions/:id/hierarchy', (req, res) => {
 
 // Register a new session (called by orchestrator on startup or SessionStart hook)
 app.post('/api/sessions/register', (req, res) => {
-  const { project, path: projectPath, currentTask, status, sessionType, autonomous, orchestratorInfo, logSessionId, claudeSessionId, parentSessionId } = req.body;
+  const { project, path: projectPath, currentTask, status, sessionType, autonomous, orchestratorInfo, logSessionId, claudeSessionId, parentSessionId, existingSessionId } = req.body;
+
+  // Priority 0: If existingSessionId is provided (orchestrator reconnecting after disconnect),
+  // verify it exists and update it instead of creating new session
+  // This preserves claim ownership across SSE reconnections
+  if (existingSessionId) {
+    const existingSession = sessionRegistry.get(existingSessionId);
+    if (existingSession) {
+      // Session still exists - update it and return same ID
+      const updates = {
+        status: status || existingSession.status,
+        currentTask: currentTask || existingSession.currentTask,
+        orchestratorInfo: orchestratorInfo || existingSession.orchestratorInfo,
+        lastUpdate: new Date().toISOString()
+      };
+      sessionRegistry.update(existingSessionId, updates);
+      console.log(`[COMMAND CENTER] Session resumed: ${existingSessionId} (${project}) [${sessionType || existingSession.sessionType}] (reconnected after disconnect)`);
+      return res.json({ success: true, id: existingSessionId, resumed: true });
+    } else {
+      console.log(`[COMMAND CENTER] existingSessionId ${existingSessionId} not found - creating new session`);
+      // Fall through to create new session
+    }
+  }
 
   // Deduplication logic to prevent duplicate sessions
   // 1. By claudeSessionId - prevents hook from overwriting orchestrator session
@@ -2245,6 +2493,59 @@ app.post('/api/sessions/completion', (req, res) => {
   usageLimitTracker.recordMessage();
 
   res.json({ success: true, completion });
+});
+
+// ============================================================================
+// TRACKER CLEANUP API ENDPOINTS
+// ============================================================================
+
+// Get tracker session statistics
+app.get('/api/tracker/stats', (req, res) => {
+  try {
+    const stats = tracker.getSessionStats();
+    const config = tracker.getCleanupConfig();
+    res.json({
+      success: true,
+      stats,
+      config,
+      thresholds: {
+        inactiveMinutes: config.inactiveThresholdMs / 60000,
+        fileRetentionDays: config.fileRetentionMs / (24 * 60 * 60 * 1000)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Trigger cleanup of inactive sessions
+app.post('/api/tracker/cleanup', (req, res) => {
+  try {
+    const { inactiveMinutes, deleteFiles } = req.body;
+    const stats = tracker.forceCleanup({
+      inactiveMinutes: inactiveMinutes || 10,
+      deleteFiles: deleteFiles || false
+    });
+    res.json({ success: true, stats });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Update cleanup configuration
+app.post('/api/tracker/config', (req, res) => {
+  try {
+    const { inactiveThresholdMs, fileRetentionMs, cleanupIntervalMs, deleteOldFiles } = req.body;
+    tracker.setCleanupConfig({
+      inactiveThresholdMs,
+      fileRetentionMs,
+      cleanupIntervalMs,
+      deleteOldFiles
+    });
+    res.json({ success: true, config: tracker.getCleanupConfig() });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // ============================================================================
@@ -4021,6 +4322,21 @@ const server = app.listen(PORT, async () => {
   console.log(`  GET  /api/agent-pool/status     - Agent lineage + delegation metrics`);
   console.log(`  WS   ws://localhost:${PORT}/ws/fleet - Real-time fleet events`);
   console.log('');
+
+  // Process any pending deregistrations from when dashboard was unavailable
+  const pendingResult = processPendingDeregistrations();
+  if (pendingResult.processed > 0) {
+    console.log(`[STARTUP] Processed ${pendingResult.processed} pending session deregistrations`);
+  }
+
+  // Start periodic check for pending deregistrations
+  pendingDeregisterTimer = setInterval(() => {
+    processPendingDeregistrations();
+  }, PENDING_DEREGISTER_INTERVAL);
+  if (pendingDeregisterTimer.unref) {
+    pendingDeregisterTimer.unref(); // Don't block process exit
+  }
+  console.log(`[STARTUP] Pending deregistration processor started (interval: ${PENDING_DEREGISTER_INTERVAL / 1000}s)`);
 });
 
 // CRITICAL: Handle server port binding errors (e.g., EADDRINUSE when another session is running)
@@ -4057,6 +4373,10 @@ async function cleanupTaskManagers() {
 process.on('SIGINT', async () => {
   console.log('\nShutting down...');
   await cleanupTaskManagers(); // CRITICAL: Release locks and claims before exit
+  if (pendingDeregisterTimer) {
+    clearInterval(pendingDeregisterTimer);
+    pendingDeregisterTimer = null;
+  }
   if (devDocsWatcher) await devDocsWatcher.close();
   logStreamer.shutdown();
   if (otlpReceiver) {
@@ -4070,6 +4390,10 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
   console.log('\nShutting down...');
   await cleanupTaskManagers(); // CRITICAL: Release locks and claims before exit
+  if (pendingDeregisterTimer) {
+    clearInterval(pendingDeregisterTimer);
+    pendingDeregisterTimer = null;
+  }
   if (devDocsWatcher) await devDocsWatcher.close();
   logStreamer.shutdown();
   if (otlpReceiver) {

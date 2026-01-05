@@ -90,9 +90,23 @@ class GlobalContextTracker extends EventEmitter {
     this.watcher = null;
     this.isRunning = false;
 
+    // Cleanup configuration
+    this.cleanupConfig = {
+      // Sessions inactive for longer than this are pruned from memory
+      inactiveThresholdMs: options.inactiveThresholdMs || 10 * 60 * 1000, // 10 minutes
+      // Session files older than this can be deleted from disk
+      fileRetentionMs: options.fileRetentionMs || 7 * 24 * 60 * 60 * 1000, // 7 days
+      // Auto-cleanup interval
+      cleanupIntervalMs: options.cleanupIntervalMs || 5 * 60 * 1000, // 5 minutes
+      // Whether to delete old files from disk
+      deleteOldFiles: options.deleteOldFiles || false
+    };
+    this._cleanupInterval = null;
+
     console.log('[GlobalContextTracker] Initialized', {
       claudeProjectsPath: this.claudeProjectsPath,
-      thresholds: this.thresholds
+      thresholds: this.thresholds,
+      cleanupConfig: this.cleanupConfig
     });
   }
 
@@ -121,6 +135,12 @@ class GlobalContextTracker extends EventEmitter {
     // Start watching for changes
     this._startWatching();
 
+    // Start periodic cleanup
+    this._startCleanupInterval();
+
+    // Run initial cleanup
+    this.cleanupInactiveSessions();
+
     this.emit('started', {
       projectCount: this.projects.size,
       claudeProjectsPath: this.claudeProjectsPath
@@ -134,6 +154,12 @@ class GlobalContextTracker extends EventEmitter {
     if (!this.isRunning) return;
 
     console.log('[GlobalContextTracker] Stopping...');
+
+    // Stop cleanup interval
+    if (this._cleanupInterval) {
+      clearInterval(this._cleanupInterval);
+      this._cleanupInterval = null;
+    }
 
     if (this.watcher) {
       await this.watcher.close();
@@ -215,6 +241,7 @@ class GlobalContextTracker extends EventEmitter {
     // Find session files
     try {
       const files = fs.readdirSync(projectPath).filter(f => f.endsWith('.jsonl'));
+      const inactiveThreshold = Date.now() - this.cleanupConfig.inactiveThresholdMs;
 
       // Find most recent session first
       let mostRecentFile = null;
@@ -224,10 +251,17 @@ class GlobalContextTracker extends EventEmitter {
         const filepath = path.join(projectPath, file);
         const sessionId = path.basename(file, '.jsonl');
         const stats = fs.statSync(filepath);
+        const mtime = stats.mtime.getTime();
 
-        if (stats.mtime.getTime() > mostRecentTime) {
-          mostRecentTime = stats.mtime.getTime();
+        if (mtime > mostRecentTime) {
+          mostRecentTime = mtime;
           mostRecentFile = file;
+        }
+
+        // Only load sessions that are within the inactive threshold
+        // This prevents loading thousands of old sessions at startup
+        if (mtime < inactiveThreshold) {
+          continue; // Skip old sessions
         }
 
         // Track file position (start from end for watching new content)
@@ -243,7 +277,7 @@ class GlobalContextTracker extends EventEmitter {
           cacheReadTokens: 0,
           messageCount: 0,
           model: null,
-          lastUpdate: stats.mtime.getTime()
+          lastUpdate: mtime
         });
       }
 
@@ -1637,6 +1671,203 @@ The dev-docs 3-file pattern preserves all critical context.
     sessions.sort((a, b) => (b.lastUpdate || 0) - (a.lastUpdate || 0));
 
     return sessions;
+  }
+
+  // ============================================================================
+  // Session Cleanup Methods
+  // ============================================================================
+
+  /**
+   * Start periodic cleanup interval
+   * @private
+   */
+  _startCleanupInterval() {
+    if (this._cleanupInterval) {
+      clearInterval(this._cleanupInterval);
+    }
+
+    this._cleanupInterval = setInterval(() => {
+      this.cleanupInactiveSessions();
+    }, this.cleanupConfig.cleanupIntervalMs);
+
+    console.log(`[GlobalContextTracker] Cleanup interval started (every ${this.cleanupConfig.cleanupIntervalMs / 1000}s)`);
+  }
+
+  /**
+   * Cleanup inactive sessions from memory
+   * Sessions that haven't been updated in the configured threshold are removed.
+   * This keeps memory usage low and dashboard responsive.
+   *
+   * @param {Object} [options] - Cleanup options
+   * @param {boolean} [options.deleteFiles=false] - Also delete old session files from disk
+   * @returns {Object} Cleanup statistics
+   */
+  cleanupInactiveSessions(options = {}) {
+    const now = Date.now();
+    const inactiveThreshold = now - this.cleanupConfig.inactiveThresholdMs;
+    const fileRetentionThreshold = now - this.cleanupConfig.fileRetentionMs;
+    const deleteFiles = options.deleteFiles ?? this.cleanupConfig.deleteOldFiles;
+
+    const stats = {
+      sessionsRemoved: 0,
+      filesDeleted: 0,
+      projectsCleaned: 0,
+      errors: []
+    };
+
+    for (const [projectFolder, project] of this.projects) {
+      let projectSessionsRemoved = 0;
+
+      // Get sessions to remove (inactive beyond threshold)
+      const sessionsToRemove = [];
+      for (const [sessionId, session] of project.sessions) {
+        // Never remove the current active session
+        if (sessionId === project.currentSessionId && project.status === 'active') {
+          continue;
+        }
+
+        // Check if session is inactive
+        const lastUpdate = session.lastUpdate || 0;
+        if (lastUpdate < inactiveThreshold) {
+          sessionsToRemove.push({ sessionId, session, lastUpdate });
+        }
+      }
+
+      // Remove inactive sessions from memory
+      for (const { sessionId, session, lastUpdate } of sessionsToRemove) {
+        project.sessions.delete(sessionId);
+        this.filePositions.delete(session.filepath);
+        projectSessionsRemoved++;
+        stats.sessionsRemoved++;
+
+        // Optionally delete old files from disk
+        if (deleteFiles && session.filepath && lastUpdate < fileRetentionThreshold) {
+          try {
+            if (fs.existsSync(session.filepath)) {
+              fs.unlinkSync(session.filepath);
+              stats.filesDeleted++;
+            }
+          } catch (err) {
+            stats.errors.push({
+              sessionId,
+              filepath: session.filepath,
+              error: err.message
+            });
+          }
+        }
+      }
+
+      if (projectSessionsRemoved > 0) {
+        stats.projectsCleaned++;
+      }
+    }
+
+    // Update account totals after cleanup
+    this._updateAccountTotals();
+
+    if (stats.sessionsRemoved > 0) {
+      console.log(`[GlobalContextTracker] Cleanup: removed ${stats.sessionsRemoved} inactive sessions from ${stats.projectsCleaned} projects` +
+        (stats.filesDeleted > 0 ? `, deleted ${stats.filesDeleted} old files` : ''));
+
+      this.emit('cleanup:complete', stats);
+    }
+
+    return stats;
+  }
+
+  /**
+   * Get cleanup configuration
+   * @returns {Object} Current cleanup configuration
+   */
+  getCleanupConfig() {
+    return { ...this.cleanupConfig };
+  }
+
+  /**
+   * Update cleanup configuration
+   * @param {Object} config - New configuration values
+   */
+  setCleanupConfig(config) {
+    if (config.inactiveThresholdMs !== undefined) {
+      this.cleanupConfig.inactiveThresholdMs = config.inactiveThresholdMs;
+    }
+    if (config.fileRetentionMs !== undefined) {
+      this.cleanupConfig.fileRetentionMs = config.fileRetentionMs;
+    }
+    if (config.cleanupIntervalMs !== undefined) {
+      this.cleanupConfig.cleanupIntervalMs = config.cleanupIntervalMs;
+      // Restart interval with new timing
+      this._startCleanupInterval();
+    }
+    if (config.deleteOldFiles !== undefined) {
+      this.cleanupConfig.deleteOldFiles = config.deleteOldFiles;
+    }
+
+    console.log('[GlobalContextTracker] Cleanup config updated:', this.cleanupConfig);
+  }
+
+  /**
+   * Force immediate cleanup with custom thresholds
+   * Useful for manual cleanup or testing
+   *
+   * @param {Object} [options] - Cleanup options
+   * @param {number} [options.inactiveMinutes=10] - Remove sessions inactive for this many minutes
+   * @param {boolean} [options.deleteFiles=false] - Also delete files older than fileRetentionMs
+   * @returns {Object} Cleanup statistics
+   */
+  forceCleanup(options = {}) {
+    const originalThreshold = this.cleanupConfig.inactiveThresholdMs;
+
+    // Temporarily adjust threshold if custom minutes specified
+    if (options.inactiveMinutes !== undefined) {
+      this.cleanupConfig.inactiveThresholdMs = options.inactiveMinutes * 60 * 1000;
+    }
+
+    const stats = this.cleanupInactiveSessions({ deleteFiles: options.deleteFiles });
+
+    // Restore original threshold
+    this.cleanupConfig.inactiveThresholdMs = originalThreshold;
+
+    return stats;
+  }
+
+  /**
+   * Get session count statistics
+   * @returns {Object} Session count breakdown
+   */
+  getSessionStats() {
+    const now = Date.now();
+    const inactiveThreshold = now - this.cleanupConfig.inactiveThresholdMs;
+    const stats = {
+      total: 0,
+      active: 0,
+      inactive: 0,
+      byProject: {}
+    };
+
+    for (const [projectFolder, project] of this.projects) {
+      const projectStats = {
+        total: project.sessions.size,
+        active: 0,
+        inactive: 0
+      };
+
+      for (const [sessionId, session] of project.sessions) {
+        const lastUpdate = session.lastUpdate || 0;
+        if (lastUpdate >= inactiveThreshold) {
+          projectStats.active++;
+          stats.active++;
+        } else {
+          projectStats.inactive++;
+          stats.inactive++;
+        }
+        stats.total++;
+      }
+
+      stats.byProject[project.name] = projectStats;
+    }
+
+    return stats;
   }
 }
 

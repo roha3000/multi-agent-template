@@ -1,110 +1,53 @@
 # Project Summary
 
-**Last Updated**: 2026-01-05T05:10:22.509Z
-**Current Phase**: Planning
-**Overall Progress**: 30%
+**Last Updated**: 2026-01-05
+**Current Phase**: Implementation
+**Session**: 95
 
 ---
 
+## Session 95: GlobalContextTracker Cleanup
 
-## Phase Progress
+### Work Completed
 
-| Phase | Status | Quality Score | Artifacts |
-|-------|--------|---------------|-----------|
-| Research | ✅ Completed | 85/100 | 1 |
-| Planning 👉 | 🔄 In Progress | 85/100 | 0 |
-| Design | ⏳ Not Started | N/A | 0 |
-| Test-First | ⏳ Not Started | N/A | 0 |
-| Implementation | ⏳ Not Started | N/A | 1 |
-| Validation | ⏳ Not Started | N/A | 0 |
-| Iteration | ⏳ Not Started | N/A | 0 |
+| Task | Description |
+|------|-------------|
+| Session cleanup | Added auto-cleanup to GlobalContextTracker - prunes inactive sessions from memory |
+| Startup optimization | Only loads sessions active within last 10 minutes (was loading all 1190) |
+| API endpoints | Added `/api/tracker/stats`, `/api/tracker/cleanup`, `/api/tracker/config` |
 
----
+### Key Changes
+- `inactiveThresholdMs`: 10 minutes (sessions older pruned from memory)
+- `fileRetentionMs`: 7 days (for optional disk cleanup)
+- `cleanupIntervalMs`: 5 minutes (auto-cleanup runs periodically)
+- Dashboard now shows 5 sessions instead of 1190
 
+### Files Modified
 
-## Quality Metrics
-
-**Average Score**: 85.0/100  
-**Highest Score**: 85/100  
-**Lowest Score**: 85/100  
-**Phases Completed**: 2/7
-
-### Phase Scores
-| Phase | Score | Status |
-|-------|-------|--------|
-| Research | 85/100 | ✅ Passed |
-| Planning | 85/100 | ✅ Passed |
+| File | Change |
+|------|--------|
+| `.claude/core/global-context-tracker.js` | +239 lines: cleanup methods, startup filtering |
+| `global-context-manager.js` | +50 lines: tracker cleanup API endpoints |
 
 ---
 
-
-## Recent Activity
-
-- **Planning** by Strategic Planner (Score: 85/100)  
-  _11/18/2025, 8:53:23 PM_
-
-- **Planning** by Test Agent  
-  _11/18/2025, 8:53:22 PM_
-
-- **Planning** by Test Agent  
-  _11/18/2025, 8:53:22 PM_
-
-- **Planning** by Strategic Planner (Score: 85/100)  
-  _11/18/2025, 8:51:41 PM_
-
-- **Research** by Test Agent  
-  _11/18/2025, 8:51:41 PM_
-
-- **Planning** by Test Agent  
-  _11/18/2025, 8:51:41 PM_
-
-- **Research** by Test Agent  
-  _11/18/2025, 8:45:07 PM_
-
-- **Planning** by Test Agent  
-  _11/18/2025, 8:45:07 PM_
+## Session 94: Dashboard Autonomous Session Display ✅
+- **Tasks**: dashboard-autonomous-display
+- **Key changes**: Fixed hierarchy and logs for autonomous sessions
+- **Files**: global-context-manager.js
 
 ---
 
+## NOW Queue
 
-## Key Decisions
+| Task | Priority | Status |
+|------|----------|--------|
+| `session-end-hook-reliability` | medium | in-progress (orchestrator) |
 
-### 1. Use PostgreSQL
+## NEXT Queue
 
-**Phase**: Planning  
-**Agent**: System Architect  
-**When**: 11/18/2025, 8:53:23 PM
-
-**Rationale**: Better for relational data
-
-### 2. Use PostgreSQL
-
-**Phase**: Planning  
-**Agent**: System Architect  
-**When**: 11/18/2025, 8:51:41 PM
-
-**Rationale**: Better for relational data
-
-
----
-
-
-## Generated Artifacts
-
-### Implementation
-
-- `test-component.tsx`
-
-### Research
-
-- `docs/db-research.md`
-
-
----
-
-
-## Next Steps
-
-1. Transition to Design phase
-
----
+| Task | Priority |
+|------|----------|
+| `dashboard-blocked-tasks-view` | medium |
+| `dashboard-tasks-tab-claims` | medium |
+| `dashboard-hierarchy-child-details` | medium |

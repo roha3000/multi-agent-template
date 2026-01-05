@@ -1352,7 +1352,46 @@
         "resolution": "Added claim extension/re-claim logic in phase transition code. Task now maintains valid claim across phases."
       },
       "started": "2026-01-05T04:40:35.444Z"
+    },
+    "dashboard-stale-session-handling": {
+      "id": "dashboard-stale-session-handling",
+      "title": "Handle Stale Session Data in Dashboard UI",
+      "description": "Dashboard UI can show stale session data when session IDs are reused after dashboard restart. Old session s1 data persists in UI cache while new s1 registers with different data. UI should detect ID conflicts, clear stale data on SSE reconnect, and provide manual 'clear stale sessions' button.",
+      "phase": "implementation",
+      "priority": "low",
+      "estimate": "1h",
+      "tags": [
+        "dashboard",
+        "ui",
+        "cache",
+        "bug-fix"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "session-registry-id-persistence",
+          "session-end-hook-reliability"
+        ]
+      },
+      "acceptance": [
+        "UI clears session cache on SSE reconnect",
+        "Add 'Clear Stale Sessions' button to dashboard",
+        "Detect session ID conflicts (same ID, different claudeSessionId)",
+        "Visual indicator for potentially stale sessions",
+        "Auto-refresh session list on dashboard load"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2026-01-04T20:10:00.000Z",
+      "updated": "2026-01-05T05:16:00.000Z",
+      "completedAt": "2026-01-05T05:16:00.000Z",
+      "completionNotes": "Orchestrator delegated to 5 parallel agents: (1) SSE reconnect clears session cache + calls fetchSessions(), (2) Clear Stale button + POST /api/sessions/clear-stale API, (3) sessionIdHistory Map + detectSessionConflict() + toast alerts, (4) getSessionStaleness() + CSS for stale/warning states, (5) 30s interval + visibility change handler. E2E tests added.",
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0
     }
   },
-  "lastArchived": "2026-01-05T04:54:33.430Z"
+  "lastArchived": "2026-01-05T05:24:01.113Z"
 }
