@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 111,
-    "lastModifiedBy": "cce44576-cf10-430b-8491-913481958f4b",
-    "lastModifiedAt": "2026-01-05T03:40:25.699Z"
+    "version": 114,
+    "lastModifiedBy": "a45bfca4-a597-4db8-9fba-929b25aacc93",
+    "lastModifiedAt": "2026-01-05T04:54:33.442Z"
   },
   "version": "1.1.0",
   "project": {
@@ -20,7 +20,6 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "session-registry-id-persistence",
         "session-end-hook-reliability",
         "dashboard-stale-session-handling"
       ]
@@ -377,44 +376,6 @@
       "delegatedTo": null,
       "delegationDepth": 0
     },
-    "session-registry-id-persistence": {
-      "id": "session-registry-id-persistence",
-      "title": "Persist Session Registry nextId to Prevent ID Collisions",
-      "description": "SessionRegistry.nextId resets to 1 when dashboard restarts, causing ID collisions with stale UI data. When old session s1 wasn't deregistered and dashboard restarts, new sessions get ID 1 again, conflicting with cached UI state. Persist nextId to memory.db so IDs are globally unique across restarts.",
-      "phase": "implementation",
-      "priority": "medium",
-      "estimate": "1h",
-      "tags": [
-        "dashboard",
-        "session-registry",
-        "persistence",
-        "bug-fix"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "session-end-hook-reliability",
-          "dashboard-stale-session-handling"
-        ]
-      },
-      "acceptance": [
-        "nextId persisted to memory.db on each increment",
-        "nextId loaded from memory.db on dashboard startup",
-        "Session IDs never reused across dashboard restarts",
-        "Graceful fallback if memory.db unavailable",
-        "Tests verify ID persistence across simulated restarts"
-      ],
-      "status": "in_progress",
-      "assignee": null,
-      "created": "2026-01-04T20:10:00.000Z",
-      "updated": "2026-01-05T03:40:25.697Z",
-      "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "started": "2026-01-05T02:53:06.464Z"
-    },
     "session-end-hook-reliability": {
       "id": "session-end-hook-reliability",
       "title": "Improve Session-End Hook Reliability",
@@ -571,6 +532,6 @@
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2026-01-05T02:11:33.072Z"
+    "lastArchived": "2026-01-05T04:54:33.442Z"
   }
 }

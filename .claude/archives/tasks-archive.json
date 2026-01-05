@@ -1262,7 +1262,97 @@
       "delegatedTo": null,
       "delegationDepth": 0,
       "decomposition": "sequential"
+    },
+    "session-registry-id-persistence": {
+      "id": "session-registry-id-persistence",
+      "title": "Persist Session Registry nextId to Prevent ID Collisions",
+      "description": "SessionRegistry.nextId resets to 1 when dashboard restarts, causing ID collisions with stale UI data. When old session s1 wasn't deregistered and dashboard restarts, new sessions get ID 1 again, conflicting with cached UI state. Persist nextId to memory.db so IDs are globally unique across restarts.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "1h",
+      "tags": [
+        "dashboard",
+        "session-registry",
+        "persistence",
+        "bug-fix"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "session-end-hook-reliability",
+          "dashboard-stale-session-handling"
+        ]
+      },
+      "acceptance": [
+        "nextId persisted to memory.db on each increment",
+        "nextId loaded from memory.db on dashboard startup",
+        "Session IDs never reused across dashboard restarts",
+        "Graceful fallback if memory.db unavailable",
+        "Tests verify ID persistence across simulated restarts"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2026-01-04T20:10:00.000Z",
+      "updated": "2026-01-05T04:48:00.000Z",
+      "completedAt": "2026-01-05T04:48:00.000Z",
+      "completionNotes": "Already fully implemented with comprehensive test coverage. SessionRegistry persists nextId to memory.db using better-sqlite3. Features: _persistNextId() with UPSERT on each register(), _loadNextIdFromDb() on startup, enhanced fallback with FallbackReason enum, auto-recovery with exponential backoff, health checks. 121 tests passing including simulated restart scenarios.",
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "started": "2026-01-05T02:53:06.464Z"
+    },
+    "orchestrator-phase-transition-task-loss": {
+      "id": "orchestrator-phase-transition-task-loss",
+      "title": "Fix Orchestrator Losing Task During Phase Transitions",
+      "description": "When a task completes a phase (e.g., implement) and should transition to the next phase (e.g., test), the orchestrator loses track of the task and tries to re-claim it. Since the task is still marked as claimed/in_progress, the claim fails with 'No available tasks after 3 attempts'. The orchestrator then skips the test phase entirely and advances to complete with score 0. Root cause: state.continueWithCurrentTask is set but the task claim check runs anyway, or the claim has expired between phases. Fix should ensure task continuity across phase transitions without re-claiming.",
+      "phase": "implementation",
+      "priority": "critical",
+      "estimate": "2h",
+      "tags": [
+        "orchestrator",
+        "bug-fix",
+        "phase-transitions",
+        "task-claims",
+        "critical"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "session-registry-id-persistence"
+        ]
+      },
+      "acceptance": [
+        "Task persists across phase transitions (implement → test → complete)",
+        "No re-claim attempt when state.continueWithCurrentTask is true",
+        "Test phase actually spawns Claude session to run tests",
+        "Quality scores written for each phase before advancing",
+        "Claim heartbeat extended during phase transitions",
+        "Graceful handling if claim expires mid-task (re-claim same task)",
+        "Log clearly shows phase transition with same task ID",
+        "Tests verify multi-phase task completion works end-to-end"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2026-01-05T04:00:00.000Z",
+      "updated": "2026-01-05T04:44:00.000Z",
+      "completedAt": "2026-01-05T04:44:00.000Z",
+      "completionNotes": "Fixed claim extension during phase transitions. Added claimSpecificTask() to TaskManager. Orchestrator now extends claim before continuing to next phase, re-claims if expired. Fixed extendClaim() to use correct result.success check. 11 new tests added, 2873 total passing.",
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "bugReport": {
+        "observedBehavior": "Orchestrator completes implement phase via delegation (5 parallel subtasks), then in test phase fails to claim task ('No available tasks'), skips test entirely, advances to complete with score 0",
+        "expectedBehavior": "Orchestrator should continue with same task into test phase, spawn Claude session to run npm test, write quality-scores.json for test phase, then advance to complete only if score >= 90",
+        "logSnippet": "[EVALUATION] Phase: test, Score: 0\\n[ITERATE] Task done but quality 0 below threshold.\\n[REASON] No scores found for current phase\\n[TASK] No task claimed: No available tasks after 3 attempts",
+        "rootCause": "When phase transitions from implement to test, orchestrator loses task context and tries to re-claim instead of continuing with state.continueWithCurrentTask",
+        "resolution": "Added claim extension/re-claim logic in phase transition code. Task now maintains valid claim across phases."
+      },
+      "started": "2026-01-05T04:40:35.444Z"
     }
   },
-  "lastArchived": "2026-01-05T02:11:33.061Z"
+  "lastArchived": "2026-01-05T04:54:33.430Z"
 }

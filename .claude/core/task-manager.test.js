@@ -1369,4 +1369,251 @@ describe('TaskManager', () => {
       expect(Object.keys(allArchived)).toHaveLength(3); // 5 - 2 limit = 3 archived
     });
   });
+
+  // ============================================================================
+  // CLAIM SPECIFIC TASK (Phase Transition Fix)
+  // ============================================================================
+
+  describe('claimSpecificTask()', () => {
+    let tmWithCoord;
+    let tempDirCoord;
+    let tasksPathCoord;
+
+    beforeEach(() => {
+      // Create separate TaskManager with coordination
+      tempDirCoord = fs.mkdtempSync(path.join(os.tmpdir(), 'task-manager-claim-test-'));
+      tasksPathCoord = path.join(tempDirCoord, 'tasks.json');
+
+      tmWithCoord = new TaskManager({
+        tasksPath: tasksPathCoord,
+        sessionId: 'test-session-001',
+        memoryStore: mockMemoryStore
+      });
+
+      // Create a test task
+      tmWithCoord.createTask({
+        id: 'claim-test-task',
+        title: 'Test Task for Claiming',
+        phase: 'implementation',
+        priority: 'high'
+      });
+    });
+
+    afterEach(() => {
+      try {
+        if (tmWithCoord) tmWithCoord.close();
+        fs.rmSync(tempDirCoord, { recursive: true, force: true });
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    });
+
+    test('should claim a specific task by ID', () => {
+      const result = tmWithCoord.claimSpecificTask('claim-test-task', {
+        agentType: 'autonomous'
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.task).toBeDefined();
+      expect(result.task.id).toBe('claim-test-task');
+    });
+
+    test('should return error for non-existent task', () => {
+      const result = tmWithCoord.claimSpecificTask('non-existent-task');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not found');
+    });
+
+    test('should extend claim if already claimed by same session', () => {
+      // First claim
+      tmWithCoord.claimSpecificTask('claim-test-task', { agentType: 'autonomous' });
+
+      // Second claim should extend
+      const result = tmWithCoord.claimSpecificTask('claim-test-task', { agentType: 'autonomous' });
+
+      expect(result.success).toBe(true);
+      // Note: extended flag only appears when extendClaim is called
+    });
+
+    test('should fail to claim completed task', () => {
+      tmWithCoord.updateStatus('claim-test-task', 'completed');
+
+      const result = tmWithCoord.claimSpecificTask('claim-test-task');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('completed');
+    });
+
+    test('should fail to claim blocked task', () => {
+      tmWithCoord.updateStatus('claim-test-task', 'blocked');
+
+      const result = tmWithCoord.claimSpecificTask('claim-test-task');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('blocked');
+    });
+
+    test('should work with custom TTL', () => {
+      const result = tmWithCoord.claimSpecificTask('claim-test-task', {
+        agentType: 'autonomous',
+        ttlMs: 3600000 // 1 hour
+      });
+
+      expect(result.success).toBe(true);
+      if (result.claim) {
+        expect(result.claim.expiresAt - result.claim.claimedAt).toBe(3600000);
+      }
+    });
+  });
+
+  describe('extendClaim()', () => {
+    let tmWithCoord;
+    let tempDirCoord;
+    let tasksPathCoord;
+
+    beforeEach(() => {
+      tempDirCoord = fs.mkdtempSync(path.join(os.tmpdir(), 'task-manager-extend-test-'));
+      tasksPathCoord = path.join(tempDirCoord, 'tasks.json');
+
+      tmWithCoord = new TaskManager({
+        tasksPath: tasksPathCoord,
+        sessionId: 'test-session-002',
+        memoryStore: mockMemoryStore
+      });
+
+      // Create and claim a test task
+      tmWithCoord.createTask({
+        id: 'extend-test-task',
+        title: 'Test Task for Extending',
+        phase: 'implementation',
+        priority: 'high'
+      });
+
+      tmWithCoord.claimSpecificTask('extend-test-task', { agentType: 'autonomous' });
+    });
+
+    afterEach(() => {
+      try {
+        if (tmWithCoord) tmWithCoord.close();
+        fs.rmSync(tempDirCoord, { recursive: true, force: true });
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    });
+
+    test('should successfully extend existing claim', () => {
+      const result = tmWithCoord.extendClaim('extend-test-task');
+
+      expect(result.success).toBe(true);
+      expect(result.claim).toBeDefined();
+    });
+
+    test('should fail to extend claim on non-claimed task', () => {
+      tmWithCoord.createTask({
+        id: 'unclaimed-task',
+        title: 'Unclaimed Task',
+        phase: 'implementation'
+      });
+
+      const result = tmWithCoord.extendClaim('unclaimed-task');
+
+      expect(result.success).toBe(false);
+    });
+
+    test('should extend with custom TTL', () => {
+      const originalClaim = tmWithCoord.getMyClaimedTasks().find(
+        c => c.task.id === 'extend-test-task'
+      );
+
+      const result = tmWithCoord.extendClaim('extend-test-task', 7200000); // 2 hours
+
+      expect(result.success).toBe(true);
+      if (result.claim && originalClaim?.claim) {
+        expect(result.claim.expiresAt).toBeGreaterThan(originalClaim.claim.expiresAt);
+      }
+    });
+  });
+
+  describe('Phase Transition Scenario', () => {
+    let tmWithCoord;
+    let tempDirCoord;
+    let tasksPathCoord;
+
+    beforeEach(() => {
+      tempDirCoord = fs.mkdtempSync(path.join(os.tmpdir(), 'task-manager-phase-test-'));
+      tasksPathCoord = path.join(tempDirCoord, 'tasks.json');
+
+      tmWithCoord = new TaskManager({
+        tasksPath: tasksPathCoord,
+        sessionId: 'orchestrator-001',
+        memoryStore: mockMemoryStore
+      });
+
+      // Create a task simulating orchestrator workflow
+      tmWithCoord.createTask({
+        id: 'multi-phase-task',
+        title: 'Multi-Phase Task',
+        phase: 'implementation',
+        priority: 'critical'
+      });
+    });
+
+    afterEach(() => {
+      try {
+        if (tmWithCoord) tmWithCoord.close();
+        fs.rmSync(tempDirCoord, { recursive: true, force: true });
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    });
+
+    test('should maintain claim across simulated phase transition', () => {
+      // Phase 1: Claim task for implementation
+      const claimResult = tmWithCoord.claimSpecificTask('multi-phase-task', {
+        agentType: 'autonomous'
+      });
+      expect(claimResult.success).toBe(true);
+
+      // Simulate work...
+
+      // Phase 2: Extend claim for testing phase
+      const extendResult = tmWithCoord.extendClaim('multi-phase-task');
+      expect(extendResult.success).toBe(true);
+
+      // Update task phase
+      tmWithCoord.updateTask('multi-phase-task', { phase: 'testing' });
+
+      // Verify task is still claimed by our session
+      const myClaims = tmWithCoord.getMyClaimedTasks();
+      const ourTask = myClaims.find(c => c.task.id === 'multi-phase-task');
+      expect(ourTask).toBeDefined();
+      expect(ourTask.task.phase).toBe('testing');
+    });
+
+    test('should re-claim task after claim expiration during phase transition', async () => {
+      // Claim with very short TTL
+      tmWithCoord.claimSpecificTask('multi-phase-task', {
+        agentType: 'autonomous',
+        ttlMs: 50 // 50ms TTL
+      });
+
+      // Wait for claim to expire
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Simulate phase transition - extend fails
+      const extendResult = tmWithCoord.extendClaim('multi-phase-task');
+      expect(extendResult.success).toBe(false);
+
+      // Re-claim the same task
+      const reclaimResult = tmWithCoord.claimSpecificTask('multi-phase-task', {
+        agentType: 'autonomous'
+      });
+      expect(reclaimResult.success).toBe(true);
+
+      // Continue with task
+      const myClaims = tmWithCoord.getMyClaimedTasks();
+      expect(myClaims.some(c => c.task.id === 'multi-phase-task')).toBe(true);
+    });
+  });
 });

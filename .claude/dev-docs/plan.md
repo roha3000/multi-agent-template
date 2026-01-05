@@ -1,17 +1,16 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Child Session Hierarchy Fixed
+**Status**: Phase Transition Bug Fixed
 
 ---
 
-## Session 92 Summary
+## Session 93 Summary
 
 | Task | Status |
 |------|--------|
-| Child session hierarchy fix | ✅ Complete |
-| Hide children from sidebar (filter by parentSessionId) | ✅ Complete |
-| Orchestrator registers/deregisters children directly | ✅ Complete |
-| Child count indicator on parent sessions | ✅ Complete |
+| `orchestrator-phase-transition-task-loss` | ✅ Complete |
+
+**Fix**: Orchestrator now extends claim before phase transition, re-claims if expired. Added `claimSpecificTask()` to TaskManager. Fixed `extendClaim()` return check. 11 new tests, 2873 total passing.
 
 ---
 
@@ -19,7 +18,6 @@
 
 | Task | Priority | Status |
 |------|----------|--------|
-| `session-registry-id-persistence` | medium | in_progress |
 | `session-end-hook-reliability` | medium | ready |
 | `dashboard-stale-session-handling` | low | ready |
 
@@ -30,6 +28,8 @@
 | Task | Priority |
 |------|----------|
 | `dashboard-blocked-tasks-view` | medium |
+| `dashboard-tasks-tab-claims` | medium |
+| `dashboard-hierarchy-child-details` | medium |
 
 ---
 
@@ -42,6 +42,6 @@ node global-context-manager.js
 # Run tests
 npm test -- --silent
 
-# Run specific tests
-npm test -- --testPathPattern="session-registry" --silent
+# Run orchestrator
+node autonomous-orchestrator.js --model claude-opus-4-5-20251101
 ```

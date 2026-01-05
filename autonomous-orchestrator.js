@@ -77,6 +77,18 @@ function getTaskPhases(orchestratorPhase) {
   return TASK_PHASE_MAP[orchestratorPhase] || [orchestratorPhase];
 }
 
+// Reverse map: get the preferred tasks.json phase name for an orchestrator phase
+// Used when updating task phase during phase transitions
+function reversePhaseMap(orchestratorPhase) {
+  const REVERSE_PHASE_MAP = {
+    'research': 'research',
+    'design': 'design',
+    'implement': 'implementation',
+    'test': 'testing'
+  };
+  return REVERSE_PHASE_MAP[orchestratorPhase] || orchestratorPhase;
+}
+
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
@@ -1315,9 +1327,84 @@ async function main() {
     if (taskManagementEnabled) {
       // Check if we should continue with current task for next phase
       if (state.continueWithCurrentTask && state.currentTask) {
-        currentTask = state.currentTask;
+        const taskToContinue = state.currentTask;
         state.continueWithCurrentTask = false;
-        console.log(`[PHASE] Continuing task "${currentTask.title}" in ${state.currentPhase} phase`);
+
+        // FIX: Verify and extend claim before continuing with same task
+        // This prevents claim expiration during phase transitions
+        let claimValid = false;
+
+        if (taskManager) {
+          // First, try to extend the existing claim
+          const extendResult = taskManager.extendClaim(taskToContinue.id);
+
+          if (extendResult.success) {
+            claimValid = true;
+            console.log(`[PHASE] Claim extended for task "${taskToContinue.title}" - continuing in ${state.currentPhase} phase`);
+
+            // Update task's phase in tasks.json to match current orchestrator phase
+            const taskPhase = reversePhaseMap(state.currentPhase);
+            if (taskPhase && taskToContinue.phase !== taskPhase) {
+              taskManager.updateTask(taskToContinue.id, { phase: taskPhase });
+              console.log(`[PHASE] Updated task phase: ${taskToContinue.phase} → ${taskPhase}`);
+            }
+
+            // Log claim extension to dashboard
+            logToDashboard(
+              `Task claim extended for phase transition: ${taskToContinue.title} → ${state.currentPhase}`,
+              'INFO',
+              'task-claim'
+            );
+          } else {
+            // Claim expired or lost - try to re-claim the same task
+            console.log(`[PHASE] Claim lost for "${taskToContinue.title}": ${extendResult.error}`);
+            console.log(`[PHASE] Attempting to re-claim same task...`);
+
+            const reclaimResult = taskManager.claimSpecificTask(taskToContinue.id, {
+              agentType: 'autonomous',
+              ttlMs: TaskManager.CLAIM_CONFIG?.defaultTTL || 1800000
+            });
+
+            if (reclaimResult.success) {
+              claimValid = true;
+              console.log(`[PHASE] Successfully re-claimed task "${taskToContinue.title}"`);
+
+              // Update task's phase after re-claim
+              const taskPhase = reversePhaseMap(state.currentPhase);
+              if (taskPhase && taskToContinue.phase !== taskPhase) {
+                taskManager.updateTask(taskToContinue.id, { phase: taskPhase });
+                console.log(`[PHASE] Updated task phase: ${taskToContinue.phase} → ${taskPhase}`);
+              }
+
+              logToDashboard(
+                `Task re-claimed after phase transition: ${taskToContinue.title}`,
+                'INFO',
+                'task-claim'
+              );
+            } else {
+              console.log(`[PHASE] Failed to re-claim task: ${reclaimResult.error}`);
+              console.log(`[PHASE] Task may have been claimed by another session`);
+              logToDashboard(
+                `Failed to re-claim task after phase transition: ${taskToContinue.title} - ${reclaimResult.error}`,
+                'WARN',
+                'task-claim'
+              );
+            }
+          }
+        } else {
+          // No taskManager - just continue (legacy mode)
+          claimValid = true;
+        }
+
+        if (claimValid) {
+          currentTask = taskToContinue;
+          console.log(`[PHASE] Continuing task "${currentTask.title}" in ${state.currentPhase} phase`);
+        } else {
+          // Claim lost and couldn't re-claim - fall through to get next task
+          console.log(`[PHASE] Will attempt to claim a different task...`);
+          state.currentTask = null;
+          currentTask = getNextTaskFromManager();
+        }
       } else {
         // Get next task from TaskManager
         currentTask = getNextTaskFromManager();

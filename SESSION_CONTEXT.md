@@ -174,82 +174,73 @@
 
 # Project Summary
 
-**Last Updated**: 2026-01-04T22:40:00.000Z
-**Current Phase**: Implementation
-**Overall Progress**: 90%
+**Last Updated**: 2026-01-05T02:20:00.000Z
+**Current Phase**: Validation
+**Overall Progress**: 92%
 
 ---
 
-## Session 93: Orchestrator & Dashboard Fixes (CURRENT)
+## Session 91: CLI Session Hierarchy Support + Auto-Delegation Testing (CURRENT)
 
 ### Work Completed
+| Task | Status | Details |
+|------|--------|---------|
+| CLI hierarchy display | Completed | Dashboard now shows hierarchy for CLI sessions |
+| Auto-delegation testing | Completed | 2,685 tests passing, all components verified |
+| CLAUDE.md auto-delegation rule | Completed | Added rule for ≥70% confidence auto-delegation |
 
-| Task | Status | Description |
-|------|--------|-------------|
-| Phase name mismatch fix | ✅ Done | Use `getTaskPhases()` mapping in task filtering |
-| Stale claim cleanup | ✅ Done | Add cleanup before `claimNextTask()` |
-| Stale session cleanup | ✅ Done | Auto-cleanup ghost autonomous sessions on register |
+### CLI Hierarchy Support
+Dashboard previously showed "CLI sessions don't have agent hierarchy" message. Now:
+- Hierarchy tab works for both CLI and autonomous sessions
+- New API endpoints: `POST /api/sessions/:id/delegations`, `PUT /api/sessions/:id/delegations/:delegationId`
+- delegation-executor.js registers delegations with dashboard via HTTP
+- Real-time SSE updates for delegation events
 
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `autonomous-orchestrator.js:1101-1106` | Use `taskPhases.includes(t.phase)` for phase matching |
-| `.claude/core/task-manager.js:2647-2657` | Add `cleanupExpiredClaims()` before claiming |
-| `global-context-manager.js:1949-1963` | Cleanup stale autonomous sessions on new registration |
-
-### Root Causes Fixed
-
-1. **Phase mismatch**: Orchestrator used short names (`implement`) but tasks.json uses full names (`implementation`)
-2. **Stale claims**: Crashed sessions left claims in coordination DB blocking future claims
-3. **Stale sessions**: Crashed orchestrators left ghost sessions in dashboard (no deregister on crash)
-
-### Test Results
-
-- 279 task-manager/coordination tests passing
-- Orchestrator verified: only 1 session per project in dashboard
-- Cleanup logs visible: `[COMMAND CENTER] Cleaning up N stale autonomous session(s)`
+### Auto-Delegation Testing Summary
+Comprehensive testing completed across all delegation scenarios:
+- Single CLI delegation: 229 tests ✅
+- Hierarchy tracking: 356 tests ✅
+- Delegation metrics: 58 tests ✅
+- Dashboard integration: 172 tests ✅
+- E2E tests: 130 tests ✅
+- **Total: 2,685 tests passing**
 
 ---
 
-## Session 92: Orchestrator Fixes ✅
-
-- **Tasks**: Phase adjustment on fallback claim, valid phases in security validator
-- **Files**: autonomous-orchestrator.js, security-validator.js
-
----
-
-## Auto-Delegation Feature Progress
-
-| Phase | Status | Score |
-|-------|--------|-------|
-| Phase 1: Hook Infrastructure | ✅ Complete | 92/100 |
-| Phase 2: Decision Integration | ✅ Complete | 90/100 |
-| Phase 3: Control Skills | ✅ Complete | 90/100 |
-| Phase 4: Execution Integration | ✅ Complete | 92/100 |
-| Phase 5: Dashboard Integration | ✅ Complete | 95/100 |
-| Phase 6: Polish & Docs | 🔄 In Progress | - |
-
-**Overall Quality**: 92/100
+## Session 90: Per-Session Context Fix + Auto-Delegation Complete ✅
+- **Tasks**: Dashboard context bug fix, auto-delegation-phase6-polish
+- **Key changes**: Fixed per-session context isolation, completed all 8 auto-delegation phases
+- **Files**: global-context-manager.js, global-context-tracker.js
 
 ---
 
-## Quality Metrics
+## Phase Progress
 
-**Tests Passing**: 2681+
-**Hierarchy Tests**: 417
-**Delegation Tests**: 229
-**Task-Manager Tests**: 279
+| Phase | Status | Quality Score |
+|-------|--------|---------------|
+| Research | ✅ Completed | 85/100 |
+| Planning | ✅ Completed | 85/100 |
+| Design | ✅ Completed | 85/100 |
+| Implementation | ✅ Completed | 90/100 |
+| Testing | ✅ Completed | 90/100 |
+| Validation 👉 | 🔄 In Progress | 88/100 |
 
 ---
+
+## Backlog Status
+
+| Queue | Tasks |
+|-------|-------|
+| NOW | (empty) |
+| NEXT | (empty) |
+| LATER | dashboard-blocked-tasks-view, session-registry-id-persistence, session-end-hook-reliability, dashboard-stale-session-handling |
+| SOMEDAY | add-model-pricing |
 
 ## Next Steps
 
-1. Complete Phase 6 acceptance criteria verification
-2. Create AUTO-DELEGATION-USER-GUIDE.md
-3. Run performance tests (<200ms hook target)
-
----
+1. Test auto-delegation in live session (confidence ≥70% auto-delegates)
+2. Pick next task from LATER queue
+3. Continue validation phase for remaining features
 
 
 ---
@@ -460,7 +451,7 @@ Create comprehensive system design using specialized architectural and implement
 ---
 
 
-<!-- Context loaded: 3277 tokens -->
+<!-- Context loaded: 3265 tokens -->
 
 
 # CURRENT PHASE GUIDANCE

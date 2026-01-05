@@ -2857,16 +2857,109 @@ class TaskManager extends EventEmitter {
 
     const result = this._coordinationDb.refreshClaim(taskId, this.sessionId, ttlMs);
 
-    if (result.refreshed) {
+    if (result.success) {
       return {
         success: true,
-        claim: result.claim
+        claim: {
+          taskId: taskId,
+          sessionId: this.sessionId,
+          expiresAt: result.expiresAt,
+          heartbeatCount: result.heartbeatCount,
+          remainingMs: result.remainingMs
+        }
       };
     }
 
     return {
       success: false,
       error: result.error || 'Failed to extend claim'
+    };
+  }
+
+  /**
+   * Claim a specific task by ID
+   * Useful for re-claiming a task after a phase transition when the claim may have expired
+   * @param {string} taskId - Task ID to claim
+   * @param {Object} options - Claim options
+   * @param {string} options.agentType - Type of agent claiming (default: 'cli')
+   * @param {number} options.ttlMs - Time-to-live in milliseconds (default: 30 min)
+   * @returns {Object} { success: boolean, task?: Object, claim?: Object, error?: string }
+   */
+  claimSpecificTask(taskId, options = {}) {
+    const {
+      agentType = 'cli',
+      ttlMs = TaskManager.CLAIM_CONFIG.defaultTTL
+    } = options;
+
+    this.load();
+    this._initCoordination();
+
+    const task = this.getTask(taskId);
+    if (!task) {
+      return { success: false, error: `Task ${taskId} not found` };
+    }
+
+    // Check if task is available for claiming
+    const availability = this._isTaskAvailableForClaim(task);
+    if (!availability.available) {
+      // Special case: if task is claimed by us already, just extend it
+      if (availability.existingClaim &&
+          availability.existingClaim.sessionId === this.sessionId) {
+        const extendResult = this.extendClaim(taskId, ttlMs);
+        if (extendResult.success) {
+          return {
+            success: true,
+            task: task,
+            claim: extendResult.claim,
+            extended: true
+          };
+        }
+      }
+      return { success: false, error: availability.reason };
+    }
+
+    // Attempt atomic claim via CoordinationDB
+    if (this._coordinationDb) {
+      const ancestors = this.getHierarchyAncestors(taskId).map(t => t.id);
+
+      const claimResult = this._coordinationDb.claimTask(taskId, this.sessionId, {
+        ttlMs: ttlMs,
+        agentType: agentType,
+        ancestors: ancestors
+      });
+
+      if (claimResult.claimed) {
+        // Start heartbeat timer
+        this._startClaimHeartbeat(taskId);
+
+        // Emit claim event
+        this.emit('task:claimed', {
+          task: task,
+          claim: claimResult.claim,
+          sessionId: this.sessionId
+        });
+
+        return {
+          success: true,
+          task: task,
+          claim: claimResult.claim
+        };
+      }
+
+      return {
+        success: false,
+        error: claimResult.error || 'Failed to claim task',
+        existingClaim: claimResult.existingClaim || null,
+        blockedByAncestor: claimResult.blockedByAncestor || null
+      };
+    }
+
+    // No coordination DB - return success without claim
+    return {
+      success: true,
+      task: task,
+      claim: null,
+      warning: 'Coordination DB not available - claim not enforced'
     };
   }
 
