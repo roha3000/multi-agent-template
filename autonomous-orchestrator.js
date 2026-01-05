@@ -682,7 +682,7 @@ function analyzeDelegation(task) {
  * @returns {Promise<Object>} Subtask result
  */
 function runDelegatedSubtask(subtask, parentTask, index, total) {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     const label = `[SUBTASK ${index + 1}/${total}]`;
     console.log(`\n${label} Starting: ${subtask.parameters.description}`);
 
@@ -695,6 +695,34 @@ function runDelegatedSubtask(subtask, parentTask, index, total) {
       fs.mkdirSync(logDir, { recursive: true });
     }
     const logStream = fs.createWriteStream(logPath, { flags: 'a' });
+
+    // Register child session with dashboard (since -p mode skips hooks)
+    let childSessionId = null;
+    try {
+      const registerPayload = JSON.stringify({
+        project: CONFIG.project,
+        path: CONFIG.projectPath,
+        status: 'active',
+        sessionType: 'autonomous',
+        autonomous: true,
+        currentTask: subtask.parameters.description,
+        parentSessionId: registeredSessionId
+      });
+
+      const registerRes = await fetch(`http://localhost:3033/api/sessions/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: registerPayload
+      });
+
+      if (registerRes.ok) {
+        const data = await registerRes.json();
+        childSessionId = data.id;
+        console.log(`${label} Registered child session: ${childSessionId}`);
+      }
+    } catch (err) {
+      console.warn(`${label} Failed to register child session:`, err.message);
+    }
 
     const args = ['-p', '--dangerously-skip-permissions', '--model', CONFIG.model];
 
@@ -725,20 +753,34 @@ function runDelegatedSubtask(subtask, parentTask, index, total) {
       logStream.write(data);
     });
 
-    childProcess.on('error', (err) => {
+    childProcess.on('error', async (err) => {
       console.error(`${label} Error:`, err.message);
       logStream.end();
-      resolve({ success: false, error: err.message, index });
+      // Deregister child session on error
+      if (childSessionId) {
+        try {
+          await fetch(`http://localhost:3033/api/sessions/${childSessionId}/deregister`, { method: 'POST' });
+        } catch (e) { /* ignore */ }
+      }
+      resolve({ success: false, error: err.message, index, childSessionId });
     });
 
-    childProcess.on('close', (code) => {
+    childProcess.on('close', async (code) => {
       logStream.end();
       console.log(`${label} Completed with code ${code}`);
+      // Deregister child session on completion
+      if (childSessionId) {
+        try {
+          await fetch(`http://localhost:3033/api/sessions/${childSessionId}/deregister`, { method: 'POST' });
+          console.log(`${label} Deregistered child session: ${childSessionId}`);
+        } catch (e) { /* ignore */ }
+      }
       resolve({
         success: code === 0,
         index,
         output: output.substring(0, 1000), // Truncate for logging
-        exitCode: code
+        exitCode: code,
+        childSessionId
       });
     });
   });

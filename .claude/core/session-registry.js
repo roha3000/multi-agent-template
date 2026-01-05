@@ -41,6 +41,32 @@ const FallbackReason = {
   UNKNOWN: 'unknown_error'
 };
 
+// Recovery strategies for different fallback reasons
+const RecoveryStrategy = {
+  // Recoverable with retry (transient errors)
+  RETRY: 'retry',
+  // Recoverable with user action
+  USER_ACTION: 'user_action',
+  // Not recoverable automatically
+  MANUAL: 'manual',
+  // No recovery needed
+  NONE: 'none'
+};
+
+// Map fallback reasons to recovery strategies
+const RECOVERY_MAP = {
+  [FallbackReason.NONE]: RecoveryStrategy.NONE,
+  [FallbackReason.MODULE_NOT_FOUND]: RecoveryStrategy.USER_ACTION,
+  [FallbackReason.DIR_CREATE_FAILED]: RecoveryStrategy.USER_ACTION,
+  [FallbackReason.DB_OPEN_FAILED]: RecoveryStrategy.RETRY,
+  [FallbackReason.DB_INIT_FAILED]: RecoveryStrategy.RETRY,
+  [FallbackReason.DB_LOCKED]: RecoveryStrategy.RETRY,
+  [FallbackReason.DB_CORRUPT]: RecoveryStrategy.MANUAL,
+  [FallbackReason.DISK_FULL]: RecoveryStrategy.USER_ACTION,
+  [FallbackReason.PERMISSION_DENIED]: RecoveryStrategy.USER_ACTION,
+  [FallbackReason.UNKNOWN]: RecoveryStrategy.RETRY
+};
+
 /**
  * Session Registry for tracking autonomous orchestrator sessions.
  * @extends EventEmitter
@@ -66,17 +92,48 @@ class SessionRegistry extends EventEmitter {
     this.dbRetryCount = 0;
     this.maxDbRetries = options.maxDbRetries || 3;
 
+    // Enhanced fallback tracking
+    this.fallbackMetrics = {
+      totalFallbacks: 0,
+      lastFallbackAt: null,
+      consecutiveFallbacks: 0,
+      recoveryAttempts: 0,
+      successfulRecoveries: 0,
+      fallbackHistory: [] // Last 10 fallback events
+    };
+
+    // Automatic recovery configuration
+    this.autoRecoveryEnabled = options.autoRecoveryEnabled !== false;
+    this.recoveryInterval = options.recoveryInterval || 60000; // 1 minute default
+    this.maxRecoveryAttempts = options.maxRecoveryAttempts || 5;
+    this.recoveryBackoffMultiplier = options.recoveryBackoffMultiplier || 2;
+    this.recoveryTimer = null;
+    this.currentRecoveryDelay = this.recoveryInterval;
+
+    // Health check configuration
+    this.healthCheckEnabled = options.healthCheckEnabled !== false;
+    this.healthCheckInterval = options.healthCheckInterval || 30000; // 30 seconds
+    this.healthCheckTimer = null;
+    this.lastHealthCheck = null;
+    this.healthStatus = 'unknown';
+
     // Load persisted nextId from database
     if (this.persistenceEnabled) {
       this._initializeDatabase();
       this._loadNextIdFromDb();
+      // Start health check if persistence is active
+      if (this.healthCheckEnabled && this.db) {
+        this._startHealthCheckTimer();
+      }
     }
 
     this._startCleanupTimer();
 
     log.info('Session registry initialized', {
       nextId: this.nextId,
-      persistenceEnabled: this.persistenceEnabled
+      persistenceEnabled: this.persistenceEnabled,
+      autoRecoveryEnabled: this.autoRecoveryEnabled,
+      healthCheckEnabled: this.healthCheckEnabled
     });
   }
 
@@ -179,7 +236,7 @@ class SessionRegistry extends EventEmitter {
   }
 
   /**
-   * Activate fallback mode with proper logging.
+   * Activate fallback mode with proper logging, metrics tracking, and auto-recovery.
    * @private
    * @param {string} reason - FallbackReason constant
    * @param {Error} error - The original error
@@ -191,19 +248,228 @@ class SessionRegistry extends EventEmitter {
     this.fallbackActive = true;
     this.fallbackReason = reason;
 
+    // Update fallback metrics
+    const now = new Date().toISOString();
+    this.fallbackMetrics.totalFallbacks++;
+    this.fallbackMetrics.lastFallbackAt = now;
+    this.fallbackMetrics.consecutiveFallbacks++;
+
+    // Add to fallback history (keep last 10)
+    this.fallbackMetrics.fallbackHistory.push({
+      reason,
+      error: error.message,
+      timestamp: now,
+      context
+    });
+    if (this.fallbackMetrics.fallbackHistory.length > 10) {
+      this.fallbackMetrics.fallbackHistory.shift();
+    }
+
+    // Determine recovery strategy
+    const recoveryStrategy = RECOVERY_MAP[reason] || RecoveryStrategy.RETRY;
+
     log.warn('Database unavailable, using memory-only mode (IDs will reset on restart)', {
       reason,
       error: error.message,
+      recoveryStrategy,
+      consecutiveFallbacks: this.fallbackMetrics.consecutiveFallbacks,
       ...context
     });
 
-    // Emit event for monitoring/alerting
+    // Emit event for monitoring/alerting with enhanced data
     this.emit('persistence:fallback', {
       reason,
       error: error.message,
-      timestamp: new Date().toISOString(),
+      timestamp: now,
+      recoveryStrategy,
+      metrics: {
+        totalFallbacks: this.fallbackMetrics.totalFallbacks,
+        consecutiveFallbacks: this.fallbackMetrics.consecutiveFallbacks
+      },
       ...context
     });
+
+    // Schedule automatic recovery for recoverable errors
+    if (this.autoRecoveryEnabled && recoveryStrategy === RecoveryStrategy.RETRY) {
+      this._scheduleRecovery();
+    }
+
+    // Stop health check timer since we're in fallback mode
+    this._stopHealthCheckTimer();
+  }
+
+  /**
+   * Schedule an automatic recovery attempt with exponential backoff.
+   * @private
+   */
+  _scheduleRecovery() {
+    // Don't schedule if already scheduled or max attempts reached
+    if (this.recoveryTimer) {
+      return;
+    }
+
+    if (this.fallbackMetrics.recoveryAttempts >= this.maxRecoveryAttempts) {
+      log.warn('Max recovery attempts reached, automatic recovery disabled', {
+        attempts: this.fallbackMetrics.recoveryAttempts,
+        maxAttempts: this.maxRecoveryAttempts
+      });
+      this.emit('persistence:recoveryExhausted', {
+        attempts: this.fallbackMetrics.recoveryAttempts,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    log.info('Scheduling automatic recovery attempt', {
+      delay: this.currentRecoveryDelay,
+      attempt: this.fallbackMetrics.recoveryAttempts + 1,
+      maxAttempts: this.maxRecoveryAttempts
+    });
+
+    this.recoveryTimer = setTimeout(() => {
+      this.recoveryTimer = null;
+      this._attemptAutoRecovery();
+    }, this.currentRecoveryDelay);
+
+    // Prevent timer from blocking process exit
+    if (this.recoveryTimer.unref) {
+      this.recoveryTimer.unref();
+    }
+  }
+
+  /**
+   * Attempt automatic recovery from fallback mode.
+   * @private
+   */
+  _attemptAutoRecovery() {
+    this.fallbackMetrics.recoveryAttempts++;
+
+    log.info('Attempting automatic database recovery', {
+      attempt: this.fallbackMetrics.recoveryAttempts,
+      maxAttempts: this.maxRecoveryAttempts,
+      previousReason: this.fallbackReason
+    });
+
+    this.emit('persistence:recoveryAttempt', {
+      attempt: this.fallbackMetrics.recoveryAttempts,
+      timestamp: new Date().toISOString()
+    });
+
+    const success = this.attemptReconnect();
+
+    if (success) {
+      // Reset recovery state on success
+      this.fallbackMetrics.successfulRecoveries++;
+      this.fallbackMetrics.consecutiveFallbacks = 0;
+      this.currentRecoveryDelay = this.recoveryInterval;
+
+      log.info('Automatic recovery successful', {
+        successfulRecoveries: this.fallbackMetrics.successfulRecoveries,
+        nextId: this.nextId
+      });
+
+      // Restart health check
+      if (this.healthCheckEnabled) {
+        this._startHealthCheckTimer();
+      }
+    } else {
+      // Apply exponential backoff
+      this.currentRecoveryDelay = Math.min(
+        this.currentRecoveryDelay * this.recoveryBackoffMultiplier,
+        300000 // Max 5 minutes
+      );
+
+      log.warn('Automatic recovery failed, scheduling retry', {
+        nextDelay: this.currentRecoveryDelay,
+        attempt: this.fallbackMetrics.recoveryAttempts
+      });
+
+      // Schedule next attempt
+      this._scheduleRecovery();
+    }
+  }
+
+  /**
+   * Start the health check timer to monitor database health.
+   * @private
+   */
+  _startHealthCheckTimer() {
+    if (this.healthCheckTimer) {
+      return; // Already running
+    }
+
+    this.healthCheckTimer = setInterval(() => {
+      this._performHealthCheck();
+    }, this.healthCheckInterval);
+
+    // Prevent timer from blocking process exit
+    if (this.healthCheckTimer.unref) {
+      this.healthCheckTimer.unref();
+    }
+
+    log.debug('Health check timer started', { interval: this.healthCheckInterval });
+  }
+
+  /**
+   * Stop the health check timer.
+   * @private
+   */
+  _stopHealthCheckTimer() {
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = null;
+      log.debug('Health check timer stopped');
+    }
+  }
+
+  /**
+   * Perform a health check on the database connection.
+   * @private
+   */
+  _performHealthCheck() {
+    this.lastHealthCheck = new Date().toISOString();
+
+    if (!this.db) {
+      this.healthStatus = 'disconnected';
+      return;
+    }
+
+    try {
+      // Simple query to verify database is responsive
+      const stmt = this.db.prepare('SELECT 1 as health');
+      stmt.get();
+      this.healthStatus = 'healthy';
+    } catch (error) {
+      const previousStatus = this.healthStatus;
+      this.healthStatus = 'unhealthy';
+
+      log.warn('Database health check failed', {
+        error: error.message,
+        previousStatus
+      });
+
+      // Proactively activate fallback if health check fails
+      if (previousStatus === 'healthy') {
+        const reason = this._classifyError(error);
+        this._activateFallback(reason, error, {
+          detectedBy: 'healthCheck',
+          previousStatus
+        });
+      }
+    }
+  }
+
+  /**
+   * Get current health check status.
+   * @returns {Object} Health status information
+   */
+  getHealthStatus() {
+    return {
+      status: this.healthStatus,
+      lastCheck: this.lastHealthCheck,
+      checkInterval: this.healthCheckInterval,
+      enabled: this.healthCheckEnabled
+    };
   }
 
   /**
@@ -640,10 +906,89 @@ class SessionRegistry extends EventEmitter {
       enabled: this.persistenceEnabled,
       fallbackActive: this.fallbackActive,
       fallbackReason: this.fallbackReason,
+      recoveryStrategy: this.fallbackActive ? RECOVERY_MAP[this.fallbackReason] : null,
       dbPath: this.dbPath,
       dbConnected: this.db !== null,
-      nextId: this.nextId
+      nextId: this.nextId,
+      metrics: {
+        ...this.fallbackMetrics,
+        // Don't include full history in status (can be retrieved separately)
+        fallbackHistory: this.fallbackMetrics.fallbackHistory.length
+      },
+      recovery: {
+        autoRecoveryEnabled: this.autoRecoveryEnabled,
+        recoveryScheduled: this.recoveryTimer !== null,
+        currentDelay: this.currentRecoveryDelay,
+        maxAttempts: this.maxRecoveryAttempts
+      },
+      health: this.getHealthStatus()
     };
+  }
+
+  /**
+   * Get detailed fallback history for debugging.
+   * @returns {Array} Array of fallback events
+   */
+  getFallbackHistory() {
+    return [...this.fallbackMetrics.fallbackHistory];
+  }
+
+  /**
+   * Reset fallback metrics (useful for testing or after manual intervention).
+   */
+  resetFallbackMetrics() {
+    this.fallbackMetrics = {
+      totalFallbacks: 0,
+      lastFallbackAt: null,
+      consecutiveFallbacks: 0,
+      recoveryAttempts: 0,
+      successfulRecoveries: 0,
+      fallbackHistory: []
+    };
+    this.currentRecoveryDelay = this.recoveryInterval;
+    log.info('Fallback metrics reset');
+  }
+
+  /**
+   * Cancel any pending recovery attempts.
+   */
+  cancelRecovery() {
+    if (this.recoveryTimer) {
+      clearTimeout(this.recoveryTimer);
+      this.recoveryTimer = null;
+      log.info('Pending recovery attempt cancelled');
+    }
+  }
+
+  /**
+   * Force immediate recovery attempt (bypasses scheduled timing).
+   * @returns {boolean} True if recovery succeeded
+   */
+  forceRecovery() {
+    // Cancel any pending scheduled recovery
+    this.cancelRecovery();
+
+    // Reset recovery attempts counter to allow fresh attempts
+    const previousAttempts = this.fallbackMetrics.recoveryAttempts;
+    this.fallbackMetrics.recoveryAttempts = 0;
+    this.currentRecoveryDelay = this.recoveryInterval;
+
+    log.info('Forcing immediate recovery attempt', {
+      previousAttempts,
+      wasInFallback: this.fallbackActive
+    });
+
+    const success = this.attemptReconnect();
+
+    if (success) {
+      this.fallbackMetrics.successfulRecoveries++;
+      this.fallbackMetrics.consecutiveFallbacks = 0;
+      if (this.healthCheckEnabled) {
+        this._startHealthCheckTimer();
+      }
+    }
+
+    return success;
   }
 
   /**
@@ -685,10 +1030,18 @@ class SessionRegistry extends EventEmitter {
   }
 
   shutdown() {
+    // Stop cleanup timer
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
     }
+
+    // Stop health check timer
+    this._stopHealthCheckTimer();
+
+    // Cancel any pending recovery attempts
+    this.cancelRecovery();
+
     // Close database connection if open
     if (this.db) {
       try {
@@ -699,7 +1052,13 @@ class SessionRegistry extends EventEmitter {
         log.warn('Error closing database connection', { error: error.message });
       }
     }
-    log.info('Session registry shutdown');
+
+    log.info('Session registry shutdown', {
+      fallbackMetrics: {
+        totalFallbacks: this.fallbackMetrics.totalFallbacks,
+        successfulRecoveries: this.fallbackMetrics.successfulRecoveries
+      }
+    });
   }
 
   _startCleanupTimer() {
@@ -1190,4 +1549,11 @@ function resetSessionRegistry() {
   }
 }
 
-module.exports = { SessionRegistry, getSessionRegistry, resetSessionRegistry, FallbackReason };
+module.exports = {
+  SessionRegistry,
+  getSessionRegistry,
+  resetSessionRegistry,
+  FallbackReason,
+  RecoveryStrategy,
+  RECOVERY_MAP
+};

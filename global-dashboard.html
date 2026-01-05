@@ -4277,6 +4277,9 @@
       const sessionTypeLabel = isAutonomous ? 'AUTO' : 'CLI';
       const sessionTypeBadgeClass = isAutonomous ? 'autonomous' : 'cli';
 
+      // Check for child sessions
+      const childCount = s.hierarchyInfo?.childSessionIds?.length || 0;
+
       // Format time
       const timeAgo = s.lastUpdate ? formatTimeAgo(s.lastUpdate) : '';
 
@@ -4331,6 +4334,7 @@
           </div>
           <div class="session-metrics">
             <span class="session-id-text" title="Session ID">${sessionIdShort}</span>
+            ${childCount > 0 ? `<span title="${childCount} child session(s)" style="color:var(--color-info);">👥${childCount}</span>` : ''}
             <span title="Context used">${Math.round(s.contextPercent || 0)}% ctx</span>
             ${s.taskStats?.total ? `<span title="Task completion">${s.taskStats.byStatus?.completed || 0}/${s.taskStats.total} tasks</span>` : ''}
             ${timeAgo ? `<span title="Last update">${timeAgo}</span>` : ''}
@@ -4398,6 +4402,10 @@
       const filteredSessions = sessions.filter(s => {
         const isActive = s.status === 'active';
         const isAutonomous = s.autonomous || s.isAutonomous;
+
+        // Hide child sessions from main list - they show in hierarchy tab under parent
+        const isChildSession = s.hierarchyInfo?.parentSessionId != null;
+        if (isChildSession) return false;
 
         if (activeOnly && !isActive) return false;
         if (!showCli && !isAutonomous) return false;

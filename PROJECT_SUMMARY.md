@@ -1,34 +1,37 @@
 # PROJECT SUMMARY - Multi-Agent Template
 **Last Updated**: 2026-01-05 (Session 92)
 **Current Phase**: IMPLEMENTATION
-**Status**: Log Detail Side Panel Complete
+**Status**: Child Session Hierarchy Fixed
 
 ---
 
-## Session 92: Log Detail Side Panel
+## Session 92: Child Session Hierarchy Fix
 
-Changed log detail display from modal-only to side panel with single-click selection.
+Fixed issue where orchestrator child sessions appeared as CLI sessions instead of showing in hierarchy tab.
+
+### Root Cause
+- Orchestrator spawns children with `-p` flag which skips hooks
+- session-start hook never runs for children
+- Children never register with dashboard, hierarchy never populated
 
 ### Changes Made
 | Component | Change | Files |
 |-----------|--------|-------|
-| Split-pane layout | Left: log table, Right: 320px detail panel | `global-dashboard.html` |
-| Single-click selection | Click row to show details, row highlights | `global-dashboard.html` |
-| `selectLogEntry()` | New function for row selection + highlighting | `global-dashboard.html` |
-| `showLogDetail()` | New function to render details in panel | `global-dashboard.html` |
-| SSE handler | Updated to maintain selection when new entries arrive | `global-dashboard.html` |
-| Modal kept | Double-click still opens modal for large content | `global-dashboard.html` |
-| Tests | 10 new tests for side panel behavior | `__tests__/e2e/dashboard-log-detail.e2e.test.js` |
+| Hide child sessions | Filter out sessions with `parentSessionId` from sidebar | `global-dashboard.html` |
+| Child count indicator | Show `👥N` for sessions with children | `global-dashboard.html` |
+| Register children | Orchestrator registers child sessions directly via API | `autonomous-orchestrator.js` |
+| Deregister on complete | Children deregistered when they finish | `autonomous-orchestrator.js` |
 
-### UX Flow
-1. Click a log row → Details appear instantly in right panel
-2. Double-click a row → Opens full modal for copying/viewing large content
-3. New SSE entries → Selection stays on same entry (index shifts)
+### How It Works
+1. `runDelegatedSubtask()` registers child with `parentSessionId` before spawning
+2. Session registry links child to parent via `hierarchyInfo`
+3. Dashboard sidebar filters out child sessions (shows only root sessions)
+4. Hierarchy tab shows parent → children tree
+5. Parent sessions show child count badge
 
 ### Test Results
 ```
-45 dashboard-log-detail tests passing
-2836 total tests passing
+2862 total tests passing
 ```
 
 ---
@@ -53,7 +56,7 @@ Changed log detail display from modal-only to side panel with single-click selec
 | Phase 1-6 | ✅ Complete | Full auto-delegation system |
 | Orchestrator | ✅ Complete | Autonomous delegation support |
 
-**Overall**: 92/100 | 229+ delegation tests | 2836+ total tests
+**Overall**: 92/100 | 229+ delegation tests | 2862+ total tests
 
 ---
 
@@ -61,10 +64,10 @@ Changed log detail display from modal-only to side panel with single-click selec
 
 | Component | Status |
 |-----------|--------|
-| Orchestrator | ✅ Full delegation support |
+| Orchestrator | ✅ Full delegation + child hierarchy |
 | Delegation System | ✅ All phases complete |
-| Dashboard | Port 3033 - v4 layout + log side panel |
-| Tests | 2836+ passing (10 new this session) |
+| Dashboard | Port 3033 - v4 layout + hierarchy working |
+| Tests | 2862+ passing |
 
 ---
 

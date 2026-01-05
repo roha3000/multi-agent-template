@@ -1,6 +1,6 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Log Detail Side Panel Complete
+**Status**: Child Session Hierarchy Fixed
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Task | Status |
 |------|--------|
-| Log detail side panel (split-pane layout) | ✅ Complete |
-| Single-click row selection + highlighting | ✅ Complete |
-| SSE handler index maintenance | ✅ Complete |
-| 10 new E2E tests for side panel | ✅ Complete |
+| Child session hierarchy fix | ✅ Complete |
+| Hide children from sidebar (filter by parentSessionId) | ✅ Complete |
+| Orchestrator registers/deregisters children directly | ✅ Complete |
+| Child count indicator on parent sessions | ✅ Complete |
 
 ---
 
@@ -43,5 +43,5 @@ node global-context-manager.js
 npm test -- --silent
 
 # Run specific tests
-npm test -- --testPathPattern="dashboard-log-detail" --silent
+npm test -- --testPathPattern="session-registry" --silent
 ```
