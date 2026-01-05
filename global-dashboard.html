@@ -5610,42 +5610,111 @@
       `;
     }
 
-    // Store activity entries for detail modal access
+    // Store activity entries for detail panel access
     let activityEntries = [];
+    let selectedLogIndex = -1;
 
     function renderActivityTable(pane, entries, total, hasMore) {
       // Store entries for later access
       activityEntries = entries.slice();
+      selectedLogIndex = -1;
 
-      if (entries.length > 0) {
-        pane.innerHTML = `
-          <div class="section-header">Tool Activity <span style="font-weight:normal;color:var(--text-muted)" id="activity-count">(${total} total)</span> <span style="font-size:11px;color:var(--text-muted);font-weight:normal;margin-left:8px;">Double-click row for details</span></div>
-          <table class="data-table" id="activity-table">
-            <thead><tr><th style="width:70px">Time</th><th style="width:40px"></th><th style="width:70px">Tool</th><th>Details</th></tr></thead>
-            <tbody id="activity-tbody">
-              ${entries.map((e, i) => `
-                <tr data-entry-index="${i}" style="cursor:pointer;" ondblclick="openLogDetailModal(activityEntries[${i}])">
-                  <td style="color:var(--text-muted);font-size:11px">${new Date(e.timestamp).toLocaleTimeString()}</td>
-                  <td style="color:var(--color-${e.success ? 'success' : 'danger'})">${e.success ? '✓' : '✗'}</td>
-                  <td style="font-weight:500">${escapeHtml(e.tool)}</td>
-                  <td style="color:var(--text-muted);font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(e.summary || '')}&#10;&#10;Double-click for full details">${escapeHtml(e.summary || '')}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          ${hasMore ? '<p style="color:var(--text-muted);font-size:12px;padding:8px;">Showing most recent 50 entries</p>' : ''}
-        `;
-      } else {
-        pane.innerHTML = `
-          <div class="section-header">Tool Activity <span style="font-weight:normal;color:var(--text-muted)" id="activity-count">(0 total)</span></div>
-          <table class="data-table" id="activity-table">
-            <thead><tr><th style="width:70px">Time</th><th style="width:40px"></th><th style="width:70px">Tool</th><th>Details</th></tr></thead>
-            <tbody id="activity-tbody">
-              <tr id="no-activity-row"><td colspan="4" style="color:var(--text-muted)">No activity yet - tool calls will appear here</td></tr>
-            </tbody>
-          </table>
-        `;
+      pane.innerHTML = `
+        <div style="display:flex;gap:12px;height:100%;">
+          <!-- Left: Log entries table -->
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+            <div class="section-header">Tool Activity <span style="font-weight:normal;color:var(--text-muted)" id="activity-count">(${total} total)</span></div>
+            <div style="flex:1;overflow-y:auto;">
+              <table class="data-table" id="activity-table">
+                <thead><tr><th style="width:70px">Time</th><th style="width:40px"></th><th style="width:70px">Tool</th><th>Details</th></tr></thead>
+                <tbody id="activity-tbody">
+                  ${entries.length > 0 ? entries.map((e, i) => `
+                    <tr data-entry-index="${i}" style="cursor:pointer;" onclick="selectLogEntry(${i})" ondblclick="openLogDetailModal(activityEntries[${i}])">
+                      <td style="color:var(--text-muted);font-size:11px">${new Date(e.timestamp).toLocaleTimeString()}</td>
+                      <td style="color:var(--color-${e.success ? 'success' : 'danger'})">${e.success ? '✓' : '✗'}</td>
+                      <td style="font-weight:500">${escapeHtml(e.tool)}</td>
+                      <td style="color:var(--text-muted);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(e.summary || '')}</td>
+                    </tr>
+                  `).join('') : '<tr id="no-activity-row"><td colspan="4" style="color:var(--text-muted)">No activity yet - tool calls will appear here</td></tr>'}
+                </tbody>
+              </table>
+              ${hasMore ? '<p style="color:var(--text-muted);font-size:12px;padding:8px;">Showing most recent 50 entries</p>' : ''}
+            </div>
+          </div>
+          <!-- Right: Detail panel -->
+          <div id="log-detail-panel" style="width:320px;flex-shrink:0;background:var(--bg-tertiary);border-radius:6px;padding:12px;overflow-y:auto;display:flex;flex-direction:column;">
+            <div class="section-header" style="margin-bottom:12px;">Details</div>
+            <div id="log-detail-content" style="flex:1;color:var(--text-muted);font-size:13px;">
+              <p style="padding:20px;text-align:center;">Select a log entry to view details</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Select a log entry and show its details in the panel
+    function selectLogEntry(index) {
+      selectedLogIndex = index;
+      const entry = activityEntries[index];
+      if (!entry) return;
+
+      // Update row highlighting
+      const tbody = document.getElementById('activity-tbody');
+      if (tbody) {
+        tbody.querySelectorAll('tr').forEach((tr, i) => {
+          tr.style.background = i === index ? 'var(--bg-secondary)' : '';
+        });
       }
+
+      // Update detail panel
+      showLogDetail(entry);
+    }
+
+    // Render log entry details in the side panel
+    function showLogDetail(entry) {
+      const panel = document.getElementById('log-detail-content');
+      if (!panel) return;
+
+      const status = entry.success ? '✓' : '✗';
+      const statusColor = entry.success ? 'var(--color-success)' : 'var(--color-danger)';
+
+      let html = `
+        <div style="margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border-color);">
+          <div style="font-size:16px;font-weight:600;margin-bottom:8px;">
+            <span style="color:${statusColor}">${status}</span> ${escapeHtml(entry.tool)}
+          </div>
+          <div style="color:var(--text-muted);font-size:11px;">${new Date(entry.timestamp).toLocaleString()}</div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;margin-bottom:4px;">Summary</div>
+          <div style="font-family:monospace;font-size:12px;word-break:break-all;">${escapeHtml(entry.summary || 'N/A')}</div>
+        </div>
+      `;
+
+      // Add detail fields if available
+      if (entry.detail && Object.keys(entry.detail).length > 0) {
+        for (const [key, value] of Object.entries(entry.detail)) {
+          const displayValue = typeof value === 'object'
+            ? JSON.stringify(value, null, 2)
+            : String(value);
+
+          const isLongValue = displayValue.length > 80 || displayValue.includes('\n');
+
+          html += `
+            <div style="margin-bottom:12px;">
+              <div style="color:var(--color-info);font-size:10px;text-transform:uppercase;margin-bottom:4px;">${escapeHtml(key)}</div>
+              ${isLongValue
+                ? `<pre style="background:var(--bg-primary);padding:8px;border-radius:4px;overflow-x:auto;max-height:150px;overflow-y:auto;margin:0;font-size:11px;white-space:pre-wrap;word-break:break-all;">${escapeHtml(displayValue)}</pre>`
+                : `<div style="font-family:monospace;font-size:12px;word-break:break-all;">${escapeHtml(displayValue)}</div>`
+              }
+            </div>
+          `;
+        }
+      } else {
+        html += `<div style="color:var(--text-muted);font-style:italic;font-size:12px;">No additional details available.</div>`;
+      }
+
+      panel.innerHTML = html;
     }
 
     function subscribeToActivityStream(sessionId, pane, getCount) {
@@ -5664,24 +5733,45 @@
                 // Remove "no activity" row if present
                 if (noActivityRow) noActivityRow.remove();
 
-                // Store entry at beginning of array for double-click access
+                // Store entry at beginning of array
                 activityEntries.unshift(data.entry);
                 // Limit stored entries to 50
                 if (activityEntries.length > 50) activityEntries.pop();
+
+                // Shift selected index since we inserted at top
+                if (selectedLogIndex >= 0) {
+                  selectedLogIndex++;
+                }
+
+                // Update all existing row indices
+                tbody.querySelectorAll('tr[data-entry-index]').forEach(row => {
+                  const idx = parseInt(row.dataset.entryIndex);
+                  row.dataset.entryIndex = idx + 1;
+                  row.onclick = () => selectLogEntry(idx + 1);
+                  row.ondblclick = () => openLogDetailModal(activityEntries[idx + 1]);
+                });
 
                 // Create new row at the top
                 const tr = document.createElement('tr');
                 tr.style.animation = 'fadeIn 0.3s ease-in';
                 tr.style.cursor = 'pointer';
                 tr.dataset.entryIndex = '0';
-                tr.ondblclick = () => openLogDetailModal(data.entry);
+                tr.onclick = () => selectLogEntry(0);
+                tr.ondblclick = () => openLogDetailModal(activityEntries[0]);
                 tr.innerHTML = `
                   <td style="color:var(--text-muted);font-size:11px">${new Date(data.entry.timestamp).toLocaleTimeString()}</td>
                   <td style="color:var(--color-${data.entry.success ? 'success' : 'danger'})">${data.entry.success ? '✓' : '✗'}</td>
                   <td style="font-weight:500">${escapeHtml(data.entry.tool)}</td>
-                  <td style="color:var(--text-muted);font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(data.entry.summary || '')}&#10;&#10;Double-click for full details">${escapeHtml(data.entry.summary || '')}</td>
+                  <td style="color:var(--text-muted);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(data.entry.summary || '')}</td>
                 `;
                 tbody.insertBefore(tr, tbody.firstChild);
+
+                // Re-apply selection highlight
+                if (selectedLogIndex >= 0) {
+                  tbody.querySelectorAll('tr').forEach((row, i) => {
+                    row.style.background = i === selectedLogIndex ? 'var(--bg-secondary)' : '';
+                  });
+                }
 
                 // Limit visible rows to 50
                 while (tbody.children.length > 50) {

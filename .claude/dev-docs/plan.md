@@ -1,6 +1,6 @@
 # Current Plan
 **Phase**: IMPLEMENTATION
-**Status**: Dashboard Session Filtering Fixed
+**Status**: Log Detail Side Panel Complete
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Task | Status |
 |------|--------|
-| Dashboard CLI session duplication fix | ✅ Complete |
-| Session filtering for autonomous children | ✅ Complete |
-| API response fields (endedAt, hierarchyInfo) | ✅ Complete |
-| 8 new E2E tests | ✅ Complete |
+| Log detail side panel (split-pane layout) | ✅ Complete |
+| Single-click row selection + highlighting | ✅ Complete |
+| SSE handler index maintenance | ✅ Complete |
+| 10 new E2E tests for side panel | ✅ Complete |
 
 ---
 
@@ -43,6 +43,5 @@ node global-context-manager.js
 npm test -- --silent
 
 # Run specific tests
-npm test -- --testPathPattern="dashboard-session-filtering" --silent
-npm test -- --testPathPattern="orchestrator-dashboard" --silent
+npm test -- --testPathPattern="dashboard-log-detail" --silent
 ```

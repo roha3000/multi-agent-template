@@ -113,16 +113,17 @@ describe('Dashboard Log Detail Modal', () => {
       expect(dashboardHtml).toContain('style="cursor:pointer;"');
     });
 
-    it('should show hint about double-click in section header', () => {
-      expect(dashboardHtml).toContain('Double-click row for details');
+    it('should add single-click handler for row selection', () => {
+      expect(dashboardHtml).toContain('onclick="selectLogEntry(');
     });
 
-    it('should show hint in row title tooltip', () => {
-      expect(dashboardHtml).toContain('Double-click for full details');
+    it('should define selectLogEntry function', () => {
+      expect(dashboardHtml).toContain('function selectLogEntry(index)');
     });
 
-    it('should handle SSE stream entries with double-click', () => {
-      expect(dashboardHtml).toContain('tr.ondblclick = () => openLogDetailModal(data.entry)');
+    it('should handle SSE stream entries with click handlers', () => {
+      expect(dashboardHtml).toContain('tr.onclick = () => selectLogEntry(0)');
+      expect(dashboardHtml).toContain('tr.ondblclick = () => openLogDetailModal(activityEntries[0])');
     });
 
     it('should store SSE entries in activityEntries array', () => {
@@ -131,6 +132,49 @@ describe('Dashboard Log Detail Modal', () => {
 
     it('should limit stored entries to 50', () => {
       expect(dashboardHtml).toContain('if (activityEntries.length > 50) activityEntries.pop()');
+    });
+
+    it('should shift selected index when new entries arrive', () => {
+      expect(dashboardHtml).toContain('if (selectedLogIndex >= 0)');
+      expect(dashboardHtml).toContain('selectedLogIndex++');
+    });
+
+    it('should re-apply selection highlight after new entries', () => {
+      expect(dashboardHtml).toContain('Re-apply selection highlight');
+    });
+  });
+
+  describe('Side Panel Layout', () => {
+    it('should have split-pane layout with flexbox', () => {
+      expect(dashboardHtml).toContain('display:flex;gap:12px;height:100%');
+    });
+
+    it('should have log detail panel element', () => {
+      expect(dashboardHtml).toContain('id="log-detail-panel"');
+    });
+
+    it('should have log detail content element', () => {
+      expect(dashboardHtml).toContain('id="log-detail-content"');
+    });
+
+    it('should show placeholder text when no entry selected', () => {
+      expect(dashboardHtml).toContain('Select a log entry to view details');
+    });
+
+    it('should define showLogDetail function', () => {
+      expect(dashboardHtml).toContain('function showLogDetail(entry)');
+    });
+
+    it('should update panel content in showLogDetail', () => {
+      expect(dashboardHtml).toContain("getElementById('log-detail-content')");
+    });
+
+    it('should track selected log index', () => {
+      expect(dashboardHtml).toContain('let selectedLogIndex = -1');
+    });
+
+    it('should highlight selected row', () => {
+      expect(dashboardHtml).toContain("style.background = i === index ? 'var(--bg-secondary)' : ''");
     });
   });
 
@@ -144,7 +188,8 @@ describe('Dashboard Log Detail Modal', () => {
     });
 
     it('should detect long values for special formatting', () => {
-      expect(dashboardHtml).toContain('displayValue.length > 100');
+      // Modal uses 100, side panel uses 80
+      expect(dashboardHtml).toMatch(/displayValue\.length > (80|100)/);
       expect(dashboardHtml).toContain('displayValue.includes(\'\\n\')');
     });
 

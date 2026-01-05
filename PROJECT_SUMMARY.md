@@ -1,36 +1,34 @@
 # PROJECT SUMMARY - Multi-Agent Template
 **Last Updated**: 2026-01-05 (Session 92)
 **Current Phase**: IMPLEMENTATION
-**Status**: Dashboard Session Filtering Fixed
+**Status**: Log Detail Side Panel Complete
 
 ---
 
-## Session 92: Dashboard CLI Session Filtering
+## Session 92: Log Detail Side Panel
 
-Fixed issue where autonomous child sessions were appearing as duplicate CLI sessions in the dashboard.
+Changed log detail display from modal-only to side panel with single-click selection.
 
 ### Changes Made
 | Component | Change | Files |
 |-----------|--------|-------|
-| Dashboard Session Processing | Added checks to skip autonomous/ended sessions from projects API | `global-dashboard.html` |
-| Session Summary API | Added `endedAt` and `hierarchyInfo` fields to response | `global-context-manager.js` |
-| Session Filtering Tests | 8 new E2E tests for session filtering behavior | `__tests__/e2e/dashboard-session-filtering.e2e.test.js` |
-| E2E Test Update | Updated deregister test to expect 'ended' status instead of removal | `tests/e2e/orchestrator-dashboard.e2e.test.js` |
+| Split-pane layout | Left: log table, Right: 320px detail panel | `global-dashboard.html` |
+| Single-click selection | Click row to show details, row highlights | `global-dashboard.html` |
+| `selectLogEntry()` | New function for row selection + highlighting | `global-dashboard.html` |
+| `showLogDetail()` | New function to render details in panel | `global-dashboard.html` |
+| SSE handler | Updated to maintain selection when new entries arrive | `global-dashboard.html` |
+| Modal kept | Double-click still opens modal for large content | `global-dashboard.html` |
+| Tests | 10 new tests for side panel behavior | `__tests__/e2e/dashboard-log-detail.e2e.test.js` |
 
-### How It Works
-1. Dashboard builds `registryByClaudeId` map from session registry
-2. When processing `/api/projects` sessions, looks up each by claudeSessionId
-3. Skips sessions that are:
-   - Already marked `autonomous` in registry
-   - Marked `ended` in registry
-   - Unlinked but project has active autonomous orchestrator
-4. Autonomous sessions added from registry, CLI sessions from projects
+### UX Flow
+1. Click a log row → Details appear instantly in right panel
+2. Double-click a row → Opens full modal for copying/viewing large content
+3. New SSE entries → Selection stays on same entry (index shifts)
 
 ### Test Results
 ```
-8 dashboard-session-filtering tests passing
-29 orchestrator-dashboard tests passing
-2826 total tests passing
+45 dashboard-log-detail tests passing
+2836 total tests passing
 ```
 
 ---
@@ -55,7 +53,7 @@ Fixed issue where autonomous child sessions were appearing as duplicate CLI sess
 | Phase 1-6 | ✅ Complete | Full auto-delegation system |
 | Orchestrator | ✅ Complete | Autonomous delegation support |
 
-**Overall**: 92/100 | 229+ delegation tests | 2826+ total tests
+**Overall**: 92/100 | 229+ delegation tests | 2836+ total tests
 
 ---
 
@@ -65,8 +63,8 @@ Fixed issue where autonomous child sessions were appearing as duplicate CLI sess
 |-----------|--------|
 | Orchestrator | ✅ Full delegation support |
 | Delegation System | ✅ All phases complete |
-| Dashboard | Port 3033 - v4 layout + session filtering |
-| Tests | 2826+ passing (8 new this session) |
+| Dashboard | Port 3033 - v4 layout + log side panel |
+| Tests | 2836+ passing (10 new this session) |
 
 ---
 

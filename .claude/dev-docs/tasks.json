@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 110,
-    "lastModifiedBy": 21,
-    "lastModifiedAt": "2026-01-05T02:53:06.467Z"
+    "version": 111,
+    "lastModifiedBy": "cce44576-cf10-430b-8491-913481958f4b",
+    "lastModifiedAt": "2026-01-05T03:40:25.699Z"
   },
   "version": "1.1.0",
   "project": {
@@ -28,7 +28,9 @@
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "dashboard-blocked-tasks-view"
+        "dashboard-blocked-tasks-view",
+        "dashboard-tasks-tab-claims",
+        "dashboard-hierarchy-child-details"
       ]
     },
     "later": {
@@ -406,7 +408,7 @@
       "status": "in_progress",
       "assignee": null,
       "created": "2026-01-04T20:10:00.000Z",
-      "updated": "2026-01-05T02:53:06.464Z",
+      "updated": "2026-01-05T03:40:25.697Z",
       "parentTaskId": null,
       "childTaskIds": [],
       "delegatedTo": null,
@@ -446,6 +448,82 @@
       "assignee": null,
       "created": "2026-01-04T20:10:00.000Z",
       "updated": "2026-01-04T20:10:00.000Z",
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0
+    },
+    "dashboard-tasks-tab-claims": {
+      "id": "dashboard-tasks-tab-claims",
+      "title": "Display Task Claims in Dashboard Tasks Tab",
+      "description": "Update the Tasks tab to show which sessions have claimed each task. Currently tasks display without ownership info. Should show: claimed-by session ID, agent type, claim expiration status. Backend: modify /api/tasks to include claims via getActiveClaims(). Frontend: update updateTasksPane() to render claim badges.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "1h",
+      "tags": [
+        "dashboard",
+        "tasks-tab",
+        "claims",
+        "ux"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-blocked-tasks-view"
+        ]
+      },
+      "acceptance": [
+        "/api/tasks endpoint includes claims array mapped to task IDs",
+        "Tasks tab shows 'Claimed by: session-X' badge for claimed tasks",
+        "Agent type displayed (orchestrator, developer, etc.)",
+        "Visual indicator for expiring-soon claims",
+        "Unclaimed tasks show 'Available' badge",
+        "Claim info updates via SSE task:claimed/task:released events"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2026-01-05T03:35:00.000Z",
+      "updated": "2026-01-05T03:35:00.000Z",
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0
+    },
+    "dashboard-hierarchy-child-details": {
+      "id": "dashboard-hierarchy-child-details",
+      "title": "Add Detail Panel for Child Processes in Hierarchy Tab",
+      "description": "Explore adding a details side panel to the Hierarchy tab when a child process is selected. Similar to the log detail modal enhancement being built for the Logs tab (double-click to view full details). Should show: child agent metadata, delegation context, task progress, real-time output, parent relationship. Consider reusing the side-panel pattern from Logs tab implementation.",
+      "phase": "research",
+      "priority": "medium",
+      "estimate": "2h",
+      "tags": [
+        "dashboard",
+        "hierarchy-tab",
+        "ux",
+        "child-agents",
+        "detail-panel"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "cli-session-activity-logs"
+        ]
+      },
+      "acceptance": [
+        "Research: Document current hierarchy tab rendering (updateHierarchyPane)",
+        "Research: Identify what child process data is available via API",
+        "Research: Review Logs tab detail modal implementation for reuse patterns",
+        "Design: Specify what details to show (metadata, delegation context, output, progress)",
+        "Design: Decide on interaction pattern (click vs double-click, side panel vs modal)",
+        "Design: Mockup or wireframe of the detail view",
+        "Optional: Prototype implementation if straightforward"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2026-01-05T03:35:00.000Z",
+      "updated": "2026-01-05T03:35:00.000Z",
       "parentTaskId": null,
       "childTaskIds": [],
       "delegatedTo": null,
