@@ -1,79 +1,40 @@
 {
-  "taskId": "auto-delegation-phase6-polish",
+  "taskId": "session-registry-id-persistence",
   "status": "completed",
-  "phase": "implementation",
-  "acceptanceMet": [true, true, true, true],
+  "acceptanceMet": [true, true, true, true, true],
   "acceptanceCriteria": [
-    "Hook failures don't break Claude Code - VERIFIED: delegation-hook.js (lines 169-175) wraps main() in try/catch with silent fail and always exits with process.exit(0). Error handling falls back gracefully without disrupting user experience.",
-    "Errors are logged with context - VERIFIED: Uses hook-debug.js for structured logging with hookName, event, error.message, stack traces (first 3-5 lines). delegation-executor.js uses console.error with [DelegationExecutor] prefix. All error handlers include context data.",
-    "Documentation is complete - VERIFIED: Architecture doc (docs/architecture/AUTO-DELEGATION-ARCHITECTURE.md), Control Interface spec (docs/api/AUTO-DELEGATION-CONTROL-INTERFACE.md), 4 skill commands with full documentation (/delegate, /direct, /delegation-status, /delegation-config in .claude/commands/)",
-    "Performance meets targets - VERIFIED: delegation-bridge performance tests pass (getQuickHint completes in ~15ms, complex prompts analyzed in ~77ms). Hook target is <200ms, tests confirm sub-100ms execution."
+    "nextId persisted to memory.db on each increment - VERIFIED: _persistNextId() called after each ID allocation in register() method (line 165-166)",
+    "nextId loaded from memory.db on dashboard startup - VERIFIED: _loadNextIdFromDb() called during constructor initialization (line 54)",
+    "Session IDs never reused across dashboard restarts - VERIFIED: Tests confirm IDs 1-5 in first session, 6-10 in second session after simulated restart",
+    "Graceful fallback if memory.db unavailable - VERIFIED: _initializeDatabase() catches errors and sets persistenceEnabled=false, continuing with memory-only mode",
+    "Tests verify ID persistence across simulated restarts - VERIFIED: 8 new tests added covering persistence, collision prevention, and fallback scenarios"
   ],
   "deliverables": [
-    "delegation-hook.js:169-175 - Try/catch wrapper with silent fail pattern",
-    "delegation-hook.js:23,40,52,58,64,85,93,95,102,112,117,125,134,151,166,170 - debug.log() calls with context",
-    "delegation-bridge.js - Graceful degradation: loadConfig() returns defaults on error, matchKnownTask() returns null on error, loadDelegationDecider() returns null on failure",
-    "delegation-executor.js:37,54,71,147,158,298 - console.error/warn with [DelegationExecutor] prefix",
-    "hook-debug.js - Structured logging to .claude/logs/hook-debug.log with rotation, uncaughtException/unhandledRejection handlers",
-    "docs/architecture/AUTO-DELEGATION-ARCHITECTURE.md - Full architecture documentation with diagrams",
-    "docs/api/AUTO-DELEGATION-CONTROL-INTERFACE.md - API specification with endpoints, events, configuration schema",
-    ".claude/commands/delegate.md - Force delegation skill with pattern control, dry-run, execution instructions",
-    ".claude/commands/direct.md - Force direct execution skill with state file mechanism",
-    ".claude/commands/delegation-status.md - Status dashboard, history, hint subcommands",
-    ".claude/commands/delegation-config.md - Runtime config modification with mode, threshold, cache options"
+    ".claude/core/session-registry.js - Added database persistence for nextId",
+    ".claude/core/session-registry.js:27-28 - MEMORY_DB_PATH and NEXT_ID_KEY constants",
+    ".claude/core/session-registry.js:46-55 - Database initialization in constructor",
+    ".claude/core/session-registry.js:65-102 - _initializeDatabase() with directory creation and schema",
+    ".claude/core/session-registry.js:105-131 - _loadNextIdFromDb() loads persisted ID on startup",
+    ".claude/core/session-registry.js:134-156 - _persistNextId() saves after each allocation",
+    ".claude/core/session-registry.js:165-166 - _persistNextId() call in register()",
+    ".claude/core/session-registry.js:453-462 - Database connection cleanup in shutdown()",
+    "__tests__/core/session-registry.test.js:882-1119 - 8 new persistence tests"
   ],
-  "notes": "Phase 6 Polish and Documentation is complete. The auto-delegation system is production-ready with: (1) Robust error handling that never crashes Claude Code - all errors are caught and logged, hooks exit cleanly. (2) Comprehensive logging with structured debug output to .claude/logs/hook-debug.log including timestamps, PIDs, event types, and stack traces. (3) Complete user documentation including architecture docs, API specs, and 4 fully documented slash command skills. (4) Performance well within targets - hook analysis typically completes in 15-80ms, well under the 200ms target. 229 delegation tests + 417 hierarchy tests pass.",
-  "errorHandlingDetails": {
-    "hookLevel": {
-      "location": "delegation-hook.js main()",
-      "pattern": "try/catch with silent fail, always process.exit(0)",
-      "logging": "debug.log() with hookName, event, error.message, truncated stack"
-    },
-    "bridgeLevel": {
-      "location": "delegation-bridge.js",
-      "functions": ["loadConfig", "matchKnownTask", "loadDelegationDecider", "getDecompositionSuggestion"],
-      "pattern": "Return safe defaults (DEFAULT_CONFIG, null) on error"
-    },
-    "executorLevel": {
-      "location": "delegation-executor.js",
-      "functions": ["getDelegationBridge", "getTaskDecomposer", "getHierarchyRegistry", "resolveTask", "registerDelegationHierarchy"],
-      "pattern": "console.error with prefix, return null or error result"
-    },
-    "processLevel": {
-      "location": "hook-debug.js",
-      "handlers": ["uncaughtException", "unhandledRejection"],
-      "pattern": "Log to file, do not crash"
-    }
+  "notes": "Implemented nextId persistence to prevent session ID collisions when dashboard restarts. Uses the canonical memory.db path (.claude/data/memory.db) and stores the nextId in the system_info table. The implementation includes graceful fallback - if the database is unavailable, the registry continues operating in memory-only mode. All 69 session registry tests pass including 8 new tests specifically for ID persistence.",
+  "implementationDetails": {
+    "storageLocation": ".claude/data/memory.db (canonical path per ARCHITECTURE.md)",
+    "storageKey": "session_registry_next_id in system_info table",
+    "persistenceTiming": "After each ID allocation (before session creation)",
+    "loadTiming": "During SessionRegistry constructor initialization",
+    "fallbackBehavior": "If database unavailable, persistenceEnabled=false and operates in memory-only mode"
   },
-  "documentationInventory": {
-    "architecture": ["docs/architecture/AUTO-DELEGATION-ARCHITECTURE.md (556 lines) - Full design with diagrams, decision rationale, integration points"],
-    "api": ["docs/api/AUTO-DELEGATION-CONTROL-INTERFACE.md (864 lines) - Command syntax, configuration schema, REST/SSE API specs"],
-    "skills": [
-      ".claude/commands/delegate.md (187 lines) - Force delegation with pattern control",
-      ".claude/commands/direct.md (172 lines) - Skip delegation, state file mechanism",
-      ".claude/commands/delegation-status.md (169 lines) - Dashboard, history, hints",
-      ".claude/commands/delegation-config.md (152 lines) - Runtime config modification"
-    ],
-    "archived": [
-      "docs/archive/AUTO-DELEGATION-IMPLEMENTATION-PLAN.md",
-      "docs/archive/AUTO-DELEGATION-TESTING-STRATEGY.md",
-      "docs/archive/AUTO-DELEGATION-UX-DESIGN.md"
+  "testsAdded": {
+    "total": 8,
+    "categories": [
+      "with persistence enabled: 4 tests (load on init, persist after registration, prevent collisions, concurrent registrations)",
+      "with persistence disabled: 2 tests (no db operations, reset on restart)",
+      "graceful fallback: 2 tests (valid path works, continues if persistence fails mid-session)"
     ]
   },
-  "performanceMetrics": {
-    "hookTarget": "<200ms",
-    "actualMeasurements": {
-      "getQuickHint": "15ms average (tested)",
-      "complexPromptAnalysis": "77ms (tested)",
-      "cacheRetrieval": "<5ms"
-    },
-    "testResults": "All performance tests pass - delegation-bridge tests confirm sub-100ms execution"
-  },
-  "testsStatus": {
-    "delegation": "229 tests passing",
-    "hierarchyAndSession": "417 tests passing",
-    "performanceTests": "12 performance tests passing",
-    "total": "646+ related tests"
-  },
-  "completedAt": "2026-01-04T22:28:00.000Z"
+  "completedAt": "2026-01-04T18:32:00.000Z"
 }

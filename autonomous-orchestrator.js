@@ -34,6 +34,20 @@ const { getSessionRegistry } = require('./.claude/core/session-registry');
 const { getUsageLimitTracker } = require('./.claude/core/usage-limit-tracker');
 const SwarmController = require('./.claude/core/swarm-controller');
 
+// Delegation system - lazy loaded for performance
+let _delegationExecutor = null;
+function getDelegationExecutor() {
+  if (!_delegationExecutor) {
+    try {
+      _delegationExecutor = require('./.claude/core/delegation-executor');
+    } catch (error) {
+      console.log('[DELEGATION] Module not available:', error.message);
+      return null;
+    }
+  }
+  return _delegationExecutor;
+}
+
 // Phase name mapping (tasks.json uses longer names, quality-gates uses shorter)
 const PHASE_MAP = {
   'research': 'research',
@@ -626,6 +640,180 @@ function runSession(prompt) {
       resolve(code || 0);
     });
   });
+}
+
+// ============================================================================
+// DELEGATION INTEGRATION
+// ============================================================================
+
+/**
+ * Analyze task for delegation potential
+ * @param {Object} task - Task to analyze
+ * @returns {Object|null} Delegation plan or null if not recommended
+ */
+function analyzeDelegation(task) {
+  const executor = getDelegationExecutor();
+  if (!executor) return null;
+
+  try {
+    const result = executor.executeDelegation(task.id);
+
+    if (!result.success) {
+      console.log(`[DELEGATION] Not recommended: ${result.warning || result.error}`);
+      return null;
+    }
+
+    console.log(`[DELEGATION] Recommended: ${result.decision.pattern} pattern, ${result.execution.subtaskCount} subtasks`);
+    console.log(`[DELEGATION] Confidence: ${result.decision.confidence}%`);
+
+    return result;
+  } catch (error) {
+    console.error('[DELEGATION] Analysis failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Run a single delegated subtask as a subprocess
+ * @param {Object} subtask - Subtask from delegation plan
+ * @param {Object} parentTask - Parent task for context
+ * @param {number} index - Subtask index
+ * @param {number} total - Total number of subtasks
+ * @returns {Promise<Object>} Subtask result
+ */
+function runDelegatedSubtask(subtask, parentTask, index, total) {
+  return new Promise((resolve) => {
+    const label = `[SUBTASK ${index + 1}/${total}]`;
+    console.log(`\n${label} Starting: ${subtask.parameters.description}`);
+
+    // Generate prompt for subtask
+    const prompt = subtask.parameters.prompt;
+
+    const logPath = path.join(CONFIG.projectPath, '.claude', 'logs', `subtask-${parentTask.id}-${index + 1}.log`);
+    const logDir = path.dirname(logPath);
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    const logStream = fs.createWriteStream(logPath, { flags: 'a' });
+
+    const args = ['-p', '--dangerously-skip-permissions', '--model', CONFIG.model];
+
+    const childProcess = spawn('claude', args, {
+      cwd: CONFIG.projectPath,
+      shell: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        PARENT_SESSION_ID: registeredSessionId ? String(registeredSessionId) : '',
+        ORCHESTRATOR_SESSION: 'true',
+        SUBTASK_INDEX: String(index + 1),
+        SUBTASK_TOTAL: String(total),
+        PARENT_TASK_ID: parentTask.id
+      }
+    });
+
+    childProcess.stdin.write(prompt);
+    childProcess.stdin.end();
+
+    let output = '';
+    childProcess.stdout.on('data', (data) => {
+      output += data.toString();
+      logStream.write(data);
+    });
+
+    childProcess.stderr.on('data', (data) => {
+      logStream.write(data);
+    });
+
+    childProcess.on('error', (err) => {
+      console.error(`${label} Error:`, err.message);
+      logStream.end();
+      resolve({ success: false, error: err.message, index });
+    });
+
+    childProcess.on('close', (code) => {
+      logStream.end();
+      console.log(`${label} Completed with code ${code}`);
+      resolve({
+        success: code === 0,
+        index,
+        output: output.substring(0, 1000), // Truncate for logging
+        exitCode: code
+      });
+    });
+  });
+}
+
+/**
+ * Run delegated task with multiple parallel subtasks
+ * @param {Object} delegationPlan - Plan from analyzeDelegation
+ * @param {Object} task - Parent task
+ * @returns {Promise<Object>} Aggregated result
+ */
+async function runDelegatedTask(delegationPlan, task) {
+  const { execution, hierarchy } = delegationPlan;
+  const { pattern, subtaskCount, taskInvocations } = execution;
+
+  console.log(`\n${'═'.repeat(70)}`);
+  console.log(`DELEGATED EXECUTION: ${task.title}`);
+  console.log(`Pattern: ${pattern} | Subtasks: ${subtaskCount}`);
+  console.log(`${'═'.repeat(70)}\n`);
+
+  // Log delegation start to dashboard
+  logToDashboard(
+    `Delegation started: ${task.title} (${pattern} pattern, ${subtaskCount} subtasks)`,
+    'INFO',
+    'delegation-start'
+  );
+
+  let results = [];
+
+  if (pattern === 'parallel') {
+    // Run all subtasks in parallel
+    console.log('[DELEGATION] Running subtasks in parallel...');
+    const promises = taskInvocations.map((subtask, index) =>
+      runDelegatedSubtask(subtask, task, index, subtaskCount)
+    );
+    results = await Promise.all(promises);
+  } else {
+    // Run subtasks sequentially
+    console.log('[DELEGATION] Running subtasks sequentially...');
+    for (let i = 0; i < taskInvocations.length; i++) {
+      const result = await runDelegatedSubtask(taskInvocations[i], task, i, subtaskCount);
+      results.push(result);
+
+      // Stop on failure for sequential pattern
+      if (!result.success && pattern === 'sequential') {
+        console.log(`[DELEGATION] Sequential chain stopped at subtask ${i + 1} due to failure`);
+        break;
+      }
+    }
+  }
+
+  // Aggregate results
+  const successCount = results.filter(r => r.success).length;
+  const failCount = results.filter(r => !r.success).length;
+
+  console.log(`\n${'─'.repeat(70)}`);
+  console.log(`DELEGATION COMPLETE: ${successCount}/${subtaskCount} succeeded, ${failCount} failed`);
+  console.log(`${'─'.repeat(70)}\n`);
+
+  // Log delegation completion to dashboard
+  logToDashboard(
+    `Delegation complete: ${task.title} - ${successCount}/${subtaskCount} succeeded`,
+    successCount === subtaskCount ? 'INFO' : 'WARN',
+    'delegation-complete'
+  );
+
+  return {
+    delegated: true,
+    pattern,
+    subtaskCount,
+    successCount,
+    failCount,
+    allSucceeded: successCount === subtaskCount,
+    results
+  };
 }
 
 // ============================================================================
@@ -1264,8 +1452,32 @@ async function main() {
       connectToDashboard();
     }
 
-    // Run session
-    await runSession(prompt);
+    // ====================================================================
+    // DELEGATION CHECK - analyze task before execution
+    // ====================================================================
+
+    let delegationResult = null;
+
+    if (currentTask && taskManagementEnabled) {
+      // Check if task should be delegated
+      const delegationPlan = analyzeDelegation(currentTask);
+
+      if (delegationPlan) {
+        // Run delegated execution instead of single session
+        delegationResult = await runDelegatedTask(delegationPlan, currentTask);
+
+        // Set session data based on delegation result
+        currentSessionData.exitReason = delegationResult.allSucceeded ? 'complete' : 'partial';
+        currentSessionData.delegated = true;
+        currentSessionData.delegationPattern = delegationResult.pattern;
+        currentSessionData.delegationSubtasks = delegationResult.subtaskCount;
+      }
+    }
+
+    // Only run single session if delegation was not used
+    if (!delegationResult) {
+      await runSession(prompt);
+    }
 
     // Record session
     state.sessionHistory.push({

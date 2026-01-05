@@ -1901,7 +1901,7 @@ app.get('/api/sessions/:id/hierarchy', (req, res) => {
     sessionId: session.id,
     project: session.project,
     sessionType: session.sessionType,
-    parentId: session.parentId || null,
+    parentId: session.hierarchyInfo?.parentSessionId || session.parentId || null,
     children: childSessions.map(child => ({
       id: child.id,
       project: child.project,

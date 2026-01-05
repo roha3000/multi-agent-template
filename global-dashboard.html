@@ -3080,6 +3080,19 @@
     </div>
   </div>
 
+  <!-- Log Detail Modal -->
+  <div class="modal-overlay" id="logDetailModal" onclick="closeLogDetailModal(event)">
+    <div class="modal" style="max-width:700px;max-height:80vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="logDetailTitle">Tool Details</h2>
+        <button class="modal-close" onclick="closeLogDetailModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" id="logDetailBody" style="overflow-y:auto;flex:1;">
+        <!-- Content populated by JavaScript -->
+      </div>
+    </div>
+  </div>
+
   <script>
     // ===== STATE =====
     let sessions = [];
@@ -5086,6 +5099,70 @@
       launcherSelectedPath = null;
     }
 
+    // ===== LOG DETAIL MODAL =====
+    function openLogDetailModal(entry) {
+      const modal = document.getElementById('logDetailModal');
+      const title = document.getElementById('logDetailTitle');
+      const body = document.getElementById('logDetailBody');
+
+      if (!modal || !title || !body) return;
+
+      // Set title
+      const status = entry.success ? '✓' : '✗';
+      const statusColor = entry.success ? 'var(--color-success)' : 'var(--color-danger)';
+      title.innerHTML = `<span style="color:${statusColor}">${status}</span> ${escapeHtml(entry.tool)} Tool`;
+
+      // Build content
+      let html = `
+        <div style="margin-bottom:16px;">
+          <div style="color:var(--text-muted);font-size:12px;margin-bottom:4px;">Timestamp</div>
+          <div style="font-family:monospace;">${new Date(entry.timestamp).toLocaleString()}</div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <div style="color:var(--text-muted);font-size:12px;margin-bottom:4px;">Summary</div>
+          <div style="font-family:monospace;word-break:break-all;">${escapeHtml(entry.summary || 'N/A')}</div>
+        </div>
+      `;
+
+      // Add detail fields if available
+      if (entry.detail && Object.keys(entry.detail).length > 0) {
+        html += `<div style="border-top:1px solid var(--border-color);padding-top:16px;margin-top:16px;">
+          <div style="color:var(--text-muted);font-size:12px;margin-bottom:12px;font-weight:500;">Full Details</div>`;
+
+        for (const [key, value] of Object.entries(entry.detail)) {
+          const displayValue = typeof value === 'object'
+            ? JSON.stringify(value, null, 2)
+            : String(value);
+
+          // Determine if this is a long value that needs a scrollable pre block
+          const isLongValue = displayValue.length > 100 || displayValue.includes('\n');
+
+          html += `
+            <div style="margin-bottom:12px;">
+              <div style="color:var(--color-info);font-size:11px;text-transform:uppercase;margin-bottom:4px;">${escapeHtml(key)}</div>
+              ${isLongValue
+                ? `<pre style="background:var(--bg-tertiary);padding:8px;border-radius:4px;overflow-x:auto;max-height:200px;overflow-y:auto;margin:0;font-size:12px;white-space:pre-wrap;word-break:break-all;">${escapeHtml(displayValue)}</pre>`
+                : `<div style="font-family:monospace;font-size:13px;word-break:break-all;">${escapeHtml(displayValue)}</div>`
+              }
+            </div>
+          `;
+        }
+        html += `</div>`;
+      } else {
+        html += `<div style="color:var(--text-muted);font-style:italic;margin-top:16px;">No additional details available for this entry.</div>`;
+      }
+
+      body.innerHTML = html;
+      modal.classList.add('open');
+    }
+
+    function closeLogDetailModal(event) {
+      // If called from overlay click, only close if clicked on overlay itself
+      if (event && event.target.id !== 'logDetailModal') return;
+      const modal = document.getElementById('logDetailModal');
+      if (modal) modal.classList.remove('open');
+    }
+
     async function fetchProjects() {
       const container = document.getElementById('projectList');
       if (!container) return;
@@ -5526,19 +5603,25 @@
       `;
     }
 
+    // Store activity entries for detail modal access
+    let activityEntries = [];
+
     function renderActivityTable(pane, entries, total, hasMore) {
+      // Store entries for later access
+      activityEntries = entries.slice();
+
       if (entries.length > 0) {
         pane.innerHTML = `
-          <div class="section-header">Tool Activity <span style="font-weight:normal;color:var(--text-muted)" id="activity-count">(${total} total)</span></div>
+          <div class="section-header">Tool Activity <span style="font-weight:normal;color:var(--text-muted)" id="activity-count">(${total} total)</span> <span style="font-size:11px;color:var(--text-muted);font-weight:normal;margin-left:8px;">Double-click row for details</span></div>
           <table class="data-table" id="activity-table">
             <thead><tr><th style="width:70px">Time</th><th style="width:40px"></th><th style="width:70px">Tool</th><th>Details</th></tr></thead>
             <tbody id="activity-tbody">
-              ${entries.map(e => `
-                <tr>
+              ${entries.map((e, i) => `
+                <tr data-entry-index="${i}" style="cursor:pointer;" ondblclick="openLogDetailModal(activityEntries[${i}])">
                   <td style="color:var(--text-muted);font-size:11px">${new Date(e.timestamp).toLocaleTimeString()}</td>
                   <td style="color:var(--color-${e.success ? 'success' : 'danger'})">${e.success ? '✓' : '✗'}</td>
                   <td style="font-weight:500">${escapeHtml(e.tool)}</td>
-                  <td style="color:var(--text-muted);font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(e.summary || '')}">${escapeHtml(e.summary || '')}</td>
+                  <td style="color:var(--text-muted);font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(e.summary || '')}&#10;&#10;Double-click for full details">${escapeHtml(e.summary || '')}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -5574,14 +5657,22 @@
                 // Remove "no activity" row if present
                 if (noActivityRow) noActivityRow.remove();
 
+                // Store entry at beginning of array for double-click access
+                activityEntries.unshift(data.entry);
+                // Limit stored entries to 50
+                if (activityEntries.length > 50) activityEntries.pop();
+
                 // Create new row at the top
                 const tr = document.createElement('tr');
                 tr.style.animation = 'fadeIn 0.3s ease-in';
+                tr.style.cursor = 'pointer';
+                tr.dataset.entryIndex = '0';
+                tr.ondblclick = () => openLogDetailModal(data.entry);
                 tr.innerHTML = `
                   <td style="color:var(--text-muted);font-size:11px">${new Date(data.entry.timestamp).toLocaleTimeString()}</td>
                   <td style="color:var(--color-${data.entry.success ? 'success' : 'danger'})">${data.entry.success ? '✓' : '✗'}</td>
                   <td style="font-weight:500">${escapeHtml(data.entry.tool)}</td>
-                  <td style="color:var(--text-muted);font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(data.entry.summary || '')}">${escapeHtml(data.entry.summary || '')}</td>
+                  <td style="color:var(--text-muted);font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(data.entry.summary || '')}&#10;&#10;Double-click for full details">${escapeHtml(data.entry.summary || '')}</td>
                 `;
                 tbody.insertBefore(tr, tbody.firstChild);
 

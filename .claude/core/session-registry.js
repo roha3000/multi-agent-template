@@ -11,15 +11,35 @@
  * - Rollup metrics aggregation from child sessions
  * - Active delegation tracking
  * - Real-time event emission for dashboard updates
+ * - Persistent nextId across restarts (stored in memory.db)
  *
  * @module session-registry
  */
 
 const EventEmitter = require('events');
+const path = require('path');
 const { createComponentLogger } = require('./logger');
 const { getHierarchyRegistry, DelegationStatus } = require('./hierarchy-registry');
 
 const log = createComponentLogger('SessionRegistry');
+
+// Canonical database path per ARCHITECTURE.md
+const MEMORY_DB_PATH = path.join(__dirname, '..', 'data', 'memory.db');
+const NEXT_ID_KEY = 'session_registry_next_id';
+
+// Fallback reasons for diagnostics
+const FallbackReason = {
+  NONE: 'none',
+  MODULE_NOT_FOUND: 'better-sqlite3_not_installed',
+  DIR_CREATE_FAILED: 'directory_creation_failed',
+  DB_OPEN_FAILED: 'database_open_failed',
+  DB_INIT_FAILED: 'database_initialization_failed',
+  DB_LOCKED: 'database_locked',
+  DB_CORRUPT: 'database_corrupt',
+  DISK_FULL: 'disk_full',
+  PERMISSION_DENIED: 'permission_denied',
+  UNKNOWN: 'unknown_error'
+};
 
 /**
  * Session Registry for tracking autonomous orchestrator sessions.
@@ -37,9 +57,282 @@ class SessionRegistry extends EventEmitter {
     this.cleanupTimer = null;
     this.alerts = new Map();
 
+    // Database connection for nextId persistence
+    this.db = null;
+    this.dbPath = options.dbPath || MEMORY_DB_PATH;
+    this.persistenceEnabled = options.persistenceEnabled !== false;
+    this.fallbackReason = FallbackReason.NONE;
+    this.fallbackActive = false;
+    this.dbRetryCount = 0;
+    this.maxDbRetries = options.maxDbRetries || 3;
+
+    // Load persisted nextId from database
+    if (this.persistenceEnabled) {
+      this._initializeDatabase();
+      this._loadNextIdFromDb();
+    }
+
     this._startCleanupTimer();
 
-    log.info('Session registry initialized');
+    log.info('Session registry initialized', {
+      nextId: this.nextId,
+      persistenceEnabled: this.persistenceEnabled
+    });
+  }
+
+  /**
+   * Initialize database connection for nextId persistence.
+   * Uses the canonical memory.db path per ARCHITECTURE.md.
+   * Gracefully falls back to memory-only mode if database is unavailable.
+   * @private
+   */
+  _initializeDatabase() {
+    let Database;
+
+    // Step 1: Try to load better-sqlite3 module
+    try {
+      Database = require('better-sqlite3');
+    } catch (error) {
+      this._activateFallback(FallbackReason.MODULE_NOT_FOUND, error, {
+        suggestion: 'Run: npm install better-sqlite3'
+      });
+      return;
+    }
+
+    const fs = require('fs');
+
+    // Step 2: Ensure directory exists
+    try {
+      const dir = path.dirname(this.dbPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+    } catch (error) {
+      const reason = this._classifyError(error);
+      this._activateFallback(reason, error, { path: this.dbPath });
+      return;
+    }
+
+    // Step 3: Open database connection
+    try {
+      this.db = new Database(this.dbPath);
+    } catch (error) {
+      const reason = this._classifyError(error);
+      this._activateFallback(reason, error, { path: this.dbPath });
+      return;
+    }
+
+    // Step 4: Configure database and create schema
+    try {
+      this.db.pragma('journal_mode = WAL');
+      this.db.pragma('busy_timeout = 5000');
+
+      // Ensure system_info table exists (idempotent)
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS system_info (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )
+      `);
+
+      log.debug('Database initialized for nextId persistence', { path: this.dbPath });
+    } catch (error) {
+      // Close partial connection before falling back
+      this._safeCloseDb();
+      const reason = this._classifyError(error);
+      this._activateFallback(reason, error, { path: this.dbPath });
+    }
+  }
+
+  /**
+   * Classify database errors into fallback reasons.
+   * @private
+   * @param {Error} error - The error to classify
+   * @returns {string} FallbackReason constant
+   */
+  _classifyError(error) {
+    const message = error.message || '';
+    const code = error.code || '';
+
+    // Check for specific SQLite error patterns
+    if (message.includes('SQLITE_BUSY') || message.includes('database is locked')) {
+      return FallbackReason.DB_LOCKED;
+    }
+    if (message.includes('SQLITE_CORRUPT') || message.includes('database disk image is malformed')) {
+      return FallbackReason.DB_CORRUPT;
+    }
+    if (message.includes('SQLITE_FULL') || message.includes('disk full') || code === 'ENOSPC') {
+      return FallbackReason.DISK_FULL;
+    }
+    if (code === 'EACCES' || code === 'EPERM' || message.includes('permission denied')) {
+      return FallbackReason.PERMISSION_DENIED;
+    }
+    if (code === 'ENOENT' && message.includes('mkdir')) {
+      return FallbackReason.DIR_CREATE_FAILED;
+    }
+    if (message.includes('unable to open database')) {
+      return FallbackReason.DB_OPEN_FAILED;
+    }
+
+    return FallbackReason.UNKNOWN;
+  }
+
+  /**
+   * Activate fallback mode with proper logging.
+   * @private
+   * @param {string} reason - FallbackReason constant
+   * @param {Error} error - The original error
+   * @param {Object} context - Additional context for logging
+   */
+  _activateFallback(reason, error, context = {}) {
+    this.db = null;
+    this.persistenceEnabled = false;
+    this.fallbackActive = true;
+    this.fallbackReason = reason;
+
+    log.warn('Database unavailable, using memory-only mode (IDs will reset on restart)', {
+      reason,
+      error: error.message,
+      ...context
+    });
+
+    // Emit event for monitoring/alerting
+    this.emit('persistence:fallback', {
+      reason,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+      ...context
+    });
+  }
+
+  /**
+   * Safely close database connection.
+   * @private
+   */
+  _safeCloseDb() {
+    if (this.db) {
+      try {
+        this.db.close();
+      } catch (closeError) {
+        log.debug('Error closing database during fallback', { error: closeError.message });
+      }
+      this.db = null;
+    }
+  }
+
+  /**
+   * Load persisted nextId from database.
+   * Falls back to 1 if no value exists or on error.
+   * @private
+   */
+  _loadNextIdFromDb() {
+    if (!this.db) return;
+
+    try {
+      const stmt = this.db.prepare('SELECT value FROM system_info WHERE key = ?');
+      const row = stmt.get(NEXT_ID_KEY);
+
+      if (row && row.value) {
+        const persistedId = parseInt(row.value, 10);
+        if (!isNaN(persistedId) && persistedId > 0) {
+          this.nextId = persistedId;
+          log.info('Loaded persisted nextId from database', { nextId: this.nextId });
+        }
+      } else {
+        // No persisted value, start fresh but persist initial value
+        this._persistNextId();
+        log.debug('No persisted nextId found, starting at 1');
+      }
+    } catch (error) {
+      // Check if this is a recoverable error
+      const reason = this._classifyError(error);
+      if (reason === FallbackReason.DB_CORRUPT || reason === FallbackReason.DB_LOCKED) {
+        // These might be recoverable with retry or database isn't usable
+        this._activateFallback(reason, error, {
+          operation: 'loadNextId',
+          path: this.dbPath
+        });
+      } else {
+        // Log but continue with default - might still be able to write
+        log.warn('Failed to load nextId from database, using default', {
+          error: error.message,
+          defaultNextId: this.nextId
+        });
+      }
+    }
+  }
+
+  /**
+   * Persist current nextId to database.
+   * Called after each ID allocation.
+   * Implements retry logic for transient failures.
+   * @private
+   */
+  _persistNextId() {
+    if (!this.db) return;
+
+    const maxRetries = 3;
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const stmt = this.db.prepare(`
+          INSERT INTO system_info (key, value, updated_at)
+          VALUES (?, ?, strftime('%s', 'now'))
+          ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            updated_at = strftime('%s', 'now')
+        `);
+        stmt.run(NEXT_ID_KEY, String(this.nextId));
+        log.debug('Persisted nextId to database', { nextId: this.nextId });
+        return; // Success - exit
+      } catch (error) {
+        lastError = error;
+        const reason = this._classifyError(error);
+
+        // Only retry for transient errors (locked database)
+        if (reason === FallbackReason.DB_LOCKED && attempt < maxRetries) {
+          log.debug('Database locked, retrying persist operation', {
+            attempt,
+            maxRetries
+          });
+          // Brief pause before retry (synchronous for better-sqlite3)
+          const start = Date.now();
+          while (Date.now() - start < 50 * attempt) {
+            // Busy wait - not ideal but better-sqlite3 is synchronous
+          }
+          continue;
+        }
+
+        // Non-recoverable or max retries reached
+        if (reason === FallbackReason.DB_CORRUPT || reason === FallbackReason.DISK_FULL) {
+          // Activate fallback for severe errors
+          this._activateFallback(reason, error, {
+            operation: 'persistNextId',
+            nextId: this.nextId
+          });
+          return;
+        }
+
+        // Log warning but continue - IDs are still unique within this session
+        log.warn('Failed to persist nextId to database', {
+          error: error.message,
+          attempt,
+          nextId: this.nextId
+        });
+        return;
+      }
+    }
+
+    // All retries exhausted
+    if (lastError) {
+      log.warn('Failed to persist nextId after all retries', {
+        error: lastError.message,
+        attempts: maxRetries,
+        nextId: this.nextId
+      });
+    }
   }
 
   /**
@@ -49,6 +342,8 @@ class SessionRegistry extends EventEmitter {
    */
   register(sessionData) {
     const id = this.nextId++;
+    // Persist the incremented nextId immediately after allocation
+    this._persistNextId();
     const now = new Date().toISOString();
 
     // Process hierarchy configuration
@@ -223,6 +518,8 @@ class SessionRegistry extends EventEmitter {
 
   /**
    * Deregister a session.
+   * Sessions are marked as 'ended' but kept in registry for hierarchy visibility.
+   * They'll be cleaned up by the stale session cleanup timer.
    * @param {number} id - Session ID
    * @returns {Object|null} Deregistered session or null
    */
@@ -231,15 +528,19 @@ class SessionRegistry extends EventEmitter {
     if (!session) return null;
 
     session.status = 'ended';
-    session.lastUpdate = new Date().toISOString();
+    session.endedAt = new Date().toISOString();
+    session.lastUpdate = session.endedAt;
 
     if (session.startTime) {
       session.runtime = Math.floor((Date.now() - new Date(session.startTime).getTime()) / 1000);
     }
 
-    log.info('Session deregistered', { id, project: session.project });
+    log.info('Session deregistered', { id, project: session.project, hasParent: !!session.hierarchyInfo?.parentSessionId });
     this.emit('session:deregistered', session);
-    this.sessions.delete(id);
+
+    // Keep session in registry for hierarchy visibility (don't delete)
+    // Child sessions will be visible in parent's hierarchy until stale cleanup
+    // Only delete alerts
     this.alerts.delete(id);
 
     return session;
@@ -330,10 +631,73 @@ class SessionRegistry extends EventEmitter {
     return this.completions.slice(-limit).reverse();
   }
 
+  /**
+   * Get persistence/fallback status for monitoring.
+   * @returns {Object} Status information
+   */
+  getPersistenceStatus() {
+    return {
+      enabled: this.persistenceEnabled,
+      fallbackActive: this.fallbackActive,
+      fallbackReason: this.fallbackReason,
+      dbPath: this.dbPath,
+      dbConnected: this.db !== null,
+      nextId: this.nextId
+    };
+  }
+
+  /**
+   * Attempt to reconnect to the database after a fallback.
+   * Useful for recovery after transient failures.
+   * @returns {boolean} True if reconnection succeeded
+   */
+  attemptReconnect() {
+    if (!this.fallbackActive) {
+      log.debug('No reconnection needed, persistence is active');
+      return true;
+    }
+
+    log.info('Attempting database reconnection', {
+      previousReason: this.fallbackReason,
+      path: this.dbPath
+    });
+
+    // Reset fallback state
+    this.fallbackActive = false;
+    this.fallbackReason = FallbackReason.NONE;
+    this.persistenceEnabled = true;
+
+    // Try to reinitialize
+    this._initializeDatabase();
+
+    if (this.db) {
+      // Try to load any existing value
+      this._loadNextIdFromDb();
+      log.info('Database reconnection successful', { nextId: this.nextId });
+      this.emit('persistence:reconnected', {
+        timestamp: new Date().toISOString(),
+        nextId: this.nextId
+      });
+      return true;
+    }
+
+    return false;
+  }
+
   shutdown() {
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
+    }
+    // Close database connection if open
+    if (this.db) {
+      try {
+        this.db.close();
+        this.db = null;
+        log.debug('Database connection closed');
+      } catch (error) {
+        log.warn('Error closing database connection', { error: error.message });
+      }
     }
     log.info('Session registry shutdown');
   }
@@ -826,4 +1190,4 @@ function resetSessionRegistry() {
   }
 }
 
-module.exports = { SessionRegistry, getSessionRegistry, resetSessionRegistry };
+module.exports = { SessionRegistry, getSessionRegistry, resetSessionRegistry, FallbackReason };

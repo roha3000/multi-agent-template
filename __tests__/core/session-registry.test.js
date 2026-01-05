@@ -5,7 +5,7 @@
  * and logSessionId functionality.
  */
 
-const { SessionRegistry, resetSessionRegistry } = require('../../.claude/core/session-registry');
+const { SessionRegistry, resetSessionRegistry, FallbackReason } = require('../../.claude/core/session-registry');
 
 describe('SessionRegistry', () => {
   let registry;
@@ -13,7 +13,8 @@ describe('SessionRegistry', () => {
   beforeEach(() => {
     registry = new SessionRegistry({
       staleTimeout: 60000,
-      cleanupInterval: 300000 // Long interval to avoid interference
+      cleanupInterval: 300000, // Long interval to avoid interference
+      persistenceEnabled: false // Disable persistence for unit tests
     });
   });
 
@@ -875,6 +876,501 @@ describe('SessionRegistry', () => {
             metricType: 'tokens'
           })
         );
+      });
+    });
+  });
+
+  // ============================================
+  // NEXTID PERSISTENCE TESTS
+  // ============================================
+
+  describe('NextId Persistence', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+
+    let testDbPath;
+    let persistentRegistry;
+
+    beforeEach(() => {
+      // Use a unique temp database for each test
+      testDbPath = path.join(os.tmpdir(), `session-registry-test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.db`);
+    });
+
+    afterEach(() => {
+      // Cleanup persistent registry
+      if (persistentRegistry) {
+        persistentRegistry.shutdown();
+        persistentRegistry = null;
+      }
+      // Cleanup test database files
+      try {
+        if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+        if (fs.existsSync(testDbPath + '-wal')) fs.unlinkSync(testDbPath + '-wal');
+        if (fs.existsSync(testDbPath + '-shm')) fs.unlinkSync(testDbPath + '-shm');
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    });
+
+    describe('with persistence enabled', () => {
+      it('should load nextId from database on initialization', () => {
+        // Create first registry and register sessions
+        persistentRegistry = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        persistentRegistry.register({ project: 'test1' });
+        persistentRegistry.register({ project: 'test2' });
+        persistentRegistry.register({ project: 'test3' });
+
+        // nextId should now be 4
+        expect(persistentRegistry.nextId).toBe(4);
+
+        // Shutdown first registry
+        persistentRegistry.shutdown();
+
+        // Create second registry with same db path (simulates restart)
+        const registry2 = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        // nextId should be loaded from database
+        expect(registry2.nextId).toBe(4);
+
+        // Register a new session - should get ID 4
+        const newId = registry2.register({ project: 'test4' });
+        expect(newId).toBe(4);
+
+        // nextId should now be 5
+        expect(registry2.nextId).toBe(5);
+
+        registry2.shutdown();
+      });
+
+      it('should persist nextId after each registration', () => {
+        persistentRegistry = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        const id1 = persistentRegistry.register({ project: 'test1' });
+        expect(id1).toBe(1);
+
+        // Read persisted value directly from database
+        const Database = require('better-sqlite3');
+        const db = new Database(testDbPath, { readonly: true });
+        const row = db.prepare('SELECT value FROM system_info WHERE key = ?').get('session_registry_next_id');
+        db.close();
+
+        expect(row).toBeDefined();
+        expect(parseInt(row.value, 10)).toBe(2); // Should be 2 after first registration
+      });
+
+      it('should prevent ID collisions across restarts', () => {
+        // Create registry, register 5 sessions
+        persistentRegistry = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        const ids1 = [];
+        for (let i = 0; i < 5; i++) {
+          ids1.push(persistentRegistry.register({ project: `batch1-${i}` }));
+        }
+
+        persistentRegistry.shutdown();
+
+        // Create new registry (simulates restart)
+        const registry2 = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        // Register 5 more sessions
+        const ids2 = [];
+        for (let i = 0; i < 5; i++) {
+          ids2.push(registry2.register({ project: `batch2-${i}` }));
+        }
+
+        registry2.shutdown();
+
+        // All IDs should be unique
+        const allIds = [...ids1, ...ids2];
+        const uniqueIds = new Set(allIds);
+        expect(uniqueIds.size).toBe(10);
+
+        // IDs should be sequential
+        expect(ids1).toEqual([1, 2, 3, 4, 5]);
+        expect(ids2).toEqual([6, 7, 8, 9, 10]);
+      });
+
+      it('should handle concurrent registrations correctly', () => {
+        persistentRegistry = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        // Register many sessions quickly
+        const ids = [];
+        for (let i = 0; i < 100; i++) {
+          ids.push(persistentRegistry.register({ project: `concurrent-${i}` }));
+        }
+
+        // All IDs should be unique and sequential
+        const uniqueIds = new Set(ids);
+        expect(uniqueIds.size).toBe(100);
+        expect(ids[0]).toBe(1);
+        expect(ids[99]).toBe(100);
+        expect(persistentRegistry.nextId).toBe(101);
+      });
+    });
+
+    describe('with persistence disabled', () => {
+      it('should not attempt database operations', () => {
+        persistentRegistry = new SessionRegistry({
+          persistenceEnabled: false,
+          cleanupInterval: 300000
+        });
+
+        expect(persistentRegistry.db).toBeNull();
+        expect(persistentRegistry.persistenceEnabled).toBe(false);
+
+        // Should still work, just without persistence
+        const id1 = persistentRegistry.register({ project: 'test1' });
+        const id2 = persistentRegistry.register({ project: 'test2' });
+
+        expect(id1).toBe(1);
+        expect(id2).toBe(2);
+      });
+
+      it('should reset nextId on restart when persistence is disabled', () => {
+        persistentRegistry = new SessionRegistry({
+          persistenceEnabled: false,
+          cleanupInterval: 300000
+        });
+
+        persistentRegistry.register({ project: 'test1' });
+        persistentRegistry.register({ project: 'test2' });
+
+        expect(persistentRegistry.nextId).toBe(3);
+        persistentRegistry.shutdown();
+
+        // New registry without persistence starts at 1
+        const registry2 = new SessionRegistry({
+          persistenceEnabled: false,
+          cleanupInterval: 300000
+        });
+
+        expect(registry2.nextId).toBe(1);
+        registry2.shutdown();
+      });
+    });
+
+    describe('graceful fallback', () => {
+      it('should work with valid database path', () => {
+        // Test that a valid path works correctly
+        persistentRegistry = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        expect(persistentRegistry.db).not.toBeNull();
+        expect(persistentRegistry.persistenceEnabled).toBe(true);
+
+        const id1 = persistentRegistry.register({ project: 'test1' });
+        expect(id1).toBe(1);
+      });
+
+      it('should continue operating if persistence fails mid-session', () => {
+        persistentRegistry = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        const id1 = persistentRegistry.register({ project: 'test1' });
+        expect(id1).toBe(1);
+
+        // Simulate database becoming unavailable by closing it
+        if (persistentRegistry.db) {
+          persistentRegistry.db.close();
+          persistentRegistry.db = null;
+        }
+
+        // Should still work (just won't persist)
+        const id2 = persistentRegistry.register({ project: 'test2' });
+        expect(id2).toBe(2);
+      });
+    });
+
+    describe('enhanced fallback behavior', () => {
+      it('should set fallbackActive when database unavailable', () => {
+        // Use an invalid path that will fail
+        persistentRegistry = new SessionRegistry({
+          dbPath: '/nonexistent/deep/path/that/cannot/exist/db.sqlite',
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        expect(persistentRegistry.fallbackActive).toBe(true);
+        expect(persistentRegistry.persistenceEnabled).toBe(false);
+        expect(persistentRegistry.fallbackReason).not.toBe(FallbackReason.NONE);
+      });
+
+      it('should emit persistence:fallback event on failure', () => {
+        const handler = jest.fn();
+
+        // Create registry first, then add handler before triggering fallback
+        persistentRegistry = new SessionRegistry({
+          persistenceEnabled: false,
+          cleanupInterval: 300000
+        });
+        persistentRegistry.on('persistence:fallback', handler);
+
+        // Now try to enable persistence with an invalid path
+        persistentRegistry.persistenceEnabled = true;
+        persistentRegistry.dbPath = '/nonexistent/deep/path/db.sqlite';
+        persistentRegistry._initializeDatabase();
+
+        expect(handler).toHaveBeenCalledWith(
+          expect.objectContaining({
+            reason: expect.any(String),
+            error: expect.any(String),
+            timestamp: expect.any(String)
+          })
+        );
+      });
+
+      it('should expose getPersistenceStatus method', () => {
+        persistentRegistry = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        const status = persistentRegistry.getPersistenceStatus();
+
+        expect(status).toHaveProperty('enabled');
+        expect(status).toHaveProperty('fallbackActive');
+        expect(status).toHaveProperty('fallbackReason');
+        expect(status).toHaveProperty('dbPath');
+        expect(status).toHaveProperty('dbConnected');
+        expect(status).toHaveProperty('nextId');
+      });
+
+      it('should report correct status when persistence is working', () => {
+        persistentRegistry = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        const status = persistentRegistry.getPersistenceStatus();
+
+        expect(status.enabled).toBe(true);
+        expect(status.fallbackActive).toBe(false);
+        expect(status.fallbackReason).toBe(FallbackReason.NONE);
+        expect(status.dbConnected).toBe(true);
+      });
+
+      it('should report correct status when in fallback mode', () => {
+        persistentRegistry = new SessionRegistry({
+          dbPath: '/nonexistent/path/db.sqlite',
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        const status = persistentRegistry.getPersistenceStatus();
+
+        expect(status.enabled).toBe(false);
+        expect(status.fallbackActive).toBe(true);
+        expect(status.fallbackReason).not.toBe(FallbackReason.NONE);
+        expect(status.dbConnected).toBe(false);
+      });
+
+      it('should continue registering sessions after fallback', () => {
+        persistentRegistry = new SessionRegistry({
+          dbPath: '/nonexistent/path/db.sqlite',
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        // Should be in fallback mode
+        expect(persistentRegistry.fallbackActive).toBe(true);
+
+        // But should still work
+        const id1 = persistentRegistry.register({ project: 'test1' });
+        const id2 = persistentRegistry.register({ project: 'test2' });
+
+        expect(id1).toBe(1);
+        expect(id2).toBe(2);
+        expect(persistentRegistry.get(id1)).not.toBeNull();
+        expect(persistentRegistry.get(id2)).not.toBeNull();
+      });
+
+      it('should export FallbackReason constants', () => {
+        expect(FallbackReason).toBeDefined();
+        expect(FallbackReason.NONE).toBe('none');
+        expect(FallbackReason.MODULE_NOT_FOUND).toBe('better-sqlite3_not_installed');
+        expect(FallbackReason.DIR_CREATE_FAILED).toBe('directory_creation_failed');
+        expect(FallbackReason.DB_OPEN_FAILED).toBe('database_open_failed');
+        expect(FallbackReason.DB_INIT_FAILED).toBe('database_initialization_failed');
+        expect(FallbackReason.DB_LOCKED).toBe('database_locked');
+        expect(FallbackReason.DB_CORRUPT).toBe('database_corrupt');
+        expect(FallbackReason.DISK_FULL).toBe('disk_full');
+        expect(FallbackReason.PERMISSION_DENIED).toBe('permission_denied');
+        expect(FallbackReason.UNKNOWN).toBe('unknown_error');
+      });
+    });
+
+    describe('attemptReconnect', () => {
+      it('should return true when already connected', () => {
+        persistentRegistry = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        expect(persistentRegistry.fallbackActive).toBe(false);
+
+        const result = persistentRegistry.attemptReconnect();
+        expect(result).toBe(true);
+      });
+
+      it('should attempt reconnection when in fallback mode', () => {
+        // Start with valid connection
+        persistentRegistry = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        const id1 = persistentRegistry.register({ project: 'test1' });
+        expect(id1).toBe(1);
+
+        // Manually trigger fallback
+        persistentRegistry.fallbackActive = true;
+        persistentRegistry.fallbackReason = FallbackReason.DB_LOCKED;
+        persistentRegistry._safeCloseDb();
+
+        // Try reconnect
+        const result = persistentRegistry.attemptReconnect();
+
+        expect(result).toBe(true);
+        expect(persistentRegistry.fallbackActive).toBe(false);
+        expect(persistentRegistry.db).not.toBeNull();
+      });
+
+      it('should emit persistence:reconnected on successful reconnect', () => {
+        persistentRegistry = new SessionRegistry({
+          dbPath: testDbPath,
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        const handler = jest.fn();
+        persistentRegistry.on('persistence:reconnected', handler);
+
+        // Manually trigger fallback
+        persistentRegistry.fallbackActive = true;
+        persistentRegistry.fallbackReason = FallbackReason.DB_LOCKED;
+        persistentRegistry._safeCloseDb();
+
+        // Reconnect
+        persistentRegistry.attemptReconnect();
+
+        expect(handler).toHaveBeenCalledWith(
+          expect.objectContaining({
+            timestamp: expect.any(String),
+            nextId: expect.any(Number)
+          })
+        );
+      });
+
+      it('should return false if reconnection fails', () => {
+        // Create registry with invalid path
+        persistentRegistry = new SessionRegistry({
+          dbPath: '/nonexistent/path/db.sqlite',
+          persistenceEnabled: true,
+          cleanupInterval: 300000
+        });
+
+        expect(persistentRegistry.fallbackActive).toBe(true);
+
+        // Attempt reconnect (should fail since path is still invalid)
+        const result = persistentRegistry.attemptReconnect();
+
+        expect(result).toBe(false);
+        expect(persistentRegistry.fallbackActive).toBe(true);
+      });
+    });
+
+    describe('error classification', () => {
+      it('should classify locked database errors', () => {
+        persistentRegistry = new SessionRegistry({
+          persistenceEnabled: false,
+          cleanupInterval: 300000
+        });
+
+        const error = new Error('SQLITE_BUSY: database is locked');
+        const reason = persistentRegistry._classifyError(error);
+        expect(reason).toBe(FallbackReason.DB_LOCKED);
+      });
+
+      it('should classify corrupt database errors', () => {
+        persistentRegistry = new SessionRegistry({
+          persistenceEnabled: false,
+          cleanupInterval: 300000
+        });
+
+        const error = new Error('SQLITE_CORRUPT: database disk image is malformed');
+        const reason = persistentRegistry._classifyError(error);
+        expect(reason).toBe(FallbackReason.DB_CORRUPT);
+      });
+
+      it('should classify disk full errors', () => {
+        persistentRegistry = new SessionRegistry({
+          persistenceEnabled: false,
+          cleanupInterval: 300000
+        });
+
+        const error = new Error('disk full');
+        error.code = 'ENOSPC';
+        const reason = persistentRegistry._classifyError(error);
+        expect(reason).toBe(FallbackReason.DISK_FULL);
+      });
+
+      it('should classify permission denied errors', () => {
+        persistentRegistry = new SessionRegistry({
+          persistenceEnabled: false,
+          cleanupInterval: 300000
+        });
+
+        const error = new Error('Permission denied');
+        error.code = 'EACCES';
+        const reason = persistentRegistry._classifyError(error);
+        expect(reason).toBe(FallbackReason.PERMISSION_DENIED);
+      });
+
+      it('should return UNKNOWN for unrecognized errors', () => {
+        persistentRegistry = new SessionRegistry({
+          persistenceEnabled: false,
+          cleanupInterval: 300000
+        });
+
+        const error = new Error('Some random error');
+        const reason = persistentRegistry._classifyError(error);
+        expect(reason).toBe(FallbackReason.UNKNOWN);
       });
     });
   });

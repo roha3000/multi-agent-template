@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 108,
-    "lastModifiedBy": "a7ff251f-6a96-4ecf-9ba6-5a5e44ee0579",
-    "lastModifiedAt": "2026-01-05T02:11:33.072Z"
+    "version": 110,
+    "lastModifiedBy": 21,
+    "lastModifiedAt": "2026-01-05T02:53:06.467Z"
   },
   "version": "1.1.0",
   "project": {
@@ -19,20 +19,21 @@
   "backlog": {
     "now": {
       "description": "Current sprint tasks",
-      "tasks": []
-    },
-    "next": {
-      "description": "Next priority after now is complete",
-      "tasks": []
-    },
-    "later": {
-      "description": "Future work, not yet prioritized",
       "tasks": [
-        "dashboard-blocked-tasks-view",
         "session-registry-id-persistence",
         "session-end-hook-reliability",
         "dashboard-stale-session-handling"
       ]
+    },
+    "next": {
+      "description": "Next priority after now is complete",
+      "tasks": [
+        "dashboard-blocked-tasks-view"
+      ]
+    },
+    "later": {
+      "description": "Future work, not yet prioritized",
+      "tasks": []
     },
     "someday": {
       "description": "Ideas and possibilities, lowest priority",
@@ -402,14 +403,15 @@
         "Graceful fallback if memory.db unavailable",
         "Tests verify ID persistence across simulated restarts"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "assignee": null,
       "created": "2026-01-04T20:10:00.000Z",
-      "updated": "2026-01-04T20:10:00.000Z",
+      "updated": "2026-01-05T02:53:06.464Z",
       "parentTaskId": null,
       "childTaskIds": [],
       "delegatedTo": null,
-      "delegationDepth": 0
+      "delegationDepth": 0,
+      "started": "2026-01-05T02:53:06.464Z"
     },
     "session-end-hook-reliability": {
       "id": "session-end-hook-reliability",
