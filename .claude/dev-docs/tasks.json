@@ -20,7 +20,6 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "dashboard-audit-remaining-fixes",
         "dashboard-blocked-tasks-view"
       ]
     },
@@ -44,6 +43,7 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "dashboard-audit-remaining-fixes",
         "dashboard-comprehensive-audit-fixes",
         "session-end-hook-reliability",
         "framework-phase-gate-audit",
@@ -500,10 +500,12 @@
         "1.4 LOW: Ensure sessionType and autonomous fields update atomically",
         "E2E tests for race condition scenarios"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2026-01-06T20:00:00.000Z",
-      "updated": "2026-01-06T20:00:00.000Z",
+      "updated": "2026-01-06T20:50:00.000Z",
+      "completedAt": "2026-01-06T20:50:00.000Z",
+      "completionNotes": "Session 99: Fixed 8 of 10 issues. Added registerWithDeduplication() with lock for TOCTOU race prevention (1.1, 2.1). Implemented stale session grace period with recovery (2.2, 2.3). Added SSE events for phase/quality/confidence changes (4.2). Added heartbeat to 3 SSE endpoints (4.3). Fixed OTLP project resolution fallback (5.1). Added per-project cleanup config (5.3). 24 new tests, 2998 total passing. Remaining: 1.3 (ORCHESTRATOR_SESSION env var), 1.4 (atomic field updates).",
       "parentTaskId": null,
       "childTaskIds": [],
       "delegatedTo": null,

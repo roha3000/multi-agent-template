@@ -2540,4 +2540,324 @@ describe('SessionRegistry', () => {
       });
     });
   });
+
+  // ========================================
+  // Issue 1.1, 2.1: Atomic Registration with Deduplication
+  // ========================================
+  describe('registerWithDeduplication() - Issue 1.1, 2.1', () => {
+    it('should deduplicate by claudeSessionId', async () => {
+      const claudeSessionId = 'test-claude-session-123';
+
+      // First registration
+      const result1 = await registry.registerWithDeduplication(claudeSessionId, {
+        project: 'test-project',
+        sessionType: 'cli'
+      });
+
+      // Second registration with same claudeSessionId
+      const result2 = await registry.registerWithDeduplication(claudeSessionId, {
+        project: 'test-project',
+        sessionType: 'cli'
+      });
+
+      expect(result1.id).toBe(result2.id);
+      expect(result1.deduplicated).toBe(false);
+      expect(result2.deduplicated).toBe(true);
+    });
+
+    it('should upgrade CLI to autonomous on duplicate registration', async () => {
+      const claudeSessionId = 'test-upgrade-session';
+
+      // First registration as CLI
+      const result1 = await registry.registerWithDeduplication(claudeSessionId, {
+        project: 'test-project',
+        sessionType: 'cli'
+      });
+
+      expect(registry.get(result1.id).sessionType).toBe('cli');
+
+      // Second registration requesting autonomous
+      const result2 = await registry.registerWithDeduplication(claudeSessionId, {
+        project: 'test-project',
+        sessionType: 'autonomous'
+      });
+
+      expect(result2.id).toBe(result1.id);
+      expect(result2.deduplicated).toBe(true);
+      expect(result2.upgraded).toBe(true);
+      expect(registry.get(result2.id).sessionType).toBe('autonomous');
+    });
+
+    it('should NOT downgrade autonomous to CLI', async () => {
+      const claudeSessionId = 'test-no-downgrade';
+
+      // First registration as autonomous
+      const result1 = await registry.registerWithDeduplication(claudeSessionId, {
+        project: 'test-project',
+        sessionType: 'autonomous'
+      });
+
+      // Second registration requesting CLI
+      const result2 = await registry.registerWithDeduplication(claudeSessionId, {
+        project: 'test-project',
+        sessionType: 'cli'
+      });
+
+      expect(result2.id).toBe(result1.id);
+      expect(registry.get(result2.id).sessionType).toBe('autonomous');
+      expect(result2.upgraded).toBe(false); // Already autonomous, not an upgrade
+    });
+
+    it('should prevent TOCTOU race with concurrent registrations', async () => {
+      const claudeSessionId = 'test-race-condition';
+      const registrations = [];
+
+      // Fire 10 concurrent registration attempts
+      for (let i = 0; i < 10; i++) {
+        registrations.push(
+          registry.registerWithDeduplication(claudeSessionId, {
+            project: 'test-project',
+            sessionType: 'cli'
+          })
+        );
+      }
+
+      const results = await Promise.all(registrations);
+
+      // All should return the same ID
+      const ids = results.map(r => r.id);
+      const uniqueIds = [...new Set(ids)];
+      expect(uniqueIds).toHaveLength(1);
+
+      // Only one should be non-deduplicated
+      const nonDeduplicated = results.filter(r => !r.deduplicated);
+      expect(nonDeduplicated).toHaveLength(1);
+    });
+
+    it('should fall back to regular registration without claudeSessionId', async () => {
+      const result = await registry.registerWithDeduplication(null, {
+        project: 'test-project'
+      });
+
+      expect(result.deduplicated).toBe(false);
+      expect(result.id).toBeDefined();
+    });
+  });
+
+  // ========================================
+  // Issue 2.2: Stale Session Grace Period
+  // ========================================
+  describe('Stale Session Grace Period - Issue 2.2', () => {
+    let shortTimeoutRegistry;
+
+    beforeEach(() => {
+      shortTimeoutRegistry = new SessionRegistry({
+        staleTimeout: 100, // 100ms for testing
+        staleGracePeriod: 200, // 200ms grace period
+        cleanupInterval: 50, // Fast cleanup for testing
+        persistenceEnabled: false
+      });
+    });
+
+    afterEach(() => {
+      shortTimeoutRegistry.shutdown();
+    });
+
+    it('should mark sessions as stale instead of immediate delete', async () => {
+      const id = shortTimeoutRegistry.register({
+        project: 'test-project',
+        claudeSessionId: 'test-stale-session'
+      });
+
+      // Wait for stale timeout
+      await new Promise(resolve => setTimeout(resolve, 150));
+
+      // Manually trigger cleanup
+      shortTimeoutRegistry._cleanupStaleSessions();
+
+      const session = shortTimeoutRegistry.get(id);
+      expect(session).toBeDefined();
+      expect(session.status).toBe('stale');
+      expect(session.staleAt).toBeDefined();
+    });
+
+    it('should emit session:stale event', async () => {
+      const staleEvents = [];
+      shortTimeoutRegistry.on('session:stale', (session) => {
+        staleEvents.push(session);
+      });
+
+      const id = shortTimeoutRegistry.register({
+        project: 'test-project'
+      });
+
+      // Wait for stale timeout
+      await new Promise(resolve => setTimeout(resolve, 150));
+      shortTimeoutRegistry._cleanupStaleSessions();
+
+      expect(staleEvents).toHaveLength(1);
+      expect(staleEvents[0].id).toBe(id);
+    });
+
+    it('should delete stale sessions after grace period expires', async () => {
+      const id = shortTimeoutRegistry.register({
+        project: 'test-project'
+      });
+
+      // Wait for stale timeout + grace period
+      await new Promise(resolve => setTimeout(resolve, 350));
+
+      // First cleanup marks as stale
+      shortTimeoutRegistry._cleanupStaleSessions();
+
+      // Wait for grace period
+      await new Promise(resolve => setTimeout(resolve, 250));
+
+      // Second cleanup deletes
+      shortTimeoutRegistry._cleanupStaleSessions();
+
+      const session = shortTimeoutRegistry.get(id);
+      expect(session).toBeNull(); // get() returns null for non-existent sessions
+    });
+  });
+
+  // ========================================
+  // Issue 2.3: SSE Reconnection Stale Recovery
+  // ========================================
+  describe('SSE Reconnection Stale Recovery - Issue 2.3', () => {
+    let reconnectRegistry;
+
+    beforeEach(() => {
+      reconnectRegistry = new SessionRegistry({
+        staleTimeout: 100,
+        staleGracePeriod: 500, // Long grace period for reconnection
+        cleanupInterval: 50,
+        persistenceEnabled: false
+      });
+    });
+
+    afterEach(() => {
+      reconnectRegistry.shutdown();
+    });
+
+    it('should recover stale session on reconnection', async () => {
+      const claudeSessionId = 'test-reconnect-session';
+
+      // Initial registration
+      const result1 = await reconnectRegistry.registerWithDeduplication(claudeSessionId, {
+        project: 'test-project',
+        sessionType: 'cli'
+      });
+
+      // Wait for stale timeout
+      await new Promise(resolve => setTimeout(resolve, 150));
+      reconnectRegistry._cleanupStaleSessions();
+
+      // Session should be stale but still exist
+      const staleSession = reconnectRegistry.get(result1.id);
+      expect(staleSession.status).toBe('stale');
+
+      // Reconnection with same claudeSessionId
+      const result2 = await reconnectRegistry.registerWithDeduplication(claudeSessionId, {
+        project: 'test-project',
+        sessionType: 'cli',
+        status: 'active'
+      });
+
+      // Should recover same session
+      expect(result2.id).toBe(result1.id);
+      expect(result2.deduplicated).toBe(true);
+
+      // Session should be active again
+      const recoveredSession = reconnectRegistry.get(result2.id);
+      expect(recoveredSession.status).toBe('active');
+    });
+
+    it('should create new session if stale session was deleted', async () => {
+      const claudeSessionId = 'test-deleted-session';
+
+      // Initial registration
+      const result1 = await reconnectRegistry.registerWithDeduplication(claudeSessionId, {
+        project: 'test-project'
+      });
+
+      // Wait for stale + grace period
+      await new Promise(resolve => setTimeout(resolve, 200));
+      reconnectRegistry._cleanupStaleSessions();
+      await new Promise(resolve => setTimeout(resolve, 600));
+      reconnectRegistry._cleanupStaleSessions();
+
+      // Session should be deleted
+      expect(reconnectRegistry.get(result1.id)).toBeNull();
+
+      // New registration
+      const result2 = await reconnectRegistry.registerWithDeduplication(claudeSessionId, {
+        project: 'test-project'
+      });
+
+      // Should create new session
+      expect(result2.id).not.toBe(result1.id);
+      expect(result2.deduplicated).toBe(false);
+    });
+  });
+
+  // ========================================
+  // Integration Tests: Race Conditions
+  // ========================================
+  describe('Race Condition Integration Tests', () => {
+    it('should handle rapid fire registrations from multiple hooks', async () => {
+      const claudeSessionIds = [
+        'session-hook-1',
+        'session-orchestrator-1',
+        'session-hook-1',  // Duplicate from hook
+        'session-orchestrator-1' // Duplicate from orchestrator
+      ];
+
+      const results = await Promise.all(
+        claudeSessionIds.map((id, index) =>
+          registry.registerWithDeduplication(id, {
+            project: 'test-project',
+            sessionType: index % 2 === 0 ? 'cli' : 'autonomous'
+          })
+        )
+      );
+
+      // Should only create 2 unique sessions
+      const uniqueIds = [...new Set(results.map(r => r.id))];
+      expect(uniqueIds).toHaveLength(2);
+
+      // First registrations should not be deduplicated
+      expect(results[0].deduplicated).toBe(false);
+      expect(results[1].deduplicated).toBe(false);
+
+      // Duplicates should be deduplicated
+      expect(results[2].deduplicated).toBe(true);
+      expect(results[3].deduplicated).toBe(true);
+    });
+
+    it('should handle interleaved CLI and autonomous registrations', async () => {
+      const claudeSessionId = 'interleaved-session';
+
+      // Simulate: CLI hook fires, then orchestrator fires before hook completes
+      const [cliResult, autoResult] = await Promise.all([
+        registry.registerWithDeduplication(claudeSessionId, {
+          project: 'test-project',
+          sessionType: 'cli'
+        }),
+        registry.registerWithDeduplication(claudeSessionId, {
+          project: 'test-project',
+          sessionType: 'autonomous',
+          orchestratorInfo: { pid: 12345 }
+        })
+      ]);
+
+      // Both should return same ID
+      expect(cliResult.id).toBe(autoResult.id);
+
+      // Final state should be autonomous
+      const session = registry.get(cliResult.id);
+      expect(session.sessionType).toBe('autonomous');
+      expect(session.autonomous).toBe(true);
+    });
+  });
 });

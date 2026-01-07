@@ -1807,8 +1807,14 @@ app.get('/api/sse/claims', (req, res) => {
     }
   }
 
+  // Issue 4.3: Add heartbeat to detect stale connections
+  const heartbeat = setInterval(() => {
+    res.write(`data: ${JSON.stringify({ type: 'heartbeat' })}\n\n`);
+  }, 30000);
+
   // Remove client on disconnect
   req.on('close', () => {
+    clearInterval(heartbeat);
     sseClaimClients.delete(res);
   });
 });
@@ -1874,8 +1880,14 @@ app.get('/api/events', (req, res) => {
   // Also send periodic updates
   const interval = setInterval(sendUpdate, 3000);
 
+  // Issue 4.3: Add heartbeat to detect stale connections
+  const heartbeat = setInterval(() => {
+    res.write(`data: ${JSON.stringify({ type: 'heartbeat' })}\n\n`);
+  }, 30000);
+
   req.on('close', () => {
     clearInterval(interval);
+    clearInterval(heartbeat);
     tracker.removeListener('usage:update', onUpdate);
     tracker.removeListener('alert', onUpdate);
     tracker.removeListener('session:new', onUpdate);
@@ -2144,7 +2156,8 @@ app.get('/api/sessions/:id/hierarchy', (req, res) => {
 });
 
 // Register a new session (called by orchestrator on startup or SessionStart hook)
-app.post('/api/sessions/register', (req, res) => {
+// Issues 1.1, 2.1: Uses atomic registerWithDeduplication to prevent TOCTOU races
+app.post('/api/sessions/register', async (req, res) => {
   const { project, path: projectPath, currentTask, status, sessionType, autonomous, orchestratorInfo, logSessionId, claudeSessionId, parentSessionId, existingSessionId } = req.body;
 
   // Priority 0: If existingSessionId is provided (orchestrator reconnecting after disconnect),
@@ -2169,31 +2182,33 @@ app.post('/api/sessions/register', (req, res) => {
     }
   }
 
-  // Deduplication logic to prevent duplicate sessions
-  // 1. By claudeSessionId - prevents hook from overwriting orchestrator session
-  // 2. By project path for autonomous - orchestrator upgrades existing CLI session
-
-  // Check by claudeSessionId first
+  // Issues 1.1, 2.1, 2.3: Use atomic registration with lock to prevent TOCTOU race
+  // This handles: deduplication, stale session recovery, and upgrade from CLI to autonomous
   if (claudeSessionId) {
-    const existingSession = sessionRegistry.getByClaudeSessionId(claudeSessionId);
-    if (existingSession) {
-      // Session already exists - don't create duplicate
-      // Never downgrade sessionType (autonomous should stay autonomous)
-      const updates = {
-        status: status || existingSession.status,
-        currentTask: currentTask || existingSession.currentTask
-      };
+    try {
+      const result = await sessionRegistry.registerWithDeduplication(claudeSessionId, {
+        project: project || 'unknown',
+        path: projectPath || process.cwd(),
+        status: status || 'active',
+        currentTask: currentTask || null,
+        sessionType: sessionType || 'cli',
+        autonomous: autonomous || sessionType === 'autonomous',
+        orchestratorInfo: orchestratorInfo || null,
+        logSessionId: logSessionId || null,
+        parentSessionId: parentSessionId || null
+      });
 
-      // Upgrade to autonomous if requested
-      if (sessionType === 'autonomous' && existingSession.sessionType !== 'autonomous') {
-        updates.sessionType = 'autonomous';
-        updates.autonomous = true;
-        updates.orchestratorInfo = orchestratorInfo || existingSession.orchestratorInfo;
+      if (result.deduplicated) {
+        const logType = result.upgraded ? 'upgraded' : 'deduplicated';
+        console.log(`[COMMAND CENTER] Session ${logType} (atomic): ${result.id} (${project}) [${sessionType || 'cli'}] (Claude: ${claudeSessionId.substring(0, 8)}...)`);
+        return res.json({ success: true, id: result.id, deduplicated: true, upgraded: result.upgraded });
       }
 
-      sessionRegistry.update(existingSession.id, updates);
-      console.log(`[COMMAND CENTER] Session dedupe (claudeSessionId): ${existingSession.id} (${project}) [${existingSession.sessionType}] - ignored ${sessionType}`);
-      return res.json({ success: true, id: existingSession.id, deduplicated: true });
+      console.log(`[COMMAND CENTER] Session registered (atomic): ${result.id} (${project}) [${sessionType || 'cli'}] (Claude: ${claudeSessionId.substring(0, 8)}...)`);
+      return res.json({ success: true, id: result.id });
+    } catch (error) {
+      console.error(`[COMMAND CENTER] Atomic registration failed: ${error.message}`);
+      // Fall through to legacy registration
     }
   }
 
@@ -3675,8 +3690,14 @@ app.get('/api/sse/command-center', (req, res) => {
   };
   sessionRegistry.on('session:childAdded', onChildAdded);
 
+  // Issue 4.3: Add heartbeat to detect stale connections
+  const heartbeat = setInterval(() => {
+    res.write(`data: ${JSON.stringify({ type: 'heartbeat' })}\n\n`);
+  }, 30000);
+
   req.on('close', () => {
     clearInterval(sessionInterval);
+    clearInterval(heartbeat);
     sessionRegistry.removeListener('session:registered', onSessionChange);
     sessionRegistry.removeListener('session:updated', onSessionChange);
     sessionRegistry.removeListener('session:deregistered', onSessionChange);
@@ -4126,16 +4147,50 @@ function initFleetWebSocket(httpServer) {
     });
   });
 
-  sessionRegistry.on('session:updated', (session) => {
+  sessionRegistry.on('session:updated', ({ session, changes }) => {
+    // Issue 4.2: Emit specific events for significant state changes
+    // This eliminates 3s polling lag for phase/quality/confidence updates
+
+    // Always emit general update
     broadcastFleetEvent({
       type: 'session:updated',
       sessionId: session.id,
       status: session.status,
       contextPercent: session.contextPercent,
       qualityScore: session.qualityScore,
+      confidenceScore: session.confidenceScore,
       phase: session.phase,
       timestamp: new Date().toISOString()
     });
+
+    // Emit specific events for key state changes
+    if (changes && changes.phase) {
+      broadcastFleetEvent({
+        type: 'session:phaseChanged',
+        sessionId: session.id,
+        phase: session.phase,
+        previousPhase: changes._previousPhase || null,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (changes && typeof changes.qualityScore === 'number') {
+      broadcastFleetEvent({
+        type: 'session:qualityChanged',
+        sessionId: session.id,
+        qualityScore: session.qualityScore,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (changes && typeof changes.confidenceScore === 'number') {
+      broadcastFleetEvent({
+        type: 'session:confidenceChanged',
+        sessionId: session.id,
+        confidenceScore: session.confidenceScore,
+        timestamp: new Date().toISOString()
+      });
+    }
   });
 
   sessionRegistry.on('session:expired', (session) => {
@@ -4145,6 +4200,17 @@ function initFleetWebSocket(httpServer) {
       project: session.project,
       duration: session.runtime * 1000,
       tokensUsed: session.tokens,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Issue 2.2: Broadcast stale session events for dashboard visibility
+  sessionRegistry.on('session:stale', (session) => {
+    broadcastFleetEvent({
+      type: 'session:stale',
+      sessionId: session.id,
+      project: session.project,
+      claudeSessionId: session.claudeSessionId?.substring(0, 8),
       timestamp: new Date().toISOString()
     });
   });

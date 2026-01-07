@@ -90,7 +90,7 @@ class GlobalContextTracker extends EventEmitter {
     this.watcher = null;
     this.isRunning = false;
 
-    // Cleanup configuration
+    // Cleanup configuration (global defaults)
     this.cleanupConfig = {
       // Sessions inactive for longer than this are pruned from memory
       inactiveThresholdMs: options.inactiveThresholdMs || 10 * 60 * 1000, // 10 minutes
@@ -102,6 +102,10 @@ class GlobalContextTracker extends EventEmitter {
       deleteOldFiles: options.deleteOldFiles || false
     };
     this._cleanupInterval = null;
+
+    // Issue 5.3: Per-project cleanup configuration storage
+    // Maps projectFolder -> { inactiveThresholdMs, fileRetentionMs, deleteOldFiles }
+    this.projectCleanupConfig = new Map();
 
     console.log('[GlobalContextTracker] Initialized', {
       claudeProjectsPath: this.claudeProjectsPath,
@@ -1497,18 +1501,16 @@ The dev-docs 3-file pattern preserves all critical context.
       }
     }
 
-    // If not found, try to find the most recently active project
-    let mostRecentFolder = null;
-    let mostRecentTime = 0;
+    // Issue 5.1: Do NOT fall back to "most recently active" project
+    // This was causing cross-project metric contamination in multi-project scenarios.
+    // If we can't find the session, return null and let the caller handle it.
+    // The caller should require OTLP metrics to include project.folder attribute.
+    console.warn('[GlobalContextTracker] Session not found, no fallback used', {
+      sessionId,
+      projectCount: this.projects.size
+    });
 
-    for (const [folder, project] of this.projects) {
-      if (project.metrics.lastUpdate && project.metrics.lastUpdate > mostRecentTime) {
-        mostRecentTime = project.metrics.lastUpdate;
-        mostRecentFolder = folder;
-      }
-    }
-
-    return mostRecentFolder;
+    return null;
   }
 
   /**
@@ -1704,9 +1706,6 @@ The dev-docs 3-file pattern preserves all critical context.
    */
   cleanupInactiveSessions(options = {}) {
     const now = Date.now();
-    const inactiveThreshold = now - this.cleanupConfig.inactiveThresholdMs;
-    const fileRetentionThreshold = now - this.cleanupConfig.fileRetentionMs;
-    const deleteFiles = options.deleteFiles ?? this.cleanupConfig.deleteOldFiles;
 
     const stats = {
       sessionsRemoved: 0,
@@ -1716,6 +1715,12 @@ The dev-docs 3-file pattern preserves all critical context.
     };
 
     for (const [projectFolder, project] of this.projects) {
+      // Issue 5.3: Get per-project cleanup config (falls back to global defaults)
+      const projectConfig = this.getProjectCleanupConfig(projectFolder);
+      const inactiveThreshold = now - projectConfig.inactiveThresholdMs;
+      const fileRetentionThreshold = now - projectConfig.fileRetentionMs;
+      const deleteFiles = options.deleteFiles ?? projectConfig.deleteOldFiles;
+
       let projectSessionsRemoved = 0;
 
       // Get sessions to remove (inactive beyond threshold)
@@ -1804,6 +1809,50 @@ The dev-docs 3-file pattern preserves all critical context.
     }
 
     console.log('[GlobalContextTracker] Cleanup config updated:', this.cleanupConfig);
+  }
+
+  /**
+   * Issue 5.3: Set per-project cleanup configuration
+   * Allows different retention policies per project
+   *
+   * @param {string} projectFolder - Project folder identifier
+   * @param {Object} config - Project-specific cleanup configuration
+   * @param {number} [config.inactiveThresholdMs] - Sessions inactive for longer are pruned
+   * @param {number} [config.fileRetentionMs] - Session files older than this can be deleted
+   * @param {boolean} [config.deleteOldFiles] - Whether to delete old files from disk
+   */
+  setProjectCleanupConfig(projectFolder, config) {
+    if (!projectFolder) {
+      console.warn('[GlobalContextTracker] Cannot set cleanup config: no projectFolder provided');
+      return;
+    }
+
+    const existingConfig = this.projectCleanupConfig.get(projectFolder) || {};
+    const newConfig = {
+      ...existingConfig,
+      ...config
+    };
+
+    this.projectCleanupConfig.set(projectFolder, newConfig);
+    console.log('[GlobalContextTracker] Per-project cleanup config set', {
+      projectFolder,
+      config: newConfig
+    });
+  }
+
+  /**
+   * Issue 5.3: Get per-project cleanup configuration
+   *
+   * @param {string} projectFolder - Project folder identifier
+   * @returns {Object} Project cleanup config (merged with global defaults)
+   */
+  getProjectCleanupConfig(projectFolder) {
+    const projectConfig = this.projectCleanupConfig.get(projectFolder) || {};
+    return {
+      inactiveThresholdMs: projectConfig.inactiveThresholdMs ?? this.cleanupConfig.inactiveThresholdMs,
+      fileRetentionMs: projectConfig.fileRetentionMs ?? this.cleanupConfig.fileRetentionMs,
+      deleteOldFiles: projectConfig.deleteOldFiles ?? this.cleanupConfig.deleteOldFiles
+    };
   }
 
   /**

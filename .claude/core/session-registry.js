@@ -117,6 +117,15 @@ class SessionRegistry extends EventEmitter {
     this.lastHealthCheck = null;
     this.healthStatus = 'unknown';
 
+    // Registration lock for TOCTOU race prevention (Issues 1.1, 2.1)
+    // Simple async lock using Promise chain
+    this.registrationLock = Promise.resolve();
+    this.pendingRegistrations = new Map(); // claudeSessionId -> Promise
+
+    // Stale session grace period (Issue 2.2)
+    // Sessions marked 'stale' before deletion to allow reconnection
+    this.staleGracePeriod = options.staleGracePeriod || 5 * 60 * 1000; // 5 minutes
+
     // Load persisted nextId from database
     if (this.persistenceEnabled) {
       this._initializeDatabase();
@@ -602,6 +611,114 @@ class SessionRegistry extends EventEmitter {
   }
 
   /**
+   * Atomic registration with claudeSessionId deduplication (Issue 1.1, 2.1)
+   * Uses lock to prevent TOCTOU race conditions.
+   * @param {string} claudeSessionId - Claude session ID to check/register
+   * @param {Object} sessionData - Session data to register
+   * @returns {Promise<{id: number, deduplicated: boolean, upgraded: boolean}>}
+   */
+  async registerWithDeduplication(claudeSessionId, sessionData) {
+    // If no claudeSessionId, fall back to regular registration
+    if (!claudeSessionId) {
+      const id = this.register(sessionData);
+      return { id, deduplicated: false, upgraded: false };
+    }
+
+    // Acquire lock for this specific claudeSessionId
+    const lockKey = claudeSessionId;
+
+    // Wait for any pending registration with same claudeSessionId
+    if (this.pendingRegistrations.has(lockKey)) {
+      await this.pendingRegistrations.get(lockKey);
+    }
+
+    // Create a new promise for this registration
+    let resolveRegistration;
+    const registrationPromise = new Promise(resolve => {
+      resolveRegistration = resolve;
+    });
+    this.pendingRegistrations.set(lockKey, registrationPromise);
+
+    try {
+      // ATOMIC: Check for existing session while holding lock
+      const existingSession = this.getByClaudeSessionId(claudeSessionId);
+
+      if (existingSession) {
+        // Session exists - update rather than create duplicate
+        const updates = {
+          status: sessionData.status || existingSession.status,
+          currentTask: sessionData.currentTask || existingSession.currentTask,
+          lastUpdate: new Date().toISOString()
+        };
+
+        // Handle upgrade from CLI to autonomous
+        if (sessionData.sessionType === 'autonomous' && existingSession.sessionType !== 'autonomous') {
+          updates.sessionType = 'autonomous';
+          updates.autonomous = true;
+          updates.orchestratorInfo = sessionData.orchestratorInfo || existingSession.orchestratorInfo;
+          this.update(existingSession.id, updates);
+          log.info('Session upgraded via atomic registration', {
+            id: existingSession.id,
+            claudeSessionId: claudeSessionId.substring(0, 8),
+            from: existingSession.sessionType,
+            to: 'autonomous'
+          });
+          return { id: existingSession.id, deduplicated: true, upgraded: true };
+        }
+
+        // Just update existing session
+        this.update(existingSession.id, updates);
+        log.debug('Session deduplicated via atomic registration', {
+          id: existingSession.id,
+          claudeSessionId: claudeSessionId.substring(0, 8)
+        });
+        return { id: existingSession.id, deduplicated: true, upgraded: false };
+      }
+
+      // Check for stale session with same claudeSessionId that can be recovered (Issue 2.3)
+      const staleSession = this._findStaleSession(claudeSessionId);
+      if (staleSession) {
+        // Recover stale session instead of creating new
+        this.update(staleSession.id, {
+          status: sessionData.status || 'active',
+          sessionType: sessionData.sessionType || staleSession.sessionType,
+          autonomous: sessionData.autonomous || staleSession.autonomous,
+          lastUpdate: new Date().toISOString()
+        });
+        log.info('Recovered stale session', {
+          id: staleSession.id,
+          claudeSessionId: claudeSessionId.substring(0, 8)
+        });
+        return { id: staleSession.id, deduplicated: true, upgraded: false };
+      }
+
+      // No existing session - register new one
+      const id = this.register({ ...sessionData, claudeSessionId });
+      return { id, deduplicated: false, upgraded: false };
+
+    } finally {
+      // Release lock
+      this.pendingRegistrations.delete(lockKey);
+      resolveRegistration();
+    }
+  }
+
+  /**
+   * Find a stale session by claudeSessionId for recovery (Issue 2.2, 2.3)
+   * @private
+   */
+  _findStaleSession(claudeSessionId) {
+    if (!claudeSessionId) return null;
+
+    for (const [id, session] of this.sessions) {
+      if (session.claudeSessionId === claudeSessionId && session.status === 'stale') {
+        return session;
+      }
+    }
+    return null;
+  }
+
+  /**
    * Register a new session.
    * @param {Object} sessionData - Initial session data
    * @returns {number} The assigned session ID
@@ -1069,16 +1186,38 @@ class SessionRegistry extends EventEmitter {
   _cleanupStaleSessions() {
     const now = Date.now();
     const staleThreshold = now - this.staleTimeout;
+    const graceThreshold = now - this.staleTimeout - this.staleGracePeriod;
 
     for (const [id, session] of this.sessions) {
       if (session.status === 'ended') continue;
       const lastUpdateMs = new Date(session.lastUpdate).getTime();
-      if (lastUpdateMs < staleThreshold) {
-        log.warn('Expiring stale session', { id, project: session.project });
-        session.status = 'ended';
-        this.emit('session:expired', session);
-        this.sessions.delete(id);
-        this.alerts.delete(id);
+
+      // Issue 2.2: Two-phase cleanup - mark stale first, delete after grace period
+      if (session.status === 'stale') {
+        // Already stale - check if grace period expired
+        const staleAtMs = session.staleAt ? new Date(session.staleAt).getTime() : lastUpdateMs;
+        if (now - staleAtMs > this.staleGracePeriod) {
+          log.warn('Deleting stale session after grace period', {
+            id,
+            project: session.project,
+            claudeSessionId: session.claudeSessionId?.substring(0, 8)
+          });
+          session.status = 'ended';
+          this.emit('session:expired', session);
+          this.sessions.delete(id);
+          this.alerts.delete(id);
+        }
+      } else if (lastUpdateMs < staleThreshold) {
+        // Mark as stale (recoverable) instead of immediate delete
+        log.info('Marking session as stale (recoverable)', {
+          id,
+          project: session.project,
+          claudeSessionId: session.claudeSessionId?.substring(0, 8),
+          gracePeriodMs: this.staleGracePeriod
+        });
+        session.status = 'stale';
+        session.staleAt = new Date().toISOString();
+        this.emit('session:stale', session);
       }
     }
   }
