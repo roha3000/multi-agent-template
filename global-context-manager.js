@@ -3663,6 +3663,17 @@ app.get('/api/sse/command-center', (req, res) => {
   sessionRegistry.on('session:updated', onSessionChange);
   sessionRegistry.on('session:deregistered', onSessionChange);
   sessionRegistry.on('task:completed', onSessionChange);
+  sessionRegistry.on('session:childAdded', onSessionChange);
+
+  // Special handler for hierarchy updates - also send dedicated event
+  const onChildAdded = ({ parentSessionId, childSessionId }) => {
+    res.write(`data: ${JSON.stringify({
+      type: 'hierarchy:childAdded',
+      parentSessionId,
+      childSessionId
+    })}\n\n`);
+  };
+  sessionRegistry.on('session:childAdded', onChildAdded);
 
   req.on('close', () => {
     clearInterval(sessionInterval);
@@ -3670,6 +3681,8 @@ app.get('/api/sse/command-center', (req, res) => {
     sessionRegistry.removeListener('session:updated', onSessionChange);
     sessionRegistry.removeListener('session:deregistered', onSessionChange);
     sessionRegistry.removeListener('task:completed', onSessionChange);
+    sessionRegistry.removeListener('session:childAdded', onSessionChange);
+    sessionRegistry.removeListener('session:childAdded', onChildAdded);
   });
 });
 

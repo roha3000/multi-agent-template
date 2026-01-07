@@ -20,13 +20,13 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "session-end-hook-reliability"
+        "dashboard-audit-remaining-fixes",
+        "dashboard-blocked-tasks-view"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "dashboard-blocked-tasks-view",
         "dashboard-tasks-tab-claims",
         "dashboard-hierarchy-child-details"
       ]
@@ -44,11 +44,11 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "dashboard-comprehensive-audit-fixes",
+        "session-end-hook-reliability",
         "framework-phase-gate-audit",
         "dashboard-v4-redesign",
-        "cli-session-activity-logs",
-        "dashboard-fleet-ui-completion",
-        "dashboard-validation-audit"
+        "cli-session-activity-logs"
       ]
     }
   },
@@ -310,15 +310,6 @@
       "parentTaskId": "auto-delegation-integration",
       "childTaskIds": []
     },
-    "dashboard-validation-audit": {
-      "id": "dashboard-validation-audit",
-      "title": "Dashboard Validation Audit - Test All Functions & Reconcile APIs",
-      "description": "Comprehensive audit of the dashboard to identify broken features, test all current functions, and re...",
-      "phase": "validation",
-      "status": "completed",
-      "completedAt": "2025-12-31T00:30:00.000Z",
-      "completionNotes": "Swarm audit completed: 74+ API endpoints mapped, quality circles bug fixed, OTLP→UsageLimitTracker connected, dotenv added"
-    },
     "dashboard-fleet-ui-completion": {
       "id": "dashboard-fleet-ui-completion",
       "title": "Complete Fleet Management Dashboard UI Features",
@@ -333,86 +324,24 @@
     "framework-phase-gate-audit": {
       "id": "framework-phase-gate-audit",
       "title": "Comprehensive Phase Gate Audit - Quality & Validation Enforcement",
-      "description": "Audit the project framework's phase gate system to ensure each stage gate enforces appropriate quality, confidence, testing, and validation checks by expert agents before approval. Covers both single-phase transitions (research→planning→design→implementation→testing→validation) and multi-phase parent task progression (child phases must pass gates before parent advances).",
+      "description": "Audit the project framework's phase gate system to ensure each stage gate enforces appropriate quali...",
       "phase": "validation",
-      "priority": "high",
-      "estimate": "6h",
-      "tags": [
-        "audit",
-        "phase-gates",
-        "quality",
-        "validation",
-        "framework",
-        "expert-agents"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "auto-delegation-integration"
-        ]
-      },
-      "acceptance": [
-        "Document all existing phase gate definitions and their current enforcement mechanisms",
-        "Identify gaps where phase transitions occur without proper quality/confidence checks",
-        "Define required expert agent reviews for each phase transition",
-        "Specify minimum quality scores, test coverage, and confidence thresholds per gate",
-        "Implement validation hooks that enforce gate requirements before phase advancement",
-        "Add parent task gate logic: all child phases must pass before parent advances",
-        "Create phase gate audit trail (who approved, when, with what score)",
-        "Add automated gate enforcement to prevent manual bypasses",
-        "Tests verify gates block progression when thresholds not met",
-        "Documentation updated with phase gate requirements matrix"
-      ],
       "status": "completed",
-      "assignee": null,
-      "created": "2026-01-04T20:00:00.000Z",
-      "updated": "2026-01-04T21:30:00.000Z",
       "completedAt": "2026-01-04T21:30:00.000Z",
       "completionNotes": "Agent swarm audit complete: Documented phase gate definitions (quality-gates.js, phase-inference.js), identified enforcement mechanisms, defined expert reviewers per gate (Strategic Planner, Logic Reviewer, System Architect, Test Engineer, Senior Developer, Review Orchestrator), created PHASE-GATE-REQUIREMENTS.md with full requirements matrix including thresholds (80-90), criteria weights, special checks (architecture compliance, multi-agent sign-off), and parent-child gate enforcement rules.",
-      "parentTaskId": null,
       "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0
+      "parentTaskId": null
     },
     "session-end-hook-reliability": {
       "id": "session-end-hook-reliability",
       "title": "Improve Session-End Hook Reliability",
-      "description": "The session-end.js hook sometimes fails to deregister sessions from the dashboard. Possible causes: stdin timeout before session_id received, dashboard not running, network timeout. Sessions remain in dashboard until 30-minute stale cleanup. Add retry logic, better error handling, and fallback mechanisms.",
+      "description": "The session-end.js hook sometimes fails to deregister sessions from the dashboard. Possible causes: ...",
       "phase": "implementation",
-      "priority": "medium",
-      "estimate": "2h",
-      "tags": [
-        "hooks",
-        "session-lifecycle",
-        "reliability",
-        "bug-fix"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "session-registry-id-persistence",
-          "dashboard-stale-session-handling"
-        ]
-      },
-      "acceptance": [
-        "Hook retries deregistration up to 3 times on failure",
-        "Longer stdin timeout (2s instead of 1s)",
-        "Debug logging to .claude/debug/hook-debug.log",
-        "Fallback: write deregister request to file for dashboard to process",
-        "Tests verify hook handles various failure scenarios",
-        "Metrics on hook success/failure rate"
-      ],
-      "status": "in_progress",
-      "assignee": null,
-      "created": "2026-01-04T20:10:00.000Z",
-      "updated": "2026-01-05T05:28:51.021Z",
-      "parentTaskId": null,
+      "status": "completed",
+      "completedAt": "2026-01-05T21:15:00.000Z",
+      "completionNotes": "All 6 acceptance criteria verified. Hook has 3 retries with exponential backoff+jitter, 2s stdin timeout, debug logging to .claude/debug/hook-debug.log, file-based fallback (pending-deregistrations/), 33 tests in session-end.test.js, and HookMetrics class (959 lines) with persistence and rolling windows. Circuit breaker and error classification also implemented.",
       "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "started": "2026-01-05T05:28:51.021Z"
+      "parentTaskId": null
     },
     "dashboard-tasks-tab-claims": {
       "id": "dashboard-tasks-tab-claims",
@@ -489,12 +418,103 @@
       "childTaskIds": [],
       "delegatedTo": null,
       "delegationDepth": 0
+    },
+    "dashboard-comprehensive-audit-fixes": {
+      "id": "dashboard-comprehensive-audit-fixes",
+      "title": "Dashboard Comprehensive Audit - Fix Critical Issues",
+      "description": "Session 96 code review audit identified 23 issues (9 critical, 9 high). Session 97 implemented critical path fixes using 6-agent parallel swarm.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "16h",
+      "tags": [
+        "dashboard",
+        "audit",
+        "bug-fix",
+        "session-management",
+        "sse",
+        "multi-project"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-validation-audit"
+        ]
+      },
+      "acceptance": [
+        "Add await to initializeCommandCenter() in autonomous-orchestrator.js:1312",
+        "Add addEventListener('log', ...) to dashboard SSE handler",
+        "Add session:deregistered to WebSocket broadcast",
+        "Always set hierarchyInfo when registering child sessions",
+        "Add mutex/lock around claudeSessionId registration to prevent duplicates",
+        "Unify project key system between GlobalContextTracker and SessionRegistry",
+        "Live parallel testing validates fixes work in real scenarios",
+        "No duplicate CLI sessions when running multiple parallel sessions",
+        "Autonomous session logs display correctly in dashboard",
+        "Hierarchy displays correctly when child agents are active"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2026-01-06T05:50:00.000Z",
+      "updated": "2026-01-06T19:45:00.000Z",
+      "completedAt": "2026-01-06T19:45:00.000Z",
+      "completionNotes": "Session 97: 6-agent parallel swarm fixed critical path issues. Applied: (1) await initializeCommandCenter() at line 892, (2) addEventListener('log') for SSE named events at line 5964, (3) hierarchy:childAdded SSE broadcast at line 3666, (4) project-key-utils.js translation layer (120 lines). 11 new E2E tests added. 2962 tests passing.",
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "auditSource": "Session 96 - 6-agent parallel code review swarm"
+    },
+    "dashboard-audit-remaining-fixes": {
+      "id": "dashboard-audit-remaining-fixes",
+      "title": "Dashboard Audit - Remaining Issues (Race Conditions, SSE, Multi-Project)",
+      "description": "Session 97 fixed critical path (3 items). This task covers remaining 10 verified issues from comprehensive audit: race conditions in session registration, SSE event completeness, multi-project isolation, and cleanup policies.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "8h",
+      "tags": [
+        "dashboard",
+        "audit",
+        "race-conditions",
+        "sse",
+        "multi-project",
+        "session-management"
+      ],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": [
+          "dashboard-comprehensive-audit-fixes"
+        ]
+      },
+      "acceptance": [
+        "1.1 CRITICAL: Add claudeSessionId deduplication to prevent double registration",
+        "2.1 CRITICAL: Add mutex/lock around claudeSessionId registration (TOCTOU race)",
+        "5.1 CRITICAL: Require OTLP metrics to include project ID (don't guess)",
+        "1.3 HIGH: Set ORCHESTRATOR_SESSION env var before spawning processes",
+        "2.2 HIGH: Mark sessions 'stale' instead of deleting (grace period)",
+        "2.3 HIGH: Fix SSE reconnection race that creates duplicates",
+        "4.2 HIGH: Emit SSE events for phase/quality/confidence state changes",
+        "4.3 HIGH: Add heartbeat to remaining 3 SSE endpoints",
+        "5.3 HIGH: Add per-project cleanup configuration",
+        "1.4 LOW: Ensure sessionType and autonomous fields update atomically",
+        "E2E tests for race condition scenarios"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2026-01-06T20:00:00.000Z",
+      "updated": "2026-01-06T20:00:00.000Z",
+      "parentTaskId": null,
+      "childTaskIds": [],
+      "delegatedTo": null,
+      "delegationDepth": 0,
+      "auditSource": "DASHBOARD-COMPREHENSIVE-AUDIT.md - Issues 1.1, 1.3, 1.4, 2.1-2.3, 4.2-4.3, 5.1, 5.3"
     }
   },
   "archival": {
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2026-01-05T05:24:01.132Z"
+    "lastArchived": "2026-01-06T05:53:03.576Z"
   }
 }

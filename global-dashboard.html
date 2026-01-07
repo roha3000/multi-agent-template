@@ -4137,6 +4137,15 @@
             enrichActiveSession();
           }
 
+          // Handle hierarchy:childAdded events - refresh hierarchy tab
+          if (data.type === 'hierarchy:childAdded') {
+            console.log('[Dashboard] Child session added:', data.childSessionId, 'to parent:', data.parentSessionId);
+            if (activeTab === 'hierarchy') {
+              // Refresh hierarchy display
+              fetchFleetHierarchy();
+            }
+          }
+
           // Handle projects data from SSE - update existing sessions in-place to avoid bouncing
           if (data.projects) {
             let anyChanged = false;
@@ -5960,6 +5969,42 @@
             console.warn('[Dashboard] Error parsing log stream data:', err);
           }
         };
+
+        // Also listen for named 'log' events (sent by log-streamer.js)
+        logStreamEventSource.addEventListener('log', (event) => {
+          try {
+            const entry = JSON.parse(event.data);
+            const tbody = document.getElementById('orchestrator-logs-tbody');
+            const countSpan = document.getElementById('log-count');
+            const noLogsRow = document.getElementById('no-logs-row');
+
+            if (noLogsRow) noLogsRow.remove();
+
+            if (tbody) {
+              const levelColor = entry.level === 'ERROR' ? 'var(--color-danger)' :
+                                entry.level === 'WARN' ? 'var(--color-warning)' :
+                                entry.level === 'DEBUG' ? 'var(--text-muted)' : 'var(--color-info)';
+              const timeStr = entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString() : entry.time || '-';
+
+              const newRow = document.createElement('tr');
+              newRow.innerHTML = `
+                <td style="color:var(--text-muted);font-size:11px">${escapeHtml(timeStr)}</td>
+                <td style="color:${levelColor};font-weight:500">${escapeHtml(entry.level || 'INFO')}</td>
+                <td style="color:var(--text-muted);font-size:11px">${escapeHtml(entry.source || 'orchestrator')}</td>
+                <td style="font-size:12px">${escapeHtml(entry.line || entry.message || entry.text || '')}</td>
+              `;
+              tbody.insertBefore(newRow, tbody.firstChild);
+
+              // Update count
+              if (countSpan) {
+                const current = parseInt(countSpan.textContent.match(/\d+/)?.[0] || '0');
+                countSpan.textContent = `(${current + 1} entries)`;
+              }
+            }
+          } catch (err) {
+            console.warn('[Dashboard] Error parsing named log event:', err);
+          }
+        });
 
         logStreamEventSource.onerror = (err) => {
           console.warn('[Dashboard] Log stream error:', err);
