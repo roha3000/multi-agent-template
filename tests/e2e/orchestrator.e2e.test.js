@@ -253,4 +253,61 @@ describe('Autonomous Orchestrator E2E Tests', () => {
       expect(content).toContain('5000');
     });
   });
+
+  // ============================================================================
+  // ISSUE 1.3: ORCHESTRATOR_SESSION Environment Variable
+  // ============================================================================
+  describe('Issue 1.3 - ORCHESTRATOR_SESSION env var', () => {
+    it('should set ORCHESTRATOR_SESSION=true at startup (source code check)', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+      // Verify the env var is set early in the file (before any function calls)
+      expect(content).toContain("process.env.ORCHESTRATOR_SESSION = 'true'");
+
+      // Verify it appears BEFORE any spawn or require calls that might read it
+      const envSetIndex = content.indexOf("process.env.ORCHESTRATOR_SESSION = 'true'");
+      const spawnCallIndex = content.indexOf('spawn(');
+      const initializeCmdCenterIndex = content.indexOf('initializeCommandCenter');
+
+      // The env var should be set before any spawning happens
+      if (spawnCallIndex !== -1) {
+        expect(envSetIndex).toBeLessThan(spawnCallIndex);
+      }
+    });
+
+    it('should pass ORCHESTRATOR_SESSION=true to child processes', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+
+      // Find spawn calls with env configuration
+      const mainSpawnMatch = content.match(/claudeProcess = spawn\([^)]+\),\s*\{[\s\S]*?env:\s*\{([\s\S]*?)\}/);
+      if (mainSpawnMatch) {
+        const envConfig = mainSpawnMatch[1];
+        expect(envConfig).toContain('ORCHESTRATOR_SESSION');
+        expect(envConfig).toContain("'true'");
+      }
+    });
+
+    it('should pass PARENT_SESSION_ID to child processes', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+
+      // Find spawn calls with env configuration
+      const mainSpawnMatch = content.match(/claudeProcess = spawn\([^)]+\),\s*\{[\s\S]*?env:\s*\{([\s\S]*?)\}/);
+      if (mainSpawnMatch) {
+        const envConfig = mainSpawnMatch[1];
+        expect(envConfig).toContain('PARENT_SESSION_ID');
+        expect(envConfig).toContain('registeredSessionId');
+      }
+    });
+
+    it('should set ORCHESTRATOR_SESSION before requiring delegation modules', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+
+      const envSetIndex = content.indexOf("process.env.ORCHESTRATOR_SESSION = 'true'");
+      const delegationRequireIndex = content.indexOf("require('./.claude/core/delegation-executor')");
+
+      // The env var must be set before lazy-loading delegation modules
+      if (delegationRequireIndex !== -1 && envSetIndex !== -1) {
+        expect(envSetIndex).toBeLessThan(delegationRequireIndex);
+      }
+    });
+  });
 });

@@ -758,9 +758,11 @@ class SessionRegistry extends EventEmitter {
       runtime: 0,
       iteration: sessionData.iteration || 0,
       phase: sessionData.phase || 'idle',
-      // Session type tracking
-      sessionType: sessionData.sessionType || 'cli', // 'cli' | 'autonomous' | 'loop'
-      autonomous: sessionData.autonomous || sessionData.sessionType === 'autonomous',
+      // Session type tracking (ISSUE 1.4: enforce atomicity)
+      // If autonomous=true is explicitly set, infer sessionType='autonomous'
+      // If sessionType='autonomous' is set, infer autonomous=true
+      sessionType: sessionData.sessionType || (sessionData.autonomous ? 'autonomous' : 'cli'),
+      autonomous: sessionData.autonomous === true || sessionData.sessionType === 'autonomous',
       orchestratorInfo: sessionData.orchestratorInfo || null,
       // Log session ID - maps to the actual log file (session-N.log)
       // This may differ from the registry ID when multiple orchestrators run
@@ -885,18 +887,63 @@ class SessionRegistry extends EventEmitter {
       updates.runtime = Math.floor((Date.now() - startMs) / 1000);
     }
 
+    // ISSUE 1.4 FIX: Ensure sessionType and autonomous are always consistent
+    // This enforces atomic consistency between the two interdependent fields
+    const normalizedUpdates = this._enforceSessionTypeConsistency(updates);
+
     const updatedSession = {
       ...session,
-      ...updates,
+      ...normalizedUpdates,
       lastUpdate: new Date().toISOString()
     };
 
     this.sessions.set(id, updatedSession);
     log.debug('Session updated', { id });
-    this.emit('session:updated', { session: updatedSession, changes: updates });
+    this.emit('session:updated', { session: updatedSession, changes: normalizedUpdates });
     this._checkAlerts(updatedSession);
 
     return updatedSession;
+  }
+
+  /**
+   * ISSUE 1.4 FIX: Enforce consistency between sessionType and autonomous fields.
+   * These fields are interdependent and must always be in sync:
+   * - sessionType='autonomous' implies autonomous=true
+   * - autonomous=true implies sessionType='autonomous' (if not already set)
+   *
+   * @private
+   * @param {Object} updates - The updates to normalize
+   * @returns {Object} Normalized updates with consistent sessionType/autonomous
+   */
+  _enforceSessionTypeConsistency(updates) {
+    const normalized = { ...updates };
+
+    // Case 1: sessionType is being set to 'autonomous' - ensure autonomous=true
+    if (normalized.sessionType === 'autonomous' && normalized.autonomous !== true) {
+      normalized.autonomous = true;
+      log.debug('Enforced autonomous=true for sessionType=autonomous');
+    }
+
+    // Case 2: sessionType is being set to non-autonomous - ALWAYS set autonomous=false
+    // This ensures the session state is consistent even if autonomous wasn't in the update
+    if (normalized.sessionType && normalized.sessionType !== 'autonomous') {
+      // Force autonomous=false when changing to non-autonomous sessionType
+      normalized.autonomous = false;
+      if (updates.autonomous === true) {
+        log.warn('Correcting inconsistent state: autonomous=true but sessionType=' + normalized.sessionType);
+      }
+    }
+
+    // Case 3: autonomous is being set to true without sessionType - set sessionType
+    if (normalized.autonomous === true && !normalized.sessionType) {
+      // Only set if we're explicitly setting autonomous, not just inheriting
+      if ('autonomous' in updates) {
+        normalized.sessionType = 'autonomous';
+        log.debug('Enforced sessionType=autonomous for autonomous=true');
+      }
+    }
+
+    return normalized;
   }
 
   /**

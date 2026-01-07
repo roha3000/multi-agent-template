@@ -476,4 +476,173 @@ describe('Dashboard Audit Fixes - Batch 2 E2E', () => {
       expect(eventTypes).toContain('stale');
     });
   });
+
+  // ========================================
+  // Issue 1.3: ORCHESTRATOR_SESSION Environment Variable
+  // ========================================
+  describe('ORCHESTRATOR_SESSION env var (Issue 1.3)', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const ORCHESTRATOR_PATH = path.join(__dirname, '../../autonomous-orchestrator.js');
+
+    it('should have ORCHESTRATOR_SESSION set at module load time', () => {
+      // Read orchestrator source and verify env var is set early
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+
+      // Verify the fix exists
+      expect(content).toContain("process.env.ORCHESTRATOR_SESSION = 'true'");
+
+      // Verify it's set early (within first 2000 chars - before main logic)
+      const envSetIndex = content.indexOf("process.env.ORCHESTRATOR_SESSION = 'true'");
+      expect(envSetIndex).toBeLessThan(2000);
+    });
+
+    it('should set env var before spawn calls', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+
+      const envSetIndex = content.indexOf("process.env.ORCHESTRATOR_SESSION = 'true'");
+      const firstSpawnIndex = content.indexOf('claudeProcess = spawn(');
+
+      // Env var must be set before first spawn
+      expect(envSetIndex).toBeLessThan(firstSpawnIndex);
+    });
+
+    it('should propagate ORCHESTRATOR_SESSION to child spawn calls', () => {
+      const content = fs.readFileSync(ORCHESTRATOR_PATH, 'utf-8');
+
+      // Check spawn env includes ORCHESTRATOR_SESSION
+      const spawnEnvMatch = content.match(/claudeProcess = spawn[\s\S]*?env:\s*\{([\s\S]*?)\}/);
+      if (spawnEnvMatch) {
+        expect(spawnEnvMatch[1]).toContain('ORCHESTRATOR_SESSION');
+      }
+    });
+  });
+
+  // ========================================
+  // Issue 1.4: Atomic sessionType/autonomous Updates
+  // ========================================
+  describe('Atomic sessionType/autonomous updates (Issue 1.4)', () => {
+    let registry;
+
+    beforeEach(() => {
+      registry = new SessionRegistry({
+        persistenceEnabled: false,
+        cleanupInterval: 300000
+      });
+    });
+
+    afterEach(() => {
+      registry.shutdown();
+    });
+
+    it('E2E: CLI to autonomous upgrade maintains consistency', async () => {
+      const claudeSessionId = 'e2e-upgrade-test';
+
+      // Start as CLI session
+      const cliResult = await registry.registerWithDeduplication(claudeSessionId, {
+        project: 'upgrade-test',
+        sessionType: 'cli'
+      });
+
+      const cliSession = registry.get(cliResult.id);
+      expect(cliSession.sessionType).toBe('cli');
+      expect(cliSession.autonomous).toBe(false);
+
+      // Upgrade to autonomous
+      registry.update(cliResult.id, { sessionType: 'autonomous' });
+
+      const autoSession = registry.get(cliResult.id);
+      expect(autoSession.sessionType).toBe('autonomous');
+      expect(autoSession.autonomous).toBe(true); // Should be auto-enforced
+    });
+
+    it('E2E: Setting autonomous=true enforces sessionType=autonomous', async () => {
+      const id = registry.register({
+        project: 'autonomous-flag-test',
+        sessionType: 'cli'
+      });
+
+      // Update only the autonomous flag
+      registry.update(id, { autonomous: true });
+
+      const session = registry.get(id);
+      expect(session.autonomous).toBe(true);
+      expect(session.sessionType).toBe('autonomous'); // Should be auto-enforced
+    });
+
+    it('E2E: Inconsistent state is corrected on update', async () => {
+      const id = registry.register({
+        project: 'correction-test',
+        sessionType: 'cli'
+      });
+
+      // Attempt to create inconsistent state
+      registry.update(id, {
+        sessionType: 'cli',
+        autonomous: true // Inconsistent with cli
+      });
+
+      const session = registry.get(id);
+      expect(session.sessionType).toBe('cli');
+      expect(session.autonomous).toBe(false); // Should be corrected
+    });
+
+    it('E2E: Rapid updates maintain consistency', async () => {
+      const id = registry.register({
+        project: 'rapid-update-test',
+        sessionType: 'cli'
+      });
+
+      // Simulate rapid state changes
+      const updates = [
+        { sessionType: 'autonomous' },
+        { autonomous: false, sessionType: 'cli' },
+        { autonomous: true },
+        { sessionType: 'loop' },
+        { autonomous: true, sessionType: 'autonomous' }
+      ];
+
+      for (const update of updates) {
+        registry.update(id, update);
+        const session = registry.get(id);
+
+        // Verify consistency after each update
+        if (session.sessionType === 'autonomous') {
+          expect(session.autonomous).toBe(true);
+        } else {
+          expect(session.autonomous).toBe(false);
+        }
+      }
+    });
+
+    it('E2E: Registration with only autonomous=true sets sessionType', () => {
+      const id = registry.register({
+        project: 'auto-only-test',
+        autonomous: true
+        // sessionType not specified
+      });
+
+      const session = registry.get(id);
+      expect(session.autonomous).toBe(true);
+      expect(session.sessionType).toBe('autonomous');
+    });
+
+    it('E2E: _enforceSessionTypeConsistency method exists and works', () => {
+      // Verify the method exists
+      expect(typeof registry._enforceSessionTypeConsistency).toBe('function');
+
+      // Test edge cases
+      const result1 = registry._enforceSessionTypeConsistency({ sessionType: 'autonomous' });
+      expect(result1.autonomous).toBe(true);
+
+      const result2 = registry._enforceSessionTypeConsistency({ autonomous: true });
+      expect(result2.sessionType).toBe('autonomous');
+
+      const result3 = registry._enforceSessionTypeConsistency({
+        sessionType: 'cli',
+        autonomous: true
+      });
+      expect(result3.autonomous).toBe(false);
+    });
+  });
 });

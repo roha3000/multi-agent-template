@@ -34,6 +34,12 @@ const { getSessionRegistry } = require('./.claude/core/session-registry');
 const { getUsageLimitTracker } = require('./.claude/core/usage-limit-tracker');
 const SwarmController = require('./.claude/core/swarm-controller');
 
+// ============================================================================
+// ISSUE 1.3 FIX: Set ORCHESTRATOR_SESSION env var for self-identification
+// This must happen BEFORE any registration so hooks can identify us correctly
+// ============================================================================
+process.env.ORCHESTRATOR_SESSION = 'true';
+
 // Delegation system - lazy loaded for performance
 let _delegationExecutor = null;
 function getDelegationExecutor() {

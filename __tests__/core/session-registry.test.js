@@ -2860,4 +2860,212 @@ describe('SessionRegistry', () => {
       expect(session.autonomous).toBe(true);
     });
   });
+
+  // ============================================================================
+  // ISSUE 1.4: Atomic sessionType/autonomous Updates
+  // ============================================================================
+  describe('Issue 1.4 - Atomic sessionType/autonomous consistency', () => {
+    describe('register() - initial consistency enforcement', () => {
+      it('should set autonomous=true when sessionType=autonomous', () => {
+        const id = registry.register({
+          project: 'test-project',
+          sessionType: 'autonomous'
+          // autonomous NOT explicitly set
+        });
+
+        const session = registry.get(id);
+        expect(session.sessionType).toBe('autonomous');
+        expect(session.autonomous).toBe(true);
+      });
+
+      it('should set sessionType=autonomous when autonomous=true', () => {
+        const id = registry.register({
+          project: 'test-project',
+          autonomous: true
+          // sessionType NOT explicitly set
+        });
+
+        const session = registry.get(id);
+        expect(session.sessionType).toBe('autonomous');
+        expect(session.autonomous).toBe(true);
+      });
+
+      it('should default to cli/false when neither is set', () => {
+        const id = registry.register({
+          project: 'test-project'
+        });
+
+        const session = registry.get(id);
+        expect(session.sessionType).toBe('cli');
+        expect(session.autonomous).toBe(false);
+      });
+
+      it('should handle explicit cli session type correctly', () => {
+        const id = registry.register({
+          project: 'test-project',
+          sessionType: 'cli',
+          autonomous: false
+        });
+
+        const session = registry.get(id);
+        expect(session.sessionType).toBe('cli');
+        expect(session.autonomous).toBe(false);
+      });
+
+      it('should handle loop session type correctly', () => {
+        const id = registry.register({
+          project: 'test-project',
+          sessionType: 'loop'
+        });
+
+        const session = registry.get(id);
+        expect(session.sessionType).toBe('loop');
+        expect(session.autonomous).toBe(false);
+      });
+    });
+
+    describe('update() - consistency enforcement via _enforceSessionTypeConsistency', () => {
+      it('should enforce autonomous=true when updating sessionType to autonomous', () => {
+        const id = registry.register({
+          project: 'test-project',
+          sessionType: 'cli'
+        });
+
+        // Update only sessionType, not autonomous
+        registry.update(id, { sessionType: 'autonomous' });
+
+        const session = registry.get(id);
+        expect(session.sessionType).toBe('autonomous');
+        expect(session.autonomous).toBe(true);
+      });
+
+      it('should enforce sessionType=autonomous when updating autonomous to true', () => {
+        const id = registry.register({
+          project: 'test-project',
+          sessionType: 'cli'
+        });
+
+        // Update only autonomous flag
+        registry.update(id, { autonomous: true });
+
+        const session = registry.get(id);
+        expect(session.autonomous).toBe(true);
+        expect(session.sessionType).toBe('autonomous');
+      });
+
+      it('should correct inconsistent state: sessionType=cli with autonomous=true', () => {
+        const id = registry.register({
+          project: 'test-project',
+          sessionType: 'cli'
+        });
+
+        // Attempt to set inconsistent state
+        registry.update(id, { sessionType: 'cli', autonomous: true });
+
+        const session = registry.get(id);
+        // autonomous should be corrected to false since sessionType is cli
+        expect(session.sessionType).toBe('cli');
+        expect(session.autonomous).toBe(false);
+      });
+
+      it('should correct inconsistent state: sessionType=loop with autonomous=true', () => {
+        const id = registry.register({
+          project: 'test-project',
+          sessionType: 'loop'
+        });
+
+        // Attempt to set inconsistent state
+        registry.update(id, { autonomous: true, sessionType: 'loop' });
+
+        const session = registry.get(id);
+        // autonomous should be corrected to false
+        expect(session.sessionType).toBe('loop');
+        expect(session.autonomous).toBe(false);
+      });
+
+      it('should preserve other update fields while enforcing consistency', () => {
+        const id = registry.register({
+          project: 'test-project',
+          sessionType: 'cli'
+        });
+
+        registry.update(id, {
+          sessionType: 'autonomous',
+          currentTask: { id: 'task-1', title: 'Test task' },
+          qualityScore: 85
+        });
+
+        const session = registry.get(id);
+        expect(session.sessionType).toBe('autonomous');
+        expect(session.autonomous).toBe(true);
+        expect(session.currentTask).toEqual({ id: 'task-1', title: 'Test task' });
+        expect(session.qualityScore).toBe(85);
+      });
+
+      it('should allow transition from autonomous to cli with both fields', () => {
+        const id = registry.register({
+          project: 'test-project',
+          sessionType: 'autonomous'
+        });
+
+        registry.update(id, { sessionType: 'cli', autonomous: false });
+
+        const session = registry.get(id);
+        expect(session.sessionType).toBe('cli');
+        expect(session.autonomous).toBe(false);
+      });
+    });
+
+    describe('_enforceSessionTypeConsistency() - direct method tests', () => {
+      it('should add autonomous=true when sessionType=autonomous is missing autonomous', () => {
+        const result = registry._enforceSessionTypeConsistency({
+          sessionType: 'autonomous'
+        });
+
+        expect(result.sessionType).toBe('autonomous');
+        expect(result.autonomous).toBe(true);
+      });
+
+      it('should not modify when sessionType=autonomous and autonomous=true', () => {
+        const result = registry._enforceSessionTypeConsistency({
+          sessionType: 'autonomous',
+          autonomous: true
+        });
+
+        expect(result.sessionType).toBe('autonomous');
+        expect(result.autonomous).toBe(true);
+      });
+
+      it('should correct autonomous=true when sessionType=cli', () => {
+        const result = registry._enforceSessionTypeConsistency({
+          sessionType: 'cli',
+          autonomous: true
+        });
+
+        expect(result.sessionType).toBe('cli');
+        expect(result.autonomous).toBe(false);
+      });
+
+      it('should add sessionType=autonomous when only autonomous=true is set', () => {
+        const result = registry._enforceSessionTypeConsistency({
+          autonomous: true
+        });
+
+        expect(result.sessionType).toBe('autonomous');
+        expect(result.autonomous).toBe(true);
+      });
+
+      it('should not modify when no session type fields are present', () => {
+        const result = registry._enforceSessionTypeConsistency({
+          qualityScore: 85,
+          currentTask: 'test'
+        });
+
+        expect(result.qualityScore).toBe(85);
+        expect(result.currentTask).toBe('test');
+        expect(result.sessionType).toBeUndefined();
+        expect(result.autonomous).toBeUndefined();
+      });
+    });
+  });
 });
