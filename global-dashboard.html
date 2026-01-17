@@ -2803,7 +2803,195 @@
     .status-badge.completed { background: rgba(63, 185, 80, 0.15); color: var(--color-success); }
     .status-badge.in-progress { background: rgba(88, 166, 255, 0.15); color: var(--color-info); }
     .status-badge.blocked { background: rgba(248, 81, 73, 0.15); color: var(--color-danger); }
-    .status-badge.ready { background: rgba(139, 148, 158, 0.15); color: var(--text-secondary); }
+    .status-badge.ready { background: rgba(63, 185, 80, 0.10); color: var(--color-success); border: 1px solid rgba(63, 185, 80, 0.3); }
+
+    /* Enhanced visual indicators for blocked vs ready tasks */
+    .task-status-icon {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .task-status-icon::before {
+      font-size: 10px;
+    }
+
+    .task-status-icon.ready::before {
+      content: '✓';
+      color: var(--color-success);
+    }
+
+    .task-status-icon.blocked::before {
+      content: '⛔';
+      color: var(--color-danger);
+    }
+
+    .task-status-icon.in-progress::before {
+      content: '⏳';
+      color: var(--color-info);
+    }
+
+    .task-status-icon.completed::before {
+      content: '✅';
+      color: var(--color-success);
+    }
+
+    /* Blocked task row styling */
+    .task-row-blocked {
+      background: rgba(248, 81, 73, 0.05) !important;
+      border-left: 2px solid var(--color-danger);
+    }
+
+    /* Ready task row styling */
+    .task-row-ready {
+      border-left: 2px solid var(--color-success);
+    }
+
+    /* Blocker indicator (shows what's blocking a task) */
+    .blocker-indicator {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 2px;
+      font-size: 9px;
+    }
+
+    .blocker-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 1px 5px;
+      background: rgba(248, 81, 73, 0.1);
+      border: 1px solid rgba(248, 81, 73, 0.2);
+      border-radius: 3px;
+      color: var(--color-danger);
+    }
+
+    .blocker-tag::before {
+      content: '←';
+      opacity: 0.6;
+    }
+
+    /* Pulse animation for blocked tasks */
+    @keyframes blocked-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .status-badge.blocked {
+      animation: blocked-pulse 2s ease-in-out infinite;
+    }
+
+    /* Mini Dependency Tree */
+    .dependency-tree {
+      margin: 8px 0;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      font-size: 11px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .dep-tree-node {
+      display: flex;
+      align-items: center;
+      padding: 3px 0;
+      margin-left: var(--tree-indent, 0px);
+    }
+
+    .dep-tree-connector {
+      color: var(--text-muted);
+      margin-right: 6px;
+      font-family: monospace;
+    }
+
+    .dep-tree-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+
+    .dep-tree-status.completed {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--color-success);
+    }
+
+    .dep-tree-status.in-progress {
+      background: rgba(88, 166, 255, 0.15);
+      color: var(--color-info);
+    }
+
+    .dep-tree-status.blocked {
+      background: rgba(248, 81, 73, 0.15);
+      color: var(--color-danger);
+    }
+
+    .dep-tree-status.ready {
+      background: rgba(139, 148, 158, 0.15);
+      color: var(--text-secondary);
+    }
+
+    .dep-tree-title {
+      color: var(--text-primary);
+      margin-left: 6px;
+      cursor: pointer;
+    }
+
+    .dep-tree-title:hover {
+      text-decoration: underline;
+    }
+
+    /* Blocked task expandable row */
+    .task-row-blocked {
+      cursor: pointer;
+    }
+
+    .task-row-blocked:hover {
+      background: rgba(248, 81, 73, 0.1) !important;
+    }
+
+    .blocked-task-detail {
+      display: none;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.3);
+      border-left: 2px solid var(--color-danger);
+      margin: 4px 0 8px 0;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .blocked-task-detail.expanded {
+      display: block;
+    }
+
+    .blocked-task-detail h4 {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .view-full-graph-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: rgba(88, 166, 255, 0.1);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      border-radius: 3px;
+      color: var(--color-info);
+      font-size: 10px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .view-full-graph-btn:hover {
+      background: rgba(88, 166, 255, 0.2);
+    }
 
     /* Score bar inline */
     .score-bar-inline {
@@ -5558,8 +5746,92 @@
       const task = session.currentTask || {};
       const queue = session.taskQueue || [];
 
-      // Fetch child tasks if current task has children
+      // Fetch all tasks including blocked tasks and dependency info
+      let blockedTasksHtml = '';
+      let readyTasksHtml = '';
       let childTasksHtml = '';
+      let allTasks = [];
+
+      try {
+        // Fetch both regular tasks and enriched blocked tasks in parallel
+        const [tasksRes, blockedRes] = await Promise.all([
+          fetch('/api/tasks'),
+          fetch('/api/tasks/blocked')
+        ]);
+
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json();
+          allTasks = tasksData.tasks || [];
+        }
+
+        // Use enriched blocked tasks API for better dependency info
+        if (blockedRes.ok) {
+          const blockedData = await blockedRes.json();
+          const enrichedBlocked = blockedData.blocked || [];
+
+          if (enrichedBlocked.length > 0) {
+            blockedTasksHtml = `
+              <div class="section-header" style="color: var(--color-danger);">⛔ Blocked (${enrichedBlocked.length})</div>
+              <div class="blocked-tasks-container">
+                ${enrichedBlocked.map((t, idx) => {
+                  // Build blockers display
+                  const blockerHtml = t.blockedBy.length > 0
+                    ? `<div class="blocker-indicator">${t.blockedBy.map(b => `<span class="blocker-tag" title="${escapeHtml(b.title)}">${escapeHtml((b.title || b.id).substring(0, 20))}</span>`).join('')}</div>`
+                    : '<span style="color:var(--text-muted)">No explicit blockers</span>';
+
+                  // Build mini dependency tree
+                  const depTreeHtml = renderMiniDependencyTree(t);
+
+                  return `
+                    <div class="blocked-task-card" data-task-id="${escapeHtml(t.id)}">
+                      <table class="data-table" style="margin-bottom: 0;">
+                        <tr class="task-row-blocked" onclick="toggleBlockedTaskDetail('${escapeHtml(t.id)}')">
+                          <td style="width: 50%;">
+                            <span class="task-status-icon blocked">${escapeHtml(t.title || t.id)}</span>
+                          </td>
+                          <td style="width: 20%;"><span class="status-badge blocked">Blocked</span></td>
+                          <td style="width: 30%;">${blockerHtml}</td>
+                        </tr>
+                      </table>
+                      <div id="blocked-detail-${escapeHtml(t.id)}" class="blocked-task-detail">
+                        <h4>Dependency Chain</h4>
+                        ${depTreeHtml}
+                        <button class="view-full-graph-btn" onclick="openTaskGraph('${escapeHtml(t.id)}')">
+                          View Full Graph
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `;
+          }
+        }
+
+        // Build ready tasks section
+        const readyTasks = allTasks.filter(t => t.status === 'ready');
+        if (readyTasks.length > 0) {
+          readyTasksHtml = `
+            <div class="section-header" style="color: var(--color-success);">✓ Ready (${readyTasks.length})</div>
+            <table class="data-table">
+              <tr><th>Task</th><th>Status</th><th>Priority</th></tr>
+              ${readyTasks.slice(0, 5).map(t => `
+                <tr class="task-row-ready">
+                  <td>
+                    <span class="task-status-icon ready">${escapeHtml(t.title || t.id)}</span>
+                  </td>
+                  <td><span class="status-badge ready">Ready</span></td>
+                  <td>${t.priority || 'normal'}</td>
+                </tr>
+              `).join('')}
+            </table>
+          `;
+        }
+      } catch (e) {
+        console.warn('Failed to fetch tasks:', e);
+      }
+
+      // Fetch child tasks if current task has children
       if (task.id) {
         try {
           const treeRes = await fetch('/api/tasks/tree');
@@ -5575,18 +5847,21 @@
             };
             const parentTask = findTask(treeData.children, task.id);
             if (parentTask && parentTask.children && parentTask.children.length > 0) {
-              const statusColors = { ready: '#4ade80', blocked: '#fbbf24', in_progress: '#3b82f6', completed: '#22c55e' };
               childTasksHtml = `
                 <div class="section-header">Subtasks (${parentTask.children.length})</div>
                 <table class="data-table">
                   <tr><th>Task</th><th>Status</th><th>Est</th></tr>
-                  ${parentTask.children.map(c => `
-                    <tr>
-                      <td>${escapeHtml(c.title || c.id)}</td>
-                      <td><span class="status-badge" style="background:${statusColors[c.status] || '#94a3b8'}">${c.status || 'unknown'}</span></td>
-                      <td>${c.estimate || '-'}</td>
-                    </tr>
-                  `).join('')}
+                  ${parentTask.children.map(c => {
+                    const statusClass = c.status || 'pending';
+                    const rowClass = statusClass === 'blocked' ? 'task-row-blocked' : (statusClass === 'ready' ? 'task-row-ready' : '');
+                    return `
+                      <tr class="${rowClass}">
+                        <td><span class="task-status-icon ${statusClass}">${escapeHtml(c.title || c.id)}</span></td>
+                        <td><span class="status-badge ${statusClass}">${c.status || 'unknown'}</span></td>
+                        <td>${c.estimate || '-'}</td>
+                      </tr>
+                    `;
+                  }).join('')}
                 </table>
               `;
             }
@@ -5600,9 +5875,11 @@
         <div class="section-header">Active</div>
         <table class="data-table">
           <tr><th>Task</th><th>Status</th></tr>
-          ${task.id ? `<tr><td>${escapeHtml(task.title || task.id)}</td><td><span class="status-badge in-progress">Active</span></td></tr>` : '<tr><td colspan="2" style="color:var(--text-muted)">No active task</td></tr>'}
+          ${task.id ? `<tr><td><span class="task-status-icon in-progress">${escapeHtml(task.title || task.id)}</span></td><td><span class="status-badge in-progress">Active</span></td></tr>` : '<tr><td colspan="2" style="color:var(--text-muted)">No active task</td></tr>'}
         </table>
         ${childTasksHtml}
+        ${blockedTasksHtml}
+        ${readyTasksHtml}
         <div class="section-header">Queue (${queue.length})</div>
         <table class="data-table">
           <tr><th>Task</th><th>Priority</th></tr>

@@ -247,6 +247,147 @@
       stroke: #fbbf24;
       stroke-width: 3;
     }
+
+    /* Blocked task highlighting */
+    .node.blocked-highlight {
+      stroke: #ef4444;
+      stroke-width: 4;
+      animation: pulse-blocked 1.5s infinite;
+    }
+
+    @keyframes pulse-blocked {
+      0%, 100% { filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.6)); }
+      50% { filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.9)); }
+    }
+
+    .link.blocking-chain {
+      stroke: #f97316 !important;
+      stroke-width: 3 !important;
+      stroke-opacity: 1 !important;
+      animation: pulse-link 1s infinite;
+    }
+
+    @keyframes pulse-link {
+      0%, 100% { stroke-opacity: 0.8; }
+      50% { stroke-opacity: 1; }
+    }
+
+    .node.dependency-highlight {
+      stroke: #f97316;
+      stroke-width: 3;
+      filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.7));
+    }
+
+    .node.dim {
+      opacity: 0.25;
+    }
+
+    .link.dim {
+      stroke-opacity: 0.1;
+    }
+
+    /* Blocked tasks panel */
+    .blocked-panel {
+      position: fixed;
+      top: 70px;
+      left: 20px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      max-width: 280px;
+      max-height: 400px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .blocked-panel.visible {
+      display: block;
+    }
+
+    .blocked-panel h4 {
+      margin-bottom: 10px;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .blocked-panel h4 .badge {
+      background: #ef4444;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+    .blocked-item {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-left: 3px solid #ef4444;
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .blocked-item:hover {
+      background: #1e293b;
+      border-color: #ef4444;
+    }
+
+    .blocked-item .title {
+      font-size: 12px;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .blocked-item .blocker {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .blocked-item .blocker-name {
+      color: #f97316;
+    }
+
+    /* Filter controls */
+    .filter-group {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #334155;
+    }
+
+    .filter-btn {
+      background: #334155;
+      border: none;
+      color: #e2e8f0;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      margin: 2px;
+      transition: all 0.2s;
+    }
+
+    .filter-btn:hover {
+      background: #475569;
+    }
+
+    .filter-btn.active {
+      background: #ef4444;
+      color: white;
+    }
+
+    .controls-expanded {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
   </style>
 </head>
 <body>
@@ -303,10 +444,19 @@
     </div>
   </div>
 
-  <div class="controls">
+  <div class="controls controls-expanded">
     <button onclick="resetZoom()">Reset View</button>
     <button onclick="toggleCriticalPath()">Show Critical Path</button>
     <button onclick="refreshData()">Refresh</button>
+    <div class="filter-group">
+      <button class="filter-btn" id="filter-blocked" onclick="toggleBlockedFilter()">Show Blocked Only</button>
+      <button class="filter-btn" id="toggle-panel" onclick="toggleBlockedPanel()">Blocked Panel</button>
+    </div>
+  </div>
+
+  <div class="blocked-panel" id="blocked-panel">
+    <h4>Blocked Tasks <span class="badge" id="blocked-badge">0</span></h4>
+    <div id="blocked-list"></div>
   </div>
 
   <script>
@@ -315,6 +465,10 @@
     let simulation = null;
     let showingCriticalPath = false;
     let criticalPath = [];
+    let showingBlockedOnly = false;
+    let selectedBlockedTask = null;
+    let blockedTasks = [];
+    let dependencyMap = new Map(); // Maps task ID to its dependencies
 
     // SVG setup
     const svg = d3.select('svg');
@@ -493,6 +647,10 @@
           .attr('x', d => d.x)
           .attr('y', d => d.y);
       });
+
+      // Build dependency map and update blocked tasks panel
+      buildDependencyMap();
+      updateBlockedTasksList();
     }
 
     function drag(simulation) {
@@ -542,8 +700,23 @@
 
     function handleNodeClick(event, d) {
       console.log('Clicked:', d);
-      // Could open edit modal or highlight dependencies
+      event.stopPropagation();
+
+      // If clicking on a blocked task, show its blocking chain
+      if (d.status === 'blocked') {
+        focusOnBlockedTask(d.id);
+      } else {
+        // Clear selection if clicking non-blocked node
+        selectedBlockedTask = null;
+        clearHighlights();
+      }
     }
+
+    // Clear selection when clicking on background
+    svg.on('click', () => {
+      selectedBlockedTask = null;
+      clearHighlights();
+    });
 
     function updateStats(stats) {
       if (!stats) return;
@@ -573,6 +746,190 @@
       showingCriticalPath = !showingCriticalPath;
       // This would highlight the critical path - for now just log
       console.log('Critical path:', criticalPath);
+    }
+
+    // Build dependency map for finding blocking chains
+    function buildDependencyMap() {
+      dependencyMap.clear();
+      for (const node of graphData.nodes) {
+        dependencyMap.set(node.id, { requires: [], blocks: [], blockedBy: [] });
+      }
+      for (const link of graphData.links) {
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+        if (link.type === 'requires') {
+          // sourceId is required BY targetId
+          dependencyMap.get(targetId)?.requires.push(sourceId);
+          dependencyMap.get(sourceId)?.blocks.push(targetId);
+        } else if (link.type === 'blocks') {
+          dependencyMap.get(sourceId)?.blocks.push(targetId);
+          dependencyMap.get(targetId)?.blockedBy.push(sourceId);
+        }
+      }
+    }
+
+    // Find the blocking chain for a task (what tasks are blocking it)
+    function findBlockingChain(taskId, visited = new Set()) {
+      if (visited.has(taskId)) return [];
+      visited.add(taskId);
+
+      const deps = dependencyMap.get(taskId);
+      if (!deps) return [taskId];
+
+      const chain = [taskId];
+      const node = graphData.nodes.find(n => n.id === taskId);
+
+      // Look at required tasks that aren't completed
+      for (const reqId of deps.requires) {
+        const reqNode = graphData.nodes.find(n => n.id === reqId);
+        if (reqNode && reqNode.status !== 'completed') {
+          chain.push(...findBlockingChain(reqId, visited));
+        }
+      }
+
+      return chain;
+    }
+
+    // Update blocked tasks list
+    function updateBlockedTasksList() {
+      blockedTasks = graphData.nodes.filter(n => n.status === 'blocked');
+      const listEl = document.getElementById('blocked-list');
+      const badgeEl = document.getElementById('blocked-badge');
+
+      badgeEl.textContent = blockedTasks.length;
+
+      if (blockedTasks.length === 0) {
+        listEl.innerHTML = '<div style="color: #94a3b8; font-size: 12px;">No blocked tasks</div>';
+        return;
+      }
+
+      listEl.innerHTML = blockedTasks.map(task => {
+        const deps = dependencyMap.get(task.id);
+        const blockers = (deps?.requires || [])
+          .map(id => graphData.nodes.find(n => n.id === id))
+          .filter(n => n && n.status !== 'completed');
+
+        const blockerText = blockers.length > 0
+          ? `Blocked by: <span class="blocker-name">${blockers.map(b => truncate(b.title, 15)).join(', ')}</span>`
+          : 'No active blockers';
+
+        return `
+          <div class="blocked-item" onclick="focusOnBlockedTask('${task.id}')"
+               onmouseenter="highlightBlockingChain('${task.id}')"
+               onmouseleave="clearHighlights()">
+            <div class="title">${task.title}</div>
+            <div class="blocker">${blockerText}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Focus on a blocked task and show its dependency chain
+    function focusOnBlockedTask(taskId) {
+      selectedBlockedTask = taskId;
+
+      // Find the node position
+      const node = graphData.nodes.find(n => n.id === taskId);
+      if (!node) return;
+
+      // Zoom to the node
+      const scale = 1.5;
+      const x = window.innerWidth / 2 - node.x * scale;
+      const y = window.innerHeight / 2 - node.y * scale;
+
+      svg.transition()
+        .duration(500)
+        .call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(scale));
+
+      // Highlight the blocking chain
+      highlightBlockingChain(taskId);
+    }
+
+    // Highlight the blocking chain for a task
+    function highlightBlockingChain(taskId) {
+      const chain = findBlockingChain(taskId);
+      const chainSet = new Set(chain);
+
+      // Dim all nodes and links not in chain
+      container.selectAll('circle.node')
+        .classed('dim', d => !chainSet.has(d.id))
+        .classed('blocked-highlight', d => d.id === taskId)
+        .classed('dependency-highlight', d => chainSet.has(d.id) && d.id !== taskId);
+
+      container.selectAll('line.link')
+        .classed('dim', d => {
+          const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
+          const targetId = typeof d.target === 'object' ? d.target.id : d.target;
+          return !chainSet.has(sourceId) || !chainSet.has(targetId);
+        })
+        .classed('blocking-chain', d => {
+          const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
+          const targetId = typeof d.target === 'object' ? d.target.id : d.target;
+          return chainSet.has(sourceId) && chainSet.has(targetId);
+        });
+
+      container.selectAll('text.node-label')
+        .classed('dim', d => !chainSet.has(d.id));
+    }
+
+    // Clear all highlights
+    function clearHighlights() {
+      if (selectedBlockedTask) return; // Keep highlights if task is selected
+
+      container.selectAll('circle.node')
+        .classed('dim', false)
+        .classed('blocked-highlight', false)
+        .classed('dependency-highlight', false);
+
+      container.selectAll('line.link')
+        .classed('dim', false)
+        .classed('blocking-chain', false);
+
+      container.selectAll('text.node-label')
+        .classed('dim', false);
+    }
+
+    // Toggle blocked tasks filter
+    function toggleBlockedFilter() {
+      showingBlockedOnly = !showingBlockedOnly;
+      const btn = document.getElementById('filter-blocked');
+      btn.classList.toggle('active', showingBlockedOnly);
+
+      if (showingBlockedOnly) {
+        // Show only blocked tasks and their dependencies
+        const blockedIds = new Set(blockedTasks.map(t => t.id));
+        const relevantIds = new Set(blockedIds);
+
+        // Add blocking dependencies
+        for (const id of blockedIds) {
+          const chain = findBlockingChain(id);
+          chain.forEach(cid => relevantIds.add(cid));
+        }
+
+        container.selectAll('circle.node')
+          .classed('dim', d => !relevantIds.has(d.id));
+
+        container.selectAll('line.link')
+          .classed('dim', d => {
+            const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
+            const targetId = typeof d.target === 'object' ? d.target.id : d.target;
+            return !relevantIds.has(sourceId) || !relevantIds.has(targetId);
+          });
+
+        container.selectAll('text.node-label')
+          .classed('dim', d => !relevantIds.has(d.id));
+      } else {
+        clearHighlights();
+        selectedBlockedTask = null;
+      }
+    }
+
+    // Toggle blocked panel visibility
+    function toggleBlockedPanel() {
+      const panel = document.getElementById('blocked-panel');
+      const btn = document.getElementById('toggle-panel');
+      panel.classList.toggle('visible');
+      btn.classList.toggle('active', panel.classList.contains('visible'));
     }
 
     function refreshData() {

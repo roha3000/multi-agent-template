@@ -1,8 +1,8 @@
 {
   "_concurrency": {
-    "version": 118,
-    "lastModifiedBy": 478,
-    "lastModifiedAt": "2026-01-05T05:28:51.022Z"
+    "version": 119,
+    "lastModifiedBy": 895,
+    "lastModifiedAt": "2026-01-07T06:13:18.287Z"
   },
   "version": "1.1.0",
   "project": {
@@ -20,13 +20,12 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "dashboard-blocked-tasks-view"
+        "dashboard-tasks-tab-claims"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
-        "dashboard-tasks-tab-claims",
         "dashboard-hierarchy-child-details"
       ]
     },
@@ -43,12 +42,12 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "dashboard-blocked-tasks-view",
         "dashboard-audit-remaining-fixes",
         "dashboard-comprehensive-audit-fixes",
         "session-end-hook-reliability",
         "framework-phase-gate-audit",
-        "dashboard-v4-redesign",
-        "cli-session-activity-logs"
+        "dashboard-v4-redesign"
       ]
     }
   },
@@ -104,17 +103,6 @@
       "created": "2025-12-19T04:07:23.583Z",
       "updated": "2025-12-28T03:00:00.000Z"
     },
-    "cli-session-activity-logs": {
-      "id": "cli-session-activity-logs",
-      "title": "CLI Session Activity Logs in Dashboard",
-      "description": "Display tool calls, file edits, and commands for CLI sessions in the dashboard Logs tab. Research co...",
-      "phase": "implementation",
-      "status": "completed",
-      "completedAt": "2026-01-02T08:00:00.000Z",
-      "completionNotes": "Implemented all 4 phases: API endpoint, dashboard UI update, SSE streaming, E2E tests. 9 new tests added.",
-      "childTaskIds": [],
-      "parentTaskId": null
-    },
     "dashboard-blocked-tasks-view": {
       "parentTaskId": null,
       "childTaskIds": [],
@@ -148,10 +136,13 @@
         "Clicking blocked task shows full dependency chain",
         "Integration with existing task-graph.html visualization"
       ],
-      "status": "ready",
+      "status": "completed",
       "assignee": null,
       "created": "2025-12-28T02:35:00.000Z",
-      "updated": "2025-12-28T02:35:00.000Z"
+      "updated": "2026-01-17T23:30:00.000Z",
+      "started": "2026-01-07T06:13:18.276Z",
+      "completedAt": "2026-01-17T23:30:00.000Z",
+      "completionNotes": "Session 101: Added /api/tasks/blocked endpoint with enriched dependency info, /api/tasks/:taskId/dependencies for per-task graphs. Dashboard shows blocked tasks with visual indicators (red border, pulse animation), blocker tags, expandable dependency tree, and 'View Full Graph' button. Task-graph.html enhanced with blocked panel, blocking chain highlighting, and focus-on-click. All 6 acceptance criteria met. 3027 tests passing."
     },
     "auto-delegation-phase1-hook": {
       "id": "auto-delegation-phase1-hook",
@@ -517,6 +508,6 @@
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2026-01-06T05:53:03.576Z"
+    "lastArchived": "2026-01-07T06:13:18.287Z"
   }
 }

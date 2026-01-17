@@ -1497,6 +1497,7 @@ app.get('/api/tasks/dot', (req, res) => {
 });
 
 // Get all tasks - supports ?projectPath= query param for per-project isolation
+// Returns ready tasks + blocked tasks so dashboard can show both
 app.get('/api/tasks', (req, res) => {
   const projectPath = req.query.projectPath;
   const tm = projectPath ? getTaskManagerForProject(projectPath) : taskManager;
@@ -1505,13 +1506,32 @@ app.get('/api/tasks', (req, res) => {
     // If no TaskManager, return empty data instead of error (more graceful)
     return res.json({
       tasks: [],
-      stats: { total: 0, now: 0, next: 0, later: 0, completed: 0, ready: 0, inProgress: 0 },
+      blockedTasks: [],
+      stats: { total: 0, now: 0, next: 0, later: 0, completed: 0, ready: 0, inProgress: 0, blocked: 0 },
       projectPath: projectPath || defaultProjectPath
     });
   }
+
+  // Get ready tasks (ready + in_progress)
+  const readyTasks = tm.getReadyTasks({ backlog: 'all' });
+
+  // Get blocked tasks separately so dashboard can show them
+  const blockedTasks = tm.getBlockedTasks();
+
+  // Combine for backwards compatibility but also provide separate arrays
+  const allTasks = [...readyTasks, ...blockedTasks];
+
+  const stats = tm.getStats();
+  // Add blocked count to stats if not present
+  if (stats && typeof stats.blocked === 'undefined') {
+    stats.blocked = blockedTasks.length;
+  }
+
   res.json({
-    tasks: tm.getReadyTasks({ backlog: 'all' }),
-    stats: tm.getStats(),
+    tasks: allTasks,
+    readyTasks,
+    blockedTasks,
+    stats,
     projectPath: projectPath || defaultProjectPath
   });
 });
@@ -1542,6 +1562,174 @@ app.post('/api/tasks/:id/status', (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Get blocked tasks with their dependency information
+app.get('/api/tasks/blocked', (req, res) => {
+  const projectPath = req.query.projectPath;
+  const tm = projectPath ? getTaskManagerForProject(projectPath) : taskManager;
+
+  if (!tm) {
+    return res.json({ blocked: [], count: 0 });
+  }
+
+  try {
+    // Get all tasks and filter for blocked ones
+    const allTasks = tm.getAllTasks();
+    const blockedTasks = allTasks.filter(t => t.status === 'blocked');
+
+    // Enrich each blocked task with dependency info
+    const enrichedBlocked = blockedTasks.map(task => {
+      // Find what's blocking this task (incomplete requirements)
+      const blockedBy = [];
+      if (task.depends?.requires) {
+        for (const reqId of task.depends.requires) {
+          const reqTask = tm.getTask(reqId);
+          if (reqTask && reqTask.status !== 'completed') {
+            blockedBy.push({
+              id: reqTask.id,
+              title: reqTask.title,
+              status: reqTask.status,
+              phase: reqTask.phase
+            });
+          }
+        }
+      }
+
+      // Find tasks explicitly blocking via depends.blocks
+      for (const otherTask of allTasks) {
+        if (otherTask.depends?.blocks?.includes(task.id) && otherTask.status !== 'completed') {
+          if (!blockedBy.find(b => b.id === otherTask.id)) {
+            blockedBy.push({
+              id: otherTask.id,
+              title: otherTask.title,
+              status: otherTask.status,
+              phase: otherTask.phase
+            });
+          }
+        }
+      }
+
+      // Get full dependency chain (ancestors)
+      const dependencyChain = [];
+      const visited = new Set();
+      const buildChain = (taskId) => {
+        if (visited.has(taskId)) return;
+        visited.add(taskId);
+        const t = tm.getTask(taskId);
+        if (t?.depends?.requires) {
+          for (const reqId of t.depends.requires) {
+            const reqTask = tm.getTask(reqId);
+            if (reqTask) {
+              dependencyChain.push({
+                id: reqTask.id,
+                title: reqTask.title,
+                status: reqTask.status,
+                depth: visited.size
+              });
+              buildChain(reqId);
+            }
+          }
+        }
+      };
+      buildChain(task.id);
+
+      return {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        phase: task.phase,
+        priority: task.priority,
+        estimate: task.estimate,
+        tags: task.tags || [],
+        blockedBy,
+        dependencyChain,
+        blockingCount: blockedBy.length
+      };
+    });
+
+    // Sort by blocking count (most blocked first) then by priority
+    const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    enrichedBlocked.sort((a, b) => {
+      if (a.blockingCount !== b.blockingCount) {
+        return a.blockingCount - b.blockingCount; // Fewer blockers first (easier to unblock)
+      }
+      return (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2);
+    });
+
+    res.json({
+      blocked: enrichedBlocked,
+      count: enrichedBlocked.length,
+      projectPath: projectPath || defaultProjectPath
+    });
+  } catch (err) {
+    console.error('[TASKS] Error getting blocked tasks:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get dependency graph for a specific task
+app.get('/api/tasks/:taskId/dependencies', (req, res) => {
+  const { taskId } = req.params;
+  const projectPath = req.query.projectPath;
+  const tm = projectPath ? getTaskManagerForProject(projectPath) : taskManager;
+
+  if (!tm) {
+    return res.status(503).json({ error: 'TaskManager not initialized' });
+  }
+
+  try {
+    const task = tm.getTask(taskId);
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const depGraph = tm.getDependencyGraph(taskId);
+
+    // Build a tree structure for visualization
+    const buildTree = (rootTask, depth = 0, visited = new Set()) => {
+      if (visited.has(rootTask.id) || depth > 5) {
+        return { id: rootTask.id, title: rootTask.title, status: rootTask.status, circular: true };
+      }
+      visited.add(rootTask.id);
+
+      const children = [];
+      // Add required tasks as children
+      if (rootTask.depends?.requires) {
+        for (const reqId of rootTask.depends.requires) {
+          const reqTask = tm.getTask(reqId);
+          if (reqTask) {
+            children.push(buildTree(reqTask, depth + 1, new Set(visited)));
+          }
+        }
+      }
+
+      return {
+        id: rootTask.id,
+        title: rootTask.title,
+        status: rootTask.status,
+        phase: rootTask.phase,
+        priority: rootTask.priority,
+        children: children.length > 0 ? children : undefined
+      };
+    };
+
+    res.json({
+      task: {
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        phase: task.phase,
+        priority: task.priority,
+        description: task.description
+      },
+      graph: depGraph,
+      tree: buildTree(task)
+    });
+  } catch (err) {
+    console.error('[TASKS] Error getting task dependencies:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
