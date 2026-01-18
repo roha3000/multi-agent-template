@@ -13,6 +13,15 @@
 const fs = require('fs');
 const path = require('path');
 
+// Lazy load to avoid circular dependencies
+let QualityGateEnforcer = null;
+function getQualityGateEnforcer() {
+  if (!QualityGateEnforcer) {
+    QualityGateEnforcer = require('./quality-gate-enforcer');
+  }
+  return QualityGateEnforcer;
+}
+
 /**
  * Phase patterns with keywords, patterns, and weights
  */
@@ -231,9 +240,38 @@ class PhaseInference {
   /**
    * Creates a PhaseInference instance
    * @param {Object} stateManager - StateManager instance for context
+   * @param {Object} options - Optional configuration
+   * @param {string} options.projectRoot - Project root path for quality gate enforcement
    */
-  constructor(stateManager = null) {
+  constructor(stateManager = null, options = {}) {
     this.stateManager = stateManager;
+    this.projectRoot = options.projectRoot || null;
+    this.gateEnforcer = null;
+
+    // Initialize quality gate enforcer if projectRoot is available
+    if (this.projectRoot) {
+      this._initializeEnforcer();
+    }
+  }
+
+  /**
+   * Initialize the quality gate enforcer
+   * @private
+   */
+  _initializeEnforcer() {
+    if (!this.gateEnforcer && this.projectRoot) {
+      const Enforcer = getQualityGateEnforcer();
+      this.gateEnforcer = new Enforcer(this.projectRoot);
+    }
+  }
+
+  /**
+   * Set the project root and initialize enforcer
+   * @param {string} projectRoot - Project root path
+   */
+  setProjectRoot(projectRoot) {
+    this.projectRoot = projectRoot;
+    this._initializeEnforcer();
   }
 
   /**
@@ -392,6 +430,97 @@ class PhaseInference {
     // Check if transition is in valid transitions map
     const validNext = VALID_TRANSITIONS[fromPhase] || [];
     return validNext.includes(toPhase);
+  }
+
+  /**
+   * Validates phase transition with quality gate enforcement
+   * @param {string} fromPhase - Current phase
+   * @param {string} toPhase - Target phase
+   * @param {Object} options - Validation options
+   * @param {number} options.qualityScore - Quality score from phase review
+   * @param {boolean} options.force - Force transition even if gates fail
+   * @param {string} options.forceReason - Required reason when forcing
+   * @param {string} options.actor - Who is requesting the transition
+   * @returns {Object} Detailed validation result
+   */
+  validateTransitionWithGates(fromPhase, toPhase, options = {}) {
+    const result = {
+      valid: true,
+      reason: '',
+      errors: [],
+      warnings: [],
+      metrics: {},
+      canForce: true,
+      sequenceValid: true,
+      gatesValid: true
+    };
+
+    // 1. Check phase sequence validity
+    if (EMERGENCY_PHASES.includes(toPhase)) {
+      result.reason = 'Emergency phase access allowed';
+    } else {
+      const validNext = VALID_TRANSITIONS[fromPhase] || [];
+      if (!validNext.includes(toPhase)) {
+        result.valid = false;
+        result.sequenceValid = false;
+        result.reason = `Invalid sequence: ${fromPhase} cannot transition to ${toPhase}`;
+        result.errors.push(result.reason);
+        result.validTransitions = validNext;
+        return result;
+      }
+    }
+
+    // 2. Check quality gates for gated phases
+    const GATED_PHASES = ['implementation', 'validation'];
+    if (GATED_PHASES.includes(toPhase) && this.gateEnforcer) {
+      const gateResult = this.gateEnforcer.validateTransition(
+        fromPhase,
+        toPhase,
+        options.qualityScore || null
+      );
+
+      result.metrics = gateResult.metrics;
+      result.requirements = gateResult.requirements;
+
+      if (!gateResult.valid) {
+        result.gatesValid = false;
+        result.errors.push(...gateResult.errors);
+        result.warnings.push(...(gateResult.warnings || []));
+
+        // Handle force bypass
+        if (options.force) {
+          if (!options.forceReason) {
+            result.valid = false;
+            result.reason = 'Force override requires forceReason parameter';
+            result.errors.push(result.reason);
+            return result;
+          }
+
+          // Log the forced bypass
+          this.gateEnforcer.recordForcedBypass({
+            fromPhase,
+            toPhase,
+            reason: options.forceReason,
+            actor: options.actor || 'unknown',
+            errors: gateResult.errors,
+            metrics: gateResult.metrics
+          });
+
+          result.warnings.push(`Quality gate BYPASSED: ${options.forceReason}`);
+          result.forced = true;
+          result.reason = `Quality gate bypassed with documented reason`;
+        } else {
+          result.valid = false;
+          result.reason = gateResult.reason;
+        }
+      }
+    }
+
+    if (result.valid && !result.reason) {
+      result.reason = `Valid transition: ${fromPhase} → ${toPhase}`;
+    }
+
+    return result;
   }
 
   /**

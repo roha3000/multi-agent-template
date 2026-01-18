@@ -28,6 +28,7 @@ const {
   generateImprovementGuidance,
 } = require('./quality-gates');
 const TaskManager = require('./.claude/core/task-manager');
+const QualityGateEnforcer = require('./.claude/core/quality-gate-enforcer');
 const MemoryStore = require('./.claude/core/memory-store');
 const NotificationService = require('./.claude/core/notification-service');
 const { getSessionRegistry } = require('./.claude/core/session-registry');
@@ -178,6 +179,9 @@ let notificationService = null;
 
 // SwarmController (initialized in main)
 let swarmController = null;
+
+// QualityGateEnforcer (initialized in initializeTaskManagement)
+let qualityGateEnforcer = null;
 
 // Command Center Integration (Session Registry + Usage Tracking)
 let sessionRegistry = null;
@@ -724,7 +728,9 @@ function runDelegatedSubtask(subtask, parentTask, index, total) {
         sessionType: 'autonomous',
         autonomous: true,
         currentTask: subtask.parameters.description,
-        parentSessionId: registeredSessionId
+        parentSessionId: registeredSessionId,
+        // Add subtaskLogFile so dashboard can read child session output
+        subtaskLogFile: logPath
       });
 
       const registerRes = await fetch(`http://localhost:3033/api/sessions/register`, {
@@ -1275,6 +1281,15 @@ function initializeTaskManagement() {
       // Continue without swarm - non-critical
     }
 
+    // Initialize QualityGateEnforcer for phase transition validation
+    try {
+      qualityGateEnforcer = new QualityGateEnforcer(CONFIG.projectPath);
+      console.log(`[QUALITY] QualityGateEnforcer initialized`);
+    } catch (qgErr) {
+      console.warn(`[QUALITY] QualityGateEnforcer initialization warning: ${qgErr.message}`);
+      // Continue without quality gates - non-critical
+    }
+
     return true;
   } catch (err) {
     console.error('[TASK] Failed to initialize TaskManager:', err.message);
@@ -1315,7 +1330,7 @@ async function main() {
   }
 
   // Initialize Command Center (Session Registry + Usage Tracking)
-  const commandCenterEnabled = initializeCommandCenter();
+  const commandCenterEnabled = await initializeCommandCenter();
   if (commandCenterEnabled) {
     console.log('[COMMAND CENTER] Enabled - session tracking active\n');
   }
@@ -1764,6 +1779,39 @@ async function advancePhase() {
   const iterations = state.phaseIteration;
 
   console.log(`\n[PHASE] Advancing: ${completedPhase} → ${nextPhase || 'COMPLETE'}`);
+
+  // Validate quality gates before transition (only for gated phases)
+  const GATED_PHASES = ['implement', 'test', 'validation'];
+  if (qualityGateEnforcer && nextPhase && GATED_PHASES.includes(nextPhase)) {
+    console.log(`[QUALITY] Validating quality gates for transition to ${nextPhase}...`);
+
+    const gateResult = qualityGateEnforcer.validateTransition(
+      completedPhase,
+      nextPhase,
+      score
+    );
+
+    if (!gateResult.valid) {
+      console.warn(`[QUALITY] Quality gate FAILED for ${nextPhase}:`);
+      gateResult.errors.forEach(err => console.warn(`  - ${err}`));
+
+      // Log quality gate failure to dashboard
+      logToDashboard(
+        `Quality gate failed: ${gateResult.errors.join('; ')}`,
+        'WARN',
+        'quality-gate'
+      );
+
+      // Still allow transition but with warning (orchestrator manages its own quality via quality-scores.json)
+      console.warn(`[QUALITY] Proceeding with transition - orchestrator quality gates take precedence`);
+    } else {
+      console.log(`[QUALITY] Quality gate PASSED for ${nextPhase}`);
+    }
+
+    if (gateResult.warnings && gateResult.warnings.length > 0) {
+      gateResult.warnings.forEach(warn => console.warn(`[QUALITY] Warning: ${warn}`));
+    }
+  }
 
   // Log phase transition to dashboard
   logToDashboard(

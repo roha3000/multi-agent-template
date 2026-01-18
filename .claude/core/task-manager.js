@@ -1076,8 +1076,19 @@ class TaskManager extends EventEmitter {
 
     for (const requiredId of task.depends.requires) {
       const required = this.getTask(requiredId);
-      if (!required || required.status !== 'completed') {
-        return false;
+      if (required) {
+        // Task exists in tasks object - check its status
+        if (required.status !== 'completed') {
+          return false;
+        }
+      } else {
+        // Task not in tasks object - check if it's in the completed backlog tier
+        // (archived tasks are removed from tasks object but kept in completed tier)
+        const completedTier = this.tasks?.backlog?.completed?.tasks || [];
+        if (!completedTier.includes(requiredId)) {
+          return false; // Not found anywhere - dependency not met
+        }
+        // Task is in completed tier - requirement is met, continue checking others
       }
     }
 

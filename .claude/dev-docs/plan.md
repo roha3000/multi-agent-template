@@ -1,28 +1,36 @@
 # Current Plan
-**Phase**: VALIDATION
-**Status**: Session 100 Complete - Dashboard Audit 100% Done
+**Phase**: IMPLEMENTATION
+**Status**: Framework Merge - Session Fixes Complete
 
 ---
 
-## Session 100 Summary
+## Session 103: Dashboard Session Fixes
 
-| Task | Status |
-|------|--------|
-| Issue 1.3: ORCHESTRATOR_SESSION env var | Complete |
-| Issue 1.4: Atomic sessionType/autonomous | Complete |
+### Completed
 
-**Tests**: 3027 passing (+29 new)
+| Task | Commit | Status |
+|------|--------|--------|
+| `merge-dashboard-session-fixes` | `5c771fb` | **DONE** - 6 acceptance criteria met |
 
-### All Dashboard Audit Issues Fixed
-- 1.1, 1.3, 1.4, 2.1, 2.2, 2.3, 4.2, 4.3, 5.1, 5.3
+**Changes Made**:
+- Added `subtaskLogFile` to child session registration in orchestrator
+- Added `subtaskLogFile` field to session-registry.js
+- Added `subtaskLogFile` to global-context-manager.js registration endpoint
+- Fixed project name preservation (won't overwrite with 'unknown')
+- Added stale timestamp protection in session updates
+- Fixed string task format handling in dashboard (3 locations)
+
+**Tests**: 3056 passing (no regressions)
 
 ---
 
-## NOW Queue
+## NOW Queue (Remaining)
 
-| Task | Priority | Status |
-|------|----------|--------|
-| `dashboard-blocked-tasks-view` | medium | ready |
+| Task | Priority | Commit | Est |
+|------|----------|--------|-----|
+| `merge-dashboard-enhancements` | LOW | `2fac868` | 1h |
+
+---
 
 ## NEXT Queue
 
@@ -36,6 +44,6 @@
 ## Quick Commands
 
 ```bash
+npm test -- --silent              # Run tests (3056 passing)
 node global-context-manager.js    # Start dashboard
-npm test -- --silent              # Run tests
 ```

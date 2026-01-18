@@ -767,6 +767,8 @@ class SessionRegistry extends EventEmitter {
       // Log session ID - maps to the actual log file (session-N.log)
       // This may differ from the registry ID when multiple orchestrators run
       logSessionId: sessionData.logSessionId || null,
+      // Subtask log file path - for autonomous child sessions with their own log files
+      subtaskLogFile: sessionData.subtaskLogFile || null,
       // Detail view fields
       acceptanceCriteria: sessionData.acceptanceCriteria || [],
       taskQueue: sessionData.taskQueue || [],
@@ -890,6 +892,30 @@ class SessionRegistry extends EventEmitter {
     // ISSUE 1.4 FIX: Ensure sessionType and autonomous are always consistent
     // This enforces atomic consistency between the two interdependent fields
     const normalizedUpdates = this._enforceSessionTypeConsistency(updates);
+
+    // FIX: Protect project field from being overwritten with 'unknown'
+    // If the existing session has a valid project name, preserve it
+    if (normalizedUpdates.project === 'unknown' && session.project && session.project !== 'unknown') {
+      delete normalizedUpdates.project;
+      log.debug('Preserved existing project name, ignoring update to unknown');
+    }
+
+    // FIX: Protect against stale timestamp updates
+    // If the update includes a lastUpdate timestamp that's older than current, skip non-essential updates
+    if (normalizedUpdates.lastUpdate) {
+      const incomingTime = new Date(normalizedUpdates.lastUpdate).getTime();
+      const currentTime = session.lastUpdate ? new Date(session.lastUpdate).getTime() : 0;
+      if (incomingTime < currentTime) {
+        log.debug('Skipping stale update', { id, incomingTime, currentTime });
+        // Only allow essential updates (status changes) from stale timestamps
+        const essentialFields = ['status', 'currentTask'];
+        for (const key of Object.keys(normalizedUpdates)) {
+          if (!essentialFields.includes(key)) {
+            delete normalizedUpdates[key];
+          }
+        }
+      }
+    }
 
     const updatedSession = {
       ...session,

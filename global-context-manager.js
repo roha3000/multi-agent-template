@@ -2346,7 +2346,7 @@ app.get('/api/sessions/:id/hierarchy', (req, res) => {
 // Register a new session (called by orchestrator on startup or SessionStart hook)
 // Issues 1.1, 2.1: Uses atomic registerWithDeduplication to prevent TOCTOU races
 app.post('/api/sessions/register', async (req, res) => {
-  const { project, path: projectPath, currentTask, status, sessionType, autonomous, orchestratorInfo, logSessionId, claudeSessionId, parentSessionId, existingSessionId } = req.body;
+  const { project, path: projectPath, currentTask, status, sessionType, autonomous, orchestratorInfo, logSessionId, claudeSessionId, parentSessionId, existingSessionId, subtaskLogFile } = req.body;
 
   // Priority 0: If existingSessionId is provided (orchestrator reconnecting after disconnect),
   // verify it exists and update it instead of creating new session
@@ -2521,6 +2521,8 @@ app.post('/api/sessions/register', async (req, res) => {
     logSessionId: logSessionId || null,
     claudeSessionId: claudeSessionId || null,
     parentSessionId: parentSessionId || null,
+    // Subtask log file path - for autonomous child sessions
+    subtaskLogFile: subtaskLogFile || null,
     ...initialMetrics
   });
 

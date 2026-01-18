@@ -20,12 +20,13 @@
     "now": {
       "description": "Current sprint tasks",
       "tasks": [
-        "dashboard-tasks-tab-claims"
+        "merge-dashboard-enhancements"
       ]
     },
     "next": {
       "description": "Next priority after now is complete",
       "tasks": [
+        "dashboard-tasks-tab-claims",
         "dashboard-hierarchy-child-details"
       ]
     },
@@ -42,34 +43,16 @@
     "completed": {
       "description": "Completed tasks (archived)",
       "tasks": [
+        "merge-dashboard-session-fixes",
+        "merge-quality-gate-enforcer",
+        "merge-task-manager-archived-deps",
+        "merge-orchestrator-race-fix",
         "dashboard-blocked-tasks-view",
-        "dashboard-audit-remaining-fixes",
-        "dashboard-comprehensive-audit-fixes",
-        "session-end-hook-reliability",
-        "framework-phase-gate-audit",
-        "dashboard-v4-redesign"
+        "dashboard-audit-remaining-fixes"
       ]
     }
   },
   "tasks": {
-    "dashboard-v4-redesign": {
-      "id": "dashboard-v4-redesign",
-      "title": "Dashboard v4 - Data-Dense Redesign",
-      "description": "Complete redesign of Fleet Dashboard from card-based to data-dense, table-driven layout. Optimized f...",
-      "phase": "implementation",
-      "status": "completed",
-      "completedAt": "2026-01-02T12:00:00.000Z",
-      "completionNotes": "All 6 subtasks complete. 2-panel layout, 5 tabs, CLI/AUTO badges, session launcher, keyboard nav. 29 E2E tests passing.",
-      "childTaskIds": [
-        "dashboard-v4-layout",
-        "dashboard-v4-sessions",
-        "dashboard-v4-tabs",
-        "dashboard-v4-backend",
-        "dashboard-v4-launcher",
-        "dashboard-v4-testing"
-      ],
-      "parentTaskId": null
-    },
     "add-model-pricing": {
       "parentTaskId": null,
       "childTaskIds": [],
@@ -104,45 +87,15 @@
       "updated": "2025-12-28T03:00:00.000Z"
     },
     "dashboard-blocked-tasks-view": {
-      "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "decomposition": null,
       "id": "dashboard-blocked-tasks-view",
       "title": "Show Blocked Tasks and Dependency Graph in Dashboard",
-      "description": "Dashboard only shows ready/in-progress tasks, hiding blocked tasks completely. Should show blocked tasks with their dependencies so users understand what's preventing progress.",
+      "description": "Dashboard only shows ready/in-progress tasks, hiding blocked tasks completely. Should show blocked t...",
       "phase": "implementation",
-      "priority": "medium",
-      "estimate": "2h",
-      "tags": [
-        "dashboard",
-        "ux",
-        "task-management",
-        "visualization"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "dashboard-v2-redesign"
-        ]
-      },
-      "acceptance": [
-        "Dashboard shows blocked tasks (not just ready/in-progress)",
-        "Blocked tasks display what's blocking them (dependency names)",
-        "Visual indicator distinguishes blocked vs ready tasks",
-        "Optional: Mini dependency graph or tree view",
-        "Clicking blocked task shows full dependency chain",
-        "Integration with existing task-graph.html visualization"
-      ],
       "status": "completed",
-      "assignee": null,
-      "created": "2025-12-28T02:35:00.000Z",
-      "updated": "2026-01-17T23:30:00.000Z",
-      "started": "2026-01-07T06:13:18.276Z",
       "completedAt": "2026-01-17T23:30:00.000Z",
-      "completionNotes": "Session 101: Added /api/tasks/blocked endpoint with enriched dependency info, /api/tasks/:taskId/dependencies for per-task graphs. Dashboard shows blocked tasks with visual indicators (red border, pulse animation), blocker tags, expandable dependency tree, and 'View Full Graph' button. Task-graph.html enhanced with blocked panel, blocking chain highlighting, and focus-on-click. All 6 acceptance criteria met. 3027 tests passing."
+      "completionNotes": "Session 101: Added /api/tasks/blocked endpoint with enriched dependency info, /api/tasks/:taskId/dependencies for per-task graphs. Dashboard shows blocked tasks with visual indicators (red border, pulse animation), blocker tags, expandable dependency tree, and 'View Full Graph' button. Task-graph.html enhanced with blocked panel, blocking chain highlighting, and focus-on-click. All 6 acceptance criteria met. 3027 tests passing.",
+      "childTaskIds": [],
+      "parentTaskId": null
     },
     "auto-delegation-phase1-hook": {
       "id": "auto-delegation-phase1-hook",
@@ -413,101 +366,185 @@
     "dashboard-comprehensive-audit-fixes": {
       "id": "dashboard-comprehensive-audit-fixes",
       "title": "Dashboard Comprehensive Audit - Fix Critical Issues",
-      "description": "Session 96 code review audit identified 23 issues (9 critical, 9 high). Session 97 implemented critical path fixes using 6-agent parallel swarm.",
+      "description": "Session 96 code review audit identified 23 issues (9 critical, 9 high). Session 97 implemented criti...",
       "phase": "implementation",
-      "priority": "high",
-      "estimate": "16h",
-      "tags": [
-        "dashboard",
-        "audit",
-        "bug-fix",
-        "session-management",
-        "sse",
-        "multi-project"
-      ],
-      "depends": {
-        "blocks": [],
-        "requires": [],
-        "related": [
-          "dashboard-validation-audit"
-        ]
-      },
-      "acceptance": [
-        "Add await to initializeCommandCenter() in autonomous-orchestrator.js:1312",
-        "Add addEventListener('log', ...) to dashboard SSE handler",
-        "Add session:deregistered to WebSocket broadcast",
-        "Always set hierarchyInfo when registering child sessions",
-        "Add mutex/lock around claudeSessionId registration to prevent duplicates",
-        "Unify project key system between GlobalContextTracker and SessionRegistry",
-        "Live parallel testing validates fixes work in real scenarios",
-        "No duplicate CLI sessions when running multiple parallel sessions",
-        "Autonomous session logs display correctly in dashboard",
-        "Hierarchy displays correctly when child agents are active"
-      ],
       "status": "completed",
-      "assignee": null,
-      "created": "2026-01-06T05:50:00.000Z",
-      "updated": "2026-01-06T19:45:00.000Z",
       "completedAt": "2026-01-06T19:45:00.000Z",
       "completionNotes": "Session 97: 6-agent parallel swarm fixed critical path issues. Applied: (1) await initializeCommandCenter() at line 892, (2) addEventListener('log') for SSE named events at line 5964, (3) hierarchy:childAdded SSE broadcast at line 3666, (4) project-key-utils.js translation layer (120 lines). 11 new E2E tests added. 2962 tests passing.",
-      "parentTaskId": null,
       "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "auditSource": "Session 96 - 6-agent parallel code review swarm"
+      "parentTaskId": null
     },
     "dashboard-audit-remaining-fixes": {
       "id": "dashboard-audit-remaining-fixes",
       "title": "Dashboard Audit - Remaining Issues (Race Conditions, SSE, Multi-Project)",
-      "description": "Session 97 fixed critical path (3 items). This task covers remaining 10 verified issues from comprehensive audit: race conditions in session registration, SSE event completeness, multi-project isolation, and cleanup policies.",
+      "description": "Session 97 fixed critical path (3 items). This task covers remaining 10 verified issues from compreh...",
+      "phase": "implementation",
+      "status": "completed",
+      "completedAt": "2026-01-06T20:50:00.000Z",
+      "completionNotes": "Sessions 99-100: All 10 issues fixed. Session 99 fixed 8 issues (1.1, 2.1-2.3, 4.2-4.3, 5.1, 5.3). Session 100 fixed remaining 2: (1.3) ORCHESTRATOR_SESSION env var set at orchestrator startup, (1.4) _enforceSessionTypeConsistency() ensures atomic updates. 29 new tests in Session 100, 3027 total passing.",
+      "childTaskIds": [],
+      "parentTaskId": null
+    },
+    "merge-quality-gate-enforcer": {
+      "id": "merge-quality-gate-enforcer",
+      "title": "Merge Quality Gate Enforcer from tax-poa-automation",
+      "description": "Port the QualityGateEnforcer module (ac40dc0) that adds programmatic enforcement of quality gates at phase transitions. Includes coverage validation, forced bypass audit trail, and integration with phase-inference.js, session-init.js, and autonomous-orchestrator.js.",
       "phase": "implementation",
       "priority": "high",
-      "estimate": "8h",
-      "tags": [
-        "dashboard",
-        "audit",
-        "race-conditions",
-        "sse",
-        "multi-project",
-        "session-management"
-      ],
+      "estimate": "2h",
+      "tags": ["merge", "quality-gates", "phase-transitions", "tax-poa-sync"],
       "depends": {
         "blocks": [],
         "requires": [],
-        "related": [
-          "dashboard-comprehensive-audit-fixes"
-        ]
+        "related": ["framework-phase-gate-audit"]
       },
       "acceptance": [
-        "1.1 CRITICAL: Add claudeSessionId deduplication to prevent double registration",
-        "2.1 CRITICAL: Add mutex/lock around claudeSessionId registration (TOCTOU race)",
-        "5.1 CRITICAL: Require OTLP metrics to include project ID (don't guess)",
-        "1.3 HIGH: Set ORCHESTRATOR_SESSION env var before spawning processes",
-        "2.2 HIGH: Mark sessions 'stale' instead of deleting (grace period)",
-        "2.3 HIGH: Fix SSE reconnection race that creates duplicates",
-        "4.2 HIGH: Emit SSE events for phase/quality/confidence state changes",
-        "4.3 HIGH: Add heartbeat to remaining 3 SSE endpoints",
-        "5.3 HIGH: Add per-project cleanup configuration",
-        "1.4 LOW: Ensure sessionType and autonomous fields update atomically",
-        "E2E tests for race condition scenarios"
+        "NEW: .claude/core/quality-gate-enforcer.js (592 lines)",
+        "NEW: test/unit/core/quality-gate-enforcer.test.js (446 lines)",
+        "UPDATE: .claude/core/phase-inference.js - add validateTransitionWithGates()",
+        "UPDATE: .claude/core/session-init.js - integrate quality gate validation",
+        "UPDATE: autonomous-orchestrator.js - add gate checks in advancePhase()",
+        "All existing tests pass",
+        "New quality gate tests pass"
       ],
       "status": "completed",
       "assignee": null,
-      "created": "2026-01-06T20:00:00.000Z",
-      "updated": "2026-01-06T20:50:00.000Z",
-      "completedAt": "2026-01-06T20:50:00.000Z",
-      "completionNotes": "Sessions 99-100: All 10 issues fixed. Session 99 fixed 8 issues (1.1, 2.1-2.3, 4.2-4.3, 5.1, 5.3). Session 100 fixed remaining 2: (1.3) ORCHESTRATOR_SESSION env var set at orchestrator startup, (1.4) _enforceSessionTypeConsistency() ensures atomic updates. 29 new tests in Session 100, 3027 total passing.",
+      "created": "2026-01-17T23:40:00.000Z",
+      "updated": "2026-01-18T00:00:00.000Z",
+      "completedAt": "2026-01-18T00:00:00.000Z",
+      "completionNotes": "Session 102: Copied quality-gate-enforcer.js (592 lines) and tests (446 lines). Updated phase-inference.js with validateTransitionWithGates(), session-init.js with gate validation in executeTransition(), and autonomous-orchestrator.js with gate checks in advancePhase(). Fixed test path. 27 new tests pass, 3056 total passing.",
+      "sourceCommit": "ac40dc0",
+      "sourceProject": "tax-poa-automation",
       "parentTaskId": null,
-      "childTaskIds": [],
-      "delegatedTo": null,
-      "delegationDepth": 0,
-      "auditSource": "DASHBOARD-COMPREHENSIVE-AUDIT.md - Issues 1.1, 1.3, 1.4, 2.1-2.3, 4.2-4.3, 5.1, 5.3"
+      "childTaskIds": []
+    },
+    "merge-task-manager-archived-deps": {
+      "id": "merge-task-manager-archived-deps",
+      "title": "Merge Task Manager Archived Dependency Fix",
+      "description": "Port the fix (5b1a38e) for _areRequirementsMet() that checks completed backlog tier for archived dependencies. Previously, tasks with archived dependencies were incorrectly marked as blocked.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "30m",
+      "tags": ["merge", "task-manager", "bug-fix", "tax-poa-sync"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": []
+      },
+      "acceptance": [
+        "UPDATE: .claude/core/task-manager.js - check backlog.completed.tasks in _areRequirementsMet()",
+        "NEW: .claude/core/task-manager.dependency.test.js (45 lines)",
+        "Existing task-manager tests pass",
+        "New dependency tests pass"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2026-01-17T23:40:00.000Z",
+      "updated": "2026-01-18T00:00:00.000Z",
+      "completedAt": "2026-01-18T00:00:00.000Z",
+      "completionNotes": "Session 102: Updated _areRequirementsMet() to check backlog.completed.tasks for archived dependencies. Copied task-manager.dependency.test.js. All tests pass.",
+      "sourceCommit": "5b1a38e",
+      "sourceProject": "tax-poa-automation",
+      "parentTaskId": null,
+      "childTaskIds": []
+    },
+    "merge-orchestrator-race-fix": {
+      "id": "merge-orchestrator-race-fix",
+      "title": "Merge Orchestrator Task Claiming Race Condition Fix",
+      "description": "Port the fix (18aca43) for the race condition where initializeCommandCenter() was called without await, causing task loop to start before taskManager.sessionId was set from dashboard registration.",
+      "phase": "implementation",
+      "priority": "high",
+      "estimate": "30m",
+      "tags": ["merge", "orchestrator", "bug-fix", "race-condition", "tax-poa-sync"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["dashboard-comprehensive-audit-fixes"]
+      },
+      "acceptance": [
+        "UPDATE: autonomous-orchestrator.js - add await on initializeCommandCenter()",
+        "NEW: __tests__/core/orchestrator-dashboard-sync.test.js - add 4 regression tests",
+        "Existing orchestrator tests pass",
+        "New sync tests pass"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2026-01-17T23:40:00.000Z",
+      "updated": "2026-01-18T00:00:00.000Z",
+      "completedAt": "2026-01-18T00:00:00.000Z",
+      "completionNotes": "Session 102: Added await to initializeCommandCenter() call in main(). This was applied as part of the quality-gate-enforcer merge. All tests pass.",
+      "sourceCommit": "18aca43",
+      "sourceProject": "tax-poa-automation",
+      "parentTaskId": null,
+      "childTaskIds": []
+    },
+    "merge-dashboard-session-fixes": {
+      "id": "merge-dashboard-session-fixes",
+      "title": "Merge Dashboard Session Visibility Fixes",
+      "description": "Port the fixes (5c771fb) for dashboard session display issues: sessions showing 'unknown' project, sessions disappearing due to stale timestamps, SSE updates overwriting fresh timestamps, orphaned child sessions, and subtaskLogFile support.",
+      "phase": "implementation",
+      "priority": "medium",
+      "estimate": "1h",
+      "tags": ["merge", "dashboard", "sessions", "bug-fix", "tax-poa-sync"],
+      "depends": {
+        "blocks": [],
+        "requires": [],
+        "related": ["dashboard-audit-remaining-fixes"]
+      },
+      "acceptance": [
+        "UPDATE: global-context-manager.js - fix session project name, stale timestamps, child handling",
+        "UPDATE: global-dashboard.html - fix session card display, string task format",
+        "UPDATE: autonomous-orchestrator.js - add subtaskLogFile support",
+        "Sessions display correct project name (not 'unknown')",
+        "Child sessions remain visible when parent ends",
+        "Tests pass"
+      ],
+      "status": "completed",
+      "assignee": null,
+      "created": "2026-01-17T23:40:00.000Z",
+      "updated": "2026-01-18T00:08:00.000Z",
+      "completedAt": "2026-01-18T00:08:00.000Z",
+      "completionNotes": "Session 103: Added subtaskLogFile to orchestrator child session registration, session-registry.js, and global-context-manager.js. Fixed project name preservation (won't overwrite with 'unknown'). Added stale timestamp protection in session updates. Fixed string task format handling in dashboard (3 locations). All 6 acceptance criteria met. 3056 tests passing.",
+      "sourceCommit": "5c771fb",
+      "sourceProject": "tax-poa-automation",
+      "parentTaskId": null,
+      "childTaskIds": []
+    },
+    "merge-dashboard-enhancements": {
+      "id": "merge-dashboard-enhancements",
+      "title": "Merge Dashboard Enhancements (File Logs, Browser Auto-Open)",
+      "description": "Port the enhancements (2fac868) for file-based log endpoints (for autonomous child sessions with subtaskLogFile) and browser auto-open on dashboard startup.",
+      "phase": "implementation",
+      "priority": "low",
+      "estimate": "1h",
+      "tags": ["merge", "dashboard", "logging", "enhancement", "tax-poa-sync"],
+      "depends": {
+        "blocks": [],
+        "requires": ["merge-dashboard-session-fixes"],
+        "related": []
+      },
+      "acceptance": [
+        "UPDATE: global-context-manager.js - add /api/logs/file/history endpoint",
+        "UPDATE: global-context-manager.js - add /api/logs/file/stream SSE endpoint",
+        "UPDATE: global-context-manager.js - add browser auto-open on startup",
+        "File-based log endpoints work for subtask log files",
+        "Browser opens to dashboard on npm start",
+        "Tests pass"
+      ],
+      "status": "ready",
+      "assignee": null,
+      "created": "2026-01-17T23:40:00.000Z",
+      "updated": "2026-01-17T23:40:00.000Z",
+      "sourceCommit": "2fac868",
+      "sourceProject": "tax-poa-automation",
+      "parentTaskId": null,
+      "childTaskIds": []
     }
   },
   "archival": {
     "maxCompleted": 5,
     "autoArchive": true,
     "archivePath": ".claude/dev-docs/archives/tasks-archive.json",
-    "lastArchived": "2026-01-07T06:13:18.287Z"
+    "lastArchived": "2026-01-17T23:36:52.777Z"
   }
 }

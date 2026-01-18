@@ -5014,7 +5014,12 @@
         </div>
       `;
 
-      const task = session.currentTask || {};
+      // FIX: Handle currentTask being a string (task title only) or object
+      let task = session.currentTask || {};
+      if (typeof task === 'string') {
+        // Convert string task to object format
+        task = { id: null, title: task, description: task };
+      }
       const acceptance = task.acceptance || [];
       // Normalize acceptance criteria - handle both string and object formats
       const normalizedAcceptance = acceptance.map(a => {
@@ -5701,7 +5706,11 @@
       // Claude context window is ~200k, but effective is ~155k after reserved space
       const effectiveContextWindow = 155000;
       const tokens = Math.round((ctx / 100) * effectiveContextWindow);
-      const task = session.currentTask || {};
+      // FIX: Handle currentTask being a string (task title only) or object
+      let task = session.currentTask || {};
+      if (typeof task === 'string') {
+        task = { id: null, title: task, description: task };
+      }
 
       pane.innerHTML = `
         <div class="section-header">${escapeHtml(session.name || session.id || 'Session')}</div>
@@ -5743,7 +5752,11 @@
         return;
       }
 
-      const task = session.currentTask || {};
+      // FIX: Handle currentTask being a string (task title only) or object
+      let task = session.currentTask || {};
+      if (typeof task === 'string') {
+        task = { id: null, title: task, description: task };
+      }
       const queue = session.taskQueue || [];
 
       // Fetch all tasks including blocked tasks and dependency info

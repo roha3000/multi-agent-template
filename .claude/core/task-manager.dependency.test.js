@@ -199,6 +199,51 @@ describe('TaskManager - Dependency Resolution', () => {
       expect(taskManager._areRequirementsMet(taskManager.getTask(task.id))).toBe(false);
     });
 
+    test('returns true when dependency is archived (in backlog.completed.tasks)', () => {
+      // Create a task with a dependency
+      const depTask = taskManager.createTask({
+        title: 'Dependency Task',
+        phase: 'implementation'
+      });
+
+      const mainTask = taskManager.createTask({
+        title: 'Main Task',
+        phase: 'implementation',
+        depends: { blocks: [], requires: [depTask.id], related: [] }
+      });
+
+      // Initially blocked because dep is not completed
+      expect(taskManager._areRequirementsMet(taskManager.getTask(mainTask.id))).toBe(false);
+
+      // Simulate archiving: remove from tasks object, add to completed tier
+      const archivedId = depTask.id;
+      delete taskManager.tasks.tasks[archivedId];
+
+      // Ensure completed tier exists
+      if (!taskManager.tasks.backlog.completed) {
+        taskManager.tasks.backlog.completed = { tasks: [] };
+      }
+      taskManager.tasks.backlog.completed.tasks.push(archivedId);
+
+      // Now requirements should be met (dependency is in completed tier)
+      expect(taskManager._areRequirementsMet(taskManager.getTask(mainTask.id))).toBe(true);
+    });
+
+    test('returns false when dependency is not in tasks object AND not in completed tier', () => {
+      const task = taskManager.createTask({
+        title: 'Task with missing archived dep',
+        phase: 'implementation',
+        depends: { blocks: [], requires: ['totally-missing-id'], related: [] }
+      });
+
+      // Ensure completed tier exists but doesn't contain the dependency
+      if (!taskManager.tasks.backlog.completed) {
+        taskManager.tasks.backlog.completed = { tasks: [] };
+      }
+
+      expect(taskManager._areRequirementsMet(taskManager.getTask(task.id))).toBe(false);
+    });
+
     test('returns true when all diamond requirements are completed', () => {
       const { taskA, taskB, taskC, taskD } = createDiamondDependency();
 

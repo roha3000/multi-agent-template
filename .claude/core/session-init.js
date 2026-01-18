@@ -19,6 +19,7 @@ const PhaseInference = require('./phase-inference');
 const ContextLoader = require('./context-loader');
 const ArtifactSummarizer = require('./artifact-summarizer');
 const SummaryGenerator = require('./summary-generator');
+const QualityGateEnforcer = require('./quality-gate-enforcer');
 
 /**
  * Session initialization modes
@@ -40,10 +41,11 @@ class SessionInitializer {
 
     // Initialize all core components
     this.stateManager = new StateManager(projectRoot);
-    this.phaseInference = new PhaseInference(this.stateManager);
+    this.phaseInference = new PhaseInference(this.stateManager, { projectRoot });
     this.contextLoader = new ContextLoader(projectRoot, this.stateManager);
     this.artifactSummarizer = new ArtifactSummarizer(projectRoot);
     this.summaryGenerator = new SummaryGenerator(projectRoot, this.stateManager);
+    this.qualityGateEnforcer = new QualityGateEnforcer(projectRoot);
 
     console.log('[SessionInit] Initialized all core components');
   }
@@ -127,19 +129,65 @@ class SessionInitializer {
   }
 
   /**
-   * Executes phase transition
+   * Executes phase transition with quality gate validation
    * @param {string} newPhase - New phase to transition to
    * @param {string} agent - Agent executing the phase
    * @param {string} trigger - What triggered the transition
    * @param {number} score - Quality score for previous phase (if applicable)
+   * @param {Object} options - Transition options
+   * @param {boolean} options.force - Force transition even if gates fail
+   * @param {string} options.forceReason - Required reason when forcing
+   * @param {boolean} options.skipGates - Skip quality gate validation entirely
    * @returns {Object} Transition result
    */
-  executeTransition(newPhase, agent, trigger, score = null) {
+  executeTransition(newPhase, agent, trigger, score = null, options = {}) {
     try {
-      console.log(`[SessionInit] Executing transition to ${newPhase}...`);
+      const state = this.stateManager.load();
+      const fromPhase = state.current_phase;
+
+      console.log(`[SessionInit] Executing transition from ${fromPhase} to ${newPhase}...`);
+
+      // Validate quality gates unless explicitly skipped
+      if (!options.skipGates) {
+        const gateResult = this.phaseInference.validateTransitionWithGates(
+          fromPhase,
+          newPhase,
+          {
+            qualityScore: score,
+            force: options.force,
+            forceReason: options.forceReason,
+            actor: agent
+          }
+        );
+
+        if (!gateResult.valid) {
+          console.warn(`[SessionInit] Quality gate validation failed for ${newPhase}`);
+          return {
+            success: false,
+            error: 'quality_gate_failed',
+            message: gateResult.reason,
+            errors: gateResult.errors,
+            warnings: gateResult.warnings,
+            metrics: gateResult.metrics,
+            requirements: gateResult.requirements,
+            canForce: gateResult.canForce,
+            timestamp: new Date().toISOString()
+          };
+        }
+
+        // Log warnings even on success
+        if (gateResult.warnings && gateResult.warnings.length > 0) {
+          gateResult.warnings.forEach(w => console.warn(`[SessionInit] Warning: ${w}`));
+        }
+
+        // Log if transition was forced
+        if (gateResult.forced) {
+          console.warn(`[SessionInit] Transition FORCED: ${options.forceReason}`);
+        }
+      }
 
       // Update state with new phase
-      const state = this.stateManager.transitionPhase(newPhase, agent, trigger, score);
+      const updatedState = this.stateManager.transitionPhase(newPhase, agent, trigger, score);
 
       // Update project summary
       this.summaryGenerator.update();
@@ -152,8 +200,9 @@ class SessionInitializer {
       return {
         success: true,
         phase: newPhase,
-        state: state,
-        timestamp: new Date().toISOString()
+        state: updatedState,
+        timestamp: new Date().toISOString(),
+        forced: options.force && options.forceReason ? true : false
       };
 
     } catch (error) {
@@ -164,6 +213,23 @@ class SessionInitializer {
         timestamp: new Date().toISOString()
       };
     }
+  }
+
+  /**
+   * Get quality gate report for current state
+   * @returns {Object} Quality report with coverage, tests, and recommendations
+   */
+  getQualityReport() {
+    return this.qualityGateEnforcer.generateReport();
+  }
+
+  /**
+   * Get quality gate audit log
+   * @param {number} limit - Maximum entries to return
+   * @returns {Array} Audit entries
+   */
+  getQualityAuditLog(limit = 50) {
+    return this.qualityGateEnforcer.getAuditLog(limit);
   }
 
   /**
