@@ -2,7 +2,7 @@
 
 Get up and running with the Multi-Agent Template in 5 minutes.
 
-## 🚀 Create New Project from Template
+## Create New Project from Template
 
 ### Method 1: GitHub Template Button
 1. Go to: https://github.com/roha3000/multi-agent-template
@@ -26,42 +26,32 @@ git remote add origin https://github.com/yourusername/your-new-project.git
 git push -u origin main
 ```
 
-## ⚡ Quick Setup
+## Quick Setup
 
-1. **Configure Environment:**
+1. **Open Claude Code in your project directory:**
    ```bash
-   cp .env.template .env
-   # Edit .env with your API keys:
-   # ANTHROPIC_API_KEY=your_key_here
-   # OPENAI_API_KEY=your_key_here (optional)
+   cd my-new-project
+   claude
    ```
 
-2. **Test the System:**
-   ```bash
-   # Make scripts executable (Unix/Linux/Mac)
-   chmod +x scripts/*.sh scripts/*.py
-   
-   # Test model switching
-   ./scripts/switch-model.sh research
+2. **Initialize your session:**
    ```
+   /session-init
+   ```
+   This reads the dev-docs files and detects the current project phase. On a new project, it will prompt you to start with the research phase.
 
 3. **Start Your First Workflow:**
-   ```bash
-   # Option A: Automated workflow
-   ./scripts/workflow-orchestrator.sh "my-project" "A simple web application"
-   
-   # Option B: Manual commands in Claude Code
-   # Open Claude Code and try:
-   # /research-phase "your project idea"
+   ```
+   /research-phase "your project idea"
    ```
 
-## 🎯 Example: Building a Todo App
+## Example: Building a Todo App
 
 ```bash
 # 1. Research phase
 /research-phase "Modern todo application with React frontend and Node.js backend"
 
-# 2. Planning phase  
+# 2. Planning phase
 /planning-phase "Todo app with user authentication, real-time updates, 2-week timeline"
 
 # 3. Design phase
@@ -80,7 +70,15 @@ git push -u origin main
 /iterate-phase "Add password reset and email verification features"
 ```
 
-## 📱 Project Types
+## Optional: Install Codex
+
+For AI-powered code review and security auditing, install the Codex plugin. See [SETUP.md](SETUP.md) for full installation instructions.
+
+After setup, use:
+- `/codex-review` — Static analysis + triage before merging
+- `/codex-adversarial` — Security red-team review before production
+
+## Project Types
 
 The template adapts automatically for:
 - **Web Apps**: Frontend/fullstack applications
@@ -89,13 +87,12 @@ The template adapts automatically for:
 - **Mobile Apps**: React Native, Flutter, etc.
 - **Desktop Apps**: Electron, desktop frameworks
 
-## 🆘 Need Help?
+## Need Help?
 
 - **Documentation**: [SETUP.md](SETUP.md) | [WORKFLOW.md](WORKFLOW.md)
-- **Customization**: [TEMPLATE-GUIDE.md](TEMPLATE-GUIDE.md)
 - **Issues**: https://github.com/roha3000/multi-agent-template/issues
 - **Discussions**: https://github.com/roha3000/multi-agent-template/discussions
 
 ---
 
-**Ready to build something amazing?** 🚀
+**Ready to build something amazing?**

@@ -11,46 +11,21 @@ This file defines:
 
 ---
 
-## Single Implementation Rule
+## Native Claude Code Architecture
 
-These components have ONE implementation. **NEVER create parallels.**
+This template uses Claude Code's native capabilities — no custom orchestration layer. Key components:
 
-### Dashboard
-| Attribute | Value |
-|-----------|-------|
-| **Canonical File** | `global-context-manager.js` |
-| **Port** | 3033 |
-| **Rule** | ALL dashboard features, APIs, and UI go here |
-| **Violations** | Do NOT create new Express servers, dashboard-*.js files, or alternative ports |
+| Component | Where it lives | Notes |
+|-----------|---------------|-------|
+| Task management | Native CC Tasks tools | TaskCreate, TaskUpdate, TaskList, TaskGet |
+| Agent orchestration | Native CC Agent tool | Spawns subagents with personas from `.claude/agents/` |
+| Memory | Native file-based memory | `~/.claude/projects/*/memory/` |
+| Session hooks | `.claude/hooks/` | session-start.js, session-end.js, track-progress.js |
+| Slash commands | `.claude/commands/` | Markdown files, auto-loaded by CC |
+| Agent personas | `.claude/agents/` | Markdown files defining specialist roles |
+| Project context | Dev-docs pattern | PROJECT_SUMMARY.md + plan.md + tasks.json |
 
-### Orchestrator
-| Attribute | Value |
-|-----------|-------|
-| **Canonical File** | `autonomous-orchestrator.js` |
-| **Rule** | ALL task orchestration, Claude Code spawning, phase execution goes here |
-| **Violations** | Do NOT create new *-orchestrator.js files or parallel execution engines |
-
-### Context Tracking
-| Attribute | Value |
-|-----------|-------|
-| **Canonical File** | `.claude/core/global-context-tracker.js` |
-| **Rule** | ALL context window tracking, token counting, usage monitoring goes here |
-| **Violations** | Do NOT create new *-context-tracker.js or *-context-*.js files |
-
-### Database (MemoryStore)
-| Attribute | Value |
-|-----------|-------|
-| **Canonical Path** | `.claude/data/memory.db` |
-| **Rule** | ALL MemoryStore consumers use this single path |
-| **Violations** | Do NOT hardcode alternative DB paths in new code |
-
-### Safety/Validation
-| Attribute | Value |
-|-----------|-------|
-| **Canonical File** | `.claude/core/swarm-controller.js` |
-| **Components** | SecurityValidator, ComplexityAnalyzer, ConfidenceMonitor, PlanEvaluator |
-| **Rule** | ALL safety checks go through SwarmController |
-| **Violations** | Do NOT create parallel safety/validation systems |
+**Rule**: Do not add custom JS orchestration, dashboard servers, or database layers — use native CC features instead.
 
 ---
 
@@ -111,15 +86,14 @@ docs/
 
 ```
 .claude/
-├── ARCHITECTURE.md         # This file - canonical components
+├── ARCHITECTURE.md         # This file
 ├── dev-docs/               # Development state
 │   ├── plan.md
-│   ├── tasks.json
-│   └── archives/
-├── core/                   # Core modules (no docs here except README.md)
-├── agents/                 # Agent definitions
+│   └── tasks.json
+├── agents/                 # Agent persona definitions
 ├── commands/               # Slash commands
-└── skills/                 # Skill definitions
+├── hooks/                  # Session and tool hooks
+└── logs/                   # Hook-generated logs
 ```
 
 ### Document Naming Conventions

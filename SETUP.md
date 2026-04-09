@@ -355,6 +355,42 @@ export ANTHROPIC_ALERT_EMAIL=your-email@domain.com
 python scripts/cost-tracker.py --daily-report
 ```
 
+## Codex Integration
+
+The Codex plugin for Claude Code enables AI-powered code review from inside Claude Code sessions.
+
+### Requirements
+
+- Node.js 18.18 or later
+- ChatGPT account (free tier works) or OpenAI API key
+
+### Installation (run inside Claude Code session)
+
+```
+/plugin marketplace add openai/codex-plugin-cc
+/plugin install codex@openai-codex
+/reload-plugins
+/codex:setup
+```
+
+When prompted, run `!codex login` and authenticate with your ChatGPT account in the browser.
+
+### Available Commands (after install)
+
+| Command | Purpose |
+|---------|---------|
+| `/codex:review` | Standard code review |
+| `/codex:adversarial-review` | Security-focused adversarial review |
+| `/codex:rescue` | Delegate a task to Codex |
+| `/codex:status` | Check background job status |
+| `/codex:result` | View completed job output |
+
+### Workflow Commands
+
+After setup, use the project's workflow commands:
+- `/codex-review` — Full review + triage workflow (see `.claude/commands/codex-review.md`)
+- `/codex-adversarial` — Red-team workflow (see `.claude/commands/codex-adversarial.md`)
+
 ## Next Steps
 
 After successful setup:

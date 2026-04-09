@@ -79,6 +79,7 @@ QUALITY GATE COORDINATOR (Claude Opus 4): Execute comprehensive quality assessme
 - [ ] Code quality standards exceeded
 - [ ] Integration tests pass (100%)
 - [ ] Documentation is complete and accurate
+- [ ] Codex review completed — zero unresolved Critical/High findings (`/codex-review`)
 
 ### Quality Scoring Matrix:
 

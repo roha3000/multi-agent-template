@@ -1,26 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node scripts/validate-traceability.js)",
       "Bash(npm test)",
-      "Bash(npm test -- --verbose)",
-      "Bash(npm run test:coverage)",
-      "Bash(npm install winston)",
-      "Bash(npm install tiktoken)",
-      "Bash(npm install inquirer chalk ora)",
-      "Bash(npm test -- --testNamePattern=\"should handle partial failures\")",
-      "Bash(npm test -- --silent)",
-      "Bash(npm run demo)",
-      "Bash(node examples/orchestration-demo.js)",
-      "Bash(node -c examples/orchestration-demo.js)",
-      "Bash(node -e \"try { require(''./examples/orchestration-demo.js''); } catch(e) { console.error(''Error:'', e.message); console.error(''Stack:'', e.stack); }\")",
-      "Bash(node -e \"console.log(''Chalk version:'', require(''chalk'').Chalk ? ''v5+'' : ''v4''); console.log(''Has default export:'', typeof require(''chalk'').default);\")",
-      "Bash(npm install chalk@^4.1.2 inquirer@^8.2.5 ora@^5.4.1 --save)",
-      "Read(//c/Users/roha3/Claude Projects/**)",
-      "Bash(node:*)",
-      "Bash(npm run build:*)",
-      "Bash(npm run:*)",
-      "Bash(npm install)"
+      "Bash(npm test -- *)",
+      "Bash(npm run *)",
+      "Bash(git *)",
+      "Bash(codex *)"
     ],
     "deny": [],
     "ask": []
@@ -31,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/session-start.js"
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.js\""
           }
         ]
       }
@@ -41,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/session-end.js"
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-end.js\""
           }
         ]
       }
@@ -51,17 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/track-progress.js"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .claude/hooks/delegation-hook.js"
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-progress.js\""
           }
         ]
       }

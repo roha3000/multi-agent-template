@@ -19,7 +19,6 @@ Force delegation of a task to child agents with explicit control over execution 
 | `--pattern=<type>` | `-p` | Force execution pattern: `parallel`, `sequential`, `debate`, `review` | auto-detected |
 | `--depth=<n>` | `-d` | Set max delegation depth (1-3) | from config |
 | `--agents=<n>` | `-a` | Set max concurrent agents (1-10) | from config |
-| `--budget=<tokens>` | `-b` | Set token budget | from config |
 | `--dry-run` | | Show delegation plan without executing | false |
 | `--force` | `-f` | Skip delegatability check, force delegation | false |
 
@@ -46,56 +45,37 @@ Force delegation of a task to child agents with explicit control over execution 
 
 When this skill is invoked, follow these steps:
 
-### Step 1: Get Execution Plan
+### Step 1: Analyze the Task
 
-Run the delegation executor to analyze the task and generate a plan:
-
-```bash
-node .claude/core/delegation-executor.js $ARGUMENTS
-```
-
-The executor will output either:
-- A **dry-run plan** (if `--dry-run` was specified)
-- An **execution plan** with Task tool invocations
-- An **error/warning** if delegation is not recommended
-
-### Step 2: Handle Executor Output
+Read the task description and determine:
+- How many independent subtasks exist
+- Which pattern is most appropriate
+- Whether delegation adds value (if `--dry-run`, show the plan and stop)
 
 **If dry-run**: Display the plan to the user and stop.
 
-**If error/warning**: Display the message. If the user wants to proceed, re-run with `--force`.
+**If `--force` is not set and task seems simple**: Display a warning and ask user to confirm or use `--force`.
 
-**If execution plan**: Proceed to Step 3.
+### Step 2: Choose a Pattern and Spawn Agents
 
-### Step 3: Execute Task Tool Invocations
-
-The executor outputs Task tool invocations in JSON format. Execute them according to the pattern:
+Use the native Agent tool to spawn subagents directly according to the chosen pattern:
 
 #### For Parallel Pattern
 
-Spawn all agents simultaneously using multiple Task tool calls in a single message.
-Each Task should have `run_in_background: true` so they execute concurrently.
+Spawn all agents simultaneously using multiple Agent tool calls in a single message.
 
-Example Task parameters:
-```json
-{
-  "description": "[PARALLEL 1/3] First subtask title",
-  "prompt": "Full subtask description and context...",
-  "subagent_type": "general-purpose",
-  "run_in_background": true
-}
+Example Agent parameters:
+```
+description: "[PARALLEL 1/3] First subtask title"
+prompt: "Full subtask description and context..."
 ```
 
 #### For Sequential Pattern
 
-Execute each Task one at a time, waiting for completion before the next:
-```json
-{
-  "description": "[SEQ 1/3] First step",
-  "prompt": "Step 1 description...",
-  "subagent_type": "general-purpose",
-  "run_in_background": false
-}
+Execute each Agent one at a time, waiting for completion before the next:
+```
+description: "[SEQ 1/3] First step"
+prompt: "Step 1 description..."
 ```
 
 Pass results from each step to subsequent steps.
@@ -113,9 +93,9 @@ Spawn two agents sequentially:
 1. **[IMPL]** Implementer - creates initial solution
 2. **[REVIEW]** Reviewer - critiques and suggests improvements
 
-### Step 4: Aggregate Results
+### Step 3: Aggregate Results
 
-After all agents complete, use TaskOutput to collect results and present a summary:
+After all agents complete, present a summary:
 
 ```markdown
 ## Delegation Complete
@@ -128,27 +108,12 @@ After all agents complete, use TaskOutput to collect results and present a summa
 <aggregated output from all agents>
 ```
 
-## Configuration
-
-Settings in `.claude/delegation-config.json`:
-
-```json
-{
-  "enabled": true,
-  "minComplexityThreshold": 35,
-  "minSubtaskCount": 3,
-  "cacheEnabled": true,
-  "useTaskDecomposer": true
-}
-```
-
 ## Error Handling
 
 ### Delegation Not Recommended
 ```
-Warning: Delegation not recommended (confidence: 25%)
-Reason: Task appears simple
-Use --force to delegate anyway
+Warning: Task appears simple — delegation may add overhead.
+Use --force to delegate anyway.
 ```
 
 ### Task Not Found
@@ -157,30 +122,6 @@ Error: Task 'unknown-id' not found in tasks.json
 Hint: Use a task description instead
 ```
 
-## Integration Architecture
-
-```
-/delegate skill
-    |
-    v
-delegation-executor.js
-    |-- parseArguments()
-    |-- resolveTask() --> tasks.json
-    |-- getDelegationDecision() --> delegation-bridge.js
-    |-- getSubtasks() --> task-decomposer.js
-    |
-    v
-Task tool invocations
-    |
-    v
-Child agents execute subtasks
-    |
-    v
-Results aggregated and reported
-```
-
 ## Related Commands
 
 - `/direct` - Force direct execution (opposite of delegate)
-- `/delegation-status` - View active delegations
-- `/delegation-config` - Modify delegation settings
