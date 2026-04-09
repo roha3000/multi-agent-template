@@ -28,6 +28,28 @@ Multi-agent development system that combines specialized AI agent personas with 
 - If PROJECT_SUMMARY.md doesn't exist, the project is new. Proceed with research phase.
 - If dev-docs files don't exist, create them from current task state.
 
+## Worktrees + Dev-Docs: Parallel Development
+
+Git worktrees and the dev-docs pattern solve different problems and work best together.
+
+| | Git Worktrees | Dev-Docs |
+|---|---|---|
+| **Solves** | Parallel filesystem isolation — multiple branches active simultaneously | Session context continuity — Claude knows what was done last session |
+| **Scope** | Per-branch | Per-session |
+
+**How to combine them:**
+- `PROJECT_SUMMARY.md` lives at the repo root — overall project history, referenced by all branches
+- Each worktree has its own `.claude/dev-docs/plan.md` + `tasks.json` tracking that branch's specific work
+- Separate Claude sessions per worktree = zero context contamination between parallel features
+- Before merging a feature branch, run `/codex:review --base main` for a targeted branch diff review
+
+**Use worktrees when:**
+- Building 2+ independent features simultaneously
+- Isolating a risky refactor from main until it's validated
+- Running Codex investigation in one worktree while continuing work in another
+
+See `/worktree` for the full workflow with setup commands.
+
 ## Token Efficiency Rules
 
 The dev-docs pattern must stay token-efficient. **Target: ~1,500 tokens total** for all 3 files.

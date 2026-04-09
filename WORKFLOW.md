@@ -58,6 +58,30 @@ Patterns: `parallel`, `sequential`, `debate`, `review`
 
 ---
 
+### Mode 5: Parallel Worktrees
+Multiple features in parallel — each in an isolated branch with its own dev-docs context.
+
+```bash
+# Create worktrees
+git worktree add ../project-feature-a -b feature/a
+git worktree add ../project-feature-b -b feature/b
+
+# Each worktree gets its own plan.md + tasks.json
+# Claude works in each independently (separate sessions or EnterWorktree)
+
+# When ready — Codex reviews each branch vs main
+/codex:review --base main        # in feature-a
+/codex:review --base main        # in feature-b
+
+# Merge, update PROJECT_SUMMARY.md, /save
+```
+
+Use when building 2+ independent features simultaneously, or when isolating a risky refactor from main.
+
+See `/worktree` for the full workflow.
+
+---
+
 ## Claude + Codex Division of Labor
 
 | Tool | Use for |
@@ -78,6 +102,21 @@ Three files maintain context across sessions:
 | `.claude/dev-docs/tasks.json` | Structured task data | ~1,000 tokens |
 
 Run `/save` at end of each session to update dev-docs and commit.
+
+### Worktrees + Dev-Docs Together
+
+These solve different problems and work best combined:
+
+| | Git Worktrees | Dev-Docs |
+|---|---|---|
+| **Solves** | Parallel filesystem isolation — multiple branches active at once | Session context continuity — Claude remembers what was done |
+| **Scope** | Per-branch | Per-session |
+| **Lives in** | Git | Files in repo |
+
+**Combined pattern:**
+- `PROJECT_SUMMARY.md` at repo root — overall project history, shared across branches
+- Each worktree has its own `.claude/dev-docs/plan.md` + `tasks.json` — branch-specific work
+- Codex reviews branches vs main (`/codex:review --base main`) before merging
 
 ---
 
@@ -112,3 +151,4 @@ Run `/save` at end of each session to update dev-docs and commit.
 | `/audit` | Full codebase audit (6 parallel agents) |
 | `/save` | Update dev-docs and commit |
 | `/agent-handoff` | Document handoff between agents |
+| `/worktree` | Parallel development with isolated worktrees + dev-docs |
