@@ -16,6 +16,9 @@ const http = require('http');
 const debug = require('./hook-debug');
 debug.log('session-start', 'load', { pid: process.pid, ppid: process.ppid });
 
+// Canonical ID check (CC-ALIGN-001) - warn when tasks lack a canonicalId
+const canonicalIdCheck = require('./canonical-id-check');
+
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
 const TASKS_JSON = path.join(PROJECT_ROOT, '.claude/dev-docs/tasks.json');
 const DASHBOARD_PORT = process.env.DASHBOARD_PORT || 3033;
@@ -187,6 +190,22 @@ async function main() {
     console.log(`Dashboard: Session #${registerResult.id} registered`);
   }
   console.log('========================\n');
+
+  // CC-ALIGN-001: warn if any tasks lack a canonicalId (GitHub issue ref).
+  // Non-fatal. Emits to stderr so it stands out without mingling with context output.
+  try {
+    const canonicalResult = canonicalIdCheck.checkCanonicalIds();
+    const warning = canonicalIdCheck.formatWarning(canonicalResult);
+    if (warning) {
+      console.warn(warning);
+      debug.log('session-start', 'canonical-id-warning', {
+        missing: canonicalResult.missing.length,
+        invalid: canonicalResult.invalid.length
+      });
+    }
+  } catch (err) {
+    debug.log('session-start', 'canonical-id-check-error', { error: err.message });
+  }
 
   // Record success metrics
   const hookDuration = Date.now() - hookStartTime;

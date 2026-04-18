@@ -6,6 +6,50 @@ description: Update dev-docs, archive old content, commit and push
 
 Update dev-docs, archive old content, commit all changes, and push to remote.
 
+## Required: Handoff Block (Source of Truth Write-Back)
+
+`/save` MUST NOT complete without emitting a handoff block tied to the
+canonical GitHub issue for the work just done. dev-docs are non-canonical;
+the handoff block is how session state writes back to the canonical issue.
+
+Every invocation of `/save` must output a block in the following format
+before committing. If no `canonicalId` can be identified for the current
+work, STOP and ask the user for one — do not silently save.
+
+```markdown
+## Handoff — <canonicalId>
+
+**Canonical issue**: <owner/repo#number>
+**Branch / worktree**: <git-branch-or-worktree>
+**Phase**: <research|planning|design|implementation|testing|validation|iteration>
+**Status**: <in-progress|blocked|ready-for-review|done>
+
+### Work completed
+- <bullet>
+- <bullet>
+
+### Decisions & rationale
+- <bullet>
+
+### Files changed
+- <path> — <one-line summary>
+
+### Next actions
+- <bullet>
+
+### Blockers / open questions
+- <bullet, or "none">
+
+### Gate evidence
+- Tests run: <command + summary>
+- Output verified: <yes/no + where>
+- Linked PR: <url or "none">
+```
+
+The handoff block should also be posted as a comment on the canonical
+GitHub issue (via `gh issue comment <n> --repo <owner>/<repo>`) so the
+issue remains the durable record. Claude Code is the secondary surface.
+
 ## Instructions
 
 ### Step 1: Archive Old Sessions (if needed)
@@ -47,7 +91,15 @@ Check `.claude/dev-docs/tasks.json` - if there are more than 5 completed tasks:
 - Keep NOW/NEXT queues current
 - Remove old session summaries (keep only current)
 
-### Step 5: Commit and Push
+### Step 5: Emit Handoff Block
+
+Emit the handoff block described at the top of this document. This is a
+**blocking** step: `/save` must not proceed to commit/push if the handoff
+block cannot be produced (e.g. missing `canonicalId` on the active task).
+
+Also post the handoff block as a comment on the canonical GitHub issue.
+
+### Step 6: Commit and Push
 
 1. **Stage all changes**:
    ```bash

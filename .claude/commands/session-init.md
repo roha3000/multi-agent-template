@@ -27,6 +27,28 @@ Run the intelligent phase management system to detect the appropriate phase and 
 2. **Loads relevant context** from project state (artifacts, decisions, quality scores)
 3. **Generates optimized prompt** with <1000 tokens
 4. **Updates PROJECT_SUMMARY.md** with current state
+5. **Prompts for a canonical GitHub issue ID** whenever a new task is being created (see below)
+
+## Canonical Task ID (Source of Truth)
+
+GitHub issues are the **single source of truth** for task state. `tasks.json`
+is non-canonical — it is a derived execution slice used by Claude Code.
+
+When `/session-init` is invoked with a task description that does not match
+an existing entry in `tasks.json`, the session MUST:
+
+1. **Ask the user for a canonical issue ID** in the form
+   `owner/repo#number` (e.g. `roha3000/ops#6`).
+2. **Refuse to create a new local-only task** if no canonical ID is
+   provided. If the user does not have an issue yet, the correct path is to
+   file one on GitHub first (or confirm the user wants an explicit
+   exception and record that in the handoff block produced by `/save`).
+3. **Store the canonical ID** on the new task under the `canonicalId` field.
+4. **Map the working branch / worktree name** back to the canonical ID
+   (e.g. branch `cc-align-001-canonical-sot` for `roha3000/ops#6`).
+
+This prevents local peer-backlog authority from silently emerging alongside
+GitHub Issues.
 
 ## When to Use
 

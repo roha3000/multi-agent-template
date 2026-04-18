@@ -42,6 +42,7 @@
   "tasks": {
     "auth-oauth-login-1k2m3n": {
       "id": "auth-oauth-login-1k2m3n",
+      "canonicalId": "example-org/example-repo#101",
       "title": "Implement OAuth 2.0 login flow",
       "description": "Add OAuth authentication with Google and GitHub providers. Support token refresh and secure cookie storage.",
       "phase": "implementation",
@@ -69,6 +70,7 @@
     },
     "dashboard-metrics-1k2m4o": {
       "id": "dashboard-metrics-1k2m4o",
+      "canonicalId": "example-org/example-repo#102",
       "title": "Add real-time metrics to dashboard",
       "description": "Display token usage, cost tracking, and session metrics in the dashboard UI.",
       "phase": "implementation",
@@ -95,6 +97,7 @@
     },
     "design-auth-architecture-1k2m1l": {
       "id": "design-auth-architecture-1k2m1l",
+      "canonicalId": "example-org/example-repo#100",
       "title": "Design OAuth architecture and security model",
       "description": "Complete architectural design for OAuth implementation including token flow, security considerations, and session management strategy.",
       "phase": "design",
@@ -121,6 +124,7 @@
     },
     "research-oauth-providers-1k2m0k": {
       "id": "research-oauth-providers-1k2m0k",
+      "canonicalId": "example-org/example-repo#99",
       "title": "Research OAuth 2.0 providers and best practices",
       "description": "Evaluate Google, GitHub, and Microsoft OAuth implementations. Document security considerations and recommended approaches.",
       "phase": "research",
@@ -146,6 +150,7 @@
     },
     "api-refactor-endpoints-1k2m5p": {
       "id": "api-refactor-endpoints-1k2m5p",
+      "canonicalId": "example-org/example-repo#103",
       "title": "Refactor API endpoints for consistency",
       "description": "Standardize API endpoint naming, error responses, and request/response formats across all routes.",
       "phase": "implementation",
@@ -172,6 +177,7 @@
     },
     "docs-api-reference-1k2m6q": {
       "id": "docs-api-reference-1k2m6q",
+      "canonicalId": "example-org/example-repo#104",
       "title": "Create comprehensive API reference documentation",
       "description": "Generate OpenAPI/Swagger documentation for all API endpoints with examples and error codes.",
       "phase": "implementation",
@@ -198,6 +204,7 @@
     },
     "performance-optimization-1k2m7r": {
       "id": "performance-optimization-1k2m7r",
+      "canonicalId": "example-org/example-repo#105",
       "title": "Optimize database queries and caching",
       "description": "Profile slow queries, add database indexes, and implement Redis caching for frequently accessed data.",
       "phase": "implementation",
@@ -224,6 +231,7 @@
     },
     "ml-predictions-1k2m8s": {
       "id": "ml-predictions-1k2m8s",
+      "canonicalId": "example-org/example-repo#106",
       "title": "Add ML-based task effort predictions",
       "description": "Train a model on historical task data to predict effort and success likelihood for new tasks.",
       "phase": "research",
@@ -250,6 +258,7 @@
     },
     "auth-session-mgmt-1k2m9t": {
       "id": "auth-session-mgmt-1k2m9t",
+      "canonicalId": "example-org/example-repo#107",
       "title": "Implement session management and refresh tokens",
       "description": "Add secure session handling with automatic token refresh before expiry.",
       "phase": "implementation",
@@ -276,6 +285,7 @@
     },
     "api-metrics-endpoint-1k2m10u": {
       "id": "api-metrics-endpoint-1k2m10u",
+      "canonicalId": "example-org/example-repo#108",
       "title": "Create metrics API endpoint",
       "description": "Build RESTful API endpoint for retrieving real-time and historical metrics data.",
       "phase": "implementation",

@@ -26,21 +26,48 @@ netstat -aon | grep :3033  # Find PID first, then kill that PID
 ## Project Overview
 Multi-agent development system that combines specialized AI agent personas with strategic model selection for optimal development workflows.
 
+## Source of Truth: GitHub Issues (Not dev-docs)
+
+**GitHub Issues are the canonical source of truth for task state.** The
+dev-docs files below (`tasks.json`, `plan.md`, `PROJECT_SUMMARY.md`) are
+**non-canonical** — they are derived execution context that Claude Code
+uses to stay within its context window. They are disposable. GitHub
+Issues are not.
+
+Consequences of this model:
+
+- **No local peer-backlog authority.** If something is not in a GitHub
+  issue, it is not real work. Don't accumulate a local-only backlog.
+- **Every task in `tasks.json` MUST carry a `canonicalId`** pointing at a
+  GitHub issue (format: `owner/repo#number`, e.g. `roha3000/ops#6`).
+  See `docs/guides/TASKS-JSON-SCHEMA.md` for the full schema.
+- **`/session-init` prompts for a canonical issue ID** whenever a new task
+  is being created. Do not create local-only tasks.
+- **`/save` emits a handoff block** tied to the canonical issue and posts
+  it back as an issue comment. This is how session state writes back to
+  the source of truth.
+- **Worktree / branch names map back to canonical IDs.**
+- A session-start hook (`.claude/hooks/canonical-id-check.js`) warns when
+  `tasks.json` contains tasks without a `canonicalId`.
+
 ## Session Initialization (Read This First!)
 
 **At the start of every session**, automatically load project context by reading these files:
 
 ```
-1. PROJECT_SUMMARY.md           # High-level project state and context
-2. .claude/dev-docs/plan.md     # Current task breakdown and implementation plan
-3. .claude/dev-docs/tasks.json  # Structured task data with dependencies and status
+1. PROJECT_SUMMARY.md           # Non-canonical: session context summary
+2. .claude/dev-docs/plan.md     # Non-canonical: current execution slice
+3. .claude/dev-docs/tasks.json  # Non-canonical: derived task slice (carries canonicalId refs)
 4. .claude/ARCHITECTURE.md      # Canonical components (check BEFORE designing new features)
 ```
 
-**Why these files?** This is the **Dev-Docs Pattern** that prevents context drift and architectural violations:
+**Why these files?** This is the **Dev-Docs Pattern** that keeps context
+load small. These files are **derived execution context**, not the source
+of truth — GitHub Issues are. Keeping dev-docs tight prevents context
+drift and architectural violations:
 - `PROJECT_SUMMARY.md` - What we've built (project history, architecture, quality scores)
 - `plan.md` - What we're building (current task breakdown, implementation steps)
-- `tasks.json` - Structured tasks with backlog tiers, dependencies, and status tracking
+- `tasks.json` - Structured tasks with backlog tiers, dependencies, status, and canonical GitHub issue refs
 - `ARCHITECTURE.md` - Singleton components that MUST NOT be duplicated
 
 **Token cost**: ~1,500 tokens total (target, see Token Efficiency Rules below)
