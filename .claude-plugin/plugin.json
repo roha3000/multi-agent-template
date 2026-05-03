@@ -1,0 +1,51 @@
+{
+  "name": "multi-agent-template",
+  "version": "0.1.0",
+  "description": "Phase-gated multi-agent development framework with 35 specialist personas, dev-docs session continuity, Codex adversarial review, and a fleet dashboard for parallel sessions.",
+  "author": {
+    "name": "roha3000"
+  },
+  "homepage": "https://github.com/roha3000/multi-agent-template",
+  "repository": "https://github.com/roha3000/multi-agent-template",
+  "license": "MIT",
+  "keywords": [
+    "multi-agent",
+    "claude-code",
+    "tdd",
+    "phase-gates",
+    "codex",
+    "orchestration",
+    "dev-docs"
+  ],
+  "components": {
+    "agents": "./.claude/agents",
+    "commands": "./.claude/commands",
+    "hooks": "./.claude/hooks"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/session-start.js\""
+      }
+    ],
+    "SessionEnd": [
+      {
+        "type": "command",
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/session-end.js\""
+      }
+    ],
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/track-progress.js\""
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/skill-suggester.js\""
+      }
+    ]
+  }
+}
